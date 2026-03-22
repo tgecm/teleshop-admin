@@ -155,12 +155,14 @@ export default function Products() {
                     src={getImageUrl(product.image_url, selectedBotId)} 
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
                   />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300">
-                    <ImageIcon className="w-12 h-12" />
-                  </div>
-                )}
+                ) : null}
+                <div className="w-full h-full items-center justify-center text-gray-300"
+                  style={{ display: product.image_url ? 'none' : 'flex' }}
+                >
+                  <ImageIcon className="w-12 h-12" />
+                </div>
                 <div className="absolute top-3 right-3 flex gap-2">
                   <button 
                     onClick={() => handleEdit(product)}
@@ -221,6 +223,7 @@ export default function Products() {
               <ProductForm 
                 product={editingProduct} 
                 categories={categories}
+                selectedBotId={selectedBotId}
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={(data) => {
                   if (editingProduct) {
@@ -239,7 +242,7 @@ export default function Products() {
   );
 }
 
-function ProductForm({ product, categories, onClose, onSubmit, isLoading }) {
+function ProductForm({ product, categories, onClose, onSubmit, isLoading, selectedBotId }) {
   const [formData, setFormData] = useState({
     name: product?.name || '',
     description: product?.description || '',
@@ -248,6 +251,25 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading }) {
     category_id: product?.category_id || '',
     image_url: product?.image_url || '',
   });
+  const [uploading, setUploading] = useState(false);
+  const { addToast } = useToastStore();
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const result = await uploadImage(file, selectedBotId);
+      if (result.file_id) {
+        setFormData({ ...formData, image_url: result.file_id });
+        addToast('Image uploaded successfully');
+      }
+    } catch (err) {
+      addToast('Image upload failed', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -332,14 +354,23 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading }) {
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-bold text-gray-500 uppercase ml-1">Image URL</label>
-          <div className="flex gap-2">
-            <input 
-              value={formData.image_url}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              placeholder="https://..."
-            />
+          <label className="text-xs font-bold text-gray-500 uppercase ml-1">Image</label>
+          <div className="space-y-2">
+            <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-indigo-400 transition-all ${uploading ? 'opacity-50' : ''}`}>
+              {uploading ? <Loader2 className="w-5 h-5 animate-spin text-indigo-500" /> : <ImageIcon className="w-5 h-5 text-gray-400" />}
+              <span className="text-sm text-gray-500">{uploading ? 'Uploading...' : 'Upload Image'}</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+            </label>
+            {formData.image_url && (
+              <div className="relative w-full h-32 rounded-xl overflow-hidden bg-gray-50">
+                <img
+                  src={getImageUrl(formData.image_url, selectedBotId)}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => e.target.style.display='none'}
+                />
+              </div>
+            )}
           </div>
         </div>
 
