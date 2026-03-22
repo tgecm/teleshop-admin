@@ -15,10 +15,16 @@ export const updateProduct = (id, data) =>
 export const deleteProduct = (id) => 
   client.delete(`/products/${id}`).then(res => res.data);
 
-export const uploadImage = (file) => {
+export const uploadImage = (file, bot_id) => {
   const formData = new FormData();
   formData.append('file', file);
-  return client.post('/upload/image', formData, {
+  return client.post(`/upload/image?bot_id=${bot_id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }).then(res => res.data);
+};
+
+export const getImageUrl = (image_url, bot_id) => {
+  if (!image_url) return null;
+  if (image_url.startsWith('http')) return image_url;
+  return `https://api.telegramecommerce.shop/telegram/file/${image_url}?bot_id=${bot_id}`;
 };
