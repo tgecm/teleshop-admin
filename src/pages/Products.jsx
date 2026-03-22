@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProducts, createProduct, updateProduct, deleteProduct, getCategories } from '../api/products';
+import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, uploadImage, getImageUrl } from '../api/products';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
@@ -152,7 +152,7 @@ export default function Products() {
               <div className="aspect-square bg-gray-50 relative overflow-hidden">
                 {product.image_url ? (
                   <img 
-                    src={product.image_url} 
+                    src={getImageUrl(product.image_url, selectedBotId)} 
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
