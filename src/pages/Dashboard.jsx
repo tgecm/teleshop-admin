@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getStats, getOrdersByDay, getTopProducts } from '../api/stats';
+import { getImageUrl } from '../api/products';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import StatCard from '../components/shared/StatCard';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
@@ -180,13 +181,25 @@ export default function Dashboard() {
                   key={index} 
                   className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors"
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
-                    index === 0 ? 'bg-amber-100 text-amber-600' : 
-                    index === 1 ? 'bg-slate-100 text-slate-600' :
-                    index === 2 ? 'bg-orange-100 text-orange-600' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {index + 1}
+                  <div className="relative w-10 h-10 flex-shrink-0">
+                    {product.image_url ? (
+                      <img
+                        src={getImageUrl(product.image_url, selectedBotId)}
+                        alt={product.name}
+                        className="w-10 h-10 rounded-lg object-cover"
+                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                      />
+                    ) : null}
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm ${
+                      index === 0 ? 'bg-amber-100 text-amber-600' : 
+                      index === 1 ? 'bg-slate-100 text-slate-600' :
+                      index === 2 ? 'bg-orange-100 text-orange-600' :
+                      'bg-gray-100 text-gray-600'
+                    } ${product.image_url ? 'hidden' : 'flex'}`}
+                      style={{ display: product.image_url ? 'none' : 'flex' }}
+                    >
+                      {index + 1}
+                    </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate">{product.name}</p>
