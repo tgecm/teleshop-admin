@@ -26,5 +26,16 @@ export const uploadImage = (file, bot_id) => {
 export const getImageUrl = (image_url, bot_id) => {
   if (!image_url) return null;
   if (image_url.startsWith('http')) return image_url;
-  return `https://api.telegramecommerce.shop/telegram/file/${image_url}?bot_id=${bot_id}`;
+  
+  // The backend should handle the file_id to Telegram URL conversion
+  // We append the token as a query param if the backend requires authentication for this endpoint
+  const token = localStorage.getItem('auth-storage') 
+    ? JSON.parse(localStorage.getItem('auth-storage'))?.state?.token 
+    : null;
+    
+  let url = `https://api.telegramecommerce.shop/telegram/file/${image_url}?bot_id=${bot_id}`;
+  if (token) {
+    url += `&token=${token}`;
+  }
+  return url;
 };
