@@ -26,22 +26,15 @@ export const uploadImage = (file, bot_id) => {
 export const getImageUrl = (image_url, bot_id) => {
   if (!image_url) return null;
   if (image_url.startsWith('http')) return image_url;
-<<<<<<< HEAD
-  return `https://api.telegramecommerce.shop/telegram/file/${image_url}?bot_id=${bot_id}`;
-=======
 
-  // Handle JSON array format: [{"type": "photo", "file_id": "..."}]
   let file_id = image_url;
   try {
     const parsed = JSON.parse(image_url);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      // Prefer photo over video or other types
       const photo = parsed.find(m => m.type === 'photo') || parsed[0];
       file_id = photo.file_id;
     }
-  } catch (e) {
-    // Not JSON, use as-is (plain file_id string)
-  }
+  } catch (e) {}
 
   const token = localStorage.getItem('auth-storage') 
     ? JSON.parse(localStorage.getItem('auth-storage'))?.state?.token 
@@ -52,5 +45,4 @@ export const getImageUrl = (image_url, bot_id) => {
     url += `&token=${token}`;
   }
   return url;
->>>>>>> 6180183a10797ece4076f056bc98d10405791db7
 };
