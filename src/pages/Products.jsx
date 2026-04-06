@@ -142,12 +142,12 @@ export default function Products() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
           {filteredProducts.map(product => (
             <motion.div 
               layout
               key={product.id}
-              className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:border-indigo-200 transition-all group"
+              className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:border-indigo-200 transition-all group"
             >
               <div className="aspect-square bg-gray-50 relative overflow-hidden">
                 {product.image_url ? (
@@ -161,24 +161,24 @@ export default function Products() {
                 <div className="w-full h-full items-center justify-center text-gray-300"
                   style={{ display: product.image_url ? 'none' : 'flex' }}
                 >
-                  <ImageIcon className="w-12 h-12" />
+                  <ImageIcon className="w-10 h-10 md:w-12 md:h-12" />
                 </div>
-                <div className="absolute top-3 right-3 flex gap-2">
+                <div className="absolute top-2 right-2 md:top-3 md:right-3 flex gap-1.5 md:gap-2">
                   <button 
                     onClick={() => handleEdit(product)}
-                    className="p-2 bg-white/90 backdrop-blur-sm rounded-xl shadow-sm text-gray-600 hover:text-indigo-600 transition-colors"
+                    className="p-1.5 md:p-2 bg-white/90 backdrop-blur-sm rounded-lg md:rounded-xl shadow-sm text-gray-600 hover:text-indigo-600 transition-colors"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   </button>
                   <button 
                     onClick={() => handleDelete(product.id)}
-                    className="p-2 bg-white/90 backdrop-blur-sm rounded-xl shadow-sm text-gray-600 hover:text-rose-600 transition-colors"
+                    className="p-1.5 md:p-2 bg-white/90 backdrop-blur-sm rounded-lg md:rounded-xl shadow-sm text-gray-600 hover:text-rose-600 transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   </button>
                 </div>
-                <div className="absolute bottom-3 left-3">
-                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                <div className="absolute bottom-2 left-2 md:bottom-3 md:left-3">
+                  <span className={`px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[8px] md:text-[10px] font-bold uppercase tracking-wider ${
                     product.stock_quantity > 10 ? 'bg-emerald-500 text-white' :
                     product.stock_quantity > 0 ? 'bg-amber-500 text-white' :
                     'bg-rose-500 text-white'
@@ -187,14 +187,14 @@ export default function Products() {
                   </span>
                 </div>
               </div>
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <h3 className="font-bold text-gray-900 line-clamp-1">{product.name}</h3>
-                  <p className="font-bold text-indigo-600 whitespace-nowrap">{product.price.toLocaleString()} MMK</p>
+              <div className="p-3 md:p-4">
+                <div className="flex flex-col gap-0.5 mb-1">
+                  <h3 className="font-bold text-gray-900 text-sm md:text-base line-clamp-1">{product.name}</h3>
+                  <p className="font-bold text-indigo-600 text-sm md:text-base">{product.price.toLocaleString()} MMK</p>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                  <Tag className="w-3 h-3" />
-                  {categories?.find(c => c.id === product.category_id)?.name || 'Uncategorized'}
+                <div className="flex items-center gap-1.5 text-[8px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  <Tag className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                  <span className="truncate">{categories?.find(c => c.id === product.category_id)?.name || 'Uncategorized'}</span>
                 </div>
               </div>
             </motion.div>
@@ -282,106 +282,126 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 pb-12">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">{product ? 'Edit Product' : 'New Product'}</h2>
+        <h2 className="text-xl font-bold text-gray-900">
+          {product ? 'Edit Product' : 'New Product'}
+        </h2>
         <button onClick={onClose} className="p-2 bg-gray-100 rounded-full">
           <X className="w-5 h-5 text-gray-500" />
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-gray-500 uppercase ml-1">Product Name</label>
-          <input 
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 ml-1">Product Image</label>
+          <div className="flex gap-4 items-center">
+            <div className="w-24 h-24 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center relative overflow-hidden group">
+              {formData.image_url ? (
+                <img 
+                  src={getImageUrl(formData.image_url, selectedBotId)} 
+                  className="w-full h-full object-cover" 
+                  alt="Preview"
+                />
+              ) : (
+                <ImageIcon className="w-8 h-8 text-gray-300" />
+              )}
+              {uploading && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="inline-block px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-bold cursor-pointer hover:bg-gray-200 transition-colors">
+                {formData.image_url ? 'Change Image' : 'Upload Image'}
+                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+              </label>
+              <p className="text-[10px] text-gray-400 mt-2">Recommended: Square image, max 2MB</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 ml-1">Product Name</label>
+          <input
             required
+            type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
             placeholder="e.g. Premium Coffee Beans"
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-500 uppercase ml-1">Price (MMK)</label>
-            <input 
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-gray-700 ml-1">Price (MMK)</label>
+            <input
               required
               type="number"
               value={formData.price}
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
               placeholder="0"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-500 uppercase ml-1">Stock</label>
-            <input 
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-gray-700 ml-1">Stock</label>
+            <input
               required
               type="number"
               value={formData.stock_quantity}
               onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
               placeholder="0"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
             />
           </div>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-gray-500 uppercase ml-1">Category</label>
-          <select 
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 ml-1">Category</label>
+          <select
             required
             value={formData.category_id}
             onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
           >
             <option value="">Select Category</option>
-            {categories?.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+            {categories?.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
           </select>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-gray-500 uppercase ml-1">Description</label>
-          <textarea 
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 ml-1">Description</label>
+          <textarea
             rows={3}
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
-            placeholder="Tell customers about this product..."
+            placeholder="Describe your product..."
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium resize-none"
           />
         </div>
 
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-gray-500 uppercase ml-1">Image</label>
-          <div className="space-y-2">
-            <label className={`flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-indigo-400 transition-all ${uploading ? 'opacity-50' : ''}`}>
-              {uploading ? <Loader2 className="w-5 h-5 animate-spin text-indigo-500" /> : <ImageIcon className="w-5 h-5 text-gray-400" />}
-              <span className="text-sm text-gray-500">{uploading ? 'Uploading...' : 'Upload Image'}</span>
-              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-            </label>
-            {formData.image_url && (
-              <div className="relative w-full h-32 rounded-xl overflow-hidden bg-gray-50">
-                <img
-                  src={getImageUrl(formData.image_url, selectedBotId)}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                  onError={(e) => e.target.style.display='none'}
-                />
-              </div>
-            )}
-          </div>
+        <div className="pt-4 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            disabled={isLoading || uploading}
+            type="submit"
+            className="flex-[2] px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          >
+            {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+            {product ? 'Update Product' : 'Create Product'}
+          </button>
         </div>
-
-        <button 
-          type="submit"
-          disabled={isLoading}
-          className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 disabled:opacity-50"
-        >
-          {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-          {product ? 'Update Product' : 'Create Product'}
-        </button>
       </form>
     </div>
   );

@@ -17,7 +17,8 @@ import {
   Calendar,
   Clock,
   ShieldAlert,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -85,7 +86,7 @@ export default function Customers() {
       </div>
 
       {filteredCustomers.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
+        <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-gray-200">
           <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <User className="w-8 h-8 text-gray-300" />
           </div>
@@ -103,26 +104,26 @@ export default function Customers() {
               className={`bg-white p-4 rounded-2xl shadow-sm border transition-all ${customer.is_blocked ? 'border-rose-100 bg-rose-50/30' : 'border-gray-100'}`}
             >
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${customer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-sm ${customer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
                     {customer.first_name?.[0] || '?'}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-gray-900">{customer.first_name}</p>
+                      <p className="text-sm font-bold text-gray-900 truncate">{customer.first_name}</p>
                       {customer.is_blocked && (
-                        <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[8px] font-bold uppercase rounded-md flex items-center gap-1">
+                        <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[8px] font-bold uppercase rounded-md flex items-center gap-1 border border-rose-200">
                           <Ban className="w-2 h-2" /> Blocked
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500">@{customer.username || 'no_username'}</p>
+                    <p className="text-xs text-gray-500 truncate">@{customer.username || 'no_username'}</p>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-6">
-                  <div className="hidden sm:flex flex-col items-center">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Orders</p>
+                <div className="flex items-center gap-4 sm:gap-6 flex-shrink-0">
+                  <div className="flex flex-col items-center">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-0.5">Orders</p>
                     <div className="flex items-center gap-1 text-sm font-bold text-gray-900">
                       <ShoppingBag className="w-3 h-3 text-indigo-600" />
                       {getCustomerOrderCount(customer.id)}
@@ -137,16 +138,17 @@ export default function Customers() {
                           toggleBlockMutation.mutate({ id: customer.id, is_blocked: !customer.is_blocked });
                         }
                       }}
-                      className={`p-2 rounded-xl transition-all ${
+                      disabled={toggleBlockMutation.isPending}
+                      className={`p-2.5 rounded-xl transition-all shadow-sm active:scale-90 ${
                         customer.is_blocked 
-                        ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' 
-                        : 'bg-rose-100 text-rose-600 hover:bg-rose-200'
+                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100' 
+                        : 'bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100'
                       }`}
-                      title={customer.is_blocked ? 'Unblock' : 'Block'}
                     >
-                      {customer.is_blocked ? <ShieldCheck className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
+                      {toggleBlockMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 
+                        (customer.is_blocked ? <ShieldCheck className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />)}
                     </button>
-                    <button className="p-2 bg-gray-100 text-gray-400 rounded-xl hover:bg-gray-200">
+                    <button className="p-2.5 bg-gray-50 text-gray-400 rounded-xl border border-gray-100 hover:bg-gray-100 active:scale-90 transition-all">
                       <ChevronRight className="w-5 h-5" />
                     </button>
                   </div>
