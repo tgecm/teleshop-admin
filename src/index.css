@@ -7,14 +7,45 @@
 
 @layer base {
   body {
-    @apply font-sans text-gray-900 bg-gray-50;
+    @apply font-sans text-gray-900 bg-gray-50 antialiased overflow-x-hidden;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  /* Safe area insets for mobile */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
 }
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+
+/* Custom transitions */
+.animate-in {
+  animation-duration: 0.2s;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
 }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-top {
+  from { transform: translateY(-0.5rem); }
+  to { transform: translateY(0); }
+}
+
+.fade-in { animation-name: fade-in; }
+.slide-in-from-top-2 { animation-name: slide-in-from-top; }

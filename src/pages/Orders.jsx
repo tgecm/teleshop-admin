@@ -18,7 +18,8 @@ import {
   ArrowRight,
   MapPin,
   Phone,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -38,10 +39,10 @@ export default function Orders() {
 
   const updateOrderMutation = useMutation({
     mutationFn: ({ id, status }) => updateOrder(id, { status }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries(['orders', selectedBotId]);
-      addToast('Order status updated');
-      setSelectedOrder(prev => prev ? { ...prev, status: selectedOrder.status } : null);
+      addToast(`Order status updated to ${variables.status}`);
+      setSelectedOrder(prev => prev ? { ...prev, status: variables.status } : null);
     },
     onError: () => addToast('Failed to update status', 'error'),
   });
@@ -102,15 +103,15 @@ export default function Orders() {
                     #{order.id.toString().slice(-4)}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{order.customer?.first_name || 'Customer'}</p>
-                    <p className="text-xs text-gray-500">{format(new Date(order.created_at), 'MMM d, h:mm a')}</p>
+                    <p className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{order.customer?.first_name || 'Customer'}</p>
+                    <p className="text-[10px] text-gray-500">{format(new Date(order.created_at), 'MMM d, h:mm a')}</p>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
                   <p className="text-sm font-bold text-gray-900">{order.total_amount?.toLocaleString()} MMK</p>
                   <StatusBadge status={order.status} />
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300" />
+                <ChevronRight className="w-4 h-4 text-gray-300 hidden sm:block" />
               </div>
             </motion.div>
           ))}
@@ -135,44 +136,44 @@ export default function Orders() {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 max-h-[90vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
             >
-              <div className="p-6">
+              <div className="p-6 pb-12">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900">Order Details</h2>
-                  <button onClick={() => setSelectedOrder(null)} className="p-2 bg-gray-100 rounded-full">
+                  <button onClick={() => setSelectedOrder(null)} className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform">
                     <X className="w-5 h-5 text-gray-500" />
                   </button>
                 </div>
 
                 <div className="space-y-6">
                   {/* Customer Info */}
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
-                    <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-100">
                       {selectedOrder.customer?.first_name?.[0]}
                     </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900">{selectedOrder.customer?.first_name}</p>
-                      <p className="text-xs text-gray-500">@{selectedOrder.customer?.username || 'no_username'}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-900 truncate">{selectedOrder.customer?.first_name}</p>
+                      <p className="text-xs text-gray-500 truncate">@{selectedOrder.customer?.username || 'no_username'}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex-shrink-0">
                       <StatusBadge status={selectedOrder.status} />
                     </div>
                   </div>
 
                   {/* Items List */}
                   <div className="space-y-3">
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                       <Package className="w-3 h-3" /> Items
                     </h3>
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
                       {selectedOrder.items?.map((item, idx) => (
                         <div key={idx} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-[10px] font-bold text-gray-500">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-[10px] font-bold text-gray-500 flex-shrink-0">
                               {item.quantity}x
                             </span>
-                            <span className="text-gray-700">{item.product_name}</span>
+                            <span className="text-gray-700 truncate">{item.product_name}</span>
                           </div>
-                          <span className="font-medium text-gray-900">{(item.price * item.quantity).toLocaleString()} MMK</span>
+                          <span className="font-bold text-gray-900 flex-shrink-0">{(item.price * item.quantity).toLocaleString()} MMK</span>
                         </div>
                       ))}
                     </div>
@@ -184,13 +185,13 @@ export default function Orders() {
 
                   {/* Order Meta */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-gray-50 rounded-xl">
+                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
                       <p className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1">
                         <CreditCard className="w-3 h-3" /> Method
                       </p>
                       <p className="text-sm font-bold text-gray-900 capitalize">{selectedOrder.payment_method || 'Cash'}</p>
                     </div>
-                    <div className="p-3 bg-gray-50 rounded-xl">
+                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
                       <p className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1">
                         <Calendar className="w-3 h-3" /> Date
                       </p>
@@ -199,20 +200,21 @@ export default function Orders() {
                   </div>
 
                   {/* Status Update */}
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Update Status</h3>
-                    <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-3">
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Update Status</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {['pending', 'processing', 'shipped', 'delivered', 'cancelled'].map(status => (
                         <button
                           key={status}
                           onClick={() => updateOrderMutation.mutate({ id: selectedOrder.id, status })}
                           disabled={updateOrderMutation.isPending}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all ${
+                          className={`px-4 py-2.5 rounded-xl text-[10px] font-bold capitalize transition-all flex items-center justify-center gap-2 ${
                             selectedOrder.status === status 
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
-                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 border border-indigo-600' 
+                            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 active:bg-gray-100'
                           }`}
                         >
+                          {updateOrderMutation.isPending && selectedOrder.status !== status && <Loader2 className="w-3 h-3 animate-spin" />}
                           {status}
                         </button>
                       ))}

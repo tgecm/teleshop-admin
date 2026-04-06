@@ -8,20 +8,20 @@ export function cn(...inputs) {
 
 export default function StatusBadge({ status }) {
   const colors = {
-    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
-    processing: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-    shipped: 'bg-purple-100 text-purple-800 border-purple-200',
-    delivered: 'bg-green-100 text-green-800 border-green-200',
-    cancelled: 'bg-red-100 text-red-800 border-red-200',
-    rejected: 'bg-gray-100 text-gray-800 border-gray-200',
-    active: 'bg-green-100 text-green-800 border-green-200',
-    inactive: 'bg-gray-100 text-gray-800 border-gray-200',
+    pending: 'bg-amber-50 text-amber-600 border-amber-100',
+    confirmed: 'bg-blue-50 text-blue-600 border-blue-100',
+    processing: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+    shipped: 'bg-purple-50 text-purple-600 border-purple-100',
+    delivered: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    cancelled: 'bg-rose-50 text-rose-600 border-rose-100',
+    rejected: 'bg-gray-50 text-gray-600 border-gray-100',
+    active: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    inactive: 'bg-gray-50 text-gray-600 border-gray-100',
   };
 
   return (
     <span className={cn(
-      "px-2 py-0.5 text-xs font-medium rounded-full border",
+      "px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-lg border",
       colors[status?.toLowerCase()] || colors.inactive
     )}>
       {status}
