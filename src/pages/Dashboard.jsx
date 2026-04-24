@@ -187,7 +187,10 @@ export default function Dashboard() {
                         src={getImageUrl(product.image_url, selectedBotId)}
                         alt={product.name}
                         className="w-10 h-10 rounded-lg object-cover"
-                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                        onError={(e) => { 
+                          console.warn(`[Dashboard] Image failed for "${product.name}":`, getImageUrl(product.image_url, selectedBotId));
+                          e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; 
+                        }}
                       />
                     ) : null}
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm ${
