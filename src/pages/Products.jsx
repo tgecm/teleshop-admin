@@ -155,7 +155,15 @@ export default function Products() {
                     src={getImageUrl(product.image_url, selectedBotId)} 
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
+                    onError={(e) => { 
+                      console.warn(`[Image] Failed to load for product #${product.id}:`, {
+                        image_url: product.image_url,
+                        resolved_url: getImageUrl(product.image_url, selectedBotId),
+                        bot_id: selectedBotId
+                      });
+                      e.target.style.display='none'; 
+                      e.target.nextSibling.style.display='flex'; 
+                    }}
                   />
                 ) : null}
                 <div className="w-full h-full items-center justify-center text-gray-300"
