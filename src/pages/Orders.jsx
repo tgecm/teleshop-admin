@@ -33,7 +33,7 @@ export default function Orders() {
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['orders', selectedBotId],
-    queryFn: () => getOrders({ bot_id: selectedBotId }),
+    queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
 

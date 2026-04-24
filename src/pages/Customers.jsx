@@ -31,13 +31,13 @@ export default function Customers() {
 
   const { data: customers, isLoading: customersLoading } = useQuery({
     queryKey: ['users', 'customers', selectedBotId],
-    queryFn: () => getUsers({ bot_id: selectedBotId }),
+    queryFn: () => getUsers({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
 
   const { data: orders } = useQuery({
     queryKey: ['orders', selectedBotId],
-    queryFn: () => getOrders({ bot_id: selectedBotId }),
+    queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
 

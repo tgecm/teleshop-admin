@@ -33,19 +33,19 @@ export default function Dashboard() {
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['stats', selectedBotId],
-    queryFn: () => getStats({ bot_id: selectedBotId }),
+    queryFn: () => getStats({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
     queryKey: ['stats', 'orders-by-day', selectedBotId, days],
-    queryFn: () => getOrdersByDay({ bot_id: selectedBotId, days }),
+    queryFn: () => getOrdersByDay({ bot_id: Number(selectedBotId), days }),
     enabled: !!selectedBotId,
   });
 
   const { data: topProducts, isLoading: productsLoading } = useQuery({
     queryKey: ['stats', 'top-products', selectedBotId],
-    queryFn: () => getTopProducts({ bot_id: selectedBotId, limit: 5 }),
+    queryFn: () => getTopProducts({ bot_id: Number(selectedBotId), limit: 5 }),
     enabled: !!selectedBotId,
   });
 

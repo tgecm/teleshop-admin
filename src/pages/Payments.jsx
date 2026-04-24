@@ -30,12 +30,12 @@ export default function Payments() {
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['payments', selectedBotId],
-    queryFn: () => getPaymentMethods({ bot_id: selectedBotId }),
+    queryFn: () => getPaymentMethods({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
 
   const mutation = useMutation({
-    mutationFn: (data) => editingPayment ? updatePayment(editingPayment.id, data) : createPayment({ ...data, bot_id: selectedBotId }),
+    mutationFn: (data) => editingPayment ? updatePayment(editingPayment.id, data) : createPayment({ ...data, bot_id: Number(selectedBotId) }),
     onSuccess: () => {
       queryClient.invalidateQueries(['payments']);
       closeModal();
