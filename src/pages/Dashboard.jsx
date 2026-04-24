@@ -63,17 +63,17 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-          <p className="text-gray-500 text-sm">Real-time performance metrics for your bot.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard Overview</h1>
+          <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Real-time performance metrics for your bot.</p>
         </div>
         <div className="flex items-center bg-white p-1 rounded-xl shadow-sm border border-gray-100 self-start">
           {[7, 30].map(d => (
             <button
               key={d}
               onClick={() => setDays(d)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${days === d ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all active:scale-95 ${days === d ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
             >
               {d} Days
             </button>
@@ -81,7 +81,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         {statsLoading ? (
           Array(4).fill(0).map((_, i) => <LoadingSkeleton key={i} className="h-28" />)
         ) : (
@@ -115,7 +115,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-indigo-600" />

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -9,6 +9,18 @@
   body {
     @apply font-sans text-gray-900 bg-gray-50 antialiased overflow-x-hidden;
     -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  /* Smooth scrolling for mobile */
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Better focus styles for mobile inputs */
+  input, textarea, select {
+    font-size: 16px; /* Prevents iOS zoom on focus */
   }
 }
 
@@ -23,10 +35,27 @@
   
   /* Safe area insets for mobile */
   .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(env(safe-area-inset-bottom), 8px);
   }
   .pt-safe {
     padding-top: env(safe-area-inset-top);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Touch feedback */
+  .touch-action-manipulation {
+    touch-action: manipulation;
+  }
+
+  /* Prevent text selection on interactive elements */
+  .select-none {
+    -webkit-user-select: none;
+    user-select: none;
   }
 }
 
@@ -47,5 +76,18 @@
   to { transform: translateY(0); }
 }
 
+@keyframes slide-in-from-bottom {
+  from { transform: translateY(1rem); }
+  to { transform: translateY(0); }
+}
+
 .fade-in { animation-name: fade-in; }
 .slide-in-from-top-2 { animation-name: slide-in-from-top; }
+.slide-in-from-bottom-2 { animation-name: slide-in-from-bottom; }
+
+/* Prevent overscroll bounce on iOS */
+@supports (-webkit-touch-callout: none) {
+  body {
+    overscroll-behavior: none;
+  }
+}

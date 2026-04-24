@@ -34,7 +34,7 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-[100dvh] bg-gray-50 flex flex-col">
       <TopBar onMenuClick={() => setIsDrawerOpen(true)} />
       
       <div className="flex flex-1 relative">
@@ -105,7 +105,7 @@ export default function Layout() {
           )}
         </AnimatePresence>
 
-        <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 overflow-y-auto max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-4 md:p-8 pb-28 md:pb-8 overflow-y-auto max-w-7xl mx-auto w-full scroll-smooth">
           <Outlet />
         </main>
       </div>

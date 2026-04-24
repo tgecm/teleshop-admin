@@ -136,7 +136,10 @@ export default function Orders() {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 max-h-[90vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
             >
-              <div className="p-6 pb-12">
+              <div className="p-5 pb-12">
+                <div className="flex justify-center mb-4">
+                  <div className="w-10 h-1 bg-gray-200 rounded-full" />
+                </div>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900">Order Details</h2>
                   <button onClick={() => setSelectedOrder(null)} className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform">
