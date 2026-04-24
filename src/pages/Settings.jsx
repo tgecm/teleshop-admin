@@ -41,7 +41,8 @@ import {
   Calendar,
   TrendingUp,
   Power,
-  CreditCard
+  CreditCard,
+  X
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -146,6 +147,17 @@ export default function Settings() {
     },
   });
 
+  const deleteBotMutation = useMutation({
+    mutationFn: (botId) => deleteBot(botId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['all-bots']);
+      addToast('Bot deleted successfully');
+    },
+    onError: (err) => {
+      addToast(err.response?.data?.detail || 'Failed to delete bot', 'error');
+    },
+  });
+
   // Local state for forms
   const [email, setEmail] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -164,10 +176,14 @@ export default function Settings() {
     }
   }, [bot, contentBlocks, aiSettings]);
 
+  // Check if current bot is the main bot
+  const isMainBot = bot?.is_main || bot?.bot_username?.includes('ecommerce_official') || false;
+
   const tabs = [
     { id: 'shop', label: 'Shop', icon: SettingsIcon },
     { id: 'subscription', label: 'Plan', icon: ShieldCheck },
     ...(isSuperadmin ? [{ id: 'superadmin', label: 'Admin', icon: ShieldAlert }] : []),
+    ...(isSuperadmin && isMainBot ? [{ id: 'bots', label: 'Bots', icon: Bot }] : []),
   ];
 
   if (botLoading) return <LoadingSkeleton type="list" count={5} />;
@@ -275,8 +291,173 @@ export default function Settings() {
           </div>
         )}
         
-        {/* Additional tabs logic would follow similar patterns, truncated for brevity but ensures mobile layout */}
+        )}
+
+        {activeTab === 'bots' && isSuperadmin && isMainBot && (
+          <ManageBots 
+            allBots={allBots} 
+            deleteBotMutation={deleteBotMutation}
+            selectedBotId={selectedBotId}
+          />
+        )}
       </div>
+    </div>
+  );
+}
+
+function ManageBots({ allBots, deleteBotMutation, selectedBotId }) {
+  const [confirmBot, setConfirmBot] = useState(null);
+  const [confirmText, setConfirmText] = useState('');
+
+  const handleDelete = (bot) => {
+    if (confirmBot?.id === bot.id) {
+      // Second confirmation
+      if (confirmText === 'DELETE') {
+        deleteBotMutation.mutate(bot.id);
+        setConfirmBot(null);
+        setConfirmText('');
+      }
+    } else {
+      // First confirmation
+      setConfirmBot(bot);
+      setConfirmText('');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <Bot className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Manage Bots</h3>
+              <p className="text-xs text-gray-500">View and manage all registered bots</p>
+            </div>
+          </div>
+        </div>
+
+        {!allBots || allBots.length === 0 ? (
+          <div className="p-12 text-center">
+            <Bot className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+            <p className="text-gray-500 font-medium">No bots found</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {allBots.map(b => (
+              <div key={b.id} className="p-4 sm:p-5 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm ${
+                    b.id.toString() === selectedBotId?.toString()
+                      ? 'bg-indigo-100 text-indigo-600 ring-2 ring-indigo-200'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <Bot className="w-6 h-6" />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-bold text-gray-900 truncate">{b.bot_full_name || b.bot_username || `Bot #${b.id}`}</p>
+                      {b.id.toString() === selectedBotId?.toString() && (
+                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase rounded-lg border border-indigo-100">
+                          Current
+                        </span>
+                      )}
+                      {b.is_main && (
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-bold uppercase rounded-lg border border-amber-100">
+                          Main
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                      @{b.bot_username || 'no_username'} · ID: {b.id}
+                    </p>
+                    {b.plan_name && (
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
+                        Plan: {b.plan_name}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {b.is_active !== undefined && (
+                      <span className={`w-2.5 h-2.5 rounded-full ${b.is_active ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                    )}
+                    
+                    {/* Don't allow deleting the current/main bot easily */}
+                    {b.id.toString() !== selectedBotId?.toString() && (
+                      <button
+                        onClick={() => handleDelete(b)}
+                        className={`p-2.5 rounded-xl transition-all active:scale-90 ${
+                          confirmBot?.id === b.id
+                            ? 'bg-rose-100 text-rose-600 border border-rose-200'
+                            : 'bg-gray-50 text-gray-400 hover:bg-rose-50 hover:text-rose-500 border border-transparent'
+                        }`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Double confirmation UI */}
+                <AnimatePresence>
+                  {confirmBot?.id === b.id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-4 p-4 bg-rose-50 rounded-2xl border border-rose-100">
+                        <div className="flex items-start gap-3 mb-3">
+                          <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-bold text-rose-900">Delete this bot?</p>
+                            <p className="text-xs text-rose-600 mt-0.5">
+                              This will permanently delete <strong>@{b.bot_username}</strong> and all its data. This cannot be undone.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs text-rose-600 font-medium">Type <strong>DELETE</strong> to confirm:</p>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={confirmText}
+                              onChange={(e) => setConfirmText(e.target.value)}
+                              placeholder="Type DELETE"
+                              className="flex-1 px-3 py-2 bg-white border border-rose-200 rounded-xl text-sm font-mono focus:ring-2 focus:ring-rose-500 outline-none"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleDelete(b)}
+                              disabled={confirmText !== 'DELETE' || deleteBotMutation.isPending}
+                              className="px-4 py-2 bg-rose-600 text-white text-sm font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-rose-700 transition-all active:scale-95 flex items-center gap-2"
+                            >
+                              {deleteBotMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                              Delete
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => { setConfirmBot(null); setConfirmText(''); }}
+                            className="text-xs text-gray-500 hover:text-gray-700 font-medium mt-1"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
