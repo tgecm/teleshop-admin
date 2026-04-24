@@ -35,18 +35,18 @@ export default function Broadcast() {
 
   const { data: broadcasts, isLoading: broadcastsLoading } = useQuery({
     queryKey: ['broadcasts', selectedBotId],
-    queryFn: () => getBroadcasts({ bot_id: selectedBotId }),
+    queryFn: () => getBroadcasts({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
 
   const { data: giveaways, isLoading: giveawaysLoading } = useQuery({
     queryKey: ['giveaways', selectedBotId],
-    queryFn: () => getGiveaways({ bot_id: selectedBotId }),
+    queryFn: () => getGiveaways({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
 
   const createBroadcastMutation = useMutation({
-    mutationFn: (data) => createBroadcast({ ...data, bot_id: selectedBotId }),
+    mutationFn: (data) => createBroadcast({ ...data, bot_id: Number(selectedBotId) }),
     onSuccess: () => {
       queryClient.invalidateQueries(['broadcasts', selectedBotId]);
       addToast('Broadcast sent successfully');
@@ -56,7 +56,7 @@ export default function Broadcast() {
   });
 
   const createGiveawayMutation = useMutation({
-    mutationFn: (data) => createGiveaway({ ...data, bot_id: selectedBotId }),
+    mutationFn: (data) => createGiveaway({ ...data, bot_id: Number(selectedBotId) }),
     onSuccess: () => {
       queryClient.invalidateQueries(['giveaways', selectedBotId]);
       addToast('Giveaway created successfully');

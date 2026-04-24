@@ -62,13 +62,13 @@ export default function Settings() {
 
   const { data: contentBlocks } = useQuery({
     queryKey: ['content-blocks', selectedBotId],
-    queryFn: () => getContentBlocks({ bot_id: selectedBotId }),
+    queryFn: () => getContentBlocks({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
 
   const { data: admins } = useQuery({
     queryKey: ['users', 'admins', selectedBotId],
-    queryFn: () => getUsers({ bot_id: selectedBotId, is_admin: true }),
+    queryFn: () => getUsers({ bot_id: Number(selectedBotId), is_admin: true }),
     enabled: !!selectedBotId,
   });
 

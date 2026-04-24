@@ -32,24 +32,32 @@ export default function Products() {
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', selectedBotId],
-    queryFn: () => getProducts({ bot_id: selectedBotId }),
+    queryFn: () => getProducts({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
 
   const { data: categories } = useQuery({
     queryKey: ['categories', selectedBotId],
-    queryFn: () => getCategories({ bot_id: selectedBotId }),
+    queryFn: () => getCategories({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => createProduct({ ...data, bot_id: selectedBotId }),
-    onSuccess: () => {
+    mutationFn: (data) => createProduct({ 
+      ...data, 
+      bot_id: Number(selectedBotId),
+      category_id: data.category_id || null,
+    }),
+    onSuccess: (result) => {
       queryClient.invalidateQueries(['products', selectedBotId]);
       addToast('Product created successfully');
       setIsModalOpen(false);
+      console.log('[Product] Created:', result);
     },
-    onError: () => addToast('Failed to create product', 'error'),
+    onError: (err) => {
+      console.error('[Product] Create failed:', err.response?.data || err.message);
+      addToast(err.response?.data?.detail || 'Failed to create product', 'error');
+    },
   });
 
   const updateMutation = useMutation({
@@ -267,13 +275,17 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     if (!file) return;
     setUploading(true);
     try {
-      const result = await uploadImage(file, selectedBotId);
+      const result = await uploadImage(file, Number(selectedBotId));
       if (result.file_id) {
         setFormData({ ...formData, image_url: result.file_id });
         addToast('Image uploaded successfully');
+      } else if (result.url) {
+        setFormData({ ...formData, image_url: result.url });
+        addToast('Image uploaded successfully');
       }
     } catch (err) {
-      addToast('Image upload failed', 'error');
+      console.error('[Image] Upload failed:', err.response?.data || err.message);
+      addToast(err.response?.data?.detail || 'Image upload failed', 'error');
     } finally {
       setUploading(false);
     }
@@ -284,8 +296,8 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     onSubmit({
       ...formData,
       price: Number(formData.price),
-      stock_quantity: Number(formData.stock_quantity),
-      category_id: Number(formData.category_id)
+      stock_quantity: Number(formData.stock_quantity) || null,
+      category_id: formData.category_id ? Number(formData.category_id) : null,
     });
   };
 
