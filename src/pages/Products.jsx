@@ -115,11 +115,9 @@ export default function Products() {
             />
           </div>
           <button 
-            onClick={() => {
-              setEditingProduct(null);
-              setIsModalOpen(true);
-            }}
-            className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center gap-2"
+            disabled
+            className="p-2.5 bg-gray-400 text-white rounded-2xl shadow-lg flex items-center gap-2 opacity-50 cursor-not-allowed"
+            title="Temporarily disabled"
           >
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline font-bold">New Product</span>
@@ -336,9 +334,9 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
               )}
             </div>
             <div className="flex-1">
-              <label className="inline-block px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-bold cursor-pointer hover:bg-gray-200 transition-colors">
+<label className="inline-block px-4 py-2 bg-gray-100 text-gray-400 rounded-xl text-sm font-bold cursor-not-allowed opacity-50" title="Temporarily disabled">
                 {formData.image_url ? 'Change Image' : 'Upload Image'}
-                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                <input type="file" className="hidden" accept="image/*" disabled />
               </label>
               <p className="text-[10px] text-gray-400 mt-2">Recommended: Square image, max 2MB</p>
             </div>
