@@ -232,7 +232,7 @@ export default function Products() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 max-h-[90vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 max-h-[85svh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
             >
               <ProductForm 
                 product={editingProduct} 
@@ -300,7 +300,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
   };
 
   return (
-    <div className="p-5 pb-12">
+    <div className="p-5 pb-24">
       <div className="flex justify-center mb-4">
         <div className="w-10 h-1 bg-gray-200 rounded-full" />
       </div>
