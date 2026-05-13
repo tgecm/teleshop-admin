@@ -47,9 +47,9 @@ export default function Login() {
             </div>
           </div>
           
-          <div className="text-center mb-10">
-            <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
-            <p className="text-gray-500 mt-2">Sign in to manage your TeleShop bots</p>
+          <div className="text-center mb-8 sm:mb-10">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome Back</h1>
+            <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">Sign in to manage your TeleShop bots</p>
           </div>
 
           {error && (

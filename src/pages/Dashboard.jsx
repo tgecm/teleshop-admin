@@ -62,26 +62,26 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-          <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Real-time performance metrics for your bot.</p>
+    <div className="space-y-5 sm:space-y-8">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 text-[11px] sm:text-sm mt-0.5 hidden sm:block">Real-time performance metrics for your bot.</p>
         </div>
-        <div className="flex items-center bg-white p-1 rounded-xl shadow-sm border border-gray-100 self-start">
+        <div className="flex items-center bg-white p-0.5 rounded-xl shadow-sm border border-gray-100 flex-shrink-0">
           {[7, 30].map(d => (
             <button
               key={d}
               onClick={() => setDays(d)}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all active:scale-95 ${days === d ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-bold rounded-lg transition-all active:scale-95 ${days === d ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
             >
-              {d} Days
+              {d}d
             </button>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-6">
         {statsLoading ? (
           Array(4).fill(0).map((_, i) => <LoadingSkeleton key={i} className="h-28" />)
         ) : (
@@ -114,15 +114,15 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-indigo-600" />
-              Sales Performance
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h3 className="text-sm sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+              Sales
             </h3>
           </div>
-          <div className="h-[300px] w-full">
+          <div className="h-[200px] sm:h-[300px] w-full">
             {chartLoading ? (
               <LoadingSkeleton className="w-full h-full" />
             ) : (

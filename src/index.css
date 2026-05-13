@@ -91,3 +91,44 @@
     overscroll-behavior: none;
   }
 }
+
+/* Mobile tap target expansion helper */
+.tap-expand {
+  position: relative;
+}
+.tap-expand::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+}
+
+/* Bottom nav safe area padding */
+.pb-nav {
+  padding-bottom: calc(max(env(safe-area-inset-bottom), 8px) + 68px);
+}
+
+/* Bottom sheet extra safe area */
+.pb-sheet {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+
+/* Card press effect */
+.card-press {
+  transition: transform 0.15s ease;
+}
+.card-press:active {
+  transform: scale(0.98);
+}
+
+/* Modal thin scrollbar */
+.modal-scroll::-webkit-scrollbar {
+  width: 3px;
+}
+.modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-scroll::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 10px;
+}

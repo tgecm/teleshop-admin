@@ -68,22 +68,23 @@ export default function Broadcast() {
   if (broadcastsLoading || giveawaysLoading) return <LoadingSkeleton type="list" count={5} />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Engagement</h1>
-        <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 self-start w-full sm:w-auto">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Engagement</h1>
+        <div className="flex bg-white p-0.5 rounded-xl shadow-sm border border-gray-100 self-start w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('broadcasts')}
-            className={`flex-1 sm:flex-none px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'broadcasts' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
+            className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-[10px] sm:rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'broadcasts' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
           >
-            <Send className="w-4 h-4" />
-            Broadcasts
+            <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="sm:hidden">Sends</span>
+            <span className="hidden sm:inline">Broadcasts</span>
           </button>
           <button
             onClick={() => setActiveTab('giveaways')}
-            className={`flex-1 sm:flex-none px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'giveaways' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
+            className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-[10px] sm:rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'giveaways' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
           >
-            <Gift className="w-4 h-4" />
+            <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Giveaways
           </button>
         </div>

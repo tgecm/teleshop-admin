@@ -23,42 +23,42 @@ export default function TopBar({ onMenuClick }) {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-indigo-600 shadow-md pt-safe">
-      <div className="flex items-center justify-between h-14 px-3 md:px-6 gap-2">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <button 
+      <div className="flex items-center justify-between h-[52px] md:h-14 px-2 md:px-6 gap-1 md:gap-2">
+        <div className="flex items-center gap-1 md:gap-4">
+          <button
             onClick={onMenuClick}
-            className="md:hidden text-white p-2 -ml-1 hover:bg-white/10 active:bg-white/15 rounded-xl transition-colors active:scale-95"
+            className="md:hidden text-white p-2 -ml-1 hover:bg-white/10 active:bg-white/15 rounded-xl transition-colors active:scale-95 tap-expand"
           >
             <Menu className="w-[22px] h-[22px]" />
           </button>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-indigo-600 font-bold text-lg">T</span>
+          <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+            <div className="w-7 h-7 md:w-8 md:h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+              <span className="text-indigo-600 font-bold text-base md:text-lg">T</span>
             </div>
             <span className="text-white font-bold text-lg hidden lg:block">TeleShop</span>
           </div>
         </div>
 
-        <div className="flex-1 flex justify-center max-w-[180px] sm:max-w-none">
+        <div className="flex-1 flex justify-center max-w-[140px] sm:max-w-[200px] md:max-w-none">
           <BotSwitcher />
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">
           <div className="hidden sm:flex flex-col items-end">
             <span className="text-white text-sm font-medium leading-none">{user?.email?.split('@')[0]}</span>
             <span className="text-indigo-200 text-[10px] mt-1 uppercase font-bold tracking-wider">{user?.is_superadmin ? 'Superadmin' : 'Owner'}</span>
           </div>
-          
+
           {/* User Menu — tap-based (works on mobile & desktop) */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(prev => !prev)}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-indigo-500 border-2 border-white/20 flex items-center justify-center text-white overflow-hidden shadow-sm active:scale-95 transition-transform"
+              className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-500 border-2 border-white/20 flex items-center justify-center text-white overflow-hidden shadow-sm active:scale-95 transition-transform"
             >
               {user?.telegram_id ? (
                 <img src={`https://t.me/i/userpic/320/${user.telegram_id}.jpg`} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                <User className="w-5 h-5 sm:w-6 sm:h-6" />
+                <User className="w-[18px] h-[18px] md:w-6 md:h-6" />
               )}
             </button>
             

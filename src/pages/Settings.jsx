@@ -189,17 +189,17 @@ export default function Settings() {
   if (botLoading) return <LoadingSkeleton type="list" count={5} />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-gray-100 self-start w-full sm:w-auto overflow-x-auto scrollbar-hide">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Settings</h1>
+        <div className="flex bg-white p-0.5 rounded-xl shadow-sm border border-gray-100 self-start w-full sm:w-auto overflow-x-auto scrollbar-hide">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 sm:flex-none px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-[10px] sm:rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
             >
-              <tab.icon className="w-4 h-4" />
+              <tab.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               {tab.label}
             </button>
           ))}
@@ -289,8 +289,6 @@ export default function Settings() {
               </div>
             </section>
           </div>
-        )}
-        
         )}
 
         {activeTab === 'bots' && isSuperadmin && isMainBot && (
