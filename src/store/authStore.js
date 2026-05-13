@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware';
 export const useAuthStore = create(
   persist(
     (set) => ({
-      token: localStorage.getItem('token') || null,
+      token: null,
       user: null,
       isSuperadmin: false,
       login: (token, user) => {
@@ -20,6 +20,11 @@ export const useAuthStore = create(
     }),
     {
       name: 'auth-storage',
+      merge: (persisted, current) => ({
+        ...current,
+        ...persisted,
+        token: persisted.token || localStorage.getItem('token') || null,
+      }),
     }
   )
 );
