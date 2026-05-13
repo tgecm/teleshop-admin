@@ -8,9 +8,9 @@ import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const setAuth = useAuthStore(state => state.login);
   const navigate = useNavigate();
 
