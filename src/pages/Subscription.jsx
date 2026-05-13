@@ -55,9 +55,9 @@ export default function Subscription() {
   const daysRemaining = expiryDate ? differenceInDays(expiryDate, new Date()) : 0;
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Subscription</h1>
+    <div className="space-y-5 sm:space-y-8 pb-10">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Subscription</h1>
       </div>
 
       {isLoading ? (

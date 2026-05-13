@@ -105,7 +105,7 @@ export default function Layout() {
           )}
         </AnimatePresence>
 
-        <main className="flex-1 p-4 md:p-8 pb-28 md:pb-8 overflow-y-auto max-w-7xl mx-auto w-full scroll-smooth">
+        <main className="flex-1 px-3 sm:px-4 md:p-8 pb-nav md:pb-8 overflow-y-auto max-w-7xl mx-auto w-full scroll-smooth">
           <Outlet />
         </main>
       </div>
