@@ -3,16 +3,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
-import { updateBot, getBot, getAiSettings, updateAiSettings, getBots, deleteBot } from '../api/bots';
+import { updateBot, getBot, getAiSettings, updateAiSettings, deleteBot } from '../api/bots';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { getUsers, updateUser } from '../api/customers';
-import { 
-  getGlobalSettings, 
-  updateGlobalSetting, 
-  getPlanPayments, 
-  createPlanPayment, 
-  updatePlanPayment, 
-  deletePlanPayment 
+import {
+  getGlobalSettings,
+  updateGlobalSetting,
+  getPlanPayments,
+  createPlanPayment,
+  updatePlanPayment,
+  deletePlanPayment,
+  getAllBots
 } from '../api/superadmin';
 import { getStats } from '../api/stats';
 import { uploadImage } from '../api/products';
@@ -87,8 +88,8 @@ export default function Settings() {
   });
 
   const { data: allBots } = useQuery({
-    queryKey: ['all-bots'],
-    queryFn: getBots,
+    queryKey: ['superadmin', 'all-bots'],
+    queryFn: getAllBots,
     enabled: isSuperadmin,
   });
 
@@ -150,7 +151,7 @@ export default function Settings() {
   const deleteBotMutation = useMutation({
     mutationFn: (botId) => deleteBot(botId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['all-bots']);
+      queryClient.invalidateQueries(['superadmin', 'all-bots']);
       addToast('Bot deleted successfully');
     },
     onError: (err) => {
@@ -176,14 +177,11 @@ export default function Settings() {
     }
   }, [bot, contentBlocks, aiSettings]);
 
-  // Check if current bot is the main bot
-  const isMainBot = bot?.is_main || bot?.bot_username?.includes('ecommerce_official') || false;
-
   const tabs = [
     { id: 'shop', label: 'Shop', icon: SettingsIcon },
     { id: 'subscription', label: 'Plan', icon: ShieldCheck },
     ...(isSuperadmin ? [{ id: 'superadmin', label: 'Admin', icon: ShieldAlert }] : []),
-    ...(isSuperadmin && isMainBot ? [{ id: 'bots', label: 'Bots', icon: Bot }] : []),
+    ...(isSuperadmin ? [{ id: 'bots', label: 'Bots', icon: Bot }] : []),
   ];
 
   if (botLoading) return <LoadingSkeleton type="list" count={5} />;
@@ -291,7 +289,7 @@ export default function Settings() {
           </div>
         )}
 
-        {activeTab === 'bots' && isSuperadmin && isMainBot && (
+        {activeTab === 'bots' && isSuperadmin && (
           <ManageBots 
             allBots={allBots} 
             deleteBotMutation={deleteBotMutation}
