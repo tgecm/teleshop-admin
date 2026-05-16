@@ -5,6 +5,7 @@ import { useAuthStore } from './store/authStore';
 import { useBotStore } from './store/botStore';
 import { getMe } from './api/auth';
 import { getBots } from './api/bots';
+import { getAllBots } from './api/superadmin';
 
 // Layout & Pages
 import Layout from './components/layout/Layout';
@@ -35,13 +36,15 @@ export default function App() {
 
   useEffect(() => {
     if (token) {
-      // Initial data fetch
       const init = async () => {
         try {
-          const [me, botsData] = await Promise.all([getMe(), getBots()]);
+          const me = await getMe();
           setUser(me);
+
+          // Superadmin sees all bots; regular users see only their own
+          const botsData = me.is_superadmin ? await getAllBots() : await getBots();
           setBots(botsData);
-          
+
           // Set default bot if none selected
           if (!selectedBotId && botsData.length > 0) {
             setSelectedBot(botsData[0].id);

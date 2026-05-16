@@ -1,5 +1,8 @@
 import client from './client';
 
+export const getAllBots = () =>
+  client.get('/superadmin/bots').then(res => res.data);
+
 export const getGlobalSettings = () =>
   client.get('/settings').then(res => res.data);
 
