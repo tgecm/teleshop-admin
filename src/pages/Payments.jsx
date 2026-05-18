@@ -4,6 +4,7 @@ import { getPaymentMethods, createPayment, updatePayment, deletePayment } from '
 import { uploadImage } from '../api/products';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
+import ConfirmDialog from '../components/shared/ConfirmDialog';
 import { 
   Plus, 
   CreditCard, 
@@ -26,6 +27,7 @@ export default function Payments() {
     name: '', payment_number: '', description: '', qr_code_url: '', notes: '', is_active: true
   });
   const [uploading, setUploading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: payments, isLoading } = useQuery({
@@ -133,10 +135,8 @@ export default function Payments() {
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    <button 
-                      onClick={() => {
-                        if (confirm('Delete this payment method?')) deleteMutation.mutate(payment.id);
-                      }}
+                    <button
+                      onClick={() => setConfirmDelete(payment.id)}
                       className="p-2 bg-gray-50 hover:bg-rose-50 rounded-xl text-gray-400 hover:text-rose-600 transition-all"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -161,7 +161,7 @@ export default function Payments() {
         )}
       </div>
 
-      {/* Mobile Floating Action Button */}
+      
       <button 
         onClick={() => openModal()}
         className="sm:hidden fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 rounded-full shadow-2xl shadow-indigo-200 flex items-center justify-center text-white hover:bg-indigo-700 transition-all active:scale-90 z-40 border-4 border-white"
@@ -228,36 +228,7 @@ export default function Payments() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700 ml-1">Instructions</label>
-                    <textarea 
-                      rows={3}
-                      placeholder="e.g. Please send money and upload screenshot."
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none font-medium"
-                    />
-                  </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700 ml-1">QR Code (Optional)</label>
-                    <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
-                        {formData.qr_code_url ? (
-                          <img src={formData.qr_code_url} alt="QR" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          <QrCode className="w-8 h-8 text-gray-200" />
-                        )}
-                      </div>
-                      <label className="flex-1 cursor-pointer">
-                        <div className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm hover:bg-gray-200 transition-all">
-                          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                          {formData.qr_code_url ? 'Change QR' : 'Upload QR'}
-                        </div>
-                        <input type="file" className="hidden" onChange={handleImageUpload} accept="image/*" />
-                      </label>
-                    </div>
-                  </div>
 
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
                     <div className="flex items-center gap-3">
@@ -301,6 +272,22 @@ export default function Payments() {
           </>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => {
+          if (confirmDelete) {
+            deleteMutation.mutate(confirmDelete);
+            setConfirmDelete(null);
+          }
+        }}
+        title="Delete Payment Method"
+        message="Are you sure you want to delete this payment method?"
+        confirmText="Delete"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
     </div>
   );
 }

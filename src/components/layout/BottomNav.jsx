@@ -7,6 +7,7 @@ import {
   Users,
   MoreHorizontal,
   Radio,
+  Terminal,
   CreditCard,
   Settings,
   ShieldCheck,
@@ -30,12 +31,12 @@ export default function BottomNav() {
 
   const moreItems = [
     { to: '/broadcast', icon: Radio, label: 'Broadcast' },
+    { to: '/commands', icon: Terminal, label: 'Commands' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
     { to: '/settings', icon: Settings, label: 'Settings' },
     { to: '/subscription', icon: ShieldCheck, label: 'Subscription' },
   ];
 
-  // Check if any "more" route is active
   const isMoreActive = moreItems.some(item => location.pathname.startsWith(item.to));
 
   return (
@@ -98,7 +99,7 @@ export default function BottomNav() {
               className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[28px] shadow-2xl"
             >
               <div className="px-5 pt-5 pb-sheet">
-                {/* Drag Handle */}
+                
                 <div className="flex justify-center mb-5">
                   <div className="w-9 h-[3px] bg-gray-200 rounded-full" />
                 </div>

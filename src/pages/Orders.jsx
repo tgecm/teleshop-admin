@@ -1,25 +1,22 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrders, updateOrder } from '../api/orders';
+import client from '../api/client';
 import { useBotStore } from '../store/botStore';
+import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
-import { 
-  Search, 
-  ChevronRight, 
-  ShoppingBag, 
-  User, 
-  Calendar, 
-  CreditCard, 
-  Package, 
-  X, 
-  RefreshCcw,
-  ArrowRight,
-  MapPin,
-  Phone,
-  Clock,
-  Loader2
+import {
+  Search,
+  ChevronRight,
+  ShoppingBag,
+  Package,
+  X,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Image,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -28,6 +25,10 @@ export default function Orders() {
   const { selectedBotId } = useBotStore();
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
+  const token = useAuthStore(s => s.token);
+  const bots = useBotStore(s => s.bots);
+  const currentBot = bots.find(b => b.id === Number(selectedBotId));
+  const botUsername = currentBot?.bot_username;
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
 
@@ -37,21 +38,24 @@ export default function Orders() {
     enabled: !!selectedBotId,
   });
 
-  const updateOrderMutation = useMutation({
+  const statusMutation = useMutation({
     mutationFn: ({ id, status }) => updateOrder(id, { status }),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries(['orders', selectedBotId]);
-      addToast(`Order status updated to ${variables.status}`);
-      setSelectedOrder(prev => prev ? { ...prev, status: variables.status } : null);
+      addToast('Order status updated');
     },
-    onError: () => addToast('Failed to update status', 'error'),
+    onError: () => addToast('Failed to update order', 'error'),
   });
 
   const filteredOrders = orders?.filter(o => {
-    const term = search.toLowerCase();
+    const term = search.toLowerCase().trim();
     return (
       o.customer?.first_name?.toLowerCase().includes(term) ||
       o.customer?.username?.toLowerCase().includes(term) ||
+      o.buyer_snapshot?.phone?.toLowerCase().includes(term) ||
+      o.buyer_snapshot?.email?.toLowerCase().includes(term) ||
+      o.order_number?.toLowerCase().includes(term) ||
+      o.id.toString() === term ||
       o.id.toString().includes(term)
     );
   }) || [];
@@ -91,7 +95,7 @@ export default function Orders() {
       ) : (
         <div className="grid gap-3">
           {filteredOrders.map(order => (
-            <motion.div 
+            <motion.div
               layout
               key={order.id}
               onClick={() => setSelectedOrder(order)}
@@ -118,28 +122,34 @@ export default function Orders() {
         </div>
       )}
 
-      {/* Order Detail Modal/Drawer */}
+
       <AnimatePresence>
         {selectedOrder && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedOrder(null)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 max-h-[90vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[32px] md:rounded-[32px] md:shadow-2xl max-h-[85dvh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10"
+              style={{
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-y',
+              }}
             >
-              <div className="p-5 pb-12">
-                <div className="flex justify-center mb-4">
-                  <div className="w-10 h-1 bg-gray-200 rounded-full" />
-                </div>
+              <div className="sticky top-0 bg-white z-10 rounded-t-[32px] pt-4 pb-2 flex flex-col items-center">
+                <div className="w-10 h-1 bg-gray-200 rounded-full" />
+              </div>
+              <div className="px-5 pb-[calc(max(env(safe-area-inset-bottom),16px)+68px)]">
+
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900">Order Details</h2>
                   <button onClick={() => setSelectedOrder(null)} className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform">
@@ -147,82 +157,143 @@ export default function Orders() {
                   </button>
                 </div>
 
-                <div className="space-y-6">
-                  {/* Customer Info */}
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-100">
-                      {selectedOrder.customer?.first_name?.[0]}
+                <div className="space-y-5">
+
+                  <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 space-y-3">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Order ID</p>
+                      <p className="text-base font-bold text-gray-900 break-all mt-0.5">{selectedOrder.order_number || `#${selectedOrder.id}`}</p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 truncate">{selectedOrder.customer?.first_name}</p>
-                      <p className="text-xs text-gray-500 truncate">@{selectedOrder.customer?.username || 'no_username'}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-900">
+                        {selectedOrder.buyer_snapshot?.full_name || selectedOrder.customer?.first_name || 'Unknown'}
+                      </span>
                       <StatusBadge status={selectedOrder.status} />
                     </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-500">Phone</span>
+                      <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot?.phone || 'None (User Skipped)'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-500">Email</span>
+                      <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot?.email || 'N/A'}</span>
+                    </div>
+                    {selectedOrder.buyer_snapshot?.address && selectedOrder.buyer_snapshot.address !== 'N/A' && (
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xs font-medium text-gray-500 flex-shrink-0 mt-0.5">Address</span>
+                        <span className="text-sm font-bold text-gray-900 text-right max-w-[200px]">{selectedOrder.buyer_snapshot.address}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Items List */}
-                  <div className="space-y-3">
+
+                  <div className="space-y-2.5">
                     <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                      <Package className="w-3 h-3" /> Items
+                      <Package className="w-3 h-3" /> Products
                     </h3>
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                    <div className="space-y-1.5">
                       {selectedOrder.items?.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-[10px] font-bold text-gray-500 flex-shrink-0">
-                              {item.quantity}x
-                            </span>
-                            <span className="text-gray-700 truncate">{item.product_name}</span>
-                          </div>
-                          <span className="font-bold text-gray-900 flex-shrink-0">{(item.price * item.quantity).toLocaleString()} MMK</span>
+                        <div key={idx} className="text-sm text-gray-700">
+                          • {item.product_name || item.name} (x{item.quantity}) - {(item.price * item.quantity).toLocaleString()} MMK
                         </div>
                       ))}
                     </div>
-                    <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
-                      <span className="text-sm font-bold text-gray-900">Total Amount</span>
-                      <span className="text-lg font-bold text-indigo-600">{selectedOrder.total_amount?.toLocaleString()} MMK</span>
+                  </div>
+
+
+                  <div className="pt-3 border-t border-gray-100 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Date</span>
+                      <span className="font-bold text-gray-900">{format(new Date(selectedOrder.created_at), 'MMM d, yyyy')} at {format(new Date(selectedOrder.created_at), 'h:mm a')}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Amount</span>
+                      <span className="font-bold text-indigo-600">{selectedOrder.total_amount?.toLocaleString()} MMK</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Payment Method</span>
+                      <span className="font-bold text-gray-900 capitalize">{selectedOrder.payment_method || 'Cash'}</span>
                     </div>
                   </div>
 
-                  {/* Order Meta */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1">
-                        <CreditCard className="w-3 h-3" /> Method
-                      </p>
-                      <p className="text-sm font-bold text-gray-900 capitalize">{selectedOrder.payment_method || 'Cash'}</p>
-                    </div>
-                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> Date
-                      </p>
-                      <p className="text-sm font-bold text-gray-900">{format(new Date(selectedOrder.created_at), 'MMM d, yyyy')}</p>
-                    </div>
-                  </div>
 
-                  {/* Status Update */}
-                  <div className="space-y-3">
-                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Update Status</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {['pending', 'processing', 'shipped', 'delivered', 'cancelled'].map(status => (
+                  {(selectedOrder.status === 'pending' || selectedOrder.status === 'pending_review') && (
+                    <>
+
+                      <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Image className="w-4 h-4 text-amber-600" />
+                          <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wider">Payment Proof</h3>
+                        </div>
+                        {selectedOrder.payment_proof_messages?.length > 0 ? (
+                          <div className="space-y-3">
+                            <p className="text-sm text-amber-800 font-medium">
+                              ✅ {selectedOrder.payment_proof_messages.length} payment proof(s) submitted
+                            </p>
+                            <div className="grid gap-3">
+                              {selectedOrder.payment_proof_messages.map((msgId, idx) => {
+                                const imgUrl = `${client.defaults.baseURL}/orders/${selectedOrder.id}/payment-proof-image/${idx}?token=${token}`;
+                                const tgLink = botUsername ? `https://t.me/${botUsername}` : '#';
+                                return (
+                                  <div key={idx} className="space-y-2 bg-white rounded-xl p-3 border border-amber-200">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-bold text-amber-800">Proof #{idx + 1}</span>
+                                      {botUsername && (
+                                        <a
+                                          href={tgLink}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                                        >
+                                          Open in Telegram Bot ↗
+                                        </a>
+                                      )}
+                                    </div>
+                                    <img
+                                      src={imgUrl}
+                                      alt={`Payment proof ${idx + 1}`}
+                                      className="w-full rounded-lg border border-gray-200"
+                                      onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.style.display = 'none';
+                                        e.target.nextElementSibling.style.display = 'block';
+                                      }}
+                                    />
+                                    <p className="hidden text-xs text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
+                                      Unable to load image. Check in Telegram bot.
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-amber-700">No payment proof submitted yet.</p>
+                        )}
+                      </div>
+
+
+                      <div className="flex gap-3">
                         <button
-                          key={status}
-                          onClick={() => updateOrderMutation.mutate({ id: selectedOrder.id, status })}
-                          disabled={updateOrderMutation.isPending}
-                          className={`px-4 py-2.5 rounded-xl text-[10px] font-bold capitalize transition-all flex items-center justify-center gap-2 ${
-                            selectedOrder.status === status 
-                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 border border-indigo-600' 
-                            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 active:bg-gray-100'
-                          }`}
+                          onClick={() => statusMutation.mutate({ id: selectedOrder.id, status: 'confirmed' })}
+                          disabled={statusMutation.isPending}
+                          className="flex-1 py-3.5 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-emerald-100"
                         >
-                          {updateOrderMutation.isPending && selectedOrder.status !== status && <Loader2 className="w-3 h-3 animate-spin" />}
-                          {status}
+                          {statusMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                          Confirm Payment
                         </button>
-                      ))}
-                    </div>
-                  </div>
+                        <button
+                          onClick={() => statusMutation.mutate({ id: selectedOrder.id, status: 'rejected' })}
+                          disabled={statusMutation.isPending}
+                          className="flex-1 py-3.5 bg-rose-600 text-white font-bold rounded-2xl hover:bg-rose-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-rose-100"
+                        >
+                          {statusMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <XCircle className="w-5 h-5" />}
+                          Reject Payment
+                        </button>
+                      </div>
+                    </>
+                  )}
+
                 </div>
               </div>
             </motion.div>

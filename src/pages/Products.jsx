@@ -1,23 +1,25 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, uploadImage, getImageUrl } from '../api/products';
+import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, getImageUrl } from '../api/products';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  Package, 
-  Tag, 
-  MoreVertical, 
-  X, 
-  Image as ImageIcon, 
+import ConfirmDialog from '../components/shared/ConfirmDialog';
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Package,
+  Tag,
+  MoreVertical,
+  X,
+  Image as ImageIcon,
   ChevronRight,
   AlertCircle,
   CheckCircle2,
-  Loader2
+  Loader2,
+  FolderPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -81,10 +83,15 @@ export default function Products() {
     onError: () => addToast('Failed to delete product', 'error'),
   });
 
-  const filteredProducts = products?.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.description?.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  const normalizeForSearch = (s) => (s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '');
+
+  const filteredProducts = products?.filter(p => {
+    const term = normalizeForSearch(search).toLowerCase();
+    return (
+      normalizeForSearch(p.name).toLowerCase().includes(term) ||
+      normalizeForSearch(p.description).toLowerCase().includes(term)
+    );
+  }) || [];
 
   const handleEdit = (product) => {
     setEditingProduct(product);
@@ -92,9 +99,7 @@ export default function Products() {
   };
 
   const handleDelete = (id) => {
-    if (confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
-      deleteMutation.mutate(id);
-    }
+    setIsDeleting(id);
   };
 
   if (isLoading) return <LoadingSkeleton type="grid" count={6} />;
@@ -115,9 +120,8 @@ export default function Products() {
             />
           </div>
           <button
-            disabled
-            className="p-2.5 bg-gray-400 text-white rounded-2xl shadow-lg flex items-center gap-2 opacity-50 cursor-not-allowed"
-            title="Temporarily disabled"
+            onClick={() => setIsModalOpen(true)}
+            className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 active:scale-95"
           >
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline font-bold">New Product</span>
@@ -216,7 +220,7 @@ export default function Products() {
         </div>
       )}
 
-      {/* Product Modal */}
+      
       <AnimatePresence>
         {isModalOpen && (
           <>
@@ -252,6 +256,21 @@ export default function Products() {
           </>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={!!isDeleting}
+        onClose={() => setIsDeleting(null)}
+        onConfirm={() => {
+          if (isDeleting) {
+            deleteMutation.mutate(isDeleting);
+          }
+        }}
+        title="Delete Product"
+        message="Are you sure you want to delete this product? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
     </div>
   );
 }
@@ -263,31 +282,24 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     price: product?.price || '',
     stock_quantity: product?.stock_quantity || '',
     category_id: product?.category_id || '',
-    image_url: product?.image_url || '',
   });
-  const [uploading, setUploading] = useState(false);
   const { addToast } = useToastStore();
+  const queryClient = useQueryClient();
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const result = await uploadImage(file, Number(selectedBotId));
-      if (result.file_id) {
-        setFormData({ ...formData, image_url: result.file_id });
-        addToast('Image uploaded successfully');
-      } else if (result.url) {
-        setFormData({ ...formData, image_url: result.url });
-        addToast('Image uploaded successfully');
-      }
-    } catch (err) {
-      console.error('[Image] Upload failed:', err.response?.data || err.message);
-      addToast(err.response?.data?.detail || 'Image upload failed', 'error');
-    } finally {
-      setUploading(false);
-    }
-  };
+  const createCategoryMutation = useMutation({
+    mutationFn: (name) => createCategory({ bot_id: Number(selectedBotId), name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['categories', selectedBotId]);
+      addToast('Category created');
+      setShowNewCategory(false);
+      setNewCategoryName('');
+    },
+    onError: (err) => {
+      addToast(err.response?.data?.detail || 'Failed to create category', 'error');
+    },
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -315,32 +327,53 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <label className="text-sm font-bold text-gray-700 ml-1">Product Image</label>
-          <div className="flex gap-4 items-center">
-            <div className="w-24 h-24 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center relative overflow-hidden group">
-              {formData.image_url ? (
-                <img 
-                  src={getImageUrl(formData.image_url, selectedBotId)} 
-                  className="w-full h-full object-cover" 
-                  alt="Preview"
-                />
-              ) : (
-                <ImageIcon className="w-8 h-8 text-gray-300" />
-              )}
-              {uploading && (
-                <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
-                </div>
-              )}
+          <label className="text-sm font-bold text-gray-700 ml-1">Category</label>
+          <select
+            required
+            value={formData.category_id}
+            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
+          >
+            <option value="">Select Category</option>
+            {categories?.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setShowNewCategory(true)}
+            className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 px-1 py-1"
+          >
+            <FolderPlus className="w-4 h-4" />
+            Create New Category
+          </button>
+          {showNewCategory && (
+            <div className="flex gap-2 items-center mt-1">
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Category name"
+                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => createCategoryMutation.mutate(newCategoryName)}
+                disabled={!newCategoryName.trim() || createCategoryMutation.isPending}
+                className="px-3 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl disabled:opacity-40 hover:bg-indigo-700 transition-all"
+              >
+                {createCategoryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}
+                className="px-3 py-2 text-gray-500 text-sm font-bold rounded-xl hover:bg-gray-100 transition-all"
+              >
+                Cancel
+              </button>
             </div>
-            <div className="flex-1">
-<label className="inline-block px-4 py-2 bg-gray-100 text-gray-400 rounded-xl text-sm font-bold cursor-not-allowed opacity-50" title="Temporarily disabled">
-                {formData.image_url ? 'Change Image' : 'Upload Image'}
-                <input type="file" className="hidden" accept="image/*" disabled />
-              </label>
-              <p className="text-[10px] text-gray-400 mt-2">Recommended: Square image, max 2MB</p>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -381,21 +414,6 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-bold text-gray-700 ml-1">Category</label>
-          <select
-            required
-            value={formData.category_id}
-            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
-          >
-            <option value="">Select Category</option>
-            {categories?.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-2">
           <label className="text-sm font-bold text-gray-700 ml-1">Description</label>
           <textarea
             rows={3}
@@ -415,7 +433,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             Cancel
           </button>
           <button
-            disabled={isLoading || uploading}
+            disabled={isLoading}
             type="submit"
             className="flex-[2] px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
           >

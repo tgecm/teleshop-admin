@@ -9,6 +9,7 @@ export function cn(...inputs) {
 export default function StatusBadge({ status }) {
   const colors = {
     pending: 'bg-amber-50 text-amber-600 border-amber-100',
+    pending_review: 'bg-orange-50 text-orange-600 border-orange-100',
     confirmed: 'bg-blue-50 text-blue-600 border-blue-100',
     processing: 'bg-indigo-50 text-indigo-600 border-indigo-100',
     shipped: 'bg-purple-50 text-purple-600 border-purple-100',
