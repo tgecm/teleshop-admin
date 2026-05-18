@@ -1,0 +1,5 @@
+{
+  "name": "TeleShop Admin",
+  "description": "Mobile-first multi-tenant admin panel for Telegram e-commerce bots.",
+  "requestFramePermissions": []
+}
