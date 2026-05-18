@@ -3,26 +3,23 @@ import { useState, useEffect, useRef } from 'react';
 const API_BASE = 'https://api.telegramecommerce.shop/api/webpanel';
 
 const views = { SIGNUP: 'signup', CHANGEPW: 'changepw', FORGOT: 'forgot', SUCCESS: 'success' };
-const steps = { STEP1: 0, STEP2: 1, STEP3: 2 };
+const steps = { BOT: 0, BOT_CODE: 1, EMAIL: 2, EMAIL_CODE: 3, PASSWORD: 4 };
 
 export default function WebPanel() {
-  // Read bot context from URL params (sent by Telegram bot)
-  const urlParams = new URLSearchParams(window.location.search);
-  const botChatId = urlParams.get('chat_id') || null;
-  const botUsername = urlParams.get('username') || null;
-
   const [view, setView] = useState(null);
   const [email, setEmail] = useState('');
 
   // Sign up form
-  const [suStep, setSuStep] = useState(steps.STEP1);
+  const [suStep, setSuStep] = useState(steps.BOT);
+  const [suBotUsername, setSuBotUsername] = useState('');
+  const [suBotCode, setSuBotCode] = useState('');
   const [suEmail, setSuEmail] = useState('');
   const [suCode, setSuCode] = useState('');
   const [suPw1, setSuPw1] = useState('');
   const [suPw2, setSuPw2] = useState('');
 
   // Forgot pw form
-  const [fpStep, setFpStep] = useState(steps.STEP1);
+  const [fpStep, setFpStep] = useState(steps.BOT);
   const [fpEmail, setFpEmail] = useState('');
   const [fpCode, setFpCode] = useState('');
   const [fpPw1, setFpPw1] = useState('');
@@ -96,62 +93,101 @@ export default function WebPanel() {
     setView(views.SIGNUP);
   }, []);
 
+  // ─── Utility: clean bot username ──────────────────────────
+  const cleanBotUsername = (raw) => {
+    let u = raw.trim();
+    u = u.replace(/^https?:\/\/(www\.)?t\.me\//, '');
+    u = u.replace(/^t\.me\//, '');
+    u = u.replace(/^@/, '');
+    u = u.split('/')[0].split('?')[0];
+    return u;
+  };
+
   // ─── Sign Up ──────────────────────────────────────────────
   const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
-  const suSendCode = async () => {
-    if (!isValidEmail(suEmail)) return showAlert('signup', 'Please enter a valid email address.', 'error');
-    setLoading_('suSend', true);
+  const suSendBotCode = async () => {
+    const cleaned = cleanBotUsername(suBotUsername);
+    if (!cleaned) return showAlert('signup', 'Please enter a valid bot username.', 'error');
+    setLoading_('suBotSend', true);
     clearAlert('signup');
     try {
-      await apiPost('/send-code', { email: suEmail, flow: 'signup', chat_id: botChatId, bot_username: botUsername });
-      setSuStep(steps.STEP2);
+      await apiPost('/send-bot-code', { bot_username: cleaned });
+      setSuBotUsername(cleaned);
+      setSuStep(steps.BOT_CODE);
       startTimer(60);
     } catch (e) {
-      showAlert('signup', e.message || 'Failed to send code. Try again.', 'error');
+      showAlert('signup', e.message || 'Failed to send code to bot owner.', 'error');
     }
-    setLoading_('suSend', false);
+    setLoading_('suBotSend', false);
   };
 
-  const suResend = async () => {
+  const suVerifyBotCode = async () => {
+    if (suBotCode.length !== 6) return showAlert('signup2', 'Enter the 6-digit code from Telegram.', 'error');
     clearAlert('signup2');
     try {
-      await apiPost('/send-code', { email: suEmail, flow: 'signup', chat_id: botChatId, bot_username: botUsername });
-      startTimer(60);
-    } catch (e) {
-      showAlert('signup2', 'Failed to resend. Try again.', 'error');
-    }
-  };
-
-  const suVerifyCode = async () => {
-    if (suCode.length !== 6) return showAlert('signup2', 'Enter the 6-digit code.', 'error');
-    clearAlert('signup2');
-    try {
-      await apiPost('/verify-code', { email: suEmail, code: suCode, flow: 'signup' });
-      setSuStep(steps.STEP3);
+      await apiPost('/verify-bot-code', { bot_username: suBotUsername, code: suBotCode });
+      setSuStep(steps.EMAIL);
     } catch (e) {
       showAlert('signup2', e.message || 'Incorrect code.', 'error');
     }
   };
 
-  const suSetPassword = async () => {
+  const suSendEmailCode = async () => {
+    if (!isValidEmail(suEmail)) return showAlert('signup3', 'Please enter a valid email address.', 'error');
+    setLoading_('suSend', true);
     clearAlert('signup3');
-    if (suPw1.length < 6) return showAlert('signup3', 'Password must be at least 6 characters.', 'error');
-    if (suPw1 !== suPw2) return showAlert('signup3', 'Passwords do not match.', 'error');
     try {
-      const res = await apiPost('/signup', { email: suEmail, password: suPw1 });
+      await apiPost('/send-code', { email: suEmail, flow: 'signup', bot_username: suBotUsername });
+      setSuStep(steps.EMAIL_CODE);
+      startTimer(60);
+    } catch (e) {
+      showAlert('signup3', e.message || 'Failed to send code. Try again.', 'error');
+    }
+    setLoading_('suSend', false);
+  };
+
+  const suResendEmailCode = async () => {
+    clearAlert('signup4');
+    try {
+      await apiPost('/send-code', { email: suEmail, flow: 'signup', bot_username: suBotUsername });
+      startTimer(60);
+    } catch (e) {
+      showAlert('signup4', 'Failed to resend. Try again.', 'error');
+    }
+  };
+
+  const suVerifyEmailCode = async () => {
+    if (suCode.length !== 6) return showAlert('signup4', 'Enter the 6-digit code.', 'error');
+    clearAlert('signup4');
+    try {
+      await apiPost('/verify-code', { email: suEmail, code: suCode, flow: 'signup' });
+      setSuStep(steps.PASSWORD);
+    } catch (e) {
+      showAlert('signup4', e.message || 'Incorrect code.', 'error');
+    }
+  };
+
+  const suSetPassword = async () => {
+    clearAlert('signup5');
+    if (suPw1.length < 6) return showAlert('signup5', 'Password must be at least 6 characters.', 'error');
+    if (suPw1 !== suPw2) return showAlert('signup5', 'Passwords do not match.', 'error');
+    try {
+      const res = await apiPost('/signup', { email: suEmail, password: suPw1, bot_username: suBotUsername });
       if (res.ok) {
         showSuccessView('🎉', 'Account Created!', `Your web panel is ready. Log in with ${suEmail}.`, () => { resetSignup(); setView(views.SIGNUP); });
       } else {
-        showAlert('signup3', res.message || 'Failed to create account.', 'error');
+        showAlert('signup5', res.message || 'Failed to create account.', 'error');
       }
     } catch (e) {
-      showAlert('signup3', e.message || 'Network error.', 'error');
+      showAlert('signup5', e.message || 'Network error.', 'error');
     }
   };
 
   const resetSignup = () => {
-    setSuStep(steps.STEP1);
+    setSuStep(steps.BOT);
+    setSuBotUsername('');
+    setSuBotCode('');
     setSuEmail('');
     setSuCode('');
     setSuPw1('');
@@ -159,11 +195,8 @@ export default function WebPanel() {
     clearAlert('signup');
     clearAlert('signup2');
     clearAlert('signup3');
-  };
-
-  const suBack = () => {
-    setSuStep(steps.STEP1);
-    clearAlert('signup');
+    clearAlert('signup4');
+    clearAlert('signup5');
   };
 
   // ─── Change Password ──────────────────────────────────────
@@ -189,7 +222,7 @@ export default function WebPanel() {
     setFpEmail(e);
     try {
       await apiPost('/send-code', { email: e, flow: 'forgot' });
-      setFpStep(steps.STEP2);
+      setFpStep(steps.BOT_CODE);
       startTimer(60);
     } catch (err) {
       showAlert('forgot', err.message || 'Could not send reset code.', 'error');
@@ -399,24 +432,32 @@ export default function WebPanel() {
         {view === views.SIGNUP && (
           <div className="wp-card">
             <div className="wp-steps">
-              <div className={dot(suStep === steps.STEP1, false)} />
-              <div className={dot(suStep === steps.STEP2, suStep > steps.STEP1)} />
-              <div className={dot(suStep === steps.STEP3, suStep > steps.STEP2)} />
+              <div className={dot(suStep === steps.BOT, false)} />
+              <div className={dot(suStep === steps.BOT_CODE, suStep > steps.BOT)} />
+              <div className={dot(suStep === steps.EMAIL, suStep > steps.BOT_CODE)} />
+              <div className={dot(suStep === steps.EMAIL_CODE, suStep > steps.EMAIL)} />
+              <div className={dot(suStep === steps.PASSWORD, suStep > steps.EMAIL_CODE)} />
             </div>
 
-            {suStep === steps.STEP1 && (
+            {suStep === steps.BOT && (
               <>
-                <div className="wp-card-title">Create Account</div>
-                <div className="wp-card-sub">Enter your email to get a confirmation code.</div>
+                <div className="wp-card-title">Enter Bot Username</div>
+                <div className="wp-card-sub">Enter your Telegram bot's username. A verification code will be sent to the bot owner.</div>
                 {alertEl('signup')}
                 <div className="wp-field">
-                  <label>Email Address</label>
+                  <label>Bot Username</label>
                   <div className="wp-input-wrap">
-                    <input type="email" value={suEmail} onChange={e => setSuEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+                    <input
+                      type="text"
+                      value={suBotUsername}
+                      onChange={e => setSuBotUsername(cleanBotUsername(e.target.value))}
+                      placeholder="@yourbot or t.me/yourbot"
+                      autoComplete="off"
+                    />
                   </div>
                 </div>
-                <button className="wp-btn-primary" onClick={suSendCode} disabled={loading['suSend']}>
-                  {loading['suSend'] ? <><span className="spinner" />Sending…</> : 'Send Confirmation Code'}
+                <button className="wp-btn-primary" onClick={suSendBotCode} disabled={loading['suBotSend']}>
+                  {loading['suBotSend'] ? <><span className="spinner" />Sending…</> : 'Send Code to Bot Owner'}
                 </button>
                 <div className="wp-divider" style={{ margin: '20px 0', display: 'flex', alignItems: 'center', gap: 12, color: 'var(--wp-muted)', fontSize: 12 }}>
                   <span style={{ flex: 1, height: 1, background: 'var(--wp-border)' }} />
@@ -424,7 +465,7 @@ export default function WebPanel() {
                   <span style={{ flex: 1, height: 1, background: 'var(--wp-border)' }} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="wp-link-btn" onClick={() => { setView(views.FORGOT); setFpEmail(''); setFpStep(steps.STEP1); clearAlert('forgot'); }} style={{ flex: 1, textAlign: 'center' }}>
+                  <button className="wp-link-btn" onClick={() => { setView(views.FORGOT); setFpEmail(''); setFpStep(steps.BOT); clearAlert('forgot'); }} style={{ flex: 1, textAlign: 'center' }}>
                     Forgot Password?
                   </button>
                   <button className="wp-link-btn" onClick={() => { setView(views.CHANGEPW); setCpEmail(''); clearAlert('changepw'); }} style={{ flex: 1, textAlign: 'center' }}>
@@ -434,35 +475,72 @@ export default function WebPanel() {
               </>
             )}
 
-            {suStep === steps.STEP2 && (
+            {suStep === steps.BOT_CODE && (
+              <>
+                <div className="wp-card-title">Check Telegram</div>
+                <div className="wp-card-sub">A verification code was sent to the owner of <strong>@{suBotUsername}</strong>. Enter it below.</div>
+                {alertEl('signup2')}
+                <div className="wp-field">
+                  <label>Confirmation Code</label>
+                  <div className="wp-code-row">
+                    <div className="wp-input-wrap" style={{ flex: 1 }}>
+                      <input type="text" value={suBotCode} onChange={e => setSuBotCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" maxLength={6} inputMode="numeric" />
+                    </div>
+                  </div>
+                </div>
+                <button className="wp-btn-primary" onClick={suVerifyBotCode}>Verify Bot</button>
+                <div style={{ textAlign: 'center', marginTop: 14 }}>
+                  <button className="wp-link-btn" onClick={() => { setSuStep(steps.BOT); clearAlert('signup'); }}>← Use different bot</button>
+                </div>
+              </>
+            )}
+
+            {suStep === steps.EMAIL && (
+              <>
+                <div className="wp-card-title">Your Email</div>
+                <div className="wp-card-sub">Enter your email to receive a confirmation code for login.</div>
+                {alertEl('signup3')}
+                <div className="wp-field">
+                  <label>Email Address</label>
+                  <div className="wp-input-wrap">
+                    <input type="email" value={suEmail} onChange={e => setSuEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+                  </div>
+                </div>
+                <button className="wp-btn-primary" onClick={suSendEmailCode} disabled={loading['suSend']}>
+                  {loading['suSend'] ? <><span className="spinner" />Sending…</> : 'Send Confirmation Code'}
+                </button>
+              </>
+            )}
+
+            {suStep === steps.EMAIL_CODE && (
               <>
                 <div className="wp-card-title">Check Your Inbox</div>
                 <div className="wp-card-sub">Enter the 6-digit code sent to <strong>{suEmail}</strong></div>
-                {alertEl('signup2')}
+                {alertEl('signup4')}
                 <div className="wp-field">
                   <label>Confirmation Code</label>
                   <div className="wp-code-row">
                     <div className="wp-input-wrap" style={{ flex: 1 }}>
                       <input type="text" value={suCode} onChange={e => setSuCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" maxLength={6} inputMode="numeric" />
                     </div>
-                    <button className="wp-send-code-btn" onClick={suResend} disabled={timer.remaining > 0}>
+                    <button className="wp-send-code-btn" onClick={suResendEmailCode} disabled={timer.remaining > 0}>
                       {timer.remaining > 0 ? `${timer.remaining}s` : 'Resend'}
                     </button>
                   </div>
                   {timer.show && <div className="wp-timer">Resend in {timer.remaining}s</div>}
                 </div>
-                <button className="wp-btn-primary" onClick={suVerifyCode}>Verify Code</button>
+                <button className="wp-btn-primary" onClick={suVerifyEmailCode}>Verify Code</button>
                 <div style={{ textAlign: 'center', marginTop: 14 }}>
-                  <button className="wp-link-btn" onClick={suBack}>← Use different email</button>
+                  <button className="wp-link-btn" onClick={() => { setSuStep(steps.EMAIL); clearAlert('signup3'); }}>← Use different email</button>
                 </div>
               </>
             )}
 
-            {suStep === steps.STEP3 && (
+            {suStep === steps.PASSWORD && (
               <>
                 <div className="wp-card-title">Set Your Password</div>
                 <div className="wp-card-sub">Choose a secure password for your web panel.</div>
-                {alertEl('signup3')}
+                {alertEl('signup5')}
                 <div className="wp-field">
                   <label>Password</label>
                   <div className="wp-input-wrap">
@@ -533,11 +611,11 @@ export default function WebPanel() {
         {view === views.FORGOT && (
           <div className="wp-card">
             <div className="wp-steps">
-              <div className={dot(fpStep === steps.STEP1, false)} />
-              <div className={dot(fpStep === steps.STEP2, fpStep > steps.STEP1)} />
+              <div className={dot(fpStep === steps.BOT, false)} />
+              <div className={dot(fpStep === steps.BOT_CODE, fpStep > steps.BOT)} />
             </div>
 
-            {fpStep === steps.STEP1 && (
+            {fpStep === steps.BOT && (
               <>
                 <div className="wp-card-title">Reset Password</div>
                 <div className="wp-card-sub">We'll send a confirmation code to your registered email.</div>
@@ -555,7 +633,7 @@ export default function WebPanel() {
               </>
             )}
 
-            {fpStep === steps.STEP2 && (
+            {fpStep === steps.BOT_CODE && (
               <>
                 <div className="wp-card-title">Enter Code & New Password</div>
                 <div className="wp-card-sub">Code sent to <strong>{fpEmail}</strong></div>
