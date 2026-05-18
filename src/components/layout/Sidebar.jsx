@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Package, 
-  ShoppingBag, 
-  Users, 
-  Radio, 
-  CreditCard, 
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingBag,
+  Users,
+  Radio,
+  Terminal,
+  CreditCard,
   Settings,
   ShieldCheck,
   LogOut
@@ -22,6 +23,7 @@ export default function Sidebar() {
     { to: '/products', icon: ShoppingBag, label: 'Products' },
     { to: '/customers', icon: Users, label: 'Customers' },
     { to: '/broadcast', icon: Radio, label: 'Broadcast' },
+    { to: '/commands', icon: Terminal, label: 'Commands' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
     { to: '/subscription', icon: ShieldCheck, label: 'Subscription' },
     { to: '/settings', icon: Settings, label: 'Settings' },

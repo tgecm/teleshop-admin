@@ -189,7 +189,7 @@ export default function Broadcast() {
         )}
       </div>
 
-      {/* Giveaway Detail Modal */}
+      
       <AnimatePresence>
         {selectedGiveaway && (
           <>
@@ -248,7 +248,7 @@ export default function Broadcast() {
         )}
       </AnimatePresence>
       
-      {/* Create Modal */}
+      
       <AnimatePresence>
         {isModalOpen && (
           <>

@@ -12,8 +12,11 @@ export const createProduct = (data) =>
 export const updateProduct = (id, data) => 
   client.patch(`/products/${id}`, data).then(res => res.data);
 
-export const deleteProduct = (id) => 
+export const deleteProduct = (id) =>
   client.delete(`/products/${id}`).then(res => res.data);
+
+export const createCategory = (data) =>
+  client.post('/categories', data).then(res => res.data);
 
 export const uploadImage = (file, bot_id) => {
   const formData = new FormData();

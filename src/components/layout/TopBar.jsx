@@ -9,7 +9,6 @@ export default function TopBar({ onMenuClick }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
-  // Close menu on outside tap
   useEffect(() => {
     if (!menuOpen) return;
     const handle = (e) => {
@@ -49,13 +48,15 @@ export default function TopBar({ onMenuClick }) {
             <span className="text-indigo-200 text-[10px] mt-1 uppercase font-bold tracking-wider">{user?.is_superadmin ? 'Superadmin' : 'Owner'}</span>
           </div>
 
-          {/* User Menu — tap-based (works on mobile & desktop) */}
+          
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(prev => !prev)}
               className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-500 border-2 border-white/20 flex items-center justify-center text-white overflow-hidden shadow-sm active:scale-95 transition-transform"
             >
-              {user?.telegram_id ? (
+              {user?.profile_picture ? (
+                <img src={user.profile_picture} alt="Avatar" className="w-full h-full object-cover" />
+              ) : user?.telegram_id ? (
                 <img src={`https://t.me/i/userpic/320/${user.telegram_id}.jpg`} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <User className="w-[18px] h-[18px] md:w-6 md:h-6" />

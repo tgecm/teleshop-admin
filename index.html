@@ -3,9 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>TeleShop Admin</title>
-    <!-- Start Single Page Apps for GitHub Pages -->
+    <script>
+      document.addEventListener('contextmenu', e => e.preventDefault());
+      document.addEventListener('keydown', e => {
+        if (e.key === 'F12' ||
+            (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase())) ||
+            (e.ctrlKey && e.key === 'U')
+        ) {
+          e.preventDefault();
+        }
+      });
+    </script>
     <script type="text/javascript">
       (function(l) {
         if (l.search[1] === '/' ) {
@@ -18,10 +28,11 @@
         }
       }(window.location));
     </script>
-    <!-- End Single Page Apps for GitHub Pages -->
+    
+    <script type="module" crossorigin src="/assets/index-a2PlQMmS.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Cb7ElMne.css">
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

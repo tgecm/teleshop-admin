@@ -13,7 +13,6 @@ export default function Layout() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const location = useLocation();
 
-  // Close drawer on route change
   useEffect(() => {
     setIsDrawerOpen(false);
   }, [location.pathname]);
@@ -40,7 +39,7 @@ export default function Layout() {
       <div className="flex flex-1 relative">
         <Sidebar />
         
-        {/* Mobile Drawer */}
+        
         <AnimatePresence>
           {isDrawerOpen && (
             <>
