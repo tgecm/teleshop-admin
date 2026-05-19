@@ -19,7 +19,7 @@ export default function StatCard({ title, value, icon: Icon, trend, color = 'ind
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[9px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider truncate">{title}</p>
-        <h3 className="text-base sm:text-2xl font-bold text-gray-900 truncate leading-tight mt-0.5">{value}</h3>
+        <h3 className="text-xs sm:text-lg md:text-2xl font-bold text-gray-900 leading-tight mt-0.5">{value}</h3>
         {trend && (
           <p className={`text-[10px] sm:text-xs font-bold mt-0.5 ${trend > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
             {trend > 0 ? '+' : ''}{trend}% from last month
