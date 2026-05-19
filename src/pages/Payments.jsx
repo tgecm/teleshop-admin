@@ -265,7 +265,7 @@ export default function Payments() {
                       <input
                         type="text"
                         required
-                        placeholder="e.g. Sai Maung Lenn"
+                        placeholder="Your Account Name"
                         value={formData.account_name}
                         onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
