@@ -1,16 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-/* Block all text selection and callout across the entire app */
-*, *::before, *::after {
+/* Block text selection everywhere EXCEPT form fields */
+*:not(input):not(textarea):not(select):not([contenteditable]),
+*:not(input):not(textarea):not(select):not([contenteditable])::before,
+*:not(input):not(textarea):not(select):not([contenteditable])::after {
   -webkit-user-select: none !important;
   user-select: none !important;
   -webkit-touch-callout: none !important;
 }
 
 input, textarea, select, [contenteditable] {
-  -webkit-user-select: auto !important;
-  user-select: auto !important;
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Custom selection color in form fields */
+input::selection, textarea::selection, select::selection, [contenteditable]::selection {
+  background: #6366f1;
+  color: white;
 }
 
 @theme {

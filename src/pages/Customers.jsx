@@ -133,50 +133,47 @@ export default function Customers() {
               key={customer.id}
               className={`bg-white p-4 rounded-2xl shadow-sm border transition-all ${customer.is_blocked ? 'border-rose-100 bg-rose-50/30' : 'border-gray-100'}`}
             >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-sm ${customer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm ${customer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
                     {customer.first_name?.[0] || '?'}
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-gray-900 truncate">{customer.first_name}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{customer.first_name}</p>
                       {customer.is_blocked && (
                         <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[8px] font-bold uppercase rounded-md flex items-center gap-1 border border-rose-200">
                           <Ban className="w-2 h-2" /> Blocked
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 truncate">@{customer.username || 'no_username'}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-4 sm:gap-6 flex-shrink-0">
-                  <div className="flex flex-col items-center">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-0.5">Orders</p>
-                    <div className="flex items-center gap-1 text-sm font-bold text-gray-900">
-                      <ShoppingBag className="w-3 h-3 text-indigo-600" />
-                      {getCustomerOrderCount(customer.id)}
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <span className="truncate">@{customer.username || 'no_username'}</span>
+                      <span className="text-gray-300">·</span>
+                      <span className="flex items-center gap-1 whitespace-nowrap">
+                        <ShoppingBag className="w-3 h-3 text-indigo-600" />
+                        {getCustomerOrderCount(customer.id)} orders
+                      </span>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setConfirmCustomer(customer)}
-                      disabled={toggleBlockMutation.isPending}
-                      className={`p-2.5 rounded-xl transition-all shadow-sm active:scale-90 ${
-                        customer.is_blocked 
-                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100' 
-                        : 'bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100'
-                      }`}
-                    >
-                      {toggleBlockMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 
-                        (customer.is_blocked ? <ShieldCheck className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />)}
-                    </button>
-                    <button className="p-2.5 bg-gray-50 text-gray-400 rounded-xl border border-gray-100 hover:bg-gray-100 active:scale-90 transition-all">
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => setConfirmCustomer(customer)}
+                    disabled={toggleBlockMutation.isPending}
+                    className={`p-2 sm:p-2.5 rounded-xl transition-all shadow-sm active:scale-90 ${
+                      customer.is_blocked
+                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100'
+                      : 'bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100'
+                    }`}
+                  >
+                    {toggleBlockMutation.isPending ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> :
+                      (customer.is_blocked ? <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" /> : <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />)}
+                  </button>
+                  <button className="p-2 sm:p-2.5 bg-gray-50 text-gray-400 rounded-xl border border-gray-100 hover:bg-gray-100 active:scale-90 transition-all">
+                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
                 </div>
               </div>
             </motion.div>

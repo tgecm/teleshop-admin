@@ -141,7 +141,7 @@ export default function Orders() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[32px] md:rounded-[32px] md:shadow-2xl max-h-[85dvh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10"
+              className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[32px] md:rounded-[32px] md:shadow-2xl max-h-[85dvh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10"
               style={{
                 overscrollBehavior: 'contain',
                 WebkitOverflowScrolling: 'touch',

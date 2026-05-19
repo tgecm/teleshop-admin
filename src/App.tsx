@@ -18,13 +18,16 @@ import Commands from './pages/Commands';
 import Payments from './pages/Payments';
 import Subscription from './pages/Subscription';
 import Settings from './pages/Settings';
+import Chats from './pages/Chats';
 import WebPanel from './pages/WebPanel';
 import PublicShop from './pages/PublicShop';
 import ToastContainer from './components/shared/ToastContainer';
+import SelectionToolbar from './components/shared/SelectionToolbar';
 
 const ADMIN_PATHS = new Set([
   'login', 'dashboard', 'orders', 'products', 'customers',
-  'broadcast', 'commands', 'payments', 'subscription', 'settings', 'more',
+  'broadcast', 'commands', 'payments', 'subscription', 'settings',
+  'chats', 'more',
 ]);
 
 function PublicRoute() {
@@ -97,6 +100,7 @@ export default function App() {
         <>
           <PublicShop slug={publicSlug} />
           <ToastContainer />
+          <SelectionToolbar />
         </>
       ) : (
         <>
@@ -116,6 +120,7 @@ export default function App() {
                 <Route path="payments" element={<Payments />} />
                 <Route path="subscription" element={<Subscription />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="chats" element={<Chats />} />
                 <Route path="more" element={<Navigate to="/broadcast" replace />} />
               </Route>
 
@@ -123,6 +128,7 @@ export default function App() {
             </Routes>
           </BrowserRouter>
           <ToastContainer />
+          <SelectionToolbar />
         </>
       )}
     </QueryClientProvider>

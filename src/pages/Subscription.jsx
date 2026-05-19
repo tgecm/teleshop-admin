@@ -27,24 +27,35 @@ export default function Subscription() {
   });
 
   const plans = [
-    { 
-      name: 'Free', 
-      icon: Zap, 
-      color: 'text-gray-400', 
+    {
+      key: 'free',
+      name: 'Free Plan',
+      icon: Zap,
+      color: 'text-gray-400',
       bg: 'bg-gray-50',
       features: ['Up to 50 Products', 'Basic Analytics', 'Standard Support', 'Manual Payments']
     },
-    { 
-      name: 'Pro', 
-      icon: Star, 
-      color: 'text-blue-600', 
+    {
+      key: 'standard',
+      name: 'Standard Plan',
+      icon: Star,
+      color: 'text-blue-600',
       bg: 'bg-blue-50',
-      features: ['Unlimited Products', 'Advanced Analytics', 'Priority Support', 'Automatic Payments', 'Custom Broadcasts']
+      features: ['Up to 100 Products', 'Advanced Analytics', 'Priority Support', 'Payment Methods', 'Promotions', 'Custom Broadcasts']
     },
-    { 
-      name: 'Business', 
-      icon: Crown, 
-      color: 'text-amber-600', 
+    {
+      key: 'pro',
+      name: 'Pro Plan',
+      icon: Crown,
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+      features: ['Unlimited Products', 'Advanced Analytics', 'Priority Support', 'Automatic Payments', 'Custom Broadcasts', 'More Admins']
+    },
+    {
+      key: 'business',
+      name: 'Business Plan',
+      icon: Key,
+      color: 'text-amber-600',
       bg: 'bg-amber-50',
       features: ['Everything in Pro', 'Whitelabel Bot', 'Dedicated Manager', 'API Access', 'Custom Integrations']
     }
@@ -70,17 +81,19 @@ export default function Subscription() {
         >
           <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl flex items-center justify-center flex-shrink-0 shadow-sm ${
             currentPlan === 'business' ? 'bg-amber-50 text-amber-600' :
-            currentPlan === 'pro' ? 'bg-blue-50 text-blue-600' :
+            currentPlan === 'pro' ? 'bg-purple-50 text-purple-600' :
+            currentPlan === 'standard' ? 'bg-blue-50 text-blue-600' :
             'bg-gray-50 text-gray-400'
           }`}>
-            {currentPlan === 'business' ? <Crown className="w-10 h-10 sm:w-12 sm:h-12" /> :
-             currentPlan === 'pro' ? <Star className="w-10 h-10 sm:w-12 sm:h-12" /> :
+            {currentPlan === 'business' ? <Key className="w-10 h-10 sm:w-12 sm:h-12" /> :
+             currentPlan === 'pro' ? <Crown className="w-10 h-10 sm:w-12 sm:h-12" /> :
+             currentPlan === 'standard' ? <Star className="w-10 h-10 sm:w-12 sm:h-12" /> :
              <Zap className="w-10 h-10 sm:w-12 sm:h-12" />}
           </div>
           
           <div className="flex-1 text-center sm:text-left min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 capitalize truncate">{currentPlan} Plan</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 capitalize truncate">{plans.find(p => p.key === currentPlan)?.name || 'Free Plan'}</h2>
               <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider self-center sm:self-auto ${
                 daysRemaining > 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
               }`}>
@@ -101,9 +114,9 @@ export default function Subscription() {
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {plans.map((plan) => (
-          <div key={plan.name} className={`bg-white p-6 rounded-3xl shadow-sm border transition-all ${currentPlan === plan.name.toLowerCase() ? 'border-indigo-600 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
+          <div key={plan.key} className={`bg-white p-6 rounded-3xl shadow-sm border transition-all ${currentPlan === plan.key ? 'border-indigo-600 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
             <div className={`w-12 h-12 rounded-2xl ${plan.bg} ${plan.color} flex items-center justify-center mb-4 shadow-sm`}>
               <plan.icon className="w-6 h-6" />
             </div>

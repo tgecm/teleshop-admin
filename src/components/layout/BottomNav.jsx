@@ -5,6 +5,7 @@ import {
   Package,
   ShoppingBag,
   Users,
+  MessageCircle,
   MoreHorizontal,
   Radio,
   Terminal,
@@ -27,6 +28,7 @@ export default function BottomNav() {
     { to: '/orders', icon: Package, label: 'Orders' },
     { to: '/products', icon: ShoppingBag, label: 'Products' },
     { to: '/customers', icon: Users, label: 'Users' },
+    { to: '/chats', icon: MessageCircle, label: 'Chats' },
   ];
 
   const moreItems = [
