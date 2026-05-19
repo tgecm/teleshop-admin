@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>TeleShop Admin</title>
     <script>
+      document.addEventListener('gesturestart', e => e.preventDefault());
+      document.addEventListener('touchmove', e => {
+        if (e.touches.length > 1) e.preventDefault();
+      }, { passive: false });
       document.addEventListener('contextmenu', e => e.preventDefault());
       document.addEventListener('keydown', e => {
         if (e.key === 'F12' ||
