@@ -13,6 +13,7 @@ input, textarea, select, [contenteditable],
   -webkit-user-select: none !important;
   user-select: none !important;
   -webkit-touch-callout: none !important;
+  -webkit-user-drag: none !important;
 }
 
 /* Custom selection color in form fields */
