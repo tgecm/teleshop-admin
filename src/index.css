@@ -1,6 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+/* Block all text selection and callout across the entire app */
+*, *::before, *::after {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+input, textarea, select, [contenteditable] {
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
@@ -9,9 +21,6 @@
   body {
     @apply font-sans text-gray-900 bg-gray-50 antialiased overflow-x-hidden;
     -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
   }
 
   html {
@@ -21,8 +30,6 @@
 
   input, textarea, select, [contenteditable] {
     font-size: 16px; /* Prevents iOS zoom on focus */
-    -webkit-user-select: auto;
-    user-select: auto;
   }
 }
 
