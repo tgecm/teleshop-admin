@@ -22,7 +22,7 @@ export default function TopBar({ onMenuClick }) {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-indigo-600 shadow-md pt-safe">
+    <header className="sticky top-0 z-40 w-full bg-indigo-600 shadow-md">
       <div className="flex items-center justify-between h-9 md:h-14 px-1 md:px-6 gap-0.5 md:gap-2">
         <div className="flex items-center gap-0.5 md:gap-4">
           <button
