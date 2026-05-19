@@ -278,7 +278,7 @@ export default function Payments() {
                         required
                         placeholder="09xxxxxxxxx"
                         value={formData.payment_number}
-                        onChange={(e) => setFormData({ ...formData, payment_number: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, payment_number: e.target.value.replace(/\D/g, '') })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
                       />
                     </div>
