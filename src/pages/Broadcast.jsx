@@ -125,7 +125,7 @@ export default function Broadcast() {
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900 line-clamp-2">{b.message}</p>
                         <p className="text-[10px] text-gray-500 mt-1.5 flex items-center gap-1 font-bold uppercase tracking-wider">
-                          <Calendar className="w-3 h-3" /> {format(new Date(b.created_at), 'MMM d, yyyy')}
+                          <Calendar className="w-3 h-3" /> {format(new Date(b.sent_at || b.created_at), 'MMM d, yyyy')}
                         </p>
                       </div>
                     </div>
@@ -200,14 +200,14 @@ export default function Broadcast() {
               onClick={() => setSelectedGiveaway(null)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 max-h-[90vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[90vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
             >
-              <div className="p-6 pb-12">
+              <div className="p-6 pb-20 md:pb-12">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900">Giveaway Details</h2>
                   <button onClick={() => setSelectedGiveaway(null)} className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform">
@@ -259,14 +259,14 @@ export default function Broadcast() {
               onClick={() => setIsModalOpen(false)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 max-h-[90vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[90vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
             >
-              <div className="p-6 pb-12">
+              <div className="p-6 pb-20 md:pb-12">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900">
                     {activeTab === 'broadcasts' ? 'New Broadcast' : 'New Giveaway'}
