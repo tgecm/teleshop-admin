@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
-import { X, LogOut, LayoutDashboard, Package, ShoppingBag, Users, Radio, CreditCard, Settings, ShieldCheck } from 'lucide-react';
+import { X, LogOut, LayoutDashboard, Package, ShoppingBag, Users, MessageCircle, Radio, CreditCard, Settings, ShieldCheck } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -26,6 +26,7 @@ export default function Layout() {
     { to: '/orders', icon: Package, label: 'Orders' },
     { to: '/products', icon: ShoppingBag, label: 'Products' },
     { to: '/customers', icon: Users, label: 'Customers' },
+    { to: '/chats', icon: MessageCircle, label: 'Chats' },
     { to: '/broadcast', icon: Radio, label: 'Broadcast' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
     { to: '/subscription', icon: ShieldCheck, label: 'Subscription' },

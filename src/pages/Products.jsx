@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, getImageUrl } from '../api/products';
+import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, getImageUrl, uploadImage } from '../api/products';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
@@ -19,7 +19,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
-  FolderPlus
+  FolderPlus,
+  ImageUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -236,7 +237,7 @@ export default function Products() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 max-h-[85svh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[85svh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
             >
               <ProductForm 
                 product={editingProduct} 
@@ -275,6 +276,35 @@ export default function Products() {
   );
 }
 
+function compressImage(file, maxDimension = 720) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width <= maxDimension && height <= maxDimension) {
+        resolve(file);
+        return;
+      }
+      if (width > height) {
+        height = Math.round(height * (maxDimension / width));
+        width = maxDimension;
+      } else {
+        width = Math.round(width * (maxDimension / height));
+        height = maxDimension;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+      }, 'image/jpeg', 0.8);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 function ProductForm({ product, categories, onClose, onSubmit, isLoading, selectedBotId }) {
   const [formData, setFormData] = useState({
     name: product?.name || '',
@@ -287,6 +317,48 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
   const queryClient = useQueryClient();
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [images, setImages] = useState(() => {
+    if (product?.image_url) {
+      try {
+        const parsed = JSON.parse(product.image_url);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(m => ({ file_id: m.file_id, type: 'photo' }));
+        }
+      } catch (e) {
+        if (typeof product.image_url === 'string' && product.image_url) {
+          return [{ file_id: product.image_url, type: 'photo' }];
+        }
+      }
+    }
+    return [];
+  });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (images.length >= 10) {
+      addToast('Maximum 10 photos allowed', 'error');
+      return;
+    }
+    setUploading(true);
+    try {
+      const compressed = await compressImage(file);
+      const res = await uploadImage(compressed, selectedBotId);
+      setImages(prev => [...prev, { file_id: res.file_id, type: 'photo' }]);
+    } catch (err) {
+      console.error('Upload failed', err);
+      addToast('Failed to upload image', 'error');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
 
   const createCategoryMutation = useMutation({
     mutationFn: (name) => createCategory({ bot_id: Number(selectedBotId), name }),
@@ -303,11 +375,15 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const imageUrl = images.length > 0
+      ? JSON.stringify(images.map(img => ({ file_id: img.file_id, type: 'photo' })))
+      : null;
     onSubmit({
       ...formData,
       price: Number(formData.price),
       stock_quantity: Number(formData.stock_quantity) || null,
       category_id: formData.category_id ? Number(formData.category_id) : null,
+      image_url: imageUrl,
     });
   };
 
@@ -422,6 +498,62 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             placeholder="Describe your product..."
             className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium resize-none"
           />
+        </div>
+
+        {/* Photo Upload */}
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-gray-700 ml-1">
+            Photos <span className="text-gray-400 font-normal">({images.length}/10)</span>
+          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          {images.length > 0 && (
+            <div className={images.length === 1 ? 'flex justify-center' : 'grid grid-cols-4 gap-2'}>
+              {images.map((img, index) => (
+                <div key={index} className={`relative ${images.length === 1 ? 'w-48 h-48' : 'aspect-square'}`}>
+                  <img
+                    src={getImageUrl(img.file_id, selectedBotId)}
+                    alt={`Photo ${index + 1}`}
+                    className="w-full h-full object-cover rounded-2xl border border-gray-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute -top-2 -right-2 w-7 h-7 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-rose-600 transition-all active:scale-90"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {images.length < 10 && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className={`w-full ${images.length === 0 ? 'py-12 border-2 border-dashed border-gray-200 rounded-2xl' : 'py-3 border-2 border-dashed border-gray-200 rounded-xl'} flex flex-col items-center gap-2 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all active:scale-[0.98]`}
+            >
+              {uploading ? (
+                <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+              ) : (
+                <>
+                  <ImageUp className={images.length === 0 ? 'w-8 h-8 text-gray-300' : 'w-5 h-5 text-gray-300'} />
+                  <span className={`font-bold text-gray-500 ${images.length === 0 ? 'text-sm' : 'text-xs'}`}>
+                    {images.length === 0 ? 'Upload Photos' : 'Add More'}
+                  </span>
+                  {images.length === 0 && (
+                    <span className="text-[10px] text-gray-400">Auto-compress • JPEG • Max 10 photos</span>
+                  )}
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         <div className="pt-4 flex gap-3">

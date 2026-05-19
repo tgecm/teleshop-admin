@@ -9,7 +9,7 @@ import {
   Search,
   Trash2,
   X,
-  Terminal,
+  MessageSquare,
   Loader2,
   AlertTriangle
 } from 'lucide-react';
@@ -104,7 +104,7 @@ export default function Commands() {
       {filteredCommands.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
           <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Terminal className="w-8 h-8 text-gray-300" />
+            <MessageSquare className="w-8 h-8 text-gray-300" />
           </div>
           <h3 className="text-lg font-bold text-gray-900">No commands found</h3>
           <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
@@ -192,7 +192,7 @@ export default function Commands() {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               onAnimationComplete={(def) => { if (def === 'exit') setCommandName(''); }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 max-h-[85svh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[85svh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
             >
               <div className="p-6 pb-12">
                 <div className="flex items-center justify-between mb-6">
