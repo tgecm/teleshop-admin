@@ -1,23 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getPaymentMethods, createPayment, updatePayment, deletePayment } from '../api/payments';
-import { uploadImage } from '../api/products';
+import { uploadImage, getImageUrl } from '../api/products';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
-import { 
-  Plus, 
-  CreditCard, 
-  Edit2, 
-  Trash2, 
-  QrCode, 
-  X, 
-  Check, 
-  Loader2, 
-  Image as ImageIcon,
-  Upload
+import {
+  Plus,
+  CreditCard,
+  Edit2,
+  Trash2,
+  QrCode,
+  X,
+  Check,
+  Loader2,
+  ImageUp,
+  Trash
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+function compressImage(file, maxDimension = 720) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width <= maxDimension && height <= maxDimension) {
+        resolve(file);
+        return;
+      }
+      if (width > height) {
+        height = Math.round(height * (maxDimension / width));
+        width = maxDimension;
+      } else {
+        width = Math.round(width * (maxDimension / height));
+        height = maxDimension;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+      }, 'image/jpeg', 0.8);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 export default function Payments() {
   const { selectedBotId } = useSelectedBot();
@@ -28,6 +57,7 @@ export default function Payments() {
   });
   const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
 
   const { data: payments, isLoading } = useQuery({
@@ -54,13 +84,18 @@ export default function Payments() {
     if (!file) return;
     setUploading(true);
     try {
-      const res = await uploadImage(file);
-      setFormData({ ...formData, qr_code_url: res.url });
+      const compressed = await compressImage(file);
+      const res = await uploadImage(compressed, selectedBotId);
+      setFormData({ ...formData, qr_code_url: res.url || res.file_id });
     } catch (err) {
       console.error('Upload failed', err);
     } finally {
       setUploading(false);
     }
+  };
+
+  const removeQrCode = () => {
+    setFormData({ ...formData, qr_code_url: '' });
   };
 
   const openModal = (payment = null) => {
@@ -84,6 +119,7 @@ export default function Payments() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingPayment(null);
+    setUploading(false);
   };
 
   return (
@@ -150,8 +186,15 @@ export default function Payments() {
                     {payment.is_active ? 'Active' : 'Inactive'}
                   </span>
                   {payment.qr_code_url && (
-                    <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 border border-gray-100">
-                      <QrCode className="w-5 h-5" />
+                    <div className="relative group">
+                      <img
+                        src={getImageUrl(payment.qr_code_url, selectedBotId)}
+                        alt="QR"
+                        className="w-10 h-10 rounded-xl object-cover border border-gray-200"
+                      />
+                      <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <QrCode className="w-5 h-5 text-white" />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -179,14 +222,14 @@ export default function Payments() {
               onClick={closeModal}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 max-h-[90vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[90vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
             >
-              <div className="p-6 pb-12">
+              <div className="p-6 pb-20 md:pb-12">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-gray-900">
                     {editingPayment ? 'Edit Method' : 'Add Method'}
@@ -228,7 +271,51 @@ export default function Payments() {
                     </div>
                   </div>
 
-
+                  {/* QR Code Upload */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-gray-700 ml-1">QR Code</label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    {formData.qr_code_url ? (
+                      <div className="relative w-40 h-40 mx-auto">
+                        <img
+                          src={getImageUrl(formData.qr_code_url, selectedBotId)}
+                          alt="QR Code"
+                          className="w-full h-full object-cover rounded-2xl border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeQrCode}
+                          disabled={uploading}
+                          className="absolute -top-2 -right-2 w-7 h-7 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-rose-600 transition-all active:scale-90"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="w-full py-12 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center gap-2 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all active:scale-[0.98]"
+                      >
+                        {uploading ? (
+                          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                        ) : (
+                          <>
+                            <ImageUp className="w-8 h-8 text-gray-300" />
+                            <span className="text-sm font-bold text-gray-500">Upload QR Code</span>
+                            <span className="text-[10px] text-gray-400">Auto-compress if &gt;720px • JPEG</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
 
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
                     <div className="flex items-center gap-3">
