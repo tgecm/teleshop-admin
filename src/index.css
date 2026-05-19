@@ -1,23 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-/* Allow text selection in form fields only */
-input, textarea, select, [contenteditable] {
-  -webkit-user-select: text;
-  user-select: text;
+/* Allow text selection in form fields and all their descendants */
+input, textarea, select, [contenteditable],
+[contenteditable] * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Block text selection on everything else */
+*:not(input):not(textarea):not(select):not([contenteditable]) {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
 }
 
 /* Custom selection color in form fields */
 input::selection, textarea::selection, select::selection, [contenteditable]::selection {
   background: #6366f1;
   color: white;
-}
-
-/* Utility for JS to mark non-selectable containers */
-.no-select {
-  -webkit-user-select: none !important;
-  user-select: none !important;
-  -webkit-touch-callout: none !important;
 }
 
 @theme {
