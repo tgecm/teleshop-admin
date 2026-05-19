@@ -10,7 +10,17 @@
       document.addEventListener('touchmove', e => {
         if (e.touches.length > 1) e.preventDefault();
       }, { passive: false });
-      document.addEventListener('contextmenu', e => e.preventDefault());
+      document.addEventListener('contextmenu', e => {
+        // Allow native copy/paste menu in form fields
+        if (e.target.closest('input, textarea, [contenteditable]')) return;
+        e.preventDefault();
+      });
+      // Prevent text selection on non-input elements
+      document.addEventListener('selectstart', e => {
+        if (!e.target.closest('input, textarea, [contenteditable]')) {
+          e.preventDefault();
+        }
+      });
       document.addEventListener('keydown', e => {
         if (e.key === 'F12' ||
             (e.ctrlKey && e.shiftKey && ['I','J','C','K'].includes(e.key.toUpperCase())) ||
