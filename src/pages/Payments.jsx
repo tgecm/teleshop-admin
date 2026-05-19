@@ -53,7 +53,7 @@ export default function Payments() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
   const [formData, setFormData] = useState({
-    name: '', payment_number: '', description: '', qr_code_url: '', notes: '', is_active: true
+    name: '', account_name: '', payment_number: '', description: '', qr_code_url: '', notes: '', is_active: true
   });
   const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -103,6 +103,7 @@ export default function Payments() {
       setEditingPayment(payment);
       setFormData({
         name: payment.name,
+        account_name: payment.account_name || '',
         payment_number: payment.payment_number,
         description: payment.description || '',
         qr_code_url: payment.qr_code_url || '',
@@ -111,7 +112,7 @@ export default function Payments() {
       });
     } else {
       setEditingPayment(null);
-      setFormData({ name: '', payment_number: '', description: '', qr_code_url: '', notes: '', is_active: true });
+      setFormData({ name: '', account_name: '', payment_number: '', description: '', qr_code_url: '', notes: '', is_active: true });
     }
     setIsModalOpen(true);
   };
@@ -180,6 +181,7 @@ export default function Payments() {
                   </div>
                 </div>
                 <h4 className="text-lg font-bold text-gray-900 truncate">{payment.name}</h4>
+                {payment.account_name && <p className="text-xs text-gray-500 mt-0.5">{payment.account_name}</p>}
                 <p className="text-sm font-bold text-indigo-600 mt-1">{payment.payment_number}</p>
                 <div className="mt-6 flex items-center justify-between">
                   <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${payment.is_active ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
@@ -248,9 +250,9 @@ export default function Payments() {
                 >
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-gray-700 ml-1">Bank / Wallet Name</label>
-                      <input 
-                        type="text" 
+                      <label className="text-sm font-bold text-gray-700 ml-1">Wallet / Bank Name</label>
+                      <input
+                        type="text"
                         required
                         placeholder="e.g. KBZPay"
                         value={formData.name}
@@ -259,14 +261,35 @@ export default function Payments() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-gray-700 ml-1">Account Number / Phone</label>
-                      <input 
-                        type="text" 
+                      <label className="text-sm font-bold text-gray-700 ml-1">Account Name</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Sai Maung Lenn"
+                        value={formData.account_name}
+                        onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-700 ml-1">Account Phone Number</label>
+                      <input
+                        type="text"
                         required
                         placeholder="09xxxxxxxxx"
                         value={formData.payment_number}
                         onChange={(e) => setFormData({ ...formData, payment_number: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-700 ml-1">Notes <span className="text-gray-400 font-normal">(optional)</span></label>
+                      <textarea
+                        rows={3}
+                        placeholder="e.g. Please double check the number before transferring"
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium resize-none"
                       />
                     </div>
                   </div>
