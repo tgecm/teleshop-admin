@@ -31,6 +31,7 @@ export default function Orders() {
   const botUsername = currentBot?.bot_username;
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null); // 'confirm' | 'reject' | null
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['orders', selectedBotId],
@@ -40,8 +41,10 @@ export default function Orders() {
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }) => updateOrder(id, { status }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries(['orders', selectedBotId]);
+      setSelectedOrder(prev => prev ? { ...prev, status: variables.status } : null);
+      setConfirmAction(null);
       addToast('Order status updated');
     },
     onError: () => addToast('Failed to update order', 'error'),
@@ -273,23 +276,60 @@ export default function Orders() {
                       </div>
 
 
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => statusMutation.mutate({ id: selectedOrder.id, status: 'confirmed' })}
-                          disabled={statusMutation.isPending}
-                          className="flex-1 py-3.5 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-emerald-100"
-                        >
-                          {statusMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                          Confirm Payment
-                        </button>
-                        <button
-                          onClick={() => statusMutation.mutate({ id: selectedOrder.id, status: 'rejected' })}
-                          disabled={statusMutation.isPending}
-                          className="flex-1 py-3.5 bg-rose-600 text-white font-bold rounded-2xl hover:bg-rose-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-rose-100"
-                        >
-                          {statusMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <XCircle className="w-5 h-5" />}
-                          Reject Payment
-                        </button>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => setConfirmAction('confirm')}
+                            disabled={statusMutation.isPending}
+                            className="flex-1 py-3.5 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-emerald-100"
+                          >
+                            {statusMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                            Confirm Payment
+                          </button>
+                          <button
+                            onClick={() => setConfirmAction('reject')}
+                            disabled={statusMutation.isPending}
+                            className="flex-1 py-3.5 bg-rose-600 text-white font-bold rounded-2xl hover:bg-rose-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-rose-100"
+                          >
+                            {statusMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <XCircle className="w-5 h-5" />}
+                            Reject Payment
+                          </button>
+                        </div>
+
+                        {confirmAction && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-gray-50 rounded-2xl border border-gray-200 p-4 space-y-3"
+                          >
+                            <p className="text-sm font-bold text-gray-900 text-center">
+                              {confirmAction === 'confirm'
+                                ? 'Confirm payment receipt? This will notify the buyer and deduct stock.'
+                                : 'Reject this payment? The buyer will be notified.'}
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => statusMutation.mutate({ id: selectedOrder.id, status: confirmAction === 'confirm' ? 'confirmed' : 'rejected' })}
+                                disabled={statusMutation.isPending}
+                                className={`flex-1 py-2.5 font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm ${
+                                  confirmAction === 'confirm'
+                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                    : 'bg-rose-600 text-white hover:bg-rose-700'
+                                } disabled:opacity-50`}
+                              >
+                                {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                Yes, {confirmAction === 'confirm' ? 'Confirm' : 'Reject'}
+                              </button>
+                              <button
+                                onClick={() => setConfirmAction(null)}
+                                disabled={statusMutation.isPending}
+                                className="flex-1 py-2.5 bg-white text-gray-700 font-bold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all text-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
                       </div>
                     </>
                   )}
