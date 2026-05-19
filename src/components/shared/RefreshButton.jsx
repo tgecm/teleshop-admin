@@ -16,7 +16,7 @@ export default function RefreshButton({ className = '' }) {
   return (
     <button
       onClick={handleRefresh}
-      className={`p-2 text-white hover:bg-white/10 active:bg-white/15 rounded-xl transition-all active:scale-90 ${className}`}
+      className={`p-1 md:p-2 text-white hover:bg-white/10 active:bg-white/15 rounded-lg md:rounded-xl transition-all active:scale-90 ${className}`}
       title="Refresh data"
     >
       <RefreshCw className={`w-[18px] h-[18px] ${spinning ? 'animate-spin' : ''}`} />

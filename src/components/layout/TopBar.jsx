@@ -23,23 +23,23 @@ export default function TopBar({ onMenuClick }) {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-indigo-600 shadow-md pt-safe">
-      <div className="flex items-center justify-between h-11 md:h-14 px-1.5 md:px-6 gap-0.5 md:gap-2">
+      <div className="flex items-center justify-between h-9 md:h-14 px-1 md:px-6 gap-0.5 md:gap-2">
         <div className="flex items-center gap-0.5 md:gap-4">
           <button
             onClick={onMenuClick}
-            className="md:hidden text-white p-1.5 -ml-1 hover:bg-white/10 active:bg-white/15 rounded-xl transition-colors active:scale-95 tap-expand"
+            className="md:hidden text-white p-1 hover:bg-white/10 active:bg-white/15 rounded-lg transition-colors active:scale-95 tap-expand"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-[18px] h-[18px]" />
           </button>
-          <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
-            <div className="w-6 h-6 md:w-8 md:h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-indigo-600 font-bold text-sm md:text-lg">T</span>
+          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+            <div className="w-5 h-5 md:w-8 md:h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+              <span className="text-indigo-600 font-bold text-[11px] md:text-lg">T</span>
             </div>
             <span className="text-white font-bold text-lg hidden lg:block">TeleShop</span>
           </div>
         </div>
 
-        <div className="flex-1 flex justify-center max-w-[120px] sm:max-w-[200px] md:max-w-none">
+        <div className="flex-1 flex justify-center max-w-[100px] sm:max-w-[200px] md:max-w-none">
           <BotSwitcher />
         </div>
 
@@ -54,7 +54,7 @@ export default function TopBar({ onMenuClick }) {
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(prev => !prev)}
-              className="w-7 h-7 md:w-10 md:h-10 rounded-full bg-indigo-500 border-2 border-white/20 flex items-center justify-center text-white overflow-hidden shadow-sm active:scale-95 transition-transform"
+              className="w-6 h-6 md:w-10 md:h-10 rounded-full bg-indigo-500 border border-white/20 md:border-2 flex items-center justify-center text-white overflow-hidden shadow-sm active:scale-95 transition-transform"
             >
               {user?.profile_picture ? (
                 <img src={user.profile_picture} alt="Avatar" className="w-full h-full object-cover" />
