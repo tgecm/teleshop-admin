@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../../store/authStore';
 import { LogOut, User, Menu } from 'lucide-react';
 import BotSwitcher from '../shared/BotSwitcher';
+import RefreshButton from '../shared/RefreshButton';
 
 export default function TopBar({ onMenuClick }) {
   const { user, logout } = useAuthStore();
@@ -43,12 +44,13 @@ export default function TopBar({ onMenuClick }) {
         </div>
 
         <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">
+          <RefreshButton />
           <div className="hidden sm:flex flex-col items-end">
             <span className="text-white text-sm font-medium leading-none">{user?.email?.split('@')[0]}</span>
             <span className="text-indigo-200 text-[10px] mt-1 uppercase font-bold tracking-wider">{user?.is_superadmin ? 'Superadmin' : 'Owner'}</span>
           </div>
 
-          
+
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(prev => !prev)}
