@@ -72,6 +72,14 @@ input::selection, textarea::selection, select::selection, [contenteditable]::sel
     -webkit-user-select: none;
     user-select: none;
   }
+
+  .will-change-transform {
+    will-change: transform;
+  }
+
+  .contain-content {
+    contain: content;
+  }
 }
 
 .animate-in {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUsers, updateUser } from '../api/customers';
 import { getOrders } from '../api/orders';
@@ -6,6 +6,7 @@ import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import PullToRefresh from '../components/shared/PullToRefresh';
 import {
   Search,
   User,
@@ -38,7 +39,7 @@ export default function Customers() {
   const [confirmCustomer, setConfirmCustomer] = useState(null);
   const [detailCustomer, setDetailCustomer] = useState(null);
 
-  const { data: customers, isLoading: customersLoading } = useQuery({
+  const { data: customers, isLoading: customersLoading, refetch: refetchCustomers } = useQuery({
     queryKey: ['users', 'customers', selectedBotId],
     queryFn: () => getUsers({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
@@ -91,7 +92,7 @@ export default function Customers() {
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 sticky top-0 z-10 bg-gray-50 pb-2">
         <button
           onClick={() => setFilterTab('all')}
           className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
@@ -117,10 +118,10 @@ export default function Customers() {
         </button>
       </div>
 
-      <div className="text-center md:hidden">
-        <p className="text-[10px] text-gray-400 italic">Pull down to refresh</p>
-      </div>
-
+      <PullToRefresh onRefresh={useCallback(async () => {
+        await refetchCustomers();
+        queryClient.invalidateQueries({ queryKey: ['orders', selectedBotId] });
+      }, [refetchCustomers, queryClient, selectedBotId])}>
       {filteredCustomers.length === 0 ? (
         <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-gray-200">
           <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -137,7 +138,7 @@ export default function Customers() {
             <motion.div
               layout
               key={customer.id}
-              className={`bg-white p-4 rounded-2xl shadow-sm border transition-all ${customer.is_blocked ? 'border-rose-100 bg-rose-50/30' : 'border-gray-100'}`}
+              className={`contain-content bg-white p-4 rounded-2xl shadow-sm border transition-all ${customer.is_blocked ? 'border-rose-100 bg-rose-50/30' : 'border-gray-100'}`}
             >
               <button
                 onClick={() => setDetailCustomer(customer)}
@@ -172,6 +173,7 @@ export default function Customers() {
           ))}
         </div>
       )}
+      </PullToRefresh>
 
       <ConfirmDialog
         open={!!confirmCustomer}
