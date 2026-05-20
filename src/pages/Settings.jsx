@@ -198,6 +198,7 @@ export default function Settings() {
 
   const [email, setEmail] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
+  const [websiteEnabled, setWebsiteEnabled] = useState(false);
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiContext, setAiContext] = useState('');
   const [adminSearch, setAdminSearch] = useState('');
@@ -258,8 +259,11 @@ export default function Settings() {
   React.useEffect(() => {
     if (bot) setEmail(bot.notification_email || '');
     if (contentBlocks) {
-      const web = contentBlocks.find(b => b.key === 'website_url');
-      if (web) setWebsiteUrl(web.content_data?.url || '');
+      const web = contentBlocks.find(b => b.key === 'website_link');
+      if (web) {
+        setWebsiteUrl(web.content_data?.url || '');
+        setWebsiteEnabled(web.content_data?.enabled !== false);
+      }
     }
     if (aiSettings) {
       setAiApiKey(aiSettings.api_key || '');
@@ -351,30 +355,45 @@ export default function Settings() {
 
             
             <section className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <Globe className="w-6 h-6" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <Globe className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Website Link</h3>
+                    <p className="text-xs text-gray-500">Show a website button in your bot's main menu</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">Website Link</h3>
-                  <p className="text-xs text-gray-500">Link to your external website</p>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="url"
-                  value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-                  placeholder="https://..."
-                />
                 <button
-                  onClick={() => updateContentMutation.mutate({ key: 'website_url', data: { url: websiteUrl } })}
-                  className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all active:scale-[0.98]"
+                  onClick={() => setWebsiteEnabled(!websiteEnabled)}
+                  className={`w-14 h-7 rounded-full transition-colors relative flex-shrink-0 ${websiteEnabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
                 >
-                  Save
+                  <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${websiteEnabled ? 'left-8' : 'left-1'}`} />
                 </button>
               </div>
+              {websiteEnabled && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="url"
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                    placeholder="https://..."
+                  />
+                  <button
+                    onClick={() => updateContentMutation.mutate({ key: 'website_link', data: { url: websiteUrl, enabled: websiteEnabled } })}
+                    className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all active:scale-[0.98]"
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
+              {!websiteEnabled && (
+                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 text-center">
+                  <p className="text-sm text-gray-400">Website button is hidden in bot</p>
+                </div>
+              )}
             </section>
 
 
