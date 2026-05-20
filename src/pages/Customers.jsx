@@ -6,20 +6,25 @@ import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
-import { 
-  Search, 
-  User, 
-  ShoppingBag, 
-  Ban, 
-  CheckCircle2, 
-  MoreVertical, 
-  ChevronRight,
+import {
+  Search,
+  User,
+  ShoppingBag,
+  Ban,
   MessageSquare,
   Calendar,
   Clock,
   ShieldAlert,
   ShieldCheck,
-  Loader2
+  Loader2,
+  Phone,
+  Mail,
+  MapPin,
+  X,
+  Package,
+  Hash,
+  DollarSign,
+  ChevronDown
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -31,6 +36,7 @@ export default function Customers() {
   const [search, setSearch] = useState('');
   const [filterTab, setFilterTab] = useState('all');
   const [confirmCustomer, setConfirmCustomer] = useState(null);
+  const [detailCustomer, setDetailCustomer] = useState(null);
 
   const { data: customers, isLoading: customersLoading } = useQuery({
     queryKey: ['users', 'customers', selectedBotId],
@@ -128,19 +134,22 @@ export default function Customers() {
       ) : (
         <div className="grid gap-3">
           {filteredCustomers.map(customer => (
-            <motion.div 
+            <motion.div
               layout
               key={customer.id}
               className={`bg-white p-4 rounded-2xl shadow-sm border transition-all ${customer.is_blocked ? 'border-rose-100 bg-rose-50/30' : 'border-gray-100'}`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+              <button
+                onClick={() => setDetailCustomer(customer)}
+                className="w-full text-left"
+              >
+                <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm ${customer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
                     {customer.first_name?.[0] || '?'}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{customer.first_name}</p>
+                      <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.first_name}</p>
                       {customer.is_blocked && (
                         <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[8px] font-bold uppercase rounded-md flex items-center gap-1 border border-rose-200">
                           <Ban className="w-2 h-2" /> Blocked
@@ -156,26 +165,9 @@ export default function Customers() {
                       </span>
                     </div>
                   </div>
+                  <ChevronDown className="w-4 h-4 text-gray-300 flex-shrink-0" />
                 </div>
-
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => setConfirmCustomer(customer)}
-                    disabled={toggleBlockMutation.isPending}
-                    className={`p-2 sm:p-2.5 rounded-xl transition-all shadow-sm active:scale-90 ${
-                      customer.is_blocked
-                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100'
-                      : 'bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100'
-                    }`}
-                  >
-                    {toggleBlockMutation.isPending ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> :
-                      (customer.is_blocked ? <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" /> : <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />)}
-                  </button>
-                  <button className="p-2 sm:p-2.5 bg-gray-50 text-gray-400 rounded-xl border border-gray-100 hover:bg-gray-100 active:scale-90 transition-all">
-                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                </div>
-              </div>
+              </button>
             </motion.div>
           ))}
         </div>
@@ -196,6 +188,155 @@ export default function Customers() {
         variant={confirmCustomer?.is_blocked ? 'warning' : 'danger'}
         loading={toggleBlockMutation.isPending}
       />
+
+      {/* Customer Detail Sheet */}
+      <AnimatePresence>
+        {detailCustomer && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setDetailCustomer(null)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70]"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 1 }}
+              className="fixed bottom-0 left-0 right-0 z-[80] bg-white rounded-t-[28px] shadow-2xl max-h-[85vh] flex flex-col"
+            >
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-9 h-1 bg-gray-200 rounded-full" />
+              </div>
+
+              {/* Header with close */}
+              <div className="flex items-center justify-between px-6 pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm ${detailCustomer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                    {detailCustomer.first_name?.[0] || '?'}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">{detailCustomer.first_name}</h3>
+                    <p className="text-xs text-gray-500">@{detailCustomer.username || 'no_username'}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDetailCustomer(null)}
+                  className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Scrollable content */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+                {/* Details */}
+                <div className="bg-gray-50 rounded-2xl p-4 space-y-4">
+                  {detailCustomer.created_at && (
+                    <DetailRow icon={Calendar} label="Joined" value={format(new Date(detailCustomer.created_at), 'MMM d, yyyy')} />
+                  )}
+                  {detailCustomer.phone_number && (
+                    <DetailRow icon={Phone} label="Phone" value={detailCustomer.phone_number} />
+                  )}
+                  {detailCustomer.email && (
+                    <DetailRow icon={Mail} label="Email" value={detailCustomer.email} />
+                  )}
+                  {detailCustomer.address && (
+                    <DetailRow icon={MapPin} label="Address" value={detailCustomer.address} />
+                  )}
+                  {detailCustomer.telegram_id && (
+                    <DetailRow icon={Hash} label="Telegram ID" value={detailCustomer.telegram_id.toString()} />
+                  )}
+                </div>
+
+                {/* Order Records */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Package className="w-4 h-4 text-indigo-600" />
+                    <h4 className="text-sm font-bold text-gray-900">
+                      Orders ({getCustomerOrderCount(detailCustomer.id)})
+                    </h4>
+                  </div>
+                  {orders?.filter(o => o.customer_id === detailCustomer.id).length === 0 ? (
+                    <div className="bg-gray-50 rounded-2xl p-6 text-center">
+                      <ShoppingBag className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+                      <p className="text-xs text-gray-400">No orders yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {orders?.filter(o => o.customer_id === detailCustomer.id).slice(0, 10).map(order => (
+                        <div key={order.id} className="bg-gray-50 rounded-2xl p-3.5 flex items-center justify-between border border-gray-100">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-gray-900 truncate">
+                              #{order.id} {order.product_name && `· ${order.product_name}`}
+                            </p>
+                            <p className="text-[10px] text-gray-500 mt-0.5">
+                              {order.created_at ? format(new Date(order.created_at), 'MMM d, HH:mm') : ''}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                            <span className="text-xs font-bold text-gray-900">
+                              {order.currency || ''} {order.total || order.amount || ''}
+                            </span>
+                            <span className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded-lg ${
+                              order.status === 'completed' || order.status === 'paid'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : order.status === 'cancelled'
+                                ? 'bg-rose-100 text-rose-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {order.status || 'pending'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Block/Unblock button */}
+              <div className="px-6 py-4 border-t border-gray-100 pb-sheet">
+                <button
+                  onClick={() => {
+                    setConfirmCustomer(detailCustomer);
+                    setDetailCustomer(null);
+                  }}
+                  className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+                    detailCustomer.is_blocked
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-rose-600 text-white hover:bg-rose-700'
+                  }`}
+                >
+                  {detailCustomer.is_blocked ? (
+                    <><ShieldCheck className="w-4 h-4" /> Unblock Customer</>
+                  ) : (
+                    <><Ban className="w-4 h-4" /> Block Customer</>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function DetailRow({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+        <Icon className="w-4 h-4 text-indigo-600" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{label}</p>
+        <p className="text-sm font-bold text-gray-900 truncate">{value}</p>
+      </div>
     </div>
   );
 }
