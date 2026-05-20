@@ -23,6 +23,7 @@ import WebPanel from './pages/WebPanel';
 import PublicShop from './pages/PublicShop';
 import ToastContainer from './components/shared/ToastContainer';
 import SelectionToolbar from './components/shared/SelectionToolbar';
+import HapticProvider from './components/shared/HapticProvider';
 
 const ADMIN_PATHS = new Set([
   'login', 'dashboard', 'orders', 'products', 'customers',
@@ -96,6 +97,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <HapticProvider>
       {publicSlug ? (
         <>
           <PublicShop slug={publicSlug} />
@@ -131,6 +133,7 @@ export default function App() {
           <SelectionToolbar />
         </>
       )}
+    </HapticProvider>
     </QueryClientProvider>
   );
 }
