@@ -49,6 +49,7 @@ export default function BottomNav() {
             <NavLink
               key={to}
               to={to}
+              data-haptic
               className={({ isActive }) => `
                 flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all active:scale-95
                 ${isActive ? 'text-indigo-600' : 'text-gray-400'}
@@ -72,6 +73,7 @@ export default function BottomNav() {
           ))}
           <button
             onClick={() => setIsMoreOpen(true)}
+            data-haptic
             className={`flex flex-col items-center justify-center flex-1 h-full gap-1 active:scale-95 transition-transform ${isMoreActive ? 'text-indigo-600' : 'text-gray-400'}`}
           >
             <div className={`p-1.5 rounded-xl ${isMoreActive ? 'bg-indigo-50' : ''}`}>
@@ -124,6 +126,7 @@ export default function BottomNav() {
                         key={to}
                         to={to}
                         onClick={() => setIsMoreOpen(false)}
+                        data-haptic
                         className={`flex items-center gap-4 p-3.5 rounded-2xl border transition-all card-press ${
                           isActive
                             ? 'bg-indigo-50 border-indigo-100 text-indigo-600'

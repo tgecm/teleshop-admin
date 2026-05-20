@@ -20,6 +20,7 @@ import { uploadImage } from '../api/products';
 import { getBotPublicSlug, generateBotSlug } from '../api/public';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import InstallButton from '../components/shared/InstallButton';
 import {
   Settings as SettingsIcon,
   ShieldCheck,
@@ -505,6 +506,9 @@ export default function Settings() {
                 </div>
               </div>
             </section>
+
+
+            <InstallButton />
 
 
             <section className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 lg:col-span-2">

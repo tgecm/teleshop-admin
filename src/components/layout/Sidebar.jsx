@@ -38,6 +38,7 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
+            data-haptic
             className={({ isActive }) => `
               flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
               ${isActive 
@@ -52,8 +53,9 @@ export default function Sidebar() {
       </div>
       
       <div className="p-4 border-t border-gray-100">
-        <button 
+        <button
           onClick={logout}
+          data-haptic
           className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium text-rose-600 hover:bg-rose-50 transition-all"
         >
           <LogOut className="w-5 h-5" />

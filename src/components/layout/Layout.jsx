@@ -106,7 +106,17 @@ export default function Layout() {
         </AnimatePresence>
 
         <main className="flex-1 px-3 sm:px-4 md:p-8 pb-nav md:pb-8 overflow-y-auto max-w-7xl mx-auto w-full scroll-smooth">
-          <Outlet />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
       <BottomNav />
