@@ -45,6 +45,11 @@ export default function Customers() {
     enabled: !!selectedBotId,
   });
 
+  const handleRefresh = useCallback(async () => {
+    await refetchCustomers();
+    queryClient.invalidateQueries({ queryKey: ['orders', selectedBotId] });
+  }, [refetchCustomers, queryClient, selectedBotId]);
+
   const { data: orders } = useQuery({
     queryKey: ['orders', selectedBotId],
     queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
@@ -118,10 +123,7 @@ export default function Customers() {
         </button>
       </div>
 
-      <PullToRefresh onRefresh={useCallback(async () => {
-        await refetchCustomers();
-        queryClient.invalidateQueries({ queryKey: ['orders', selectedBotId] });
-      }, [refetchCustomers, queryClient, selectedBotId])}>
+      <PullToRefresh onRefresh={handleRefresh}>
       {filteredCustomers.length === 0 ? (
         <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-gray-200">
           <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
