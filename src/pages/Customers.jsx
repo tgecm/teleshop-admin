@@ -193,7 +193,6 @@ export default function Customers() {
         loading={toggleBlockMutation.isPending}
       />
 
-      {/* Customer Detail Sheet */}
       <AnimatePresence>
         {detailCustomer && (
           <>
@@ -212,12 +211,10 @@ export default function Customers() {
               transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 1 }}
               className="fixed bottom-0 left-0 right-0 z-[80] bg-white rounded-t-[28px] shadow-2xl max-h-[85vh] flex flex-col"
             >
-              {/* Handle */}
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-9 h-1 bg-gray-200 rounded-full" />
               </div>
 
-              {/* Header with close */}
               <div className="flex items-center justify-between px-6 pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-3">
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm ${detailCustomer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
@@ -236,9 +233,7 @@ export default function Customers() {
                 </button>
               </div>
 
-              {/* Scrollable content */}
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-                {/* Details */}
                 <div className="bg-gray-50 rounded-2xl p-4 space-y-4">
                   {detailCustomer.created_at && (
                     <DetailRow icon={Calendar} label="Joined" value={format(new Date(detailCustomer.created_at), 'MMM d, yyyy')} />
@@ -257,7 +252,6 @@ export default function Customers() {
                   )}
                 </div>
 
-                {/* Order Records */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Package className="w-4 h-4 text-indigo-600" />
@@ -303,7 +297,6 @@ export default function Customers() {
                 </div>
               </div>
 
-              {/* Block/Unblock button */}
               <div className="px-6 py-4 border-t border-gray-100 pb-sheet">
                 <button
                   onClick={() => {

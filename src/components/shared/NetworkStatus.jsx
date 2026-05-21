@@ -28,12 +28,10 @@ export default function NetworkStatus() {
           className="fixed top-4 left-4 right-4 z-[99999] max-w-sm mx-auto"
         >
           <div className="bg-gray-900/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden">
-            {/* Top colored bar */}
             <div className="h-1.5 bg-gradient-to-r from-amber-500 to-rose-500" />
 
             <div className="p-5">
               <div className="flex items-start gap-4">
-                {/* Icon */}
                 <div className="w-12 h-12 rounded-2xl bg-rose-500/20 flex items-center justify-center flex-shrink-0">
                   <div className="relative">
                     <WifiOff className="w-6 h-6 text-rose-400" />
@@ -45,14 +43,12 @@ export default function NetworkStatus() {
                   </div>
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base font-bold text-white">No Internet Connection</h3>
                   <p className="text-sm text-gray-400 mt-1 leading-relaxed">
                     You're offline. Some features may not work until your connection is restored.
                   </p>
 
-                  {/* Retry indicator */}
                   <div className="flex items-center gap-2 mt-3">
                     <motion.div
                       animate={{ rotate: 360 }}
@@ -64,7 +60,6 @@ export default function NetworkStatus() {
                   </div>
                 </div>
 
-                {/* Close */}
                 <button
                   onClick={() => setDismissed(true)}
                   className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0 hover:bg-white/10 transition-colors"
@@ -77,7 +72,6 @@ export default function NetworkStatus() {
         </motion.div>
       )}
 
-      {/* Coming back online toast */}
       {!offline && dismissed && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -9,7 +9,6 @@ export default function WebPanel() {
   const [view, setView] = useState(null);
   const [email, setEmail] = useState('');
 
-  // Sign up form
   const [suStep, setSuStep] = useState(steps.BOT);
   const [suBotUsername, setSuBotUsername] = useState('');
   const [suBotCode, setSuBotCode] = useState('');
@@ -18,28 +17,23 @@ export default function WebPanel() {
   const [suPw1, setSuPw1] = useState('');
   const [suPw2, setSuPw2] = useState('');
 
-  // Forgot pw form
   const [fpStep, setFpStep] = useState(steps.BOT);
   const [fpEmail, setFpEmail] = useState('');
   const [fpCode, setFpCode] = useState('');
   const [fpPw1, setFpPw1] = useState('');
   const [fpPw2, setFpPw2] = useState('');
 
-  // Change pw form
   const [cpEmail, setCpEmail] = useState('');
   const [cpOld, setCpOld] = useState('');
   const [cpNew1, setCpNew1] = useState('');
   const [cpNew2, setCpNew2] = useState('');
 
-  // Alerts per view
   const [alerts, setAlerts] = useState({});
   const [loading, setLoading] = useState({});
 
-  // Timer
   const [timer, setTimer] = useState({ remaining: 0, show: false });
   const timerRef = useRef(null);
 
-  // Success view
   const [successData, setSuccessData] = useState({ icon: '✅', title: 'Done!', msg: '' });
   const successCbRef = useRef(null);
 
@@ -53,7 +47,6 @@ export default function WebPanel() {
     setLoading(prev => ({ ...prev, [key]: val }));
   };
 
-  // Timer helper
   const startTimer = (seconds) => {
     if (timerRef.current) clearInterval(timerRef.current);
     setTimer({ remaining: seconds, show: true });
@@ -70,7 +63,6 @@ export default function WebPanel() {
   };
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
-  // API helper
   const apiPost = async (path, body) => {
     const res = await fetch(API_BASE + path, {
       method: 'POST',
@@ -88,12 +80,10 @@ export default function WebPanel() {
     return data;
   };
 
-  // Init: show signup view
   useEffect(() => {
     setView(views.SIGNUP);
   }, []);
 
-  // ─── Utility: clean bot username ──────────────────────────
   const cleanBotUsername = (raw) => {
     let u = raw.trim();
     u = u.replace(/^https?:\/\/(www\.)?t\.me\//, '');
@@ -103,7 +93,6 @@ export default function WebPanel() {
     return u;
   };
 
-  // ─── Sign Up ──────────────────────────────────────────────
   const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
   const suSendBotCode = async () => {
@@ -199,7 +188,6 @@ export default function WebPanel() {
     clearAlert('signup5');
   };
 
-  // ─── Change Password ──────────────────────────────────────
   const doChangePw = async () => {
     clearAlert('changepw');
     if (!cpEmail) return showAlert('changepw', 'Enter your email address.', 'error');
@@ -214,7 +202,6 @@ export default function WebPanel() {
     }
   };
 
-  // ─── Forgot Password ──────────────────────────────────────
   const fpSendCode = async () => {
     const e = document.getElementById('fp-email')?.value || fpEmail;
     if (!isValidEmail(e)) return showAlert('forgot', 'Enter a valid email address.', 'error');
@@ -234,7 +221,7 @@ export default function WebPanel() {
     try {
       await apiPost('/send-code', { email: fpEmail, flow: 'forgot' });
       startTimer(60);
-    } catch (e) { /* ignore */ }
+    } catch (e) { }
   };
 
   const fpResetPw = async () => {
@@ -261,7 +248,6 @@ export default function WebPanel() {
     else setView(views.SIGNUP);
   };
 
-  // Password strength
   const pwScore = (val) => {
     let s = 0;
     if (val.length >= 6) s++;
@@ -467,7 +453,6 @@ export default function WebPanel() {
           <p>Web Panel Access</p>
         </div>
 
-        {/* Sign Up */}
         {view === views.SIGNUP && (
           <div className="wp-card">
             <div className="wp-steps">
@@ -606,7 +591,6 @@ export default function WebPanel() {
           </div>
         )}
 
-        {/* Change Password */}
         {view === views.CHANGEPW && (
           <div className="wp-card">
             <div className="wp-card-title">Change Password</div>
@@ -646,7 +630,6 @@ export default function WebPanel() {
           </div>
         )}
 
-        {/* Forgot Password */}
         {view === views.FORGOT && (
           <div className="wp-card">
             <div className="wp-steps">
@@ -709,7 +692,6 @@ export default function WebPanel() {
           </div>
         )}
 
-        {/* Success */}
         {view === views.SUCCESS && (
           <div className="wp-card">
             <div className="wp-success-icon">{successData.icon}</div>

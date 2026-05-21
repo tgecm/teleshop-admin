@@ -6,6 +6,7 @@ import { useBotStore } from './store/botStore';
 import { getMe } from './api/auth';
 import { getBots } from './api/bots';
 import { getAllBots } from './api/superadmin';
+import { normalizeText } from './utils/normalizeText';
 
 import ToastContainer from './components/shared/ToastContainer';
 import SelectionToolbar from './components/shared/SelectionToolbar';
@@ -32,6 +33,14 @@ const ADMIN_PATHS = new Set([
   'broadcast', 'commands', 'payments', 'subscription', 'settings',
   'chats', 'more',
 ]);
+
+const PUBLIC_DOMAIN = 'telegramecommerce.shop';
+
+function isCustomDomain() {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host !== PUBLIC_DOMAIN && host !== 'localhost' && host !== '127.0.0.1';
+}
 
 function PublicRoute() {
   const pathname = window.location.pathname.replace(/^\//, '');
@@ -64,9 +73,8 @@ function SuspenseFallback() {
 
 export default function App() {
   const { token, setUser, logout } = useAuthStore();
-  const { setBots, selectedBotId, setSelectedBot } = useBotStore();
+  const { bots, setBots, selectedBotId, setSelectedBot } = useBotStore();
 
-  // Intercept ?p=/slug from GitHub Pages 404 SPA redirect
   const publicSlug = (() => {
     if (typeof window === 'undefined') return null;
     const p = new URLSearchParams(window.location.search).get('p');
@@ -107,11 +115,31 @@ export default function App() {
     }
   }, [token]);
 
+  useEffect(() => {
+    if (selectedBotId && bots.length > 0) {
+      const bot = bots.find(b => b.id.toString() === selectedBotId?.toString());
+      if (bot) {
+        const name = normalizeText(bot.bot_full_name || bot.bot_username || 'Admin');
+        document.title = `${name} Admin`;
+      } else {
+        document.title = 'Admin Panel';
+      }
+    } else {
+      document.title = 'Admin Panel';
+    }
+  }, [selectedBotId, bots]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <HapticProvider>
       <NetworkStatus />
-      {publicSlug ? (
+      {isCustomDomain() ? (
+        <>
+          <PublicShop viaDomain />
+          <ToastContainer />
+          <SelectionToolbar />
+        </>
+      ) : publicSlug ? (
         <>
           <PublicShop slug={publicSlug} />
           <ToastContainer />

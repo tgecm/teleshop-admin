@@ -41,7 +41,6 @@ export default function PullToRefresh({ onRefresh, children }) {
       try {
         await onRefresh?.();
       } catch {
-        // ignore
       } finally {
         setState('idle');
         setPullDistance(0);
@@ -60,7 +59,6 @@ export default function PullToRefresh({ onRefresh, children }) {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Pull indicator */}
       <div
         className="flex justify-center items-center overflow-hidden"
         style={{
@@ -98,7 +96,6 @@ export default function PullToRefresh({ onRefresh, children }) {
         </div>
       </div>
 
-      {/* Content */}
       <div
         style={{
           transform: state === 'refreshing' ? 'translateY(0)' : `translateY(${Math.max(0, pullDistance - 28)}px)`,

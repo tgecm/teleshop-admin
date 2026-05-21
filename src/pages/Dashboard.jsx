@@ -186,7 +186,6 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* ── Stat Cards ── */}
       <motion.div
         variants={containerVariants}
         className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-6"
@@ -211,7 +210,6 @@ export default function Dashboard() {
             ))}
       </motion.div>
 
-      {/* ── Mini Metrics Row ── */}
       <motion.div
         variants={containerVariants}
         className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-6"
@@ -244,9 +242,7 @@ export default function Dashboard() {
         />
       </motion.div>
 
-      {/* ── Chart + Top Products ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* ── Chart ── */}
         <motion.div
           variants={itemVariants}
           className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100"
@@ -341,7 +337,6 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* ── Top Products ── */}
         <motion.div
           variants={itemVariants}
           className="bg-white pt-5 pb-2 px-5 rounded-2xl shadow-sm border border-gray-100"
@@ -405,7 +400,6 @@ export default function Dashboard() {
                               {product.share}%
                             </span>
                           </div>
-                          {/* Progress bar */}
                           <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <motion.div
                               initial={{ width: 0 }}
