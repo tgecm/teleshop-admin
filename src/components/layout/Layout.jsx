@@ -1,19 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Navigate, useLocation, useNavigationType } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useBotStore } from '../../store/botStore';
+import { normalizeText } from '../../utils/normalizeText';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import { X, LogOut, LayoutDashboard, Package, ShoppingBag, Users, MessageCircle, Radio, CreditCard, Settings, ShieldCheck } from 'lucide-react';
+import ConfirmDialog from '../shared/ConfirmDialog';
 import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Layout() {
   const { token, logout } = useAuthStore();
+  const { bots, selectedBotId } = useBotStore();
+  const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
+  const botName = selectedBot ? normalizeText(selectedBot.bot_full_name || selectedBot.bot_username || 'Admin') : 'Admin';
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const location = useLocation();
   const navType = useNavigationType();
-  const [animDir, setAnimDir] = useState(0); // -1 = back, 0 = forward/idle
+  const [animDir, setAnimDir] = useState(0);
 
   useEffect(() => {
     setAnimDir(navType === 'POP' ? -1 : 0);
@@ -66,10 +73,14 @@ export default function Layout() {
               >
                 <div className="p-6 flex items-center justify-between border-b border-gray-100">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white font-bold text-xl">T</span>
+                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center overflow-hidden">
+                      {selectedBot?.profile_picture ? (
+                        <img src={selectedBot.profile_picture} alt="Logo" className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <span className="text-white font-bold text-xl">{botName.charAt(0).toUpperCase()}</span>
+                      )}
                     </div>
-                    <span className="text-gray-900 font-bold text-lg">TeleShop</span>
+                    <span className="text-gray-900 font-bold text-lg">{botName}</span>
                   </div>
                   <button 
                     onClick={() => setIsDrawerOpen(false)}
@@ -98,8 +109,8 @@ export default function Layout() {
                 </div>
                 
                 <div className="p-4 border-t border-gray-100">
-                  <button 
-                    onClick={logout}
+                  <button
+                    onClick={() => { setIsDrawerOpen(false); setShowLogoutConfirm(true); }}
                     className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl text-sm font-bold text-rose-600 bg-rose-50 border border-rose-100 hover:bg-rose-100 transition-all"
                   >
                     <LogOut className="w-5 h-5" />
@@ -123,6 +134,16 @@ export default function Layout() {
         </main>
       </div>
       <BottomNav />
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={() => { setShowLogoutConfirm(false); logout(); }}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
+        variant="danger"
+      />
     </div>
   );
 }

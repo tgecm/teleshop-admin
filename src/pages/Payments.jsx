@@ -294,7 +294,6 @@ export default function Payments() {
                     </div>
                   </div>
 
-                  {/* QR Code Upload */}
                   <div className="space-y-3">
                     <label className="text-sm font-bold text-gray-700 ml-1">QR Code</label>
                     <input

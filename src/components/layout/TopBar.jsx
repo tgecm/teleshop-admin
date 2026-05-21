@@ -1,13 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../../store/authStore';
+import { useBotStore } from '../../store/botStore';
+import { normalizeText } from '../../utils/normalizeText';
 import { LogOut, User, Menu } from 'lucide-react';
 import BotSwitcher from '../shared/BotSwitcher';
 import RefreshButton from '../shared/RefreshButton';
+import ConfirmDialog from '../shared/ConfirmDialog';
 
 export default function TopBar({ onMenuClick }) {
   const { user, logout } = useAuthStore();
+  const { bots, selectedBotId } = useBotStore();
+  const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
+  const botName = selectedBot ? normalizeText(selectedBot.bot_full_name || selectedBot.bot_username || 'Admin') : 'Admin';
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -32,10 +39,14 @@ export default function TopBar({ onMenuClick }) {
             <Menu className="w-[22px] h-[22px]" />
           </button>
           <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
-            <div className="w-7 h-7 md:w-8 md:h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-indigo-600 font-bold text-base md:text-lg">T</span>
+            <div className="w-7 h-7 md:w-8 md:h-8 bg-white rounded-lg flex items-center justify-center shadow-sm overflow-hidden">
+              {selectedBot?.profile_picture ? (
+                <img src={selectedBot.profile_picture} alt="Logo" className="w-full h-full object-cover rounded-lg" />
+              ) : (
+                <span className="text-indigo-600 font-bold text-base md:text-lg">{botName.charAt(0).toUpperCase()}</span>
+              )}
             </div>
-            <span className="text-white font-bold text-lg hidden lg:block">TeleShop</span>
+            <span className="text-white font-bold text-lg hidden lg:block">{botName}</span>
           </div>
         </div>
 
@@ -82,8 +93,8 @@ export default function TopBar({ onMenuClick }) {
                     <p className="text-sm font-bold text-gray-900 truncate">{user?.email}</p>
                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mt-0.5">{user?.is_superadmin ? 'Superadmin' : 'Owner'}</p>
                   </div>
-                  <button 
-                    onClick={() => { setMenuOpen(false); logout(); }}
+                  <button
+                    onClick={() => { setMenuOpen(false); setShowLogoutConfirm(true); }}
                     className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-bold text-rose-600 hover:bg-rose-50 active:bg-rose-100 transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
@@ -95,6 +106,16 @@ export default function TopBar({ onMenuClick }) {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={() => { setShowLogoutConfirm(false); logout(); }}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
+        variant="danger"
+      />
     </header>
   );
 }

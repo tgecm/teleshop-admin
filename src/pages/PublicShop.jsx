@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getPublicShop } from '../api/public';
+import { getPublicShop, getPublicShopByDomain } from '../api/public';
 import {
   ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, TrendingUp, Clock, Star, Search, X, ChevronLeft
@@ -119,7 +119,6 @@ function ProductDetailModal({ product, shop, onClose }) {
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
         className="relative bg-white w-full max-w-lg md:rounded-[32px] md:mx-4 max-h-[92svh] overflow-y-auto rounded-t-[32px] shadow-2xl"
       >
-        {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 z-20 p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all"
@@ -127,7 +126,6 @@ function ProductDetailModal({ product, shop, onClose }) {
           <X className="w-5 h-5 text-gray-700" />
         </button>
 
-        {/* Image Carousel */}
         <div
           className="relative aspect-square bg-gray-100 overflow-hidden"
           onTouchStart={handleTouchStart}
@@ -149,10 +147,8 @@ function ProductDetailModal({ product, shop, onClose }) {
             />
           </AnimatePresence>
 
-          {/* Multiple image indicators */}
           {images.length > 1 && (
             <>
-              {/* Arrow buttons */}
               {currentImageIndex > 0 && (
                 <button
                   onClick={prevImage}
@@ -170,7 +166,6 @@ function ProductDetailModal({ product, shop, onClose }) {
                 </button>
               )}
 
-              {/* Dots */}
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
                 {images.map((_, i) => (
                   <button
@@ -185,7 +180,6 @@ function ProductDetailModal({ product, shop, onClose }) {
                 ))}
               </div>
 
-              {/* Counter */}
               <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full">
                 <span className="text-white text-xs font-bold">
                   {currentImageIndex + 1}/{images.length}
@@ -200,7 +194,6 @@ function ProductDetailModal({ product, shop, onClose }) {
             </div>
           )}
 
-          {/* Stock badge on detail */}
           <div className="absolute bottom-4 right-4">
             <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider backdrop-blur-sm shadow-sm ${
               isOutOfStock ? 'bg-rose-500/90 text-white' :
@@ -216,7 +209,6 @@ function ProductDetailModal({ product, shop, onClose }) {
           </div>
         </div>
 
-        {/* Product Details */}
         <div className="p-6 pb-8">
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
 
@@ -255,16 +247,102 @@ function ProductDetailModal({ product, shop, onClose }) {
   );
 }
 
-export default function PublicShop({ slug }) {
+function ShopClosed({ shop }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+        className="bg-white rounded-[40px] shadow-2xl shadow-indigo-100/50 p-10 max-w-md w-full text-center relative overflow-hidden"
+      >
+        <div className="absolute -top-20 -right-20 w-48 h-48 bg-gradient-to-br from-rose-50 to-rose-100 rounded-full opacity-60" />
+        <div className="absolute -bottom-16 -left-16 w-40 h-40 bg-gradient-to-br from-amber-50 to-amber-100 rounded-full opacity-60" />
+
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', damping: 15, stiffness: 250, delay: 0.15 }}
+          className="relative z-10"
+        >
+          <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-rose-100 to-rose-200 rounded-[28px] flex items-center justify-center shadow-lg shadow-rose-100/50">
+            <motion.div
+              animate={{ rotate: [0, -10, 10, -10, 0] }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+            >
+              <Clock className="w-12 h-12 text-rose-500" />
+            </motion.div>
+          </div>
+        </motion.div>
+
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2"
+        >
+          {shop?.bot_full_name || 'Shop'}
+        </motion.p>
+
+        <motion.h2
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="text-2xl font-bold text-gray-900 mb-3"
+        >
+          Shop is Currently Closed
+        </motion.h2>
+
+        <motion.p
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="text-gray-500 text-sm leading-relaxed mb-8"
+        >
+          The shop owner has closed the store for now. Please check back later or contact us on Telegram for more information.
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <a
+            href={`https://t.me/${shop?.bot_username}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl hover:shadow-xl hover:shadow-indigo-200 hover:from-indigo-700 hover:to-purple-700 active:scale-[0.98] transition-all shadow-lg shadow-indigo-100"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+            </svg>
+            Contact on Telegram
+          </a>
+        </motion.div>
+
+        <motion.div
+          animate={{
+            scale: [1, 1.05, 1],
+            opacity: [0.5, 0.8, 0.5],
+          }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-1 bg-rose-200/50 rounded-full"
+        />
+      </motion.div>
+    </div>
+  );
+}
+
+export default function PublicShop({ slug, viaDomain }) {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['public-shop', slug],
-    queryFn: () => getPublicShop(slug),
-    enabled: !!slug,
+    queryKey: viaDomain ? ['public-shop-by-domain'] : ['public-shop', slug],
+    queryFn: viaDomain ? getPublicShopByDomain : () => getPublicShop(slug),
+    enabled: viaDomain || !!slug,
     retry: 2,
     retryDelay: 1000,
   });
@@ -345,9 +423,12 @@ export default function PublicShop({ slug }) {
     );
   }
 
+  if (data?.is_open === false) {
+    return <ShopClosed shop={shop} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Banner */}
       <div className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 overflow-hidden">
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/5 rounded-full" />
         <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-white/5 rounded-full" />
@@ -359,8 +440,12 @@ export default function PublicShop({ slug }) {
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center gap-4"
           >
-            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl border border-white/30">
-              <span className="text-white font-bold text-2xl">{getInitials(shop.bot_full_name)}</span>
+            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-xl border border-white/30 overflow-hidden">
+              {shop?.profile_picture ? (
+                <img src={shop.profile_picture} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-white font-bold text-2xl">{getInitials(shop.bot_full_name)}</span>
+              )}
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-sm">
@@ -386,7 +471,6 @@ export default function PublicShop({ slug }) {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 -mt-10 relative z-10">
-        {/* Shop Info Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -414,7 +498,6 @@ export default function PublicShop({ slug }) {
           </button>
         </motion.div>
 
-        {/* Search Bar */}
         <AnimatePresence>
           {showSearch && (
             <motion.div
@@ -446,7 +529,6 @@ export default function PublicShop({ slug }) {
           )}
         </AnimatePresence>
 
-        {/* Category Filters */}
         {categories.length > 0 && !showSearch && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -483,14 +565,12 @@ export default function PublicShop({ slug }) {
           </motion.div>
         )}
 
-        {/* Results count */}
         {searchQuery && (
           <p className="text-sm text-gray-400 mb-4 ml-1">
             {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''} for "{searchQuery}"
           </p>
         )}
 
-        {/* Products Grid */}
         {filteredProducts.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -528,7 +608,6 @@ export default function PublicShop({ slug }) {
                   className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:shadow-indigo-100/50 hover:-translate-y-1 transition-all duration-300 group cursor-pointer"
                   onClick={() => setSelectedProduct(product)}
                 >
-                  {/* Product Image */}
                   <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
                     {product.image_url && productImages[0] ? (
                       <img
@@ -550,7 +629,6 @@ export default function PublicShop({ slug }) {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                    {/* Multiple photos indicator */}
                     {productImages.length > 1 && (
                       <div className="absolute top-2 right-2 md:top-3 md:right-3">
                         <span className="px-2 py-0.5 bg-white/90 backdrop-blur-sm rounded-lg text-[10px] font-bold text-gray-600 shadow-xs flex items-center gap-1">
@@ -560,7 +638,6 @@ export default function PublicShop({ slug }) {
                       </div>
                     )}
 
-                    {/* Stock Badge */}
                     <div className="absolute bottom-2 left-2 md:bottom-3 md:left-3">
                       <span className={`px-2 py-0.5 md:px-2.5 md:py-1 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-wider backdrop-blur-sm shadow-sm ${
                         isOutOfStock ? 'bg-rose-500/90 text-white' :
@@ -573,7 +650,6 @@ export default function PublicShop({ slug }) {
                       </span>
                     </div>
 
-                    {/* Category Tag */}
                     {product.category_id && categoryMap[product.category_id] && (
                       <div className="absolute top-2 left-2 md:top-3 md:left-3">
                         <span className="px-2 py-0.5 md:px-2.5 md:py-1 bg-white/90 backdrop-blur-sm rounded-lg text-[10px] md:text-xs font-bold text-gray-600 shadow-xs flex items-center gap-1">
@@ -584,7 +660,6 @@ export default function PublicShop({ slug }) {
                     )}
                   </div>
 
-                  {/* Product Info */}
                   <div className="p-3 md:p-4">
                     <h3 className="font-bold text-gray-900 text-sm md:text-base line-clamp-1 mb-0.5 group-hover:text-indigo-600 transition-colors">
                       {product.name}
@@ -624,7 +699,6 @@ export default function PublicShop({ slug }) {
         )}
       </div>
 
-      {/* Footer */}
       <footer className="bg-white border-t border-gray-100 mt-8">
         <div className="max-w-7xl mx-auto px-4 py-8 text-center">
           <div className="flex items-center justify-center gap-2 mb-3">
@@ -639,7 +713,6 @@ export default function PublicShop({ slug }) {
         </div>
       </footer>
 
-      {/* Product Detail Modal */}
       <AnimatePresence>
         {selectedProduct && (
           <ProductDetailModal

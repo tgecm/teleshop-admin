@@ -242,7 +242,6 @@ export default function Chats() {
     },
   });
 
-  // Close context menu on outside click
   useEffect(() => {
     if (!contextMenu) return;
     const handle = (e) => {
@@ -336,7 +335,6 @@ export default function Chats() {
               isActive={selectedUser === chat.user_id}
               onClick={() => {
                 setSelectedUser(chat.user_id);
-                // Mark as read on frontend immediately
                 if (chat.unread_count > 0) {
                   queryClient.setQueryData(['chats', selectedBotId], (old) =>
                     old?.map(c => c.user_id === chat.user_id ? { ...c, unread_count: 0 } : c)
@@ -350,7 +348,6 @@ export default function Chats() {
         </div>
       )}
 
-      {/* Context Menu */}
       <AnimatePresence>
         {contextMenu && (
           <>
@@ -374,7 +371,6 @@ export default function Chats() {
               }}
               className="w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-1 overflow-hidden"
             >
-              {/* Delete Chat */}
               {deleteConfirm === contextMenu.chat.user_id ? (
                 <div className="px-4 py-3 space-y-2">
                   <p className="text-xs font-bold text-rose-600 text-center">Delete this chat?</p>
@@ -406,7 +402,6 @@ export default function Chats() {
 
               <div className="border-t border-gray-50" />
 
-              {/* Mark as Read / Unread */}
               {contextMenu.chat.unread_count > 0 ? (
                 <button
                   onClick={() => readMutation.mutate({ userId: contextMenu.chat.user_id, markAsRead: true })}
@@ -431,7 +426,6 @@ export default function Chats() {
         )}
       </AnimatePresence>
 
-      {/* Chat Modal */}
       <AnimatePresence>
         {selectedUser && (
           <>

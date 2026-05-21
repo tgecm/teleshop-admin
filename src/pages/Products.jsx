@@ -500,7 +500,6 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
           />
         </div>
 
-        {/* Photo Upload */}
         <div className="space-y-3">
           <label className="text-sm font-bold text-gray-700 ml-1">
             Photos <span className="text-gray-400 font-normal">({images.length}/10)</span>

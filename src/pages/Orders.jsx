@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
+import Receipt from '../components/orders/Receipt';
 import {
   Search,
   ChevronRight,
@@ -17,6 +18,7 @@ import {
   XCircle,
   Loader2,
   Image,
+  Receipt as ReceiptIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,6 +34,7 @@ export default function Orders() {
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null); // 'confirm' | 'reject' | null
+  const [showReceipt, setShowReceipt] = useState(false);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['orders', selectedBotId],
@@ -220,6 +223,17 @@ export default function Orders() {
                   </div>
 
 
+                  {selectedOrder.status === 'confirmed' && (
+                    <button
+                      onClick={() => setShowReceipt(true)}
+                      className="w-full py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-indigo-100"
+                    >
+                      <ReceiptIcon className="w-5 h-5" />
+                      Download Receipt
+                    </button>
+                  )}
+
+
                   {(selectedOrder.status === 'pending' || selectedOrder.status === 'pending_review') && (
                     <>
 
@@ -340,6 +354,13 @@ export default function Orders() {
           </>
         )}
       </AnimatePresence>
+
+      <Receipt
+        order={selectedOrder}
+        bot={currentBot}
+        open={showReceipt}
+        onClose={() => setShowReceipt(false)}
+      />
     </div>
   );
 }

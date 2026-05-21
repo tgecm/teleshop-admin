@@ -15,7 +15,6 @@ export default function SelectionToolbar() {
       }
 
       const el = sel.anchorNode;
-      // Only show for inputs, textareas, contenteditable
       const isEditable = el && (
         el.nodeType === 1
           ? ['INPUT', 'TEXTAREA'].includes(el.tagName) || el.closest?.('input, textarea, [contenteditable]')
@@ -29,7 +28,6 @@ export default function SelectionToolbar() {
       let x = rect.left + rect.width / 2;
       let y = rect.top - 12;
 
-      // Clamp to viewport
       if (barRef.current) {
         const bw = barRef.current.offsetWidth;
         x = Math.max(16, Math.min(x, window.innerWidth - bw - 16));
@@ -75,14 +73,12 @@ export default function SelectionToolbar() {
           break;
       }
     } catch (e) {
-      // Fallback for older browsers
       try {
         if (action === 'copy') document.execCommand('copy');
         if (action === 'cut') document.execCommand('cut');
         if (action === 'selectAll') document.execCommand('selectAll');
       } catch {}
     }
-    // Brief flash feedback
     setTimeout(() => {
       window.getSelection()?.removeAllRanges();
       setState({ show: false, x: 0, y: 0, hasSelection: false });
