@@ -1,0 +1,829 @@
+import React, { useState, useEffect } from 'react';
+import { signOut } from 'firebase/auth';
+import { auth } from '../lib/firebase';
+import { useAuth } from '../context/AuthContext';
+import { useRequireAuth } from '../hooks/useRequireAuth';
+import { useTelegramAuth } from '../context/TelegramAuthContext';
+import api from '../lib/api';
+
+function authHeaders() {
+  const token = localStorage.getItem('telegram_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function makeCircularFavicon(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const size = Math.min(img.width, img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.beginPath();
+      ctx.arc(32, 32, 32, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(img, (img.width - size) / 2, (img.height - size) / 2, size, size, 0, 0, 64, 64);
+      resolve(canvas.toDataURL());
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
+
+function setPageMeta(title, pictureUrl) {
+  document.title = title;
+  const icon = document.querySelector('link[rel="icon"]');
+  if (icon && pictureUrl) {
+    makeCircularFavicon(pictureUrl).then((dataUrl) => {
+      icon.setAttribute('href', dataUrl);
+    });
+  } else if (icon) {
+    icon.setAttribute('href', '/vite.svg');
+  }
+}
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  ShoppingBag, Package, Clock, CheckCircle2, XCircle, ChevronRight,
+  MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
+  ShoppingCart, Home, Truck, Copy
+} from 'lucide-react';
+
+const API_BASE = 'https://api.telegramecommerce.shop';
+
+function formatPrice(price) {
+  return Number(price).toLocaleString();
+}
+
+const statusConfig = {
+  pending: { label: 'Pending', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-400' },
+  processing: { label: 'Processing', icon: Package, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-400' },
+  shipped: { label: 'Shipped', icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-200', dot: 'bg-indigo-400' },
+  delivered: { label: 'Delivered', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-400' },
+  cancelled: { label: 'Cancelled', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50 border-red-200', dot: 'bg-red-400' },
+};
+
+export default function CustomerDashboard({ shopSlug }) {
+  const { user, loading: authLoading } = useAuth();
+  const { telegramUser } = useTelegramAuth();
+  const { isAuthenticated } = useRequireAuth(shopSlug);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [shopData, setShopData] = useState(null);
+
+  const telegramToken = typeof window !== 'undefined' ? localStorage.getItem('telegram_token') : null;
+  const isTelegramUser = !!telegramToken && !user;
+  const uid = user?.uid || (isTelegramUser && telegramUser?.id ? String(telegramUser.id) : '');
+  const displayName = user?.displayName || telegramUser?.name || 'User';
+  const photoUrl = user?.photoURL || telegramUser?.photo_url || null;
+
+  useEffect(() => {
+    fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        setShopData(data);
+        const s = data?.shop;
+        if (s?.bot_full_name) {
+          setPageMeta(s.bot_full_name, s.profile_picture);
+        }
+        // Sync website customer to backend (Firebase only)
+        if (s?.id && user?.uid) {
+          fetch(`${API_BASE}/website-customers/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bot_id: s.id,
+              firebase_uid: user.uid,
+              display_name: user.displayName,
+              email: user.email,
+              photo_url: user.photoURL,
+            }),
+          }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, [shopSlug, user?.uid, user?.displayName, user?.email, user?.photoURL]);
+
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-400 font-medium">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const shopName = shopData?.shop?.bot_full_name || shopSlug;
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-gradient-to-r from-indigo-600 to-purple-600 shadow-md">
+        <div className="flex items-center justify-between px-4 h-12">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
+              <ShoppingBag className="w-4 h-4 text-white" />
+            </div>
+            <h1 className="text-white text-sm font-bold truncate">{shopName}</h1>
+          </div>
+          <div className="flex items-center gap-1">
+            {photoUrl && (
+              <img src={photoUrl} alt="" className="w-6 h-6 rounded-full ring-2 ring-white/30" />
+            )}
+            <span className="text-white text-xs font-medium ml-1.5 truncate max-w-[100px]">
+              {displayName}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* Tab Content */}
+      <main className="flex-1 overflow-y-auto pb-16">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.15 }}
+          >
+            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} />}
+            {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} />}
+            {activeTab === 'cart' && <CartTab shopSlug={shopSlug} user={user} />}
+            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} />}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+      {/* Bottom Tab Nav */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <div className="max-w-lg mx-auto flex">
+          {[
+            { id: 'overview', label: 'Home', icon: Home },
+            { id: 'orders', label: 'Orders', icon: Package },
+            { id: 'cart', label: 'Cart', icon: ShoppingCart },
+            { id: 'profile', label: 'Profile', icon: User },
+          ].map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex flex-col items-center justify-center py-2 transition-all relative ${
+                  isActive ? 'text-indigo-600' : 'text-gray-400'
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="tabIndicator"
+                    className="absolute -top-0.5 left-1/4 right-1/4 h-0.5 bg-indigo-600 rounded-full"
+                  />
+                )}
+                <Icon className="w-5 h-5 mb-0.5" strokeWidth={isActive ? 2.5 : 1.8} />
+                <span className={`text-[10px] font-bold ${isActive ? 'text-indigo-600' : 'text-gray-400'}`}>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+/* ─── OVERVIEW TAB ─── */
+function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate }) {
+  const [orderStats, setOrderStats] = useState(null);
+
+  useEffect(() => {
+    if (!uid || !shopSlug) return;
+    const fetchStats = () => {
+      fetch(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders/stats?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : null)
+        .then(s => setOrderStats(s || { total: 0, pending: 0, delivered: 0, cancelled: 0 }))
+        .catch(() => {});
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 5000);
+    return () => clearInterval(interval);
+  }, [uid, shopSlug]);
+
+  const cartCount = (() => {
+    try {
+      const raw = localStorage.getItem('ecommerce_cart_' + shopSlug);
+      if (raw) return JSON.parse(raw).reduce((s, i) => s + i.quantity, 0);
+    } catch {}
+    return 0;
+  })();
+
+  const stats = [
+    { label: 'Total Orders', value: orderStats?.total ?? 0, icon: Package, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Pending', value: orderStats?.pending ?? 0, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Completed', value: orderStats?.delivered ?? 0, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Cart Items', value: cartCount, icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
+  ];
+
+  return (
+    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+      {/* Welcome */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
+      >
+        <div className="flex items-center gap-3">
+          {photoUrl && (
+            <img src={photoUrl} alt="" className="w-12 h-12 rounded-full ring-2 ring-indigo-100" />
+          )}
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">
+              Hello, {displayName || 'there'}!
+            </h2>
+            <p className="text-sm text-gray-500">Welcome back to {shopName}</p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 gap-3">
+        {stats.map((s, i) => {
+          const Icon = s.icon;
+          return (
+            <motion.div
+              key={s.label}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className={`${s.bg} rounded-2xl p-4 shadow-sm border border-gray-100/50`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Icon className={`w-4 h-4 ${s.color}`} strokeWidth={2.5} />
+                <span className="text-xs font-medium text-gray-500">{s.label}</span>
+              </div>
+              <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => onNavigate('orders')}
+          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left hover:shadow-md transition-all active:scale-[0.98]"
+        >
+          <Package className="w-6 h-6 text-indigo-600 mb-2" />
+          <p className="font-bold text-sm text-gray-900">My Orders</p>
+          <p className="text-xs text-gray-400 mt-0.5">View order history</p>
+        </button>
+        <button
+          onClick={() => onNavigate('cart')}
+          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left hover:shadow-md transition-all active:scale-[0.98]"
+        >
+          <ShoppingCart className="w-6 h-6 text-purple-600 mb-2" />
+          <p className="font-bold text-sm text-gray-900">My Cart</p>
+          <p className="text-xs text-gray-400 mt-0.5">Saved items</p>
+        </button>
+        <button
+          onClick={() => onNavigate('profile')}
+          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left hover:shadow-md transition-all active:scale-[0.98]"
+        >
+          <User className="w-6 h-6 text-amber-600 mb-2" />
+          <p className="font-bold text-sm text-gray-900">Profile</p>
+          <p className="text-xs text-gray-400 mt-0.5">Manage your details</p>
+        </button>
+        <a
+          href={`/?p=${encodeURIComponent(shopSlug)}`}
+          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left hover:shadow-md transition-all active:scale-[0.98] block"
+        >
+          <ShoppingBag className="w-6 h-6 text-emerald-600 mb-2" />
+          <p className="font-bold text-sm text-gray-900">Shop</p>
+          <p className="text-xs text-gray-400 mt-0.5">Browse products</p>
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/* ─── ORDERS TAB ─── */
+function OrdersTab({ shopSlug, uid }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
+
+  useEffect(() => {
+    if (!uid) return;
+    const fetchOrders = () => {
+      fetch(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => { setOrders(Array.isArray(data) ? data : []); setLoading(false); })
+        .catch(() => { setOrders([]); setLoading(false); });
+    };
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 5000);
+    return () => clearInterval(interval);
+  }, [uid, shopSlug]);
+
+  if (loading) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-12 flex justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Package className="w-10 h-10 text-gray-300" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 mb-1">No orders yet</h3>
+        <p className="text-sm text-gray-400 mb-6">
+          When you place an order, it will appear here.
+        </p>
+        <a
+          href={`/?p=${encodeURIComponent(shopSlug)}`}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-indigo-100 hover:shadow-xl transition-all"
+        >
+          <ShoppingBag className="w-4 h-4" />
+          Start Shopping
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-lg mx-auto px-4 py-6 space-y-3">
+      <h2 className="text-lg font-bold text-gray-900 mb-1">My Orders</h2>
+      {orders.map(order => {
+        const status = statusConfig[order.status] || statusConfig.pending;
+        const StatusIcon = status.icon;
+        const isExpanded = expandedId === order.id;
+        return (
+          <motion.div
+            key={order.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+          >
+            <button
+              onClick={() => setExpandedId(isExpanded ? null : order.id)}
+              className="w-full p-4 text-left active:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-mono font-bold text-gray-400">#{order.id}</span>
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${status.bg} ${status.color}`}>
+                  <StatusIcon className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  <span className="text-[10px] font-bold">{status.label}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">
+                    {order.items_count || 0} item{(order.items_count || 0) !== 1 ? 's' : ''}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {order.created_at ? new Date(order.created_at).toLocaleDateString() : '—'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-black text-gray-900">
+                    {order.total ? formatPrice(order.total) : '—'} {order.currency || 'MMK'}
+                  </span>
+                  <ChevronRight className={`w-4 h-4 text-gray-300 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                </div>
+              </div>
+            </button>
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="border-t border-gray-50"
+                >
+                  <div className="p-4 space-y-3 bg-gray-50/50">
+                    {order.shipping_address && (
+                      <div className="bg-white rounded-xl p-3 border border-gray-100 space-y-1.5">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Contact Info</p>
+                        <p className="text-xs text-gray-700"><span className="font-medium">Name:</span> {order.shipping_address.name || '—'}</p>
+                        <p className="text-xs text-gray-700"><span className="font-medium">Phone:</span> {order.shipping_address.phone || '—'}</p>
+                        <p className="text-xs text-gray-700"><span className="font-medium">Email:</span> {order.buyer_snapshot?.email || '—'}</p>
+                        {order.buyer_snapshot?.telegram_username && <p className="text-xs text-gray-700"><span className="font-medium">Telegram:</span> {order.buyer_snapshot.telegram_username}</p>}
+                        {order.buyer_snapshot?.viber_number && <p className="text-xs text-gray-700"><span className="font-medium">Viber:</span> {order.buyer_snapshot.viber_number}</p>}
+                        <p className="text-xs text-gray-700"><span className="font-medium">Address:</span> {order.shipping_address.address || '—'}</p>
+                        {order.shipping_address.notes && <p className="text-xs text-gray-700"><span className="font-medium">Notes:</span> {order.shipping_address.notes}</p>}
+                      </div>
+                    )}
+                    {order.items?.map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        {item.image_url && (
+                          <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0">
+                            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                          <p className="text-xs text-gray-400">
+                            {item.quantity ? `x${item.quantity}` : ''} {item.price ? `${formatPrice(item.price)} MMK` : ''}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {order.notes && (
+                      <div className="text-xs text-gray-500 bg-white rounded-xl p-3 border border-gray-100">
+                        <span className="font-bold text-gray-700">Note:</span> {order.notes}
+                      </div>
+                    )}
+                    {order.status === 'pending' && order.payment_info && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                        <p className="text-xs font-bold text-amber-700 mb-1">Payment Info</p>
+                        <p className="text-xs text-amber-600">{order.payment_info}</p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── CART TAB ─── */
+function CartTab({ shopSlug, user }) {
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadCart = () => {
+      try {
+        const raw = localStorage.getItem('ecommerce_cart_' + shopSlug);
+        setCartItems(raw ? JSON.parse(raw) : []);
+      } catch { setCartItems([]); }
+      setLoading(false);
+    };
+    loadCart();
+    const interval = setInterval(loadCart, 3000);
+    return () => clearInterval(interval);
+  }, [shopSlug]);
+
+  if (loading) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-12 flex justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <ShoppingCart className="w-10 h-10 text-gray-300" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 mb-1">Your cart is empty</h3>
+        <p className="text-sm text-gray-400 mb-6">
+          Items you add from the shop will appear here.
+        </p>
+        <a
+          href={`/?p=${encodeURIComponent(shopSlug)}`}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-indigo-100 hover:shadow-xl transition-all"
+        >
+          <ShoppingBag className="w-4 h-4" />
+          Browse Products
+        </a>
+      </div>
+    );
+  }
+
+  const total = cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1), 0);
+
+  return (
+    <div className="max-w-lg mx-auto px-4 py-6 space-y-3">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-lg font-bold text-gray-900">My Cart</h2>
+        <span className="text-xs font-medium text-gray-400">{cartItems.length} item{cartItems.length !== 1 ? 's' : ''}</span>
+      </div>
+      {cartItems.map((item, idx) => (
+        <motion.div
+          key={item.id || idx}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3"
+        >
+          {item.image_url ? (
+            <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0">
+              <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center shrink-0">
+              <Package className="w-6 h-6 text-indigo-300" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+            <p className="text-sm font-black text-indigo-600 mt-0.5">
+              {formatPrice(item.price)} MMK
+            </p>
+            {item.quantity && (
+              <p className="text-xs text-gray-400 mt-0.5">Qty: {item.quantity}</p>
+            )}
+          </div>
+          <button
+            className="w-8 h-8 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 active:bg-rose-200 transition-all shrink-0"
+            title="Remove"
+          >
+            <Trash2 className="w-4 h-4" strokeWidth={2} />
+          </button>
+        </motion.div>
+      ))}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-bold text-gray-700">Total</span>
+          <span className="text-xl font-black text-gray-900">{formatPrice(total)} MMK</span>
+        </div>
+        <button className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-indigo-100 hover:shadow-xl transition-all active:scale-[0.98]">
+          Checkout All
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── PROFILE TAB ─── */
+function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  const [displayName, setDisplayName] = useState('');
+  const [phones, setPhones] = useState(['']);
+  const [emails, setEmails] = useState(['']);
+  const [telegram, setTelegram] = useState('');
+  const [viber, setViber] = useState('');
+  const [address, setAddress] = useState('');
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (!uid || !shopSlug) return;
+    fetch(`${API_BASE}/customer/${encodeURIComponent(uid)}/profile?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : {})
+      .then(data => {
+        if (data && data.display_name) {
+          setDisplayName(data.display_name || '');
+          const pl = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
+          setPhones(pl.length > 0 ? pl : ['']);
+          const el = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [email || ''];
+          setEmails(el.length > 0 ? el : ['']);
+          setTelegram(data.telegram_username || '');
+          setViber(data.viber_number || '');
+          setAddress(data.address || '');
+          setNotes(data.notes || '');
+        } else {
+          setDisplayName(defaultName || '');
+          setEmails([email || '']);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [uid, shopSlug, defaultName, email]);
+
+  const addPhone = () => setPhones(prev => [...prev, '']);
+  const removePhone = (idx) => { if (phones.length > 1) setPhones(prev => prev.filter((_, i) => i !== idx)); };
+
+  const addEmail = () => setEmails(prev => [...prev, '']);
+  const removeEmail = (idx) => { if (emails.length > 1) setEmails(prev => prev.filter((_, i) => i !== idx)); };
+
+  const handleSave = async () => {
+    if (!displayName.trim() || !phones[0]?.trim() || !emails[0]?.trim()) return;
+    setSaving(true);
+    setSaved(false);
+    setSaveError('');
+    try {
+      const shopRes = await fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`);
+      const shopData = await shopRes.json();
+      const botId = shopData?.shop?.id;
+      if (!botId) throw new Error('Shop not found');
+      const res = await fetch(`${API_BASE}/customer/profile/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          firebase_uid: user?.uid || '',
+          telegram_id: isTelegramUser && telegramUser?.id ? telegramUser.id : null,
+          bot_id: botId,
+          display_name: displayName.trim(),
+          email: emails.filter(Boolean).map(e => e.trim()).join(', '),
+          phone: phones.filter(Boolean).map(p => p.trim()).join(', '),
+          photo_url: user?.photoURL || telegramUser?.photo_url || '',
+          telegram_username: telegram.trim(),
+          viber_number: viber.trim(),
+          address: address.trim(),
+          notes: notes.trim(),
+        }),
+      });
+      if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 3000); }
+      else { setSaveError('Failed to save. Please try again.'); }
+    } catch (err) {
+      console.error('Failed to save profile:', err);
+      setSaveError('Failed to save. Please check your connection and try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      const isTelegram = !!localStorage.getItem('telegram_token');
+      if (isTelegram) {
+        localStorage.removeItem('telegram_token');
+        localStorage.removeItem('telegram_user');
+      } else {
+        await signOut(auth);
+      }
+      window.location.href = `/?p=${encodeURIComponent(shopSlug)}`;
+    } catch (err) {
+      console.error('Sign out failed:', err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-12 flex justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
+      {/* User Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
+      >
+        <div className="flex items-center gap-4">
+          {photoUrl ? (
+            <img src={photoUrl} alt="" className="w-16 h-16 rounded-full ring-2 ring-indigo-100" />
+          ) : (
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
+              <User className="w-8 h-8 text-indigo-400" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <h3 className="text-lg font-bold text-gray-900 truncate">{displayName || 'User'}</h3>
+            {email && (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Mail className="w-3.5 h-3.5 text-gray-400" />
+                <span className="text-sm text-gray-500 truncate">{email}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Contact Information */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
+      >
+        <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Phone className="w-4 h-4 text-gray-400" />
+          Contact Information
+        </h4>
+
+        <div className="space-y-4">
+          {/* Name */}
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Full Name *</label>
+            <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          </div>
+
+          {/* Phone Numbers */}
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Phone Numbers *</label>
+            <div className="space-y-2">
+              {phones.map((phone, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input type="tel" value={phone} onChange={e => {
+                    const next = [...phones]; next[idx] = e.target.value; setPhones(next);
+                  }} placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone"}
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                  {idx === 0 ? (
+                    <button onClick={addPhone} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button onClick={() => removePhone(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Emails */}
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Email Addresses *</label>
+            <div className="space-y-2">
+              {emails.map((email, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input type="email" value={email} onChange={e => {
+                    const next = [...emails]; next[idx] = e.target.value; setEmails(next);
+                  }} placeholder={idx === 0 ? "your@email.com" : "Additional email"}
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                  {idx === 0 ? (
+                    <button onClick={addEmail} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button onClick={() => removeEmail(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Telegram Username */}
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Telegram Username</label>
+            <input type="text" value={telegram} onChange={e => setTelegram(e.target.value)}
+              placeholder="@username"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          </div>
+
+          {/* Viber Number */}
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Viber Number</label>
+            <input type="tel" value={viber} onChange={e => setViber(e.target.value)}
+              placeholder="09xxxxxxxxx"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          </div>
+
+          {/* Address */}
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Full Address *</label>
+            <textarea value={address} onChange={e => setAddress(e.target.value)} rows={3}
+              placeholder="Street, city, postal code..."
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Notes</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              placeholder="Any additional information..."
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
+          </div>
+
+          {/* Error message */}
+          {saveError && (
+            <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-2xl">
+              <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <p className="text-xs font-medium text-rose-700">{saveError}</p>
+            </div>
+          )}
+
+          {/* Save Button */}
+          <button
+            onClick={handleSave}
+            disabled={saving || !displayName.trim() || !phones[0]?.trim() || !emails[0]?.trim()}
+            className={`w-full py-3 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
+              saved ? 'bg-emerald-500 text-white' : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
+            } disabled:opacity-50`}
+          >
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : saved ? <><CheckCircle2 className="w-4 h-4" /> Saved!</> : 'Save Profile'}
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Sign Out */}
+      <button
+        onClick={handleSignOut}
+        className="w-full py-3 bg-rose-50 border border-rose-200 text-rose-600 font-bold rounded-2xl text-sm hover:bg-rose-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+      >
+        <LogOut className="w-4 h-4" />
+        Sign Out
+      </button>
+
+      <p className="text-[10px] text-gray-400 text-center pb-4">
+        Powered by Telegram E-Commerce Platform
+      </p>
+    </div>
+  );
+}
