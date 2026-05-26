@@ -114,7 +114,7 @@ export default function Login() {
         
         <div className="bg-gray-50 p-6 text-center border-t border-gray-100">
           <p className="text-sm text-gray-500">
-            Don't have an account? <a href="#" className="text-indigo-600 font-semibold hover:underline">Contact Support</a>
+            Don't have an account? <a href="https://t.me/ecommercemyanmarbot" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-semibold hover:underline">Contact Support</a>
           </p>
         </div>
       </motion.div>

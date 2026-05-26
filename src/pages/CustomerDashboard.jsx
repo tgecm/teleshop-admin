@@ -1,14 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 import { useTelegramAuth } from '../context/TelegramAuthContext';
-import api from '../lib/api';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+const FETCH_TIMEOUT_MS = 15000;
+
+function fetchWithTimeout(url, options, timeoutMs = FETCH_TIMEOUT_MS) {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), timeoutMs)),
+  ]);
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const payload = token.split('.')[1];
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function getUserIdFromToken() {
+  const token = localStorage.getItem('telegram_token');
+  if (!token) return null;
+  const payload = decodeJwtPayload(token);
+  if (!payload) return null;
+  return payload.sub || payload.user_id || payload.id || null;
 }
 
 function makeCircularFavicon(url) {
@@ -67,14 +93,25 @@ const statusConfig = {
 
 export default function CustomerDashboard({ shopSlug }) {
   const { user, loading: authLoading } = useAuth();
-  const { telegramUser } = useTelegramAuth();
+  const { telegramUser: ctxTelegramUser } = useTelegramAuth();
   const { isAuthenticated } = useRequireAuth(shopSlug);
   const [activeTab, setActiveTab] = useState('overview');
   const [shopData, setShopData] = useState(null);
 
   const telegramToken = typeof window !== 'undefined' ? localStorage.getItem('telegram_token') : null;
   const isTelegramUser = !!telegramToken && !user;
-  const uid = user?.uid || (isTelegramUser && telegramUser?.id ? String(telegramUser.id) : '');
+  // Fall back to reading from localStorage directly in case context hasn't
+  // initialized from it yet (StrictMode, SSR edge cases, etc.)
+  const telegramUser = ctxTelegramUser || (() => {
+    try {
+      const u = localStorage.getItem('telegram_user');
+      return u ? JSON.parse(u) : null;
+    } catch { return null; }
+  })();
+  // Also try to extract user ID from the JWT token as a last resort
+  const uid = user?.uid
+    || (isTelegramUser && telegramUser?.id ? String(telegramUser.id) : '')
+    || (isTelegramUser && telegramToken ? (getUserIdFromToken() || '') : '');
   const displayName = user?.displayName || telegramUser?.name || 'User';
   const photoUrl = user?.photoURL || telegramUser?.photo_url || null;
 
@@ -203,7 +240,7 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
   useEffect(() => {
     if (!uid || !shopSlug) return;
     const fetchStats = () => {
-      fetch(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders/stats?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+      fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders/stats?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
         .then(r => r.ok ? r.json() : null)
         .then(s => setOrderStats(s || { total: 0, pending: 0, delivered: 0, cancelled: 0 }))
         .catch(() => {});
@@ -316,17 +353,27 @@ function OrdersTab({ shopSlug, uid }) {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
 
+  // Safety timeout: never show loading spinner for more than 20 seconds
+  const loadingTimeoutRef = useRef(null);
   useEffect(() => {
-    if (!uid) return;
+    loadingTimeoutRef.current = setTimeout(() => setLoading(false), 20000);
+    return () => clearTimeout(loadingTimeoutRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
     const fetchOrders = () => {
-      fetch(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+      fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
         .then(r => r.ok ? r.json() : [])
         .then(data => { setOrders(Array.isArray(data) ? data : []); setLoading(false); })
         .catch(() => { setOrders([]); setLoading(false); });
     };
     fetchOrders();
     const interval = setInterval(fetchOrders, 5000);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); clearTimeout(loadingTimeoutRef.current); };
   }, [uid, shopSlug]);
 
   if (loading) {
@@ -575,8 +622,11 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    if (!uid || !shopSlug) return;
-    fetch(`${API_BASE}/customer/${encodeURIComponent(uid)}/profile?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+    if (!uid || !shopSlug) {
+      setLoading(false);
+      return;
+    }
+    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/profile?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : {})
       .then(data => {
         if (data && data.display_name) {
@@ -614,25 +664,54 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
       const shopData = await shopRes.json();
       const botId = shopData?.shop?.id;
       if (!botId) throw new Error('Shop not found');
+
+      // Build request body dynamically, only including known fields
+      const body = {
+        bot_id: botId,
+        display_name: displayName.trim(),
+        email: emails.filter(Boolean).map(e => e.trim()).join(', '),
+        phone: phones.filter(Boolean).map(p => p.trim()).join(', '),
+        telegram_username: telegram.trim(),
+        viber_number: viber.trim(),
+        address: address.trim(),
+        notes: notes.trim(),
+        photo_url: user?.photoURL || telegramUser?.photo_url || '',
+      };
+
+      // Only include the ID that applies to this user
+      if (user?.uid) {
+        body.firebase_uid = user.uid;
+      }
+      if (isTelegramUser) {
+        body.telegram_id = telegramUser?.id || (uid ? Number(uid) : null);
+      }
+
       const res = await fetch(`${API_BASE}/customer/profile/save`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({
-          firebase_uid: user?.uid || '',
-          telegram_id: isTelegramUser && telegramUser?.id ? telegramUser.id : null,
-          bot_id: botId,
-          display_name: displayName.trim(),
-          email: emails.filter(Boolean).map(e => e.trim()).join(', '),
-          phone: phones.filter(Boolean).map(p => p.trim()).join(', '),
-          photo_url: user?.photoURL || telegramUser?.photo_url || '',
-          telegram_username: telegram.trim(),
-          viber_number: viber.trim(),
-          address: address.trim(),
-          notes: notes.trim(),
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
-      if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 3000); }
-      else { setSaveError('Failed to save. Please try again.'); }
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+        // Refresh profile data so user sees what was saved
+        const refreshed = await fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/profile?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).catch(() => {});
+        if (refreshed?.display_name) {
+          setDisplayName(refreshed.display_name || '');
+          const pl = refreshed.phone ? refreshed.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
+          setPhones(pl.length > 0 ? pl : ['']);
+          const el = refreshed.email ? refreshed.email.split(',').map(s => s.trim()).filter(Boolean) : [''];
+          setEmails(el.length > 0 ? el : ['']);
+          setTelegram(refreshed.telegram_username || '');
+          setViber(refreshed.viber_number || '');
+          setAddress(refreshed.address || '');
+          setNotes(refreshed.notes || '');
+        }
+      } else {
+        const errText = await res.text().catch(() => '');
+        console.error('Profile save failed:', res.status, res.statusText, errText);
+        setSaveError(errText || 'Save failed. Please try again later.');
+      }
     } catch (err) {
       console.error('Failed to save profile:', err);
       setSaveError('Failed to save. Please check your connection and try again.');

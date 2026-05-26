@@ -6,5 +6,8 @@ export const getStats = (params) =>
 export const getOrdersByDay = (params) => 
   client.get('/stats/orders-by-day', { params }).then(res => res.data);
 
-export const getTopProducts = (params) => 
+export const getTopProducts = (params) =>
   client.get('/stats/top-products', { params }).then(res => res.data);
+
+export const getUsersByDay = (params) =>
+  client.get('/stats/users-by-day', { params }).then(res => res.data);

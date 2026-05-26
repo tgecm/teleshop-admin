@@ -1,23 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Navigate, useLocation, useNavigationType } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { useBotStore } from '../../store/botStore';
-import { normalizeText } from '../../utils/normalizeText';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
-import { X, LogOut, LayoutDashboard, Package, ShoppingBag, Users, MessageCircle, Radio, CreditCard, Settings, ShieldCheck } from 'lucide-react';
-import ConfirmDialog from '../shared/ConfirmDialog';
-import { NavLink } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 
 export default function Layout() {
-  const { token, logout } = useAuthStore();
-  const { bots, selectedBotId } = useBotStore();
-  const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
-  const botName = selectedBot ? normalizeText(selectedBot.bot_full_name || selectedBot.bot_username || 'Admin') : 'Admin';
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { token } = useAuthStore();
   const location = useLocation();
   const navType = useNavigationType();
   const [animDir, setAnimDir] = useState(0);
@@ -26,101 +16,16 @@ export default function Layout() {
     setAnimDir(navType === 'POP' ? -1 : 0);
   }, [location.pathname]);
 
-  useEffect(() => {
-    setIsDrawerOpen(false);
-  }, [location.pathname]);
-
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  const navItems = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/orders', icon: Package, label: 'Orders' },
-    { to: '/products', icon: ShoppingBag, label: 'Products' },
-    { to: '/customers', icon: Users, label: 'Customers' },
-    { to: '/chats', icon: MessageCircle, label: 'Chats' },
-    { to: '/broadcast', icon: Radio, label: 'Broadcast' },
-    { to: '/payments', icon: CreditCard, label: 'Payments' },
-    { to: '/subscription', icon: ShieldCheck, label: 'Subscription' },
-    { to: '/settings', icon: Settings, label: 'Settings' },
-  ];
-
   return (
     <div className="min-h-[100dvh] bg-gray-50 flex flex-col">
-      <TopBar onMenuClick={() => setIsDrawerOpen(true)} />
-      
+      <TopBar />
+
       <div className="flex flex-1 relative">
         <Sidebar />
-        
-        
-        <AnimatePresence>
-          {isDrawerOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setIsDrawerOpen(false)}
-                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[50] md:hidden"
-              />
-              <motion.div
-                initial={{ x: '-100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '-100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed inset-y-0 left-0 w-72 bg-white z-[60] md:hidden flex flex-col shadow-2xl"
-              >
-                <div className="p-6 flex items-center justify-between border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center overflow-hidden">
-                      {selectedBot?.profile_picture ? (
-                        <img src={selectedBot.profile_picture} alt="Logo" className="w-full h-full object-cover rounded-lg" />
-                      ) : (
-                        <span className="text-white font-bold text-xl">{botName.charAt(0).toUpperCase()}</span>
-                      )}
-                    </div>
-                    <span className="text-gray-900 font-bold text-lg">{botName}</span>
-                  </div>
-                  <button 
-                    onClick={() => setIsDrawerOpen(false)}
-                    className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
-                  >
-                    <X className="w-5 h-5 text-gray-500" />
-                  </button>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto py-4 px-4 space-y-1">
-                  {navItems.map(({ to, icon: Icon, label }) => (
-                    <NavLink
-                      key={to}
-                      to={to}
-                      className={({ isActive }) => `
-                        flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all
-                        ${isActive 
-                          ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' 
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
-                      `}
-                    >
-                      <Icon className="w-5 h-5" />
-                      {label}
-                    </NavLink>
-                  ))}
-                </div>
-                
-                <div className="p-4 border-t border-gray-100">
-                  <button
-                    onClick={() => { setIsDrawerOpen(false); setShowLogoutConfirm(true); }}
-                    className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl text-sm font-bold text-rose-600 bg-rose-50 border border-rose-100 hover:bg-rose-100 transition-all"
-                  >
-                    <LogOut className="w-5 h-5" />
-                    Logout
-                  </button>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
 
         <main className="flex-1 px-3 sm:px-4 md:p-8 pb-nav md:pb-8 overflow-y-auto max-w-7xl mx-auto w-full scroll-smooth">
           <motion.div
@@ -134,16 +39,6 @@ export default function Layout() {
         </main>
       </div>
       <BottomNav />
-
-      <ConfirmDialog
-        open={showLogoutConfirm}
-        onClose={() => setShowLogoutConfirm(false)}
-        onConfirm={() => { setShowLogoutConfirm(false); logout(); }}
-        title="Logout"
-        message="Are you sure you want to logout?"
-        confirmText="Logout"
-        variant="danger"
-      />
     </div>
   );
 }

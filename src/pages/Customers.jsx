@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUsers, updateUser } from '../api/customers';
+import { getUsers, updateUser, getWebCustomers } from '../api/customers';
 import { getOrders } from '../api/orders';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
@@ -8,24 +8,9 @@ import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import PullToRefresh from '../components/shared/PullToRefresh';
 import {
-  Search,
-  User,
-  ShoppingBag,
-  Ban,
-  MessageSquare,
-  Calendar,
-  Clock,
-  ShieldAlert,
-  ShieldCheck,
-  Loader2,
-  Phone,
-  Mail,
-  MapPin,
-  X,
-  Package,
-  Hash,
-  DollarSign,
-  ChevronDown
+  Search, User, ShoppingBag, Ban, MessageSquare, Calendar, Clock,
+  ShieldAlert, ShieldCheck, Loader2, Phone, Mail, MapPin, X,
+  Package, Hash, DollarSign, ChevronDown, Globe, Smartphone
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -34,6 +19,7 @@ export default function Customers() {
   const { selectedBotId } = useBotStore();
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
+  const [section, setSection] = useState('telegram');
   const [search, setSearch] = useState('');
   const [filterTab, setFilterTab] = useState('all');
   const [confirmCustomer, setConfirmCustomer] = useState(null);
@@ -42,18 +28,28 @@ export default function Customers() {
   const { data: customers, isLoading: customersLoading, refetch: refetchCustomers } = useQuery({
     queryKey: ['users', 'customers', selectedBotId],
     queryFn: () => getUsers({ bot_id: Number(selectedBotId) }),
-    enabled: !!selectedBotId,
+    enabled: !!selectedBotId && section === 'telegram',
+  });
+
+  const { data: webCustomers, isLoading: webLoading, refetch: refetchWeb } = useQuery({
+    queryKey: ['web-customers', selectedBotId],
+    queryFn: () => getWebCustomers(Number(selectedBotId)),
+    enabled: !!selectedBotId && section === 'website',
   });
 
   const handleRefresh = useCallback(async () => {
-    await refetchCustomers();
-    queryClient.invalidateQueries({ queryKey: ['orders', selectedBotId] });
-  }, [refetchCustomers, queryClient, selectedBotId]);
+    if (section === 'telegram') {
+      await refetchCustomers();
+      queryClient.invalidateQueries({ queryKey: ['orders', selectedBotId] });
+    } else {
+      await refetchWeb();
+    }
+  }, [section, refetchCustomers, refetchWeb, queryClient, selectedBotId]);
 
   const { data: orders } = useQuery({
     queryKey: ['orders', selectedBotId],
     queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
-    enabled: !!selectedBotId,
+    enabled: !!selectedBotId && section === 'telegram',
   });
 
   const toggleBlockMutation = useMutation({
@@ -79,7 +75,18 @@ export default function Customers() {
     );
   }) || [];
 
-  if (customersLoading) return <LoadingSkeleton type="list" count={6} />;
+  const filteredWebCustomers = webCustomers?.filter(c => {
+    const term = search.toLowerCase();
+    return (
+      c.display_name?.toLowerCase().includes(term) ||
+      c.email?.toLowerCase().includes(term) ||
+      c.firebase_uid?.toLowerCase().includes(term)
+    );
+  }) || [];
+
+  const isLoading = section === 'telegram' ? customersLoading : webLoading;
+
+  if (isLoading && section === 'telegram') return <LoadingSkeleton type="list" count={6} />;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -97,85 +104,172 @@ export default function Customers() {
         </div>
       </div>
 
-      <div className="flex gap-2 sticky top-0 z-10 bg-gray-50 pb-2">
+      {/* Section Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 w-fit mb-3">
         <button
-          onClick={() => setFilterTab('all')}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-            filterTab === 'all'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
-              : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
+          onClick={() => setSection('telegram')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+            section === 'telegram'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          All ({customers?.length || 0})
+          <Smartphone className="w-3.5 h-3.5" />
+          Telegram ({customers?.length || 0})
         </button>
         <button
-          onClick={() => setFilterTab('blocked')}
-          className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-            filterTab === 'blocked'
-              ? 'bg-rose-600 text-white shadow-md shadow-rose-100'
-              : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
+          onClick={() => setSection('website')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+            section === 'website'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <span className="flex items-center gap-1.5">
-            <Ban className="w-3 h-3" />
-            Blocked ({customers?.filter(c => c.is_blocked)?.length || 0})
-          </span>
+          <Globe className="w-3.5 h-3.5" />
+          Website ({webCustomers?.length || 0})
         </button>
       </div>
 
-      <PullToRefresh onRefresh={handleRefresh}>
-      {filteredCustomers.length === 0 ? (
-        <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-gray-200">
-          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-gray-300" />
-          </div>
-          <h3 className="text-lg font-bold text-gray-900">No customers found</h3>
-          <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
-            {search ? "Try a different search term." : "Customers will appear here once they interact with your bot."}
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-3">
-          {filteredCustomers.map(customer => (
-            <motion.div
-              layout
-              key={customer.id}
-              className={`contain-content bg-white p-4 rounded-2xl shadow-sm border transition-all ${customer.is_blocked ? 'border-rose-100 bg-rose-50/30' : 'border-gray-100'}`}
-            >
-              <button
-                onClick={() => setDetailCustomer(customer)}
-                className="w-full text-left"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm ${customer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                    {customer.first_name?.[0] || '?'}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.first_name}</p>
-                      {customer.is_blocked && (
-                        <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[8px] font-bold uppercase rounded-md flex items-center gap-1 border border-rose-200">
-                          <Ban className="w-2 h-2" /> Blocked
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <span className="truncate">@{customer.username || 'no_username'}</span>
-                      <span className="text-gray-300">·</span>
-                      <span className="flex items-center gap-1 whitespace-nowrap">
-                        <ShoppingBag className="w-3 h-3 text-indigo-600" />
-                        {getCustomerOrderCount(customer.id)} orders
-                      </span>
-                    </div>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                </div>
-              </button>
-            </motion.div>
-          ))}
+      {/* Telegram filter tabs */}
+      {section === 'telegram' && (
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-0.5 w-fit -mt-2 mb-3">
+          <button
+            onClick={() => setFilterTab('all')}
+            className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+              filterTab === 'all'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            All ({customers?.length || 0})
+          </button>
+          <button
+            onClick={() => setFilterTab('blocked')}
+            className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 ${
+              filterTab === 'blocked'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Ban className="w-3 h-3" />
+            Blocked ({customers?.filter(c => c.is_blocked)?.length || 0})
+          </button>
         </div>
       )}
-      </PullToRefresh>
+
+      {/* Telegram Customers */}
+      {section === 'telegram' && (
+        <PullToRefresh onRefresh={handleRefresh}>
+        {filteredCustomers.length === 0 ? (
+          <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-gray-200">
+            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <User className="w-8 h-8 text-gray-300" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">No customers found</h3>
+            <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
+              {search ? "Try a different search term." : "Customers will appear here once they interact with your bot."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {filteredCustomers.map(customer => (
+              <motion.div
+                layout
+                key={customer.id}
+                className={`contain-content bg-white p-4 rounded-2xl shadow-sm border transition-all ${customer.is_blocked ? 'border-rose-100 bg-rose-50/30' : 'border-gray-100'}`}
+              >
+                <button
+                  onClick={() => setDetailCustomer(customer)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm ${customer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                      {customer.first_name?.[0] || '?'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.first_name}</p>
+                        {customer.is_blocked && (
+                          <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[8px] font-bold uppercase rounded-md flex items-center gap-1 border border-rose-200">
+                            <Ban className="w-2 h-2" /> Blocked
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span className="truncate">@{customer.username || 'no_username'}</span>
+                        <span className="text-gray-300">·</span>
+                        <span className="flex items-center gap-1 whitespace-nowrap">
+                          <ShoppingBag className="w-3 h-3 text-indigo-600" />
+                          {getCustomerOrderCount(customer.id)} orders
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                  </div>
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        )}
+        </PullToRefresh>
+      )}
+
+      {/* Website Customers */}
+      {section === 'website' && (
+        <PullToRefresh onRefresh={handleRefresh}>
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+          </div>
+        ) : filteredWebCustomers.length === 0 ? (
+          <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-gray-200">
+            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Globe className="w-8 h-8 text-gray-300" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">No website customers yet</h3>
+            <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
+              {search ? "Try a different search term." : "Customers who sign up on your website will appear here."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {filteredWebCustomers.map(customer => (
+              <motion.div
+                layout
+                key={customer.id}
+                className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600 overflow-hidden">
+                    {customer.photo_url ? (
+                      <img src={customer.photo_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      customer.display_name?.[0]?.toUpperCase() || 'W'
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-gray-900 truncate">{customer.display_name || 'Website User'}</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      {customer.email && <span className="truncate">{customer.email}</span>}
+                      {customer.created_at && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span className="whitespace-nowrap">Joined {format(new Date(customer.created_at), 'MMM d')}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">
+                    <Globe className="w-3 h-3" />
+                    <span className="text-[10px] font-bold">Web</span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+        </PullToRefresh>
+      )}
 
       <ConfirmDialog
         open={!!confirmCustomer}
