@@ -16,7 +16,7 @@ import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
 } from 'recharts';
 import { motion } from 'motion/react';
-import { format, parseISO, differenceInDays, subDays } from 'date-fns';
+import { format, parseISO, differenceInDays, subDays, addDays } from 'date-fns';
 import { useToastStore } from '../store/toastStore';
 
 const containerVariants = {
@@ -164,17 +164,25 @@ export default function Dashboard() {
   }, [selectedBotId, datePreset, customStart, customEnd, effectiveDays]);
 
   // Queries
-  const statsQueryParams = useMemo(() => {
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['stats', selectedBotId],
+    queryFn: () => getStats({ bot_id: Number(selectedBotId) }),
+    enabled: !!selectedBotId,
+  });
+
+  // Separate period stats — only fetches items_sold / products_sold by period
+  const periodParams = useMemo(() => {
+    if (itemsPeriod === 'total' && productsPeriod === 'total') return null;
     const p = { bot_id: Number(selectedBotId) };
     if (itemsPeriod !== 'total') p.items_period = itemsPeriod;
     if (productsPeriod !== 'total') p.products_period = productsPeriod;
     return p;
   }, [selectedBotId, itemsPeriod, productsPeriod]);
-
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['stats', selectedBotId, itemsPeriod, productsPeriod],
-    queryFn: () => getStats(statsQueryParams),
-    enabled: !!selectedBotId,
+  const { data: periodStats } = useQuery({
+    queryKey: ['stats', 'period', periodParams],
+    queryFn: () => getStats(periodParams),
+    enabled: !!periodParams,
+    placeholderData: { items_sold: stats?.items_sold || 0, products_sold: stats?.products_sold || 0 },
   });
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
@@ -201,10 +209,12 @@ export default function Dashboard() {
   const totalOrders = stats?.total_orders || 0;
   const totalUsers = stats?.total_users || 0;
   const pendingOrders = stats?.pending_orders || 0;
-  const itemsSold = stats?.items_sold || 0;
+  const effectiveItemsSold = periodStats?.items_sold ?? stats?.items_sold ?? 0;
   const todayRevenue = stats?.today_revenue || 0;
   const monthlyRevenue = stats?.monthly_revenue || 0;
-  const productsSold = stats?.products_sold || 0;
+  const effectiveProductsSold = periodStats?.products_sold ?? stats?.products_sold ?? 0;
+  const itemsSold = effectiveItemsSold;
+  const productsSold = effectiveProductsSold;
 
   // Top products with percentages
   const topProductsWithPct = useMemo(() => {
@@ -217,15 +227,31 @@ export default function Dashboard() {
     }));
   }, [topProducts, totalRevenue]);
 
-  // Merge chart data with users and previous period
+  // Merge chart data with users and fill missing dates
   const mergedChartData = useMemo(() => {
     const base = chartData || [];
+    if (!base.length) return [];
     const usersMap = usersByDay ? new Map(usersByDay.map((u) => [u.day, u.count])) : new Map();
-    return base.map((entry) => ({
-      ...entry,
-      users: usersMap.get(entry.day) || 0,
-    }));
-  }, [chartData, usersByDay]);
+    const dataMap = new Map(base.map((d) => [d.day, d]));
+    // Generate continuous date range
+    const days = datePreset === 'custom' && customStart && customEnd
+      ? differenceInDays(parseISO(customEnd), parseISO(customStart)) + 1
+      : effectiveDays;
+    const endDate = datePreset === 'custom' && customEnd ? parseISO(customEnd) : new Date();
+    const startDate = subDays(endDate, days - 1);
+    const result = [];
+    for (let d = startDate; d <= endDate; d = addDays(d, 1)) {
+      const key = format(d, 'yyyy-MM-dd');
+      const entry = dataMap.get(key);
+      result.push({
+        day: key,
+        revenue: entry ? Number(entry.revenue) : 0,
+        count: entry ? entry.count : 0,
+        users: usersMap.get(key) || 0,
+      });
+    }
+    return result;
+  }, [chartData, usersByDay, datePreset, customStart, customEnd, effectiveDays]);
 
   // Pie chart data
   const pieData = useMemo(() => {
@@ -500,7 +526,7 @@ export default function Dashboard() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 {chartType === 'area' ? (
-                  <AreaChart data={mergedChartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                  <AreaChart data={mergedChartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15} />
@@ -518,7 +544,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                     <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} dy={10}
                       tickFormatter={(v) => { try { return format(parseISO(v), 'd MMM'); } catch { return v; } }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                       tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                     <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} />
                     {visibleMetrics.revenue && <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#4f46e5" strokeWidth={2.5} fillOpacity={1} fill="url(#revGrad)" animationDuration={800} animationEasing="ease-out" />}
@@ -526,11 +552,11 @@ export default function Dashboard() {
                     {visibleMetrics.users && <Area type="monotone" dataKey="users" name="Users" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#usersGrad)" animationDuration={800} animationEasing="ease-out" animationBegin={400} />}
                   </AreaChart>
                 ) : chartType === 'bar' ? (
-                  <BarChart data={mergedChartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                  <BarChart data={mergedChartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                     <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} dy={10}
                       tickFormatter={(v) => { try { return format(parseISO(v), 'd MMM'); } catch { return v; } }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                       tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                     <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f9fafb' }} />
                     {visibleMetrics.revenue && <Bar dataKey="revenue" name="Revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} animationDuration={600} />}
@@ -538,11 +564,11 @@ export default function Dashboard() {
                     {visibleMetrics.users && <Bar dataKey="users" name="Users" fill="#f43f5e" radius={[4, 4, 0, 0]} animationDuration={600} animationBegin={300} />}
                   </BarChart>
                 ) : (
-                  <LineChart data={mergedChartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                  <LineChart data={mergedChartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                     <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} dy={10}
                       tickFormatter={(v) => { try { return format(parseISO(v), 'd MMM'); } catch { return v; } }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                       tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                     <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} />
                     {visibleMetrics.revenue && <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#4f46e5" strokeWidth={2.5} dot={false} animationDuration={800} />}
