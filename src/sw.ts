@@ -29,6 +29,23 @@ registerRoute(
   new CacheFirst({cacheName: 'image-cache'}),
 );
 
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+self.addEventListener('activate', (event) => {
+  const keepCaches = new Set(['api-cache', 'image-cache']);
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.map(key =>
+        keepCaches.has(key) ? Promise.resolve() : caches.delete(key)
+      ))
+    ).then(() => self.clients.claim())
+  );
+});
+
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   try {
