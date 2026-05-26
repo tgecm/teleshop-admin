@@ -43,16 +43,15 @@ function ChartTooltip({ active, payload, label }) {
     catch { return label; }
   })();
   return (
-    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-100 p-4 min-w-[180px]">
-      <p className="text-xs font-bold text-gray-400 mb-2">{formatted}</p>
+    <div className="bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.15)] px-3 py-2 border border-gray-50/50">
+      <p className="text-[10px] font-semibold text-gray-400 mb-1">{formatted}</p>
       {payload.map((entry, idx) => (
-        <div key={idx} className="flex items-center justify-between gap-4 py-0.5">
-          <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${entry.strokeDasharray ? 'border-2 border-dashed border-gray-300 bg-transparent' : ''}`}
-              style={{ backgroundColor: entry.strokeDasharray ? 'transparent' : entry.color }} />
-            <span className="text-xs font-medium text-gray-600">{entry.name}</span>
+        <div key={idx} className="flex items-center justify-between gap-2 py-[1px]">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
+            <span className="text-[11px] font-medium text-gray-500">{entry.name}</span>
           </div>
-          <span className="text-xs font-bold text-gray-900">
+          <span className="text-[11px] font-bold text-gray-800 tabular-nums">
             {entry.name === 'Revenue'
               ? `${Number(entry.value).toLocaleString()} MMK`
               : entry.value}
@@ -129,6 +128,30 @@ export default function Dashboard() {
   const [itemsPeriod, setItemsPeriod] = useState('total');
   const [productsPeriod, setProductsPeriod] = useState('total');
 
+  // Tooltip smart positioning
+  const chartWrapperRef = useRef(null);
+  const [cursorXY, setCursorXY] = useState(null);
+
+  const handleChartPointerMove = useCallback((e) => {
+    const el = chartWrapperRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setCursorXY({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }, []);
+
+  const handleChartPointerLeave = useCallback(() => setCursorXY(null), []);
+
+  // Compute tooltip position based on cursor side
+  const tooltipPosition = useMemo(() => {
+    if (!cursorXY || !chartWrapperRef.current) return undefined;
+    const { width } = chartWrapperRef.current.getBoundingClientRect();
+    const isRightHalf = cursorXY.x > width / 2;
+    return {
+      x: isRightHalf ? Math.max(2, cursorXY.x - 180) : cursorXY.x + 15,
+      y: Math.max(5, cursorXY.y - 100),
+    };
+  }, [cursorXY]);
+
   // Export modal state
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportOpts, setExportOpts] = useState({
@@ -195,6 +218,7 @@ export default function Dashboard() {
     queryKey: ['stats', 'users-by-day', queryParams],
     queryFn: () => getUsersByDay(queryParams),
     enabled: !!selectedBotId && visibleMetrics.users,
+    placeholderData: [],
   });
 
   const { data: topProducts, isLoading: productsLoading } = useQuery({
@@ -266,10 +290,11 @@ export default function Dashboard() {
     const avgDaily = totalRev / revenues.length;
     const maxRev = Math.max(...revenues);
     const bestDay = mergedChartData.find((d) => Number(d.revenue) === maxRev)?.day;
-    const mid = Math.floor(revenues.length / 2);
-    const firstHalf = revenues.slice(0, mid).reduce((a, b) => a + b, 0);
-    const secondHalf = revenues.slice(mid).reduce((a, b) => a + b, 0);
-    const growth = firstHalf > 0 ? ((secondHalf - firstHalf) / firstHalf) * 100 : 0;
+    // Compare equal-sized first vs second half
+    const halfSize = Math.floor(revenues.length / 2);
+    const firstHalf = halfSize > 0 ? revenues.slice(0, halfSize).reduce((a, b) => a + b, 0) : 0;
+    const secondHalf = halfSize > 0 ? revenues.slice(revenues.length - halfSize).reduce((a, b) => a + b, 0) : 0;
+    const growth = halfSize > 1 && firstHalf > 0 ? ((secondHalf - firstHalf) / firstHalf) * 100 : null;
     return { avgDailyRevenue: avgDaily, maxRevenue: maxRev, bestDay, growthRate: growth };
   }, [mergedChartData]);
 
@@ -369,8 +394,8 @@ export default function Dashboard() {
         parts.push(`Today's Revenue,${todayRevenue}`);
         parts.push(`Monthly Revenue,${monthlyRevenue}`);
         if (quickStats) {
-          parts.push(`Avg Daily Revenue,${quickStats.avgDailyRevenue.toFixed(0)}`);
-          parts.push(`Growth Rate,${quickStats.growthRate.toFixed(1)}%`);
+          parts.push(`Avg Daily Revenue,${Math.round(quickStats.avgDailyRevenue)}`);
+          parts.push(`Growth Rate,${quickStats.growthRate !== null ? quickStats.growthRate.toFixed(1) : 'N/A'}%`);
         }
         parts.push('');
       }
@@ -508,7 +533,7 @@ export default function Dashboard() {
           </div>
 
           {/* Chart area */}
-          <div className="h-[220px] sm:h-[280px] w-full">
+          <div ref={chartWrapperRef} className="h-[220px] sm:h-[280px] w-full" onMouseMove={handleChartPointerMove} onMouseLeave={handleChartPointerLeave}>
             {chartLoading ? (
               <LoadingSkeleton className="w-full h-full" />
             ) : chartType === 'pie' ? (
@@ -520,7 +545,7 @@ export default function Dashboard() {
                       <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip content={<ChartTooltip />} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -547,7 +572,7 @@ export default function Dashboard() {
                     <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                       tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                     <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
                     {visibleMetrics.revenue && <Area yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#4f46e5" strokeWidth={2.5} fillOpacity={1} fill="url(#revGrad)" animationDuration={800} animationEasing="ease-out" />}
                     {visibleMetrics.orders && <Area yAxisId="right" type="monotone" dataKey="count" name="Orders" stroke="#34d399" strokeWidth={2} fillOpacity={1} fill="url(#ordGrad)" animationDuration={800} animationEasing="ease-out" animationBegin={200} />}
                     {visibleMetrics.users && <Area yAxisId="right" type="monotone" dataKey="users" name="Users" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#usersGrad)" animationDuration={800} animationEasing="ease-out" animationBegin={400} />}
@@ -560,7 +585,7 @@ export default function Dashboard() {
                     <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                       tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                     <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f9fafb' }} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f9fafb' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
                     {visibleMetrics.revenue && <Bar yAxisId="left" dataKey="revenue" name="Revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} animationDuration={600} />}
                     {visibleMetrics.orders && <Bar yAxisId="right" dataKey="count" name="Orders" fill="#34d399" radius={[4, 4, 0, 0]} animationDuration={600} animationBegin={150} />}
                     {visibleMetrics.users && <Bar yAxisId="right" dataKey="users" name="Users" fill="#f43f5e" radius={[4, 4, 0, 0]} animationDuration={600} animationBegin={300} />}
@@ -573,7 +598,7 @@ export default function Dashboard() {
                     <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                       tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                     <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
                     {visibleMetrics.revenue && <Line yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#4f46e5" strokeWidth={2.5} dot={false} animationDuration={800} />}
                     {visibleMetrics.orders && <Line yAxisId="right" type="monotone" dataKey="count" name="Orders" stroke="#34d399" strokeWidth={2} dot={false} animationDuration={800} animationBegin={200} />}
                     {visibleMetrics.users && <Line yAxisId="right" type="monotone" dataKey="users" name="Users" stroke="#f43f5e" strokeWidth={2} dot={false} animationDuration={800} animationBegin={400} />}
@@ -595,13 +620,17 @@ export default function Dashboard() {
               </div>
               <div className="text-center border-x border-gray-100">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Avg Daily</p>
-                <p className="text-sm font-bold text-gray-900 mt-0.5">{quickStats.avgDailyRevenue.toLocaleString()} MMK</p>
+                <p className="text-sm font-bold text-gray-900 mt-0.5">{Math.round(quickStats.avgDailyRevenue).toLocaleString()} MMK</p>
               </div>
               <div className="text-center">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Growth</p>
-                <p className={`text-sm font-bold mt-0.5 ${quickStats.growthRate >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {quickStats.growthRate >= 0 ? '+' : ''}{quickStats.growthRate.toFixed(1)}%
-                </p>
+                {quickStats.growthRate !== null ? (
+                  <p className={`text-sm font-bold mt-0.5 ${quickStats.growthRate >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {quickStats.growthRate >= 0 ? '+' : ''}{quickStats.growthRate.toFixed(1)}%
+                  </p>
+                ) : (
+                  <p className="text-sm font-bold mt-0.5 text-gray-300">—</p>
+                )}
               </div>
             </div>
           )}
@@ -671,13 +700,19 @@ export default function Dashboard() {
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-9 h-1 bg-gray-200 rounded-full" />
             </div>
-            <div className="flex items-center justify-between px-6 pb-3 border-b border-gray-100">
+            <div className="flex items-center justify-between px-5 pb-3 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-900">Export Data</h3>
-              <button onClick={() => setShowExportModal(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                <X className="w-4 h-4 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button onClick={generateCSV} disabled={exportLoading || !Object.values(exportOpts.sections).some(Boolean)}
+                  className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center transition-all active:scale-90 disabled:opacity-40">
+                  {exportLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Download className="w-4 h-4 text-white" />}
+                </button>
+                <button onClick={() => setShowExportModal(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4 min-h-0 pb-8">
               {/* Date range */}
               <div>
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Date Range</p>
@@ -713,13 +748,13 @@ export default function Dashboard() {
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Include</p>
                 <div className="space-y-2">
                   {[
-                    { key: 'orders', label: 'Order Details', desc: 'Order ID, Product/Web ID, Product Name, Variant, Price, Quantity, Customer, Status, Date' },
-                    { key: 'daily', label: 'Daily Summary', desc: 'Date, Revenue, Orders, Users' },
-                    { key: 'products', label: 'Top Products', desc: 'Product Name, Total Revenue, Quantity Sold' },
-                    { key: 'customers', label: 'Customers', desc: 'Customer ID, Name, Username, Email, Phone, Total Orders' },
-                    { key: 'stats', label: 'Stats Snapshot', desc: 'Total Revenue, Orders, Users, Items Sold, Growth Rate' },
+                    { key: 'orders', label: 'Order Details', desc: 'Items, prices & status' },
+                    { key: 'daily', label: 'Daily Summary', desc: 'Revenue & orders per day' },
+                    { key: 'products', label: 'Top Products', desc: 'Best selling products' },
+                    { key: 'customers', label: 'Customers', desc: 'Contact & order history' },
+                    { key: 'stats', label: 'Stats Snapshot', desc: 'Key metrics overview' },
                   ].map(s => (
-                    <label key={s.key} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all">
+                    <label key={s.key} className="flex items-start gap-3 p-2.5 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all">
                       <input type="checkbox" checked={exportOpts.sections[s.key]} onChange={() => setExportOpts(p => ({ ...p, sections: { ...p.sections, [s.key]: !p.sections[s.key] } }))} className="mt-0.5 accent-indigo-600 w-4 h-4" />
                       <div>
                         <p className="text-sm font-bold text-gray-900">{s.label}</p>
@@ -736,13 +771,6 @@ export default function Dashboard() {
                   placeholder={`export-${format(new Date(), 'yyyy-MM-dd')}.csv`}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
-            </div>
-            <div className="px-6 py-4 border-t border-gray-100">
-              <button onClick={generateCSV} disabled={exportLoading || !Object.values(exportOpts.sections).some(Boolean)}
-                className="w-full py-3.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50">
-                {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {exportLoading ? 'Exporting...' : 'Export CSV'}
-              </button>
             </div>
           </div>
         </>
