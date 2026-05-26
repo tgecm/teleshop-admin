@@ -949,7 +949,6 @@ export default function Settings() {
               </div>
             </section>
 
-
             <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
               <div className="flex items-center gap-2.5 mb-4">
                 <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">

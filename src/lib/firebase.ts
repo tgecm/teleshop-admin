@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAfjsoS9zWDKTafrPtl94YjVGt9dRkQvXY',
@@ -15,3 +16,13 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 setPersistence(auth, browserLocalPersistence).catch(() => {});
 export const googleProvider = new GoogleAuthProvider();
+
+let _messaging: ReturnType<typeof getMessaging> | null = null;
+try {
+  _messaging = getMessaging(app);
+} catch {
+  _messaging = null;
+}
+
+export const messaging = _messaging;
+export {getToken, onMessage};

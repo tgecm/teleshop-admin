@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
+import InstallPrompt from '../InstallPrompt';
 import { motion } from 'motion/react';
 
 export default function Layout() {
@@ -39,6 +40,7 @@ export default function Layout() {
         </main>
       </div>
       <BottomNav />
+      <InstallPrompt />
     </div>
   );
 }

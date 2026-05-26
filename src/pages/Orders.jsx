@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrders, updateOrder } from '../api/orders';
 import client from '../api/client';
@@ -20,9 +20,19 @@ import {
   Image,
   Receipt as ReceiptIcon,
   UserCircle,
+  Filter,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
+
+const STATUS_STEPS = [
+  {key: 'pending', label: 'Pending'},
+  {key: 'confirmed', label: 'Confirmed'},
+  {key: 'processing', label: 'Processing'},
+  {key: 'shipped', label: 'Shipped'},
+  {key: 'delivered', label: 'Delivered'},
+];
+const TERMINAL_STATUSES = ['cancelled', 'rejected'];
 
 export default function Orders() {
   const { selectedBotId } = useBotStore();
@@ -37,6 +47,15 @@ export default function Orders() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [orderTab, setOrderTab] = useState('telegram');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showFilter, setShowFilter] = useState(false);
+  const filterRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['orders', selectedBotId],
@@ -61,6 +80,7 @@ export default function Orders() {
     if (orderTab === 'telegram' && (isWebsite || isGuest)) return false;
     if (orderTab === 'ecommerce' && !isWebsite) return false;
     if (orderTab === 'guest' && !isGuest) return false;
+    if (statusFilter !== 'all' && o.status !== statusFilter) return false;
     const term = search.toLowerCase().trim();
     return (
       o.buyer_snapshot?.name?.toLowerCase().includes(term) ||
@@ -79,7 +99,9 @@ export default function Orders() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Orders</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Orders</h1>
+        </div>
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -87,10 +109,40 @@ export default function Orders() {
             placeholder="Search customer or ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
+            className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
           />
+          <button onClick={() => setShowFilter(p => !p)}
+            className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${statusFilter !== 'all' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}>
+            <Filter className="w-4 h-4" />
+          </button>
         </div>
       </div>
+
+      {showFilter && (
+        <div ref={filterRef} className="relative">
+          <div className="absolute right-0 z-30 mt-1 bg-white border border-gray-100 rounded-2xl shadow-xl p-1.5 min-w-[160px]">
+            {[
+              { value: 'all', label: 'All' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'confirmed', label: 'Confirmed' },
+              { value: 'cancelled', label: 'Cancelled' },
+              { value: 'rejected', label: 'Rejected' },
+              { value: 'processing', label: 'Processing' },
+              { value: 'shipped', label: 'Shipped' },
+              { value: 'delivered', label: 'Delivered' },
+            ].map(s => (
+              <button key={s.value} onClick={() => { setStatusFilter(s.value); setShowFilter(false); }}
+                className={`block w-full text-left px-3 py-2 text-sm font-bold rounded-xl transition-all ${
+                  statusFilter === s.value
+                    ? 'bg-indigo-50 text-indigo-600'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-1 bg-gray-100 rounded-2xl p-1">
         <button onClick={() => setOrderTab('telegram')}
@@ -107,11 +159,7 @@ export default function Orders() {
         </button>
       </div>
 
-      <div className="text-center md:hidden">
-        <p className="text-[10px] text-gray-400 italic">Pull down to refresh</p>
-      </div>
-
-      {filteredOrders.length === 0 ? (
+{filteredOrders.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
           <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <ShoppingBag className="w-8 h-8 text-gray-300" />
@@ -124,29 +172,54 @@ export default function Orders() {
       ) : (
         <div className="grid gap-3">
           {filteredOrders.map(order => (
-            <motion.div
-              layout
-              key={order.id}
-              onClick={() => setSelectedOrder(order)}
-              className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-indigo-200 transition-all cursor-pointer active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                    <UserCircle className="w-6 h-6" />
+            <div key={order.id} className="relative overflow-hidden rounded-2xl">
+              {order.status === 'pending' && (
+                <div className="absolute inset-0 flex pointer-events-none select-none">
+                  <div className="flex-1 bg-emerald-500 rounded-l-2xl flex items-center justify-start pl-5">
+                    <span className="text-white text-xs font-bold">✓ Confirm</span>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{order.buyer_snapshot?.name || order.customer?.first_name || 'Customer'}</p>
-                    <p className="text-[10px] text-gray-500">{format(new Date(order.created_at), 'MMM d, h:mm a')}</p>
+                  <div className="flex-1 bg-rose-500 rounded-r-2xl flex items-center justify-end pr-5">
+                    <span className="text-white text-xs font-bold">Cancel ✗</span>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <p className="text-sm font-bold text-gray-900">{order.total_amount?.toLocaleString()} MMK</p>
-                  <StatusBadge status={order.status} />
+              )}
+              <motion.div
+                layout
+                drag={order.status === 'pending' ? 'x' : false}
+                dragConstraints={{left: -80, right: 80}}
+                dragElastic={0.05}
+                dragSnapToOrigin
+                onDragEnd={(_e, info) => {
+                  if (info.offset.x < -60 && order.status === 'pending') {
+                    setSelectedOrder(order);
+                    setConfirmAction('reject');
+                  } else if (info.offset.x > 60 && order.status === 'pending') {
+                    setSelectedOrder(order);
+                    setConfirmAction('confirm');
+                  }
+                }}
+                onClick={() => setSelectedOrder(order)}
+                className="relative bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-indigo-200 transition-all cursor-pointer active:scale-[0.98]"
+                style={{touchAction: 'pan-y'}}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 flex-shrink-0">
+                      <UserCircle className="w-6 h-6" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{order.buyer_snapshot?.name || order.customer?.first_name || 'Customer'}</p>
+                      <p className="text-[10px] text-gray-500">{format(new Date(order.created_at), 'MMM d, h:mm a')}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <p className="text-sm font-bold text-gray-900 whitespace-nowrap">{order.total_amount?.toLocaleString()} MMK</p>
+                    <StatusBadge status={order.status} />
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-300 hidden sm:block flex-shrink-0" />
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 hidden sm:block" />
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           ))}
         </div>
       )}
@@ -285,6 +358,56 @@ export default function Orders() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">Payment Method</span>
                       <span className="font-bold text-gray-900 capitalize">{selectedOrder.payment_method || 'Cash'}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100">
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-4">Status Timeline</h3>
+                    <div className="relative">
+                      {TERMINAL_STATUSES.includes(selectedOrder.status) ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 rounded-full bg-rose-500 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-bold text-rose-600 capitalize">{selectedOrder.status}</p>
+                            <p className="text-[10px] text-gray-500">Final status</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-0">
+                          {STATUS_STEPS.map((step, idx) => {
+                            const stepIdx = STATUS_STEPS.findIndex(s => s.key === selectedOrder.status);
+                            const isPast = idx < stepIdx;
+                            const isCurrent = idx === stepIdx;
+                            const isFuture = idx > stepIdx;
+                            return (
+                              <div key={step.key} className="flex gap-3">
+                                <div className="flex flex-col items-center">
+                                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ring-2 ${
+                                    isCurrent
+                                      ? 'bg-indigo-600 ring-indigo-200'
+                                      : isPast
+                                        ? 'bg-emerald-500 ring-emerald-200'
+                                        : 'bg-gray-200 ring-gray-100'
+                                  }`} />
+                                  {idx < STATUS_STEPS.length - 1 && (
+                                    <div className={`w-0.5 h-8 ${
+                                      isFuture ? 'bg-gray-200' : 'bg-emerald-300'
+                                    }`} />
+                                  )}
+                                </div>
+                                <div className={`pb-6 ${isFuture ? 'opacity-40' : ''}`}>
+                                  <p className={`text-sm font-bold ${
+                                    isCurrent ? 'text-indigo-600' : isPast ? 'text-gray-900' : 'text-gray-400'
+                                  }`}>{step.label}</p>
+                                  {isCurrent && (
+                                    <p className="text-[10px] text-indigo-400 font-medium">Current</p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
 
