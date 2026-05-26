@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Package,
@@ -16,12 +17,30 @@ import {
   X
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { useBotStore } from '../../store/botStore';
+import { getUnreadCount } from '../../api/chats';
+import { getPendingOrderCount } from '../../api/orders';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function BottomNav() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const { logout } = useAuthStore();
+  const { selectedBotId } = useBotStore();
   const location = useLocation();
+
+  const { data: unread } = useQuery({
+    queryKey: ['unreadCount', selectedBotId],
+    queryFn: () => getUnreadCount(Number(selectedBotId)),
+    enabled: !!selectedBotId,
+    refetchInterval: 15000,
+  });
+
+  const { data: pendingOrders } = useQuery({
+    queryKey: ['pendingOrderCount', selectedBotId],
+    queryFn: () => getPendingOrderCount(Number(selectedBotId)),
+    enabled: !!selectedBotId,
+    refetchInterval: 15000,
+  });
 
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
@@ -59,6 +78,13 @@ export default function BottomNav() {
                 <>
                   <div className={`relative p-1.5 rounded-xl transition-all ${isActive ? 'bg-indigo-50' : ''}`}>
                     <Icon className="w-[22px] h-[22px]" strokeWidth={isActive ? 2.5 : 1.8} />
+                    {(to === '/chats' && unread?.total > 0) || (to === '/orders' && pendingOrders?.pending > 0) ? (
+                      <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-bold min-w-[14px] h-[14px] flex items-center justify-center rounded-full px-0.5 leading-none shadow-sm">
+                        {to === '/chats'
+                          ? (unread.total > 99 ? '99+' : unread.total)
+                          : (pendingOrders.pending > 99 ? '99+' : pendingOrders.pending)}
+                      </span>
+                    ) : null}
                     {isActive && (
                       <motion.div
                         layoutId="bottomNavIndicator"

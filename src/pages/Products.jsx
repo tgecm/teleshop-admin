@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, getImageUrl, uploadImage } from '../api/products';
 import { useBotStore } from '../store/botStore';
@@ -6,23 +6,26 @@ import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import {
-  Plus,
-  Search,
-  Edit2,
-  Trash2,
-  Package,
-  Tag,
-  MoreVertical,
-  X,
-  Image as ImageIcon,
-  ChevronRight,
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  FolderPlus,
-  ImageUp
+  Plus, Search, Edit2, Trash2, Package, Tag, MoreVertical, X,
+  Image as ImageIcon, ChevronRight, AlertCircle, CheckCircle2,
+  Loader2, FolderPlus, ImageUp, Palette, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+const PREDEFINED_COLORS = [
+  { name: 'Red', hex: '#FF0000' },
+  { name: 'Blue', hex: '#2563EB' },
+  { name: 'Green', hex: '#16A34A' },
+  { name: 'Yellow', hex: '#EAB308' },
+  { name: 'Orange', hex: '#EA580C' },
+  { name: 'Purple', hex: '#9333EA' },
+  { name: 'Pink', hex: '#EC4899' },
+  { name: 'Black', hex: '#000000' },
+  { name: 'White', hex: '#FFFFFF' },
+  { name: 'Gray', hex: '#6B7280' },
+  { name: 'Brown', hex: '#78350F' },
+  { name: 'Teal', hex: '#0D9488' },
+];
 
 export default function Products() {
   const { selectedBotId } = useBotStore();
@@ -198,11 +201,13 @@ export default function Products() {
                 </div>
                 <div className="absolute bottom-2 left-2 md:bottom-3 md:left-3">
                   <span className={`px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[8px] md:text-[10px] font-bold uppercase tracking-wider ${
-                    product.stock_quantity > 10 ? 'bg-emerald-500 text-white' :
-                    product.stock_quantity > 0 ? 'bg-amber-500 text-white' :
-                    'bg-rose-500 text-white'
+                    product.stock_quantity === 0 ? 'bg-rose-500 text-white' :
+                    product.stock_quantity !== null && product.stock_quantity <= 5 ? 'bg-amber-500 text-white' :
+                    'bg-emerald-500 text-white'
                   }`}>
-                    {product.stock_quantity > 0 ? `${product.stock_quantity} In Stock` : 'Out of Stock'}
+                    {product.stock_quantity === 0 ? 'Out of Stock' :
+                     product.stock_quantity !== null ? `${product.stock_quantity} In Stock` :
+                     'In Stock'}
                   </span>
                 </div>
               </div>
@@ -215,6 +220,20 @@ export default function Products() {
                   <Tag className="w-2.5 h-2.5 md:w-3 md:h-3" />
                   <span className="truncate">{categories?.find(c => c.id === product.category_id)?.name || 'Uncategorized'}</span>
                 </div>
+                {product.link_code && (
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(product.link_code).catch(() => {});
+                      }}
+                      className="p-1 rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                      title="Copy link code: {product.link_code}"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                    <span className="text-[9px] font-mono text-gray-400">{product.link_code}</span>
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}
@@ -310,8 +329,16 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     name: product?.name || '',
     description: product?.description || '',
     price: product?.price || '',
-    stock_quantity: product?.stock_quantity || '',
     category_id: product?.category_id || '',
+  });
+  const [stockOption, setStockOption] = useState(() => {
+    if (product?.stock_quantity === null || product?.stock_quantity === undefined) return 'unlimited';
+    if (product?.stock_quantity === 0) return 'out';
+    return 'custom';
+  });
+  const [customStock, setCustomStock] = useState(() => {
+    if (product?.stock_quantity > 0) return String(product.stock_quantity);
+    return '';
   });
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
@@ -360,6 +387,49 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const [colors, setColors] = useState(() => {
+    if (product?.specifications?.colors && Array.isArray(product.specifications.colors)) {
+      return product.specifications.colors;
+    }
+    return [];
+  });
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [uploadingColor, setUploadingColor] = useState(null);
+  const colorFileInputRef = useRef(null);
+  const pendingColorRef = useRef(null);
+
+  const handleColorSelect = (hex) => {
+    if (colors.some(c => c.color === hex)) {
+      addToast('Color already added', 'error');
+      return;
+    }
+    pendingColorRef.current = hex;
+    setShowColorPicker(false);
+    setTimeout(() => colorFileInputRef.current?.click(), 100);
+  };
+
+  const handleColorImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !pendingColorRef.current) return;
+    const hex = pendingColorRef.current;
+    pendingColorRef.current = null;
+    setUploadingColor(hex);
+    try {
+      const compressed = await compressImage(file);
+      const res = await uploadImage(compressed, selectedBotId);
+      setColors(prev => [...prev, { color: hex, file_id: res.file_id }]);
+    } catch (err) {
+      addToast('Failed to upload color image', 'error');
+    } finally {
+      setUploadingColor(null);
+      if (colorFileInputRef.current) colorFileInputRef.current.value = '';
+    }
+  };
+
+  const removeColor = (hex) => {
+    setColors(prev => prev.filter(c => c.color !== hex));
+  };
+
   const createCategoryMutation = useMutation({
     mutationFn: (name) => createCategory({ bot_id: Number(selectedBotId), name }),
     onSuccess: () => {
@@ -378,12 +448,14 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     const imageUrl = images.length > 0
       ? JSON.stringify(images.map(img => ({ file_id: img.file_id, type: 'photo' })))
       : null;
+    const specs = colors.length > 0 ? { colors } : null;
     onSubmit({
       ...formData,
       price: Number(formData.price),
-      stock_quantity: Number(formData.stock_quantity) || null,
+      stock_quantity: stockOption === 'unlimited' ? null : stockOption === 'out' ? 0 : Number(customStock),
       category_id: formData.category_id ? Number(formData.category_id) : null,
       image_url: imageUrl,
+      specifications: specs,
     });
   };
 
@@ -464,7 +536,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
           <div className="space-y-2">
             <label className="text-sm font-bold text-gray-700 ml-1">Price (MMK)</label>
             <input
@@ -478,14 +550,37 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
           </div>
           <div className="space-y-2">
             <label className="text-sm font-bold text-gray-700 ml-1">Stock</label>
-            <input
-              required
-              type="number"
-              value={formData.stock_quantity}
-              onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
-              placeholder="0"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
-            />
+            <div className="flex gap-1.5 flex-wrap">
+              {[
+                { value: 'unlimited', label: 'In stock' },
+                { value: 'out', label: 'Out of Stock' },
+                { value: 'custom', label: 'Add' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setStockOption(opt.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    stockOption === opt.value
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {stockOption === 'custom' && (
+              <input
+                required
+                type="number"
+                min="0"
+                value={customStock}
+                onChange={(e) => setCustomStock(e.target.value)}
+                placeholder="Enter quantity"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium mt-2"
+              />
+            )}
           </div>
         </div>
 
@@ -507,7 +602,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/gif,image/webp"
             onChange={handleImageUpload}
             className="hidden"
           />
@@ -553,6 +648,96 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
               )}
             </button>
           )}
+        </div>
+
+        {/* Colors Section */}
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-gray-700 ml-1 flex items-center gap-1.5">
+            <Palette className="w-4 h-4" /> Colors
+            {colors.length > 0 && <span className="text-gray-400 font-normal">({colors.length})</span>}
+          </label>
+
+          <input ref={colorFileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleColorImageUpload} className="hidden" />
+
+          {colors.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {colors.map(c => (
+                <div key={c.color} className="flex flex-col items-center gap-1.5">
+                  <div className="relative group">
+                    <div
+                      className="w-14 h-14 rounded-xl border-2 border-gray-200 shadow-sm overflow-hidden cursor-default"
+                      style={{ backgroundColor: c.color }}
+                    >
+                      {c.file_id && (
+                        <img
+                          src={getImageUrl(c.file_id, selectedBotId)}
+                          alt={c.color}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeColor(c.color)}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-rose-600 transition-all active:scale-90 text-[10px] font-bold"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <span className="text-[9px] text-gray-400 font-medium uppercase">{PREDEFINED_COLORS.find(pc => pc.hex === c.color)?.name || ''}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showColorPicker && (
+            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Select Color</span>
+                <button type="button" onClick={() => setShowColorPicker(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {PREDEFINED_COLORS.map(c => {
+                  const isAdded = colors.some(cc => cc.color === c.hex);
+                  return (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      disabled={isAdded || uploadingColor !== null}
+                      onClick={() => handleColorSelect(c.hex)}
+                      className={`w-9 h-9 rounded-xl border-2 transition-all active:scale-90 ${
+                        isAdded ? 'border-indigo-500 opacity-40 cursor-not-allowed' : 'border-gray-300 hover:scale-110 hover:shadow-md'
+                      } ${c.hex === '#FFFFFF' ? 'shadow-inner' : ''}`}
+                      style={{ backgroundColor: c.hex }}
+                      title={c.name + (isAdded ? ' (already added)' : '')}
+                    />
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-3 text-center">Select a color, then upload its product image</p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            {!showColorPicker && colors.length < 8 && (
+              <button
+                type="button"
+                onClick={() => setShowColorPicker(true)}
+                className="px-4 py-2.5 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all active:scale-[0.98] flex items-center gap-1.5"
+              >
+                <Palette className="w-4 h-4" />
+                Add Color
+              </button>
+            )}
+            {uploadingColor && (
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin" /> Uploading color image...
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="pt-4 flex gap-3">

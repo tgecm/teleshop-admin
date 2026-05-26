@@ -33,31 +33,44 @@ export default function Subscription() {
       icon: Zap,
       color: 'text-gray-400',
       bg: 'bg-gray-50',
-      features: ['Up to 50 Products', 'Basic Analytics', 'Standard Support', 'Manual Payments']
+      price: 'Free',
+      features: ['Categories: 1', 'Products: 7', 'Admin: Owner only', 'Promotion Button: No', 'Custom Commands: 5', 'Payment Methods: 1', 'Broadcasts: 4/mo', 'Total Bots: 2', 'Watermark: Yes']
+    },
+    {
+      key: 'basic',
+      name: 'Basic Plan',
+      icon: Star,
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
+      price: '135,000 MMK/yr',
+      features: ['Categories: 7', 'Products: 30', 'Admin: Up to 2', 'Promotion Button: No', 'Update Info: Welcome, About, Support, Cart', 'Update Photo: Main Menu, Shopping, Cart, Support', 'Automation: 10', 'Custom Commands: 25', 'Payment Methods: 3', 'Broadcasts: 10/mo', 'Total Bots: 3', 'AI Agent: No', 'Watermark: Yes']
     },
     {
       key: 'standard',
       name: 'Standard Plan',
-      icon: Star,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
-      features: ['Up to 100 Products', 'Advanced Analytics', 'Priority Support', 'Payment Methods', 'Promotions', 'Custom Broadcasts']
+      icon: Crown,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50',
+      price: '225,000 MMK/yr',
+      features: ['Categories: 15', 'Products: 50', 'Admin: Up to 3', 'Promotion Button: Yes', 'Update Info: All', 'Update Photo: All', 'Automation: 20', 'Custom Commands: 25', 'Payment Methods: 5', 'Broadcasts: 25/mo', 'Ads Removed: Yes', 'Total Bots: 7', 'Watermark: Removed']
     },
     {
       key: 'pro',
       name: 'Pro Plan',
-      icon: Crown,
+      icon: Key,
       color: 'text-purple-600',
       bg: 'bg-purple-50',
-      features: ['Unlimited Products', 'Advanced Analytics', 'Priority Support', 'Automatic Payments', 'Custom Broadcasts', 'More Admins']
+      price: '350,000 MMK/yr',
+      features: ['Categories: 35', 'Products: 150', 'Admin: Up to 10', 'Promotion Button: Yes', 'Update Info: All', 'Update Photo: All', 'Automation: 50', 'Custom Commands: 50', 'Payment Methods: 10', 'Broadcasts: 75/mo', 'Ads Removed: Yes', 'Total Bots: 25', 'Free API: Yes', 'Help Setting Up: Yes', 'Web Dashboard: Yes', 'E-commerce Website: Yes', 'Watermark: Removed']
     },
     {
       key: 'business',
       name: 'Business Plan',
-      icon: Key,
+      icon: Crown,
       color: 'text-amber-600',
       bg: 'bg-amber-50',
-      features: ['Everything in Pro', 'Whitelabel Bot', 'Dedicated Manager', 'API Access', 'Custom Integrations']
+      price: '600,000 MMK/yr',
+      features: ['Categories: Unlimited', 'Products: Unlimited', 'Admin: Unlimited', 'Promotion Button: Yes', 'Update Info: All', 'Update Photo: All', 'Automation: Unlimited', 'Custom Commands: Unlimited', 'Payment Methods: Unlimited', 'Broadcasts: Unlimited', 'Ads Removed: Yes', 'Total Bots: 50', 'Free API: Yes', 'Help Setting Up: Yes', 'Web Dashboard: Yes', 'E-commerce Website: Yes', 'Watermark: Removed']
     }
   ];
 
@@ -82,12 +95,14 @@ export default function Subscription() {
           <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl flex items-center justify-center flex-shrink-0 shadow-sm ${
             currentPlan === 'business' ? 'bg-amber-50 text-amber-600' :
             currentPlan === 'pro' ? 'bg-purple-50 text-purple-600' :
-            currentPlan === 'standard' ? 'bg-blue-50 text-blue-600' :
+            currentPlan === 'standard' ? 'bg-emerald-50 text-emerald-600' :
+            currentPlan === 'basic' ? 'bg-blue-50 text-blue-600' :
             'bg-gray-50 text-gray-400'
           }`}>
             {currentPlan === 'business' ? <Key className="w-10 h-10 sm:w-12 sm:h-12" /> :
              currentPlan === 'pro' ? <Crown className="w-10 h-10 sm:w-12 sm:h-12" /> :
-             currentPlan === 'standard' ? <Star className="w-10 h-10 sm:w-12 sm:h-12" /> :
+             currentPlan === 'standard' ? <Crown className="w-10 h-10 sm:w-12 sm:h-12" /> :
+             currentPlan === 'basic' ? <Star className="w-10 h-10 sm:w-12 sm:h-12" /> :
              <Zap className="w-10 h-10 sm:w-12 sm:h-12" />}
           </div>
           
@@ -101,9 +116,11 @@ export default function Subscription() {
               </span>
             </div>
             <p className="text-gray-500 text-sm">
-              {expiryDate 
-                ? `Expires on ${format(expiryDate, 'MMM d, yyyy')}` 
-                : 'No active subscription found.'}
+              {currentPlan === 'free'
+                ? 'Never expires'
+                : expiryDate
+                  ? `Expires on ${format(expiryDate, 'MMM d, yyyy')}`
+                  : 'No active subscription found.'}
             </p>
           </div>
 
@@ -114,13 +131,14 @@ export default function Subscription() {
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
         {plans.map((plan) => (
           <div key={plan.key} className={`bg-white p-6 rounded-3xl shadow-sm border transition-all ${currentPlan === plan.key ? 'border-indigo-600 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
             <div className={`w-12 h-12 rounded-2xl ${plan.bg} ${plan.color} flex items-center justify-center mb-4 shadow-sm`}>
               <plan.icon className="w-6 h-6" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-4">{plan.name}</h3>
+            <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
+            <p className="text-sm font-bold text-indigo-600 mt-1 mb-4">{plan.price}</p>
             <ul className="space-y-3">
               {plan.features.map((feature, i) => (
                 <li key={i} className="flex items-start gap-3 text-sm text-gray-600">

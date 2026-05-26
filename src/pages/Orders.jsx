@@ -19,6 +19,7 @@ import {
   Loader2,
   Image,
   Receipt as ReceiptIcon,
+  UserCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -33,8 +34,9 @@ export default function Orders() {
   const botUsername = currentBot?.bot_username;
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [confirmAction, setConfirmAction] = useState(null); // 'confirm' | 'reject' | null
+  const [confirmAction, setConfirmAction] = useState(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [orderTab, setOrderTab] = useState('telegram');
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['orders', selectedBotId],
@@ -54,8 +56,14 @@ export default function Orders() {
   });
 
   const filteredOrders = orders?.filter(o => {
+    const isWebsite = o.payment_method === 'website';
+    const isGuest = o.payment_method === 'guest';
+    if (orderTab === 'telegram' && (isWebsite || isGuest)) return false;
+    if (orderTab === 'ecommerce' && !isWebsite) return false;
+    if (orderTab === 'guest' && !isGuest) return false;
     const term = search.toLowerCase().trim();
     return (
+      o.buyer_snapshot?.name?.toLowerCase().includes(term) ||
       o.customer?.first_name?.toLowerCase().includes(term) ||
       o.customer?.username?.toLowerCase().includes(term) ||
       o.buyer_snapshot?.phone?.toLowerCase().includes(term) ||
@@ -84,6 +92,21 @@ export default function Orders() {
         </div>
       </div>
 
+      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1">
+        <button onClick={() => setOrderTab('telegram')}
+          className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${orderTab === 'telegram' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          Telegram
+        </button>
+        <button onClick={() => setOrderTab('ecommerce')}
+          className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${orderTab === 'ecommerce' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          Website
+        </button>
+        <button onClick={() => setOrderTab('guest')}
+          className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${orderTab === 'guest' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          Guest
+        </button>
+      </div>
+
       <div className="text-center md:hidden">
         <p className="text-[10px] text-gray-400 italic">Pull down to refresh</p>
       </div>
@@ -95,7 +118,7 @@ export default function Orders() {
           </div>
           <h3 className="text-lg font-bold text-gray-900">No orders found</h3>
           <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
-            {search ? "Try a different search term." : "When customers place orders, they will appear here."}
+            {search ? "Try a different search term." : orderTab === 'telegram' ? "Telegram orders will appear here." : orderTab === 'guest' ? "Guest orders will appear here." : "Website orders will appear here."}
           </p>
         </div>
       ) : (
@@ -109,11 +132,11 @@ export default function Orders() {
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
-                    #{order.id.toString().slice(-4)}
+                  <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <UserCircle className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{order.customer?.first_name || 'Customer'}</p>
+                    <p className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{order.buyer_snapshot?.name || order.customer?.first_name || 'Customer'}</p>
                     <p className="text-[10px] text-gray-500">{format(new Date(order.created_at), 'MMM d, h:mm a')}</p>
                   </div>
                 </div>
@@ -172,23 +195,66 @@ export default function Orders() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-900">
-                        {selectedOrder.buyer_snapshot?.full_name || selectedOrder.customer?.first_name || 'Unknown'}
+                        {selectedOrder.buyer_snapshot?.name || selectedOrder.buyer_snapshot?.full_name || selectedOrder.customer?.first_name || 'Unknown'}
                       </span>
                       <StatusBadge status={selectedOrder.status} />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-500">Phone</span>
-                      <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot?.phone || 'None (User Skipped)'}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-gray-500">Email</span>
-                      <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot?.email || 'N/A'}</span>
-                    </div>
-                    {selectedOrder.buyer_snapshot?.address && selectedOrder.buyer_snapshot.address !== 'N/A' && (
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-xs font-medium text-gray-500 flex-shrink-0 mt-0.5">Address</span>
-                        <span className="text-sm font-bold text-gray-900 text-right max-w-[200px]">{selectedOrder.buyer_snapshot.address}</span>
-                      </div>
+                    {selectedOrder.payment_method === 'website' || selectedOrder.payment_method === 'guest' ? (
+                      <>
+                        {selectedOrder.buyer_snapshot?.phone && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Phone</span>
+                            <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot.phone}</span>
+                          </div>
+                        )}
+                        {selectedOrder.buyer_snapshot?.email && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Email</span>
+                            <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot.email}</span>
+                          </div>
+                        )}
+                        {selectedOrder.buyer_snapshot?.address && selectedOrder.buyer_snapshot.address !== 'N/A' && (
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-xs font-medium text-gray-500 flex-shrink-0 mt-0.5">Address</span>
+                            <span className="text-sm font-bold text-gray-900 text-right max-w-[200px]">{selectedOrder.buyer_snapshot.address}</span>
+                          </div>
+                        )}
+                        {selectedOrder.buyer_snapshot?.telegram_username && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Telegram</span>
+                            <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot.telegram_username}</span>
+                          </div>
+                        )}
+                        {selectedOrder.buyer_snapshot?.viber_number && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500">Viber</span>
+                            <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot.viber_number}</span>
+                          </div>
+                        )}
+                        {selectedOrder.buyer_snapshot?.notes && (
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-xs font-medium text-gray-500 flex-shrink-0 mt-0.5">Notes</span>
+                            <span className="text-sm font-bold text-gray-900 text-right max-w-[200px]">{selectedOrder.buyer_snapshot.notes}</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500">Phone</span>
+                          <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot?.phone || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-gray-500">Email</span>
+                          <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot?.email || 'N/A'}</span>
+                        </div>
+                        {selectedOrder.buyer_snapshot?.address && selectedOrder.buyer_snapshot.address !== 'N/A' && (
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-xs font-medium text-gray-500 flex-shrink-0 mt-0.5">Address</span>
+                            <span className="text-sm font-bold text-gray-900 text-right max-w-[200px]">{selectedOrder.buyer_snapshot.address}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 

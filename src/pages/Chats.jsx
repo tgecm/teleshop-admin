@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getChats, getChatMessages, sendChatMessage, deleteChat, markChatRead, markChatUnread } from '../api/chats';
+import { getChats, getChatMessages, sendChatMessage, deleteChat, markChatRead, markChatUnread,
+  getWebVisitors, getWebVisitorMessages, sendWebVisitorMessage, deleteWebVisitor, toggleWebVisitorAI,
+  markWebVisitorRead, markWebVisitorUnread } from '../api/chats';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
@@ -17,6 +19,10 @@ import {
   Circle,
   Headphones,
   FileText,
+  Brain,
+  ImageUp,
+  Globe,
+  Smartphone,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -42,11 +48,6 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
               loading="lazy"
               onClick={(e) => { e.stopPropagation(); window.open(fileUrl, '_blank'); }}
             />
-            <a href={tgLink} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
-              onClick={(e) => e.stopPropagation()}>
-              Open in Telegram ↗
-            </a>
           </div>
         );
       case 'video':
@@ -172,7 +173,7 @@ function ConversationItem({ chat, isActive, onClick, onContextMenu }) {
             </div>
             <p className={`text-xs truncate mt-0.5 flex items-center gap-1 ${unread > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
               {chat.last_sender === 'admin' && <CheckCheck className="w-3 h-3 flex-shrink-0 text-indigo-400" />}
-              {chat.last_message || 'No messages'}
+              {(chat.last_message || '').length > 40 ? (chat.last_message || '').slice(0, 40) + '...' : (chat.last_message || 'No messages')}
             </p>
           </div>
           <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
@@ -192,9 +193,13 @@ export default function Chats() {
   const [inputText, setInputText] = useState('');
   const [contextMenu, setContextMenu] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [chatTab, setChatTab] = useState('telegram');
+  const [selectedVisitor, setSelectedVisitor] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const menuRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
 
   const { data: chats = [], isLoading } = useQuery({
     queryKey: ['chats', selectedBotId],
@@ -210,36 +215,86 @@ export default function Chats() {
     refetchInterval: 10000,
   });
 
+  const { data: webVisitors = [] } = useQuery({
+    queryKey: ['webVisitors', selectedBotId],
+    queryFn: () => getWebVisitors(Number(selectedBotId)),
+    enabled: !!selectedBotId && (chatTab === 'web' || chatTab === 'guest'),
+    refetchInterval: 15000,
+  });
+
+  const { data: webMessages = [] } = useQuery({
+    queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor],
+    queryFn: () => getWebVisitorMessages(selectedVisitor, Number(selectedBotId)),
+    enabled: !!selectedBotId && !!selectedVisitor && (chatTab === 'web' || chatTab === 'guest'),
+    refetchInterval: 10000,
+  });
+
   const sendMutation = useMutation({
-    mutationFn: ({ userId, message }) =>
-      sendChatMessage(userId, Number(selectedBotId), message),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chatMessages', selectedBotId, selectedUser] });
-      queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+    mutationFn: ({ userId, message, visitorId, fileId, fileType }) => {
+      if (visitorId) return sendWebVisitorMessage(visitorId, Number(selectedBotId), message, fileId, fileType);
+      return sendChatMessage(userId, Number(selectedBotId), message, fileId, fileType);
+    },
+    onSuccess: (_data, vars) => {
+      if (vars.visitorId) {
+        queryClient.invalidateQueries({ queryKey: ['webVisitorMessages', selectedBotId, vars.visitorId] });
+        queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['chatMessages', selectedBotId, vars.userId] });
+        queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+      }
       setInputText('');
     },
     onError: () => addToast('Failed to send message', 'error'),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (userId) => deleteChat(userId, Number(selectedBotId)),
-    onSuccess: (_data, userId) => {
-      queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
-      setContextMenu(null);
-      setDeleteConfirm(null);
-      if (selectedUser === userId) setSelectedUser(null);
+    mutationFn: ({ userId, visitorId }) => {
+      if (visitorId) return deleteWebVisitor(visitorId, Number(selectedBotId));
+      return deleteChat(userId, Number(selectedBotId));
+    },
+    onSuccess: (_data, vars) => {
+      if (vars.visitorId) {
+        queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
+        setContextMenu(null);
+        setDeleteConfirm(null);
+        if (selectedVisitor === vars.visitorId) setSelectedVisitor(null);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+        setContextMenu(null);
+        setDeleteConfirm(null);
+        if (selectedUser === vars.userId) setSelectedUser(null);
+      }
       addToast('Chat deleted');
     },
     onError: () => addToast('Failed to delete chat', 'error'),
   });
 
   const readMutation = useMutation({
-    mutationFn: ({ userId, markAsRead }) =>
-      markAsRead ? markChatRead(userId, Number(selectedBotId)) : markChatUnread(userId, Number(selectedBotId)),
+    mutationFn: ({ userId, visitorId, markAsRead }) => {
+      if (visitorId) {
+        return markAsRead ? markWebVisitorRead(visitorId, Number(selectedBotId)) : markWebVisitorUnread(visitorId, Number(selectedBotId));
+      }
+      return markAsRead ? markChatRead(userId, Number(selectedBotId)) : markChatUnread(userId, Number(selectedBotId));
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
       setContextMenu(null);
     },
+  });
+
+  const toggleAiMutation = useMutation({
+    mutationFn: ({ visitorId, disabled }) =>
+      toggleWebVisitorAI(visitorId, Number(selectedBotId), disabled),
+    onSuccess: (_data, vars) => {
+      // Update cache immediately so UI reflects toggle without waiting for refetch
+      queryClient.setQueryData(['webVisitors', selectedBotId], (old) =>
+        old?.map(v => v.visitor_id === vars.visitorId ? { ...v, ai_disabled: vars.disabled } : v)
+      );
+      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
+      queryClient.invalidateQueries({ queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor] });
+    },
+    onError: () => addToast('Failed to toggle AI', 'error'),
   });
 
   useEffect(() => {
@@ -258,6 +313,12 @@ export default function Chats() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const telegramUnread = chats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+  const webVisitorsWithUid = webVisitors.filter(v => v.firebase_uid);
+  const webVisitorsGuest = webVisitors.filter(v => !v.firebase_uid);
+  const websiteUnread = webVisitorsWithUid.reduce((sum, v) => sum + (v.unread_count || 0), 0);
+  const guestUnread = webVisitorsGuest.reduce((sum, v) => sum + (v.unread_count || 0), 0);
+
   const filteredChats = chats.filter(c => {
     if (!search.trim()) return true;
     const term = search.toLowerCase();
@@ -267,12 +328,54 @@ export default function Chats() {
     );
   });
 
+  const filteredWebVisitors = webVisitors.filter(v => {
+    if (!search.trim()) return true;
+    const term = search.toLowerCase();
+    return v.name.toLowerCase().includes(term) || v.phone.includes(term);
+  });
+
   const selectedChat = chats.find(c => c.user_id === selectedUser);
+  const selectedWebChat = webVisitors.find(v => v.visitor_id === selectedVisitor);
+  const isWebTab = chatTab === 'web' || chatTab === 'guest';
 
   const handleSend = () => {
     const text = inputText.trim();
     if (!text || sendMutation.isPending) return;
-    sendMutation.mutate({ userId: selectedUser, message: text });
+    if (isWebTab && selectedVisitor) {
+      sendMutation.mutate({ visitorId: selectedVisitor, message: text });
+    } else {
+      sendMutation.mutate({ userId: selectedUser, message: text });
+    }
+  };
+
+  const handlePhotoSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedBotId) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bot_id', Number(selectedBotId));
+      const res = await fetch(`${client.defaults.baseURL}/upload/image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${useAuthStore.getState().token}` },
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      const caption = inputText.trim();
+      setInputText('');
+      if (isWebTab && selectedVisitor) {
+        sendMutation.mutate({ visitorId: selectedVisitor, message: caption, fileId: data.file_id, fileType: 'photo' });
+      } else {
+        sendMutation.mutate({ userId: selectedUser, message: caption, fileId: data.file_id, fileType: 'photo' });
+      }
+    } catch {
+      addToast('Failed to upload photo', 'error');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -290,9 +393,14 @@ export default function Chats() {
 
   const handleDeleteClick = () => {
     if (!deleteConfirm) {
-      setDeleteConfirm(contextMenu.chat.user_id);
+      const key = isWebTab ? contextMenu.chat.visitor_id : contextMenu.chat.user_id;
+      setDeleteConfirm(key);
     } else {
-      deleteMutation.mutate(contextMenu.chat.user_id);
+      if (isWebTab) {
+        deleteMutation.mutate({ visitorId: contextMenu.chat.visitor_id });
+      } else {
+        deleteMutation.mutate({ userId: contextMenu.chat.user_id });
+      }
     }
   };
 
@@ -314,38 +422,151 @@ export default function Chats() {
         </div>
       </div>
 
-      {filteredChats.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
-          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <MessageCircle className="w-8 h-8 text-gray-300" />
+      {/* Tab switcher */}
+      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 w-full">
+        <button
+          onClick={() => { setChatTab('telegram'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
+          className={`flex-1 px-1.5 py-2 rounded-xl text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+            chatTab === 'telegram' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Smartphone className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+          Telegram
+          {telegramUnread > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-1 rounded-full min-w-[18px] text-center">
+              {telegramUnread > 99 ? '99+' : telegramUnread}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => { setChatTab('web'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
+          className={`flex-1 px-1.5 py-2 rounded-xl text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+            chatTab === 'web' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Globe className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+          Website
+          {websiteUnread > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-1 rounded-full min-w-[18px] text-center">
+              {websiteUnread > 99 ? '99+' : websiteUnread}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => { setChatTab('guest'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
+          className={`flex-1 px-1.5 py-2 rounded-xl text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+            chatTab === 'guest' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+          Guest
+          {guestUnread > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-1 rounded-full min-w-[18px] text-center">
+              {guestUnread > 99 ? '99+' : guestUnread}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {chatTab === 'telegram' ? (
+        filteredChats.length === 0 ? (
+          <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
+            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <MessageCircle className="w-8 h-8 text-gray-300" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">No conversations yet</h3>
+            <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
+              {search ? 'Try a different search term.' : 'When users message the bot, their conversations will appear here.'}
+            </p>
           </div>
-          <h3 className="text-lg font-bold text-gray-900">No conversations yet</h3>
-          <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
-            {search
-              ? 'Try a different search term.'
-              : 'When users message the bot, their conversations will appear here.'}
-          </p>
-        </div>
+        ) : (
+          <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
+            {filteredChats.map(chat => (
+              <ConversationItem
+                key={chat.user_id}
+                chat={chat}
+                isActive={selectedUser === chat.user_id}
+                onClick={() => {
+                  setSelectedUser(chat.user_id);
+                  if (chat.unread_count > 0) {
+                    queryClient.setQueryData(['chats', selectedBotId], (old) =>
+                      old?.map(c => c.user_id === chat.user_id ? { ...c, unread_count: 0 } : c)
+                    );
+                    markChatRead(chat.user_id, Number(selectedBotId)).catch(() => {});
+                  }
+                }}
+                onContextMenu={handleContextMenu}
+              />
+            ))}
+          </div>
+        )
       ) : (
-        <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
-          {filteredChats.map(chat => (
-            <ConversationItem
-              key={chat.user_id}
-              chat={chat}
-              isActive={selectedUser === chat.user_id}
-              onClick={() => {
-                setSelectedUser(chat.user_id);
-                if (chat.unread_count > 0) {
-                  queryClient.setQueryData(['chats', selectedBotId], (old) =>
-                    old?.map(c => c.user_id === chat.user_id ? { ...c, unread_count: 0 } : c)
-                  );
-                  markChatRead(chat.user_id, Number(selectedBotId)).catch(() => {});
-                }
-              }}
-              onContextMenu={handleContextMenu}
-            />
-          ))}
-        </div>
+        <>
+          {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid) : filteredWebVisitors.filter(v => !v.firebase_uid)).length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-8 h-8 text-gray-300" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">
+                {chatTab === 'web' ? 'No website visitors yet' : 'No guest visitors yet'}
+              </h3>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
+                {chatTab === 'guest' ? 'Guest visitors who chat from the web shop will appear here.' : 'Signed-in users who chat from the web shop will appear here.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
+              {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid) : filteredWebVisitors.filter(v => !v.firebase_uid)).map(v => (
+                <div key={v.visitor_id} className="relative group">
+                  <button
+                    onClick={() => {
+                      setSelectedVisitor(v.visitor_id);
+                      if (v.unread_count > 0) {
+                        queryClient.setQueryData(['webVisitors', selectedBotId], (old) =>
+                          old?.map(c => c.visitor_id === v.visitor_id ? { ...c, unread_count: 0 } : c)
+                        );
+                      }
+                    }}
+                    onContextMenu={(e) => handleContextMenu(e, v)}
+                    className={`w-full text-left p-3 rounded-2xl transition-all active:scale-[0.98] ${
+                      selectedVisitor === v.visitor_id
+                        ? 'bg-indigo-50 border border-indigo-100'
+                        : 'bg-white border border-transparent hover:border-gray-200'
+                    } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <User className="w-5 h-5 text-gray-500" />
+                        {v.unread_count > 0 && (
+                          <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
+                            <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900`}>
+                            {v.name}
+                          </p>
+                          {v.last_time && (
+                            <span className="text-[10px] text-gray-400 flex-shrink-0">
+                              {format(new Date(v.last_time), 'MMM d')}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-xs truncate mt-0.5 ${v.unread_count > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
+                          {(v.last_message || '').length > 40 ? (v.last_message || '').slice(0, 40) + '...' : (v.last_message || 'No messages')}
+                        </p>
+                        {v.phone && <p className="text-[10px] text-gray-400 mt-0.5">{v.phone}</p>}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
+                    </div>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <AnimatePresence>
@@ -371,7 +592,7 @@ export default function Chats() {
               }}
               className="w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-1 overflow-hidden"
             >
-              {deleteConfirm === contextMenu.chat.user_id ? (
+              {deleteConfirm === (contextMenu.chat.visitor_id || contextMenu.chat.user_id) ? (
                 <div className="px-4 py-3 space-y-2">
                   <p className="text-xs font-bold text-rose-600 text-center">Delete this chat?</p>
                   <div className="flex gap-2">
@@ -404,7 +625,11 @@ export default function Chats() {
 
               {contextMenu.chat.unread_count > 0 ? (
                 <button
-                  onClick={() => readMutation.mutate({ userId: contextMenu.chat.user_id, markAsRead: true })}
+                  onClick={() => readMutation.mutate({
+                    userId: contextMenu.chat.user_id,
+                    visitorId: contextMenu.chat.visitor_id,
+                    markAsRead: true
+                  })}
                   disabled={readMutation.isPending}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
                 >
@@ -413,7 +638,11 @@ export default function Chats() {
                 </button>
               ) : (
                 <button
-                  onClick={() => readMutation.mutate({ userId: contextMenu.chat.user_id, markAsRead: false })}
+                  onClick={() => readMutation.mutate({
+                    userId: contextMenu.chat.user_id,
+                    visitorId: contextMenu.chat.visitor_id,
+                    markAsRead: false
+                  })}
                   disabled={readMutation.isPending}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
                 >
@@ -427,13 +656,13 @@ export default function Chats() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {selectedUser && (
+        {(selectedUser || selectedVisitor) && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedUser(null)}
+              onClick={() => { setSelectedUser(null); setSelectedVisitor(null); }}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             />
             <motion.div
@@ -459,42 +688,83 @@ export default function Chats() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-base font-bold text-gray-900 truncate">
-                      {selectedChat?.first_name || `User ${selectedUser}`}
+                      {selectedWebChat?.name || selectedChat?.first_name || `User ${selectedUser}`}
                     </p>
                     {selectedChat?.username && (
                       <p className="text-xs text-gray-500 truncate">@{selectedChat.username}</p>
                     )}
+                    {selectedWebChat?.phone && (
+                      <p className="text-xs text-gray-500 truncate">{selectedWebChat.phone}</p>
+                    )}
                   </div>
                 </div>
+                {selectedWebChat && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex flex-col items-center">
+                      <button
+                        onClick={() => toggleAiMutation.mutate({ visitorId: selectedVisitor, disabled: !selectedWebChat.ai_disabled })}
+                        disabled={toggleAiMutation.isPending}
+                        className={`p-2 rounded-full active:scale-90 transition-all flex-shrink-0 ${
+                          selectedWebChat.ai_disabled ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                        }`}
+                      >
+                        <Brain className="w-5 h-5" />
+                      </button>
+                      <span className={`text-[9px] font-bold uppercase tracking-wider mt-0.5 ${
+                        selectedWebChat.ai_disabled ? 'text-red-500' : 'text-green-500'
+                      }`}>
+                        {selectedWebChat.ai_disabled ? 'Off' : 'AI Mode'}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <button
-                  onClick={() => setSelectedUser(null)}
+                  onClick={() => { setSelectedUser(null); setSelectedVisitor(null); }}
                   className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform flex-shrink-0"
                 >
                   <X className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 min-h-0">
-                {messages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-sm text-gray-400">No messages yet</p>
-                  </div>
-                ) : (
-                  messages.map(msg => (
-                    <ChatBubble
-                      key={msg.id}
-                      message={msg}
-                      isAdmin={msg.sender_type === 'admin'}
-                      botId={Number(selectedBotId)}
-                      botUsername={botUsername}
-                    />
-                  ))
-                )}
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 space-y-3 min-h-0 [overflow-wrap:anywhere]">
+                {(() => {
+                  const msgs = selectedVisitor ? webMessages : messages;
+                  return msgs.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-sm text-gray-400">No messages yet</p>
+                    </div>
+                  ) : (
+                    msgs.map(msg => (
+                      <ChatBubble
+                        key={msg.id}
+                        message={msg}
+                        isAdmin={msg.sender_type === 'admin'}
+                        botId={Number(selectedBotId)}
+                        botUsername={botUsername}
+                      />
+                    ))
+                  );
+                })()}
                 <div ref={messagesEndRef} />
               </div>
 
               <div className="sticky bottom-0 bg-white border-t border-gray-100 px-5 py-3 pb-[calc(max(env(safe-area-inset-bottom),8px)+12px)]">
                 <div className="flex items-end gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading || sendMutation.isPending}
+                    className="w-10 h-10 bg-gray-100 text-gray-500 rounded-2xl flex items-center justify-center hover:bg-gray-200 disabled:opacity-40 transition-all active:scale-90 flex-shrink-0"
+                    title="Send photo"
+                  >
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageUp className="w-4 h-4" />}
+                  </button>
                   <div className="flex-1 relative">
                     <textarea
                       ref={inputRef}

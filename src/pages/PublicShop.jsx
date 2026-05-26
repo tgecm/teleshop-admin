@@ -3,9 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { getPublicShop, getPublicShopByDomain } from '../api/public';
 import {
   ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
-  Tag, Sparkles, TrendingUp, Clock, Star, Search, X, ChevronLeft
+  Tag, Sparkles, TrendingUp, Clock, Star, Search, X, ChevronLeft,
+  MessageCircle, Send, ImageUp, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { THEMES, DEFAULT_THEME } from '../themes/themes';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
 
@@ -60,7 +62,7 @@ function LoadingSkeleton() {
   );
 }
 
-function ProductDetailModal({ product, shop, onClose }) {
+function ProductDetailModal({ product, shop, onClose, onBuyNow, isSent }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const touchStartX = useRef(null);
   const images = getPublicImageUrls(product.image_url, shop?.id);
@@ -213,7 +215,7 @@ function ProductDetailModal({ product, shop, onClose }) {
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
 
           <div className="flex items-baseline gap-1.5 mb-4">
-            <span className="text-2xl font-bold text-indigo-600">{formatPrice(product.price)}</span>
+            <span className="text-2xl font-bold theme-price">{formatPrice(product.price)}</span>
             <span className="text-sm text-gray-400 font-medium">MMK</span>
           </div>
 
@@ -227,15 +229,20 @@ function ProductDetailModal({ product, shop, onClose }) {
             href={getBuyLink(product, shop?.bot_username)}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => isOutOfStock && e.preventDefault()}
+            onClick={(e) => {
+              if (isOutOfStock) { e.preventDefault(); return; }
+              onBuyNow?.(e, getBuyLink(product, shop?.bot_username), product.id);
+            }}
             className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-base transition-all ${
               isOutOfStock
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-xl hover:shadow-indigo-200 hover:from-indigo-700 hover:to-purple-700 active:scale-[0.98] shadow-lg shadow-indigo-100'
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none no-underline'
+                : 'theme-btn hover:shadow-xl active:scale-[0.98] shadow-lg'
             }`}
           >
             <ShoppingCart className="w-5 h-5" />
-            {isOutOfStock ? 'Currently Unavailable' : 'Buy Now on Telegram'}
+            {isOutOfStock ? 'Currently Unavailable' : isSent ? (
+              <span className="text-xs leading-tight">Product sent in Telegram. Check it!</span>
+            ) : 'Buy Now on Telegram'}
           </a>
 
           <p className="text-xs text-gray-400 text-center mt-3">
@@ -247,14 +254,16 @@ function ProductDetailModal({ product, shop, onClose }) {
   );
 }
 
-function ShopClosed({ shop }) {
+function ShopClosed({ shop, theme }) {
+  const t = theme?.css || THEMES[DEFAULT_THEME].css;
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: t['--theme-primary-light'] }}>
       <motion.div
         initial={{ opacity: 0, scale: 0.85 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-        className="bg-white rounded-[40px] shadow-2xl shadow-indigo-100/50 p-10 max-w-md w-full text-center relative overflow-hidden"
+        className="bg-white rounded-[40px] p-10 max-w-md w-full text-center relative overflow-hidden"
+        style={{ boxShadow: `0 20px 25px -5px ${t['--theme-primary-shadow']}, 0 10px 10px -5px ${t['--theme-primary-shadow']}` }}
       >
         <div className="absolute -top-20 -right-20 w-48 h-48 bg-gradient-to-br from-rose-50 to-rose-100 rounded-full opacity-60" />
         <div className="absolute -bottom-16 -left-16 w-40 h-40 bg-gradient-to-br from-amber-50 to-amber-100 rounded-full opacity-60" />
@@ -311,7 +320,7 @@ function ShopClosed({ shop }) {
             href={`https://t.me/${shop?.bot_username}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl hover:shadow-xl hover:shadow-indigo-200 hover:from-indigo-700 hover:to-purple-700 active:scale-[0.98] transition-all shadow-lg shadow-indigo-100"
+            className="inline-flex items-center gap-2 px-8 py-3.5 theme-btn font-bold rounded-2xl hover:shadow-xl active:scale-[0.98] transition-all shadow-lg"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
@@ -338,6 +347,25 @@ export default function PublicShop({ slug, viaDomain }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isTelegramWA, setIsTelegramWA] = useState(false);
+  const [sentProductIds, setSentProductIds] = useState(new Set());
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'assistant', content: 'Hi! How can I help you today?', file_id: null, file_type: null }
+  ]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatRef = useRef(null);
+  const chatInputRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showVisitorForm, setShowVisitorForm] = useState(false);
+  const [visitorForm, setVisitorForm] = useState({ name: '', phone: '', email: '' });
+  const visitorIdRef = useRef('');
+
+  function generateVisitorId() {
+    return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: viaDomain ? ['public-shop-by-domain'] : ['public-shop', slug],
@@ -350,16 +378,214 @@ export default function PublicShop({ slug, viaDomain }) {
   const shop = data?.shop;
   const products = data?.products || [];
   const categories = data?.categories || [];
+  const themeName = data?.theme || DEFAULT_THEME;
+  const theme = THEMES[themeName] || THEMES[DEFAULT_THEME];
+
+  const handleVisitorPhoto = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !shop?.id) return;
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bot_id', shop.id);
+      const res = await fetch(API_BASE + '/public/upload/photo', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      const history = chatMessages.slice(-100).map(m => ({ role: m.role, content: m.content }));
+      setChatMessages(prev => [...prev, { role: 'user', content: '', file_id: data.file_id, file_type: 'photo' }]);
+      const msgRes = await fetch(API_BASE + '/public/chat/' + shop.id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: '', history,
+          visitor_id: visitorIdRef.current,
+          file_id: data.file_id,
+          file_type: 'photo',
+        }),
+      });
+      const msgData = await msgRes.json();
+      if (msgData.reply) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: msgData.reply, file_id: null, file_type: null }]);
+      }
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Failed to send photo.' }]);
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  }, [shop?.id, chatMessages]);
+
+  const handleChatSend = useCallback(async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const msg = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: msg, file_id: null, file_type: null }]);
+    setChatLoading(true);
+    try {
+      const history = chatMessages.slice(-100).map(m => ({ role: m.role, content: m.content }));
+      const res = await fetch(`${API_BASE}/public/chat/${shop?.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, history, visitor_id: visitorIdRef.current }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.detail || 'Chat failed');
+      setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply, file_id: null, file_type: null }]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
+    } finally {
+      setChatLoading(false);
+      setTimeout(() => chatInputRef.current?.focus(), 100);
+    }
+  }, [chatInput, chatLoading, shop?.id, chatMessages]);
+
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    }
+  }, [chatMessages, chatLoading]);
+
+  // Auto-focus chat input when chat opens or after form dismissed
+  useEffect(() => {
+    if (chatOpen && !showVisitorForm) {
+      setTimeout(() => chatInputRef.current?.focus(), 200);
+    }
+  }, [chatOpen, showVisitorForm]);
+
+  // Live polling for new messages from admin
+  useEffect(() => {
+    if (!chatOpen || !shop?.id || showVisitorForm || !visitorIdRef.current) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(API_BASE + '/public/chat/' + shop.id + '/' + visitorIdRef.current + '/messages');
+        const msgs = await res.json();
+        if (msgs && msgs.length > 0) {
+          setChatMessages(prev => {
+            if (msgs.length <= prev.length) return prev;
+            const existing = new Set(prev.map(m => (m.content || '') + '|' + m.role + '|' + (m.file_id || '')));
+            const newMsgs = msgs.filter(m => !existing.has((m.message_text || '') + '|' + m.sender_type + '|' + (m.file_id || '')));
+            if (newMsgs.length === 0) return prev;
+            return [...prev, ...newMsgs.map(m => ({
+              role: m.sender_type === 'user' ? 'user' : 'assistant',
+              content: m.message_text || '',
+              file_id: m.file_id || null,
+              file_type: m.file_type || null
+            }))];
+          });
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [chatOpen, shop?.id, showVisitorForm]);
+
+  useEffect(() => {
+    if (!chatOpen || !shop?.id || visitorIdRef.current) return;
+    const key = 'visitor_' + (shop.bot_username || slug || 'domain');
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        const info = JSON.parse(saved);
+        visitorIdRef.current = info.id;
+        setVisitorForm({ name: info.name || '', phone: info.phone || '', email: info.email || '' });
+        // Load chat history
+        fetch(API_BASE + '/public/chat/' + shop.id + '/' + info.id + '/messages')
+          .then(r => r.json())
+          .then(msgs => {
+            if (msgs && msgs.length > 0) {
+              setChatMessages(msgs.map(m => ({
+                role: m.sender_type === 'user' ? 'user' : 'assistant',
+                content: m.message_text || '',
+                file_id: m.file_id || null,
+                file_type: m.file_type || null
+              })));
+            }
+          }).catch(() => {});
+      } catch { setShowVisitorForm(true); }
+    } else {
+      setShowVisitorForm(true);
+    }
+  }, [chatOpen, shop?.id]);
+
+  async function handleVisitorSave(name, phone, email) {
+    if (!shop?.id) return;
+    const id = visitorIdRef.current || generateVisitorId();
+    visitorIdRef.current = id;
+    const key = 'visitor_' + (shop.bot_username || slug || 'domain');
+    const info = { id, name, phone, email };
+    localStorage.setItem(key, JSON.stringify(info));
+    setShowVisitorForm(false);
+    setVisitorForm({ name, phone, email });
+    try {
+      await fetch(API_BASE + '/public/visitor/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitor_id: id, bot_id: shop.id, name, phone, email }),
+      });
+    } catch {}
+  }
 
   useEffect(() => {
     document.title = shop?.bot_full_name || 'TeleShop';
-    return () => { document.title = 'TeleShop Admin'; };
-  }, [shop?.bot_full_name]);
+    const icon = document.querySelector('link[rel="icon"]');
+    if (icon && shop?.profile_picture) {
+      icon.setAttribute('href', shop.profile_picture);
+    } else if (icon) {
+      icon.setAttribute('href', '/vite.svg');
+    }
+    return () => { document.title = 'TeleShop'; };
+  }, [shop?.bot_full_name, shop?.profile_picture]);
+
+  useEffect(() => {
+    const id = 'shop-theme-styles';
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement('style');
+      el.id = id;
+      document.head.appendChild(el);
+    }
+    const t = theme.css;
+    el.textContent = `
+      .theme-card { background: ${t['--theme-card-bg']}; border-color: ${t['--theme-card-border']}; }
+      .theme-card:hover { box-shadow: 0 20px 25px -5px ${t['--theme-primary-shadow']}, 0 10px 10px -5px ${t['--theme-primary-shadow']}; }
+      .theme-btn { background: ${t['--theme-btn']}; color: ${t['--theme-btn-text']}; }
+      .theme-btn:hover { background: ${t['--theme-btn-hover']}; box-shadow: 0 10px 15px -3px ${t['--theme-primary-shadow']}, 0 4px 6px -4px ${t['--theme-primary-shadow']}; }
+      .theme-filter-active { background: ${t['--theme-filter-active']} !important; color: #fff !important; box-shadow: 0 4px 6px -1px ${t['--theme-primary-shadow']} !important; }
+      .theme-price { color: ${t['--theme-price']}; }
+      .theme-hover-price:hover { color: ${t['--theme-price']}; }
+    `;
+  }, [theme]);
 
   const getBuyLink = (product, botUsername) => {
     const token = product.link_token;
     return `https://t.me/${botUsername}?start=${token}`;
   };
+
+  const handleBuyNow = useCallback((e, href, productId) => {
+    e.preventDefault();
+    if (sentProductIds.has(productId)) return; // already sent, no action
+    setSentProductIds(prev => new Set([...prev, productId]));
+    // Navigate — use openTelegramLink in Mini App, window.open in browser
+    if (isTelegramWA && window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(href);
+    } else {
+      window.open(href, '_blank', 'noopener');
+    }
+  }, [isTelegramWA, sentProductIds]);
+
+  // Detect Telegram Mini App — initData is only populated in real Mini App
+  useEffect(() => {
+    const check = () => {
+      if (window.Telegram?.WebApp?.initData) {
+        setIsTelegramWA(true);
+        try { window.Telegram.WebApp.ready(); } catch {}
+      }
+    };
+    check();
+  }, []);
 
   const categoryMap = {};
   categories.forEach(c => { categoryMap[c.id] = c.name; });
@@ -384,7 +610,7 @@ export default function PublicShop({ slug, viaDomain }) {
   if (error || !shop) {
     const isNotFound = error?.response?.status === 404;
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: theme.css['--theme-primary-light'] }}>
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -405,7 +631,7 @@ export default function PublicShop({ slug, viaDomain }) {
             {!isNotFound && (
               <button
                 onClick={() => refetch()}
-                className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl hover:shadow-xl hover:shadow-indigo-200 transition-all"
+                className="w-full px-6 py-3 theme-btn font-bold rounded-2xl hover:shadow-xl transition-all"
               >
                 Try Again
               </button>
@@ -424,12 +650,29 @@ export default function PublicShop({ slug, viaDomain }) {
   }
 
   if (data?.is_open === false) {
-    return <ShopClosed shop={shop} />;
+    return <ShopClosed shop={shop} theme={theme} />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 overflow-hidden">
+    <div className="min-h-screen" style={{
+      backgroundColor: theme.css['--theme-bg'],
+      '--theme-primary': theme.css['--theme-primary'],
+      '--theme-primary-light': theme.css['--theme-primary-light'],
+      '--theme-primary-shadow': theme.css['--theme-primary-shadow'],
+      '--theme-primary-shadow-lg': theme.css['--theme-primary-shadow-lg'],
+      '--theme-header': theme.css['--theme-header'],
+      '--theme-btn': theme.css['--theme-btn'],
+      '--theme-btn-hover': theme.css['--theme-btn-hover'],
+      '--theme-btn-text': theme.css['--theme-btn-text'],
+      '--theme-price': theme.css['--theme-price'],
+      '--theme-filter-active': theme.css['--theme-filter-active'],
+      '--theme-card-bg': theme.css['--theme-card-bg'],
+      '--theme-card-border': theme.css['--theme-card-border'],
+      '--theme-bg': theme.css['--theme-bg'],
+      '--theme-header-text': theme.css['--theme-header-text'],
+      '--theme-header-muted': theme.css['--theme-header-muted'],
+    }}>
+      <div className="relative" style={{ background: theme.css['--theme-header'] }}>
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/5 rounded-full" />
         <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-white/5 rounded-full" />
         <div className="absolute top-1/2 left-1/3 w-32 h-32 bg-white/5 rounded-full" />
@@ -467,7 +710,7 @@ export default function PublicShop({ slug, viaDomain }) {
           </motion.div>
         </div>
 
-        <div className="absolute -bottom-1 left-0 right-0 h-8 bg-gray-50 rounded-t-[32px]" />
+        <div className="absolute -bottom-1 left-0 right-0 h-8 rounded-t-[32px]" style={{ backgroundColor: theme.css['--theme-bg'] }} />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 -mt-10 relative z-10">
@@ -475,7 +718,8 @@ export default function PublicShop({ slug, viaDomain }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-3xl p-5 md:p-6 shadow-xl shadow-indigo-100/50 mb-6 flex items-center justify-between"
+          className="bg-white rounded-3xl p-5 md:p-6 mb-6 flex items-center justify-between"
+          style={{ boxShadow: `0 20px 25px -5px ${theme.css['--theme-primary-shadow']}, 0 10px 10px -5px ${theme.css['--theme-primary-shadow']}` }}
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-200">
@@ -490,13 +734,31 @@ export default function PublicShop({ slug, viaDomain }) {
             onClick={() => setShowSearch(!showSearch)}
             className={`p-2.5 rounded-xl transition-all ${
               showSearch
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                ? 'theme-filter-active'
                 : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
             }`}
           >
             {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
           </button>
         </motion.div>
+
+        {/* Switch to E-commerce banner */}
+        <motion.a
+          href={slug ? `/${slug}-ecommerce` : viaDomain ? '/ecommerce' : undefined}
+          target="_self"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="block mb-4 p-3 rounded-2xl text-sm font-bold text-center transition-all active:scale-[0.98] border-2 border-dashed"
+          style={{
+            backgroundColor: theme.css['--theme-primary-light'],
+            borderColor: theme.css['--theme-btn'],
+            color: theme.css['--theme-btn'],
+          }}
+        >
+          <ShoppingBag className="w-4 h-4 inline mr-1.5" />
+          Product sent in Telegram. Check it
+          <ChevronRight className="w-4 h-4 inline ml-1" />
+        </motion.a>
 
         <AnimatePresence>
           {showSearch && (
@@ -541,7 +803,7 @@ export default function PublicShop({ slug, viaDomain }) {
                 onClick={() => setSelectedCategory(null)}
                 className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${
                   !selectedCategory
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                    ? 'theme-filter-active'
                     : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'
                 }`}
               >
@@ -554,7 +816,7 @@ export default function PublicShop({ slug, viaDomain }) {
                   onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
                   className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${
                     selectedCategory === cat.id
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                      ? 'theme-filter-active'
                       : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'
                   }`}
                 >
@@ -605,7 +867,7 @@ export default function PublicShop({ slug, viaDomain }) {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.04, duration: 0.35 }}
-                  className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:shadow-indigo-100/50 hover:-translate-y-1 transition-all duration-300 group cursor-pointer"
+                  className="theme-card rounded-2xl md:rounded-3xl shadow-sm overflow-hidden hover:-translate-y-1 transition-all duration-300 group cursor-pointer"
                   onClick={() => setSelectedProduct(product)}
                 >
                   <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
@@ -661,7 +923,7 @@ export default function PublicShop({ slug, viaDomain }) {
                   </div>
 
                   <div className="p-3 md:p-4">
-                    <h3 className="font-bold text-gray-900 text-sm md:text-base line-clamp-1 mb-0.5 group-hover:text-indigo-600 transition-colors">
+                    <h3 className="font-bold text-gray-900 text-sm md:text-base line-clamp-1 mb-0.5 theme-hover-price transition-colors">
                       {product.name}
                     </h3>
                     {product.description && (
@@ -671,7 +933,7 @@ export default function PublicShop({ slug, viaDomain }) {
                     )}
 
                     <div className="flex items-baseline gap-1 mb-3">
-                      <span className="font-bold text-indigo-600 text-sm md:text-base">
+                      <span className="font-bold theme-price text-sm md:text-base">
                         {formatPrice(product.price)}
                       </span>
                       <span className="text-[10px] text-gray-400 font-medium">MMK</span>
@@ -681,15 +943,21 @@ export default function PublicShop({ slug, viaDomain }) {
                       href={getBuyLink(product, shop.bot_username)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isOutOfStock) { e.preventDefault(); return; }
+                        handleBuyNow(e, getBuyLink(product, shop.bot_username), product.id);
+                      }}
                       className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
                         isOutOfStock
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg hover:shadow-indigo-200 hover:from-indigo-700 hover:to-purple-700 active:scale-[0.97]'
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none no-underline'
+                          : 'theme-btn active:scale-[0.97]'
                       }`}
                     >
                       <ShoppingCart className="w-4 h-4" />
-                      {isOutOfStock ? 'Unavailable' : 'Buy Now'}
+                      {isOutOfStock ? 'Unavailable' : sentProductIds.has(product.id) ? (
+                        <span className="text-[10px] leading-tight">Product sent in Telegram. Check it!</span>
+                      ) : 'Buy Now'}
                     </a>
                   </div>
                 </motion.div>
@@ -702,7 +970,7 @@ export default function PublicShop({ slug, viaDomain }) {
       <footer className="bg-white border-t border-gray-100 mt-8">
         <div className="max-w-7xl mx-auto px-4 py-8 text-center">
           <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-md flex items-center justify-center">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: theme.css['--theme-btn'] }}>
               <ShoppingBag className="w-3.5 h-3.5 text-white" />
             </div>
             <span className="text-sm font-bold text-gray-800">Telegram E-Commerce</span>
@@ -719,9 +987,160 @@ export default function PublicShop({ slug, viaDomain }) {
             product={selectedProduct}
             shop={shop}
             onClose={() => setSelectedProduct(null)}
+            onBuyNow={handleBuyNow}
+            isSent={sentProductIds.has(selectedProduct.id)}
           />
         )}
       </AnimatePresence>
+
+      {data?.ai_agent_enabled && (
+        <>
+          <button
+            onClick={() => setChatOpen(!chatOpen)}
+            className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg z-50 flex items-center justify-center transition-transform active:scale-90 hover:scale-105"
+            style={{ background: theme.css['--theme-btn'] }}
+          >
+            {chatOpen ? <X className="w-6 h-6 text-white" /> : <MessageCircle className="w-6 h-6 text-white" />}
+          </button>
+
+          {chatOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.95 }}
+              className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[360px] h-[520px] max-h-[75vh] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 flex flex-col overflow-hidden"
+            >
+              <div className="p-4" style={{ background: theme.css['--theme-header'] }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                    <MessageCircle className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Shop Assistant</h3>
+                    <p className="text-[10px] text-white/70">Ask anything about our products</p>
+                  </div>
+                </div>
+              </div>
+
+              {showVisitorForm ? (
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="text-center mb-5 mt-2">
+                    <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-3">
+                      <MessageCircle className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-base">Welcome!</h3>
+                    <p className="text-xs text-gray-500 mt-1">Fill in or skip to chat</p>
+                  </div>
+                  <div className="space-y-2.5">
+                    <input
+                      type="text" placeholder="Name (optional)"
+                      value={visitorForm.name}
+                      onChange={e => setVisitorForm(p => ({ ...p, name: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    />
+                    <input
+                      type="tel" placeholder="Phone (optional)"
+                      value={visitorForm.phone}
+                      onChange={e => setVisitorForm(p => ({ ...p, phone: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    />
+                    <input
+                      type="email" placeholder="Email (optional)"
+                      value={visitorForm.email}
+                      onChange={e => setVisitorForm(p => ({ ...p, email: e.target.value }))}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    />
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => handleVisitorSave(visitorForm.name, visitorForm.phone, visitorForm.email)}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+                        style={{ background: theme.css['--theme-btn'] }}
+                      >
+                        Start Chatting
+                      </button>
+                      <button
+                        onClick={() => handleVisitorSave('', '', '')}
+                        className="px-4 py-2.5 rounded-xl text-sm font-bold text-gray-500 bg-gray-100 transition-all active:scale-95"
+                      >
+                        Skip
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+              <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      msg.role === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'
+                    }`} style={msg.role === 'user' ? { background: theme.css['--theme-btn'] } : {}}>
+                      {msg.file_id && msg.file_type === 'photo' && (
+                        <img
+                          src={API_BASE + '/telegram/file/' + msg.file_id + '?bot_id=' + shop?.id}
+                          alt="Photo"
+                          className="max-w-full rounded-lg mb-1 max-h-48 object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                      {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-100 rounded-2xl px-4 py-3">
+                      <div className="flex gap-1.5">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.1s]" />
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              )}
+
+              <div className="border-t border-gray-100 px-4 py-3">
+                <div className="flex gap-2 w-full min-w-0">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleVisitorPhoto}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={uploadingPhoto || chatLoading}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-50 transition-all active:scale-90 flex-shrink-0 bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    title="Send photo"
+                  >
+                    {uploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageUp className="w-4 h-4" />}
+                  </button>
+                  <input
+                    ref={chatInputRef}
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+                    placeholder="Type a message..."
+                    className="flex-1 min-w-0 px-3.5 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    disabled={chatLoading}
+                  />
+                  <button
+                    onClick={handleChatSend}
+                    disabled={chatLoading || !chatInput.trim()}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-50 transition-all active:scale-90"
+                    style={{ background: theme.css['--theme-btn'] }}
+                  >
+                    <Send className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </>
+      )}
     </div>
   );
 }

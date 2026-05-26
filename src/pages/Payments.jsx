@@ -299,7 +299,7 @@ export default function Payments() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
                       onChange={handleImageUpload}
                       className="hidden"
                     />

@@ -17,7 +17,7 @@ import {
 } from '../api/superadmin';
 import { getStats } from '../api/stats';
 import { uploadImage } from '../api/products';
-import { getBotPublicSlug, generateBotSlug, setBotDomain, getBotDomainStatus, verifyBotDomain } from '../api/public';
+import { getBotPublicSlug, generateBotSlug, listBotDomains, addBotDomain, verifyBotDomainItem, toggleBotDomainItem, deleteBotDomainItem } from '../api/public';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import {
@@ -52,11 +52,16 @@ import {
   ExternalLink,
   UserCircle,
   Camera,
+  ImageUp,
+  Palette,
   ChevronDown,
+  ChevronRight,
   HelpCircle,
+  Brain,
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
+import { THEMES, DEFAULT_THEME } from '../themes/themes';
 
 export default function Settings() {
   const { isSuperadmin, user } = useAuthStore();
@@ -130,9 +135,9 @@ export default function Settings() {
 
   const updateContentMutation = useMutation({
     mutationFn: ({ key, data }) => updateContentBlock(selectedBotId, key, data),
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries(['content-blocks', selectedBotId]);
-      addToast('Content updated successfully');
+      addToast(variables.key === 'shop_theme' ? 'Theme applied' : 'Content updated successfully');
     },
     onError: () => addToast('Failed to update content', 'error'),
   });
@@ -198,27 +203,46 @@ export default function Settings() {
     onError: () => addToast('Failed to generate public URL', 'error'),
   });
 
-  const { data: domainStatus } = useQuery({
-    queryKey: ['domain-status', selectedBotId],
-    queryFn: () => getBotDomainStatus(selectedBotId),
+  const { data: domains = [] } = useQuery({
+    queryKey: ['bot-domains', selectedBotId],
+    queryFn: () => listBotDomains(selectedBotId),
     enabled: !!selectedBotId,
   });
 
-  const [domainInput, setDomainInput] = useState('');
+  const [showAddInput, setShowAddInput] = useState(false);
+  const [addDomainInput, setAddDomainInput] = useState('');
+  const [deletingDomainId, setDeletingDomainId] = useState(null);
 
-  const setDomainMutation = useMutation({
-    mutationFn: (domain) => setBotDomain(selectedBotId, domain),
+  const customDomainEnabled = domains.some(d => d.verified && d.enabled);
+  const hasUnverifiedDomain = domains.some(d => !d.verified);
+
+  const guideDomain = domains.find(d => !d.verified) || domains[0];
+  const guideName = (() => {
+    if (!guideDomain?.domain) return 'shop';
+    const parts = guideDomain.domain.split('.');
+    return parts.length <= 2 ? '@' : parts.slice(0, -2).join('.');
+  })();
+  const guideRootDomain = (() => {
+    if (!guideDomain?.domain) return 'yourdomain.com';
+    const parts = guideDomain.domain.split('.');
+    return parts.slice(-2).join('.');
+  })();
+
+  const addDomainMutation = useMutation({
+    mutationFn: (domain) => addBotDomain(selectedBotId, domain),
     onSuccess: () => {
-      queryClient.invalidateQueries(['domain-status', selectedBotId]);
-      addToast('Custom domain saved');
+      queryClient.invalidateQueries(['bot-domains', selectedBotId]);
+      setShowAddInput(false);
+      setAddDomainInput('');
+      addToast('Custom domain added');
     },
-    onError: (err) => addToast(err.response?.data?.detail || 'Failed to save domain', 'error'),
+    onError: (err) => addToast(err.response?.data?.detail || 'Failed to add domain', 'error'),
   });
 
   const verifyDomainMutation = useMutation({
-    mutationFn: () => verifyBotDomain(selectedBotId),
+    mutationFn: (domainId) => verifyBotDomainItem(selectedBotId, domainId),
     onSuccess: (data) => {
-      queryClient.invalidateQueries(['domain-status', selectedBotId]);
+      queryClient.invalidateQueries(['bot-domains', selectedBotId]);
       if (data.verified) {
         addToast('Domain verified successfully');
       } else {
@@ -228,16 +252,38 @@ export default function Settings() {
     onError: () => addToast('Verification failed', 'error'),
   });
 
+  const toggleDomainMutation = useMutation({
+    mutationFn: ({ domainId, enabled }) => toggleBotDomainItem(selectedBotId, domainId, enabled),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['bot-domains', selectedBotId]);
+      addToast(data.enabled ? 'Domain enabled' : 'Domain disabled');
+    },
+    onError: () => addToast('Failed to toggle domain', 'error'),
+  });
+
+  const deleteDomainMutation = useMutation({
+    mutationFn: (domainId) => deleteBotDomainItem(selectedBotId, domainId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['bot-domains', selectedBotId]);
+      addToast('Domain removed');
+    },
+    onError: () => addToast('Failed to remove domain', 'error'),
+  });
+
   const [email, setEmail] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteEnabled, setWebsiteEnabled] = useState(false);
   const [shopOpen, setShopOpen] = useState(true);
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiContext, setAiContext] = useState('');
+  const [aiIsEnabled, setAiIsEnabled] = useState(false);
   const [adminSearch, setAdminSearch] = useState('');
   const [profilePicture, setProfilePicture] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState(DEFAULT_THEME);
+  const [showThemeConfirm, setShowThemeConfirm] = useState(false);
+  const [pendingTheme, setPendingTheme] = useState(null);
+
   const [showDomainGuide, setShowDomainGuide] = useState(false);
   const fileInputRef = React.useRef(null);
 
@@ -306,10 +352,17 @@ export default function Settings() {
       if (shop) {
         setShopOpen(shop.content_data?.is_open !== false);
       }
+      const themeBlock = contentBlocks.find(b => b.key === 'shop_theme');
+      if (themeBlock?.content_data?.theme) {
+        setSelectedTheme(themeBlock.content_data.theme);
+      } else {
+        setSelectedTheme(DEFAULT_THEME);
+      }
     }
     if (aiSettings) {
       setAiApiKey(aiSettings.api_key || '');
       setAiContext(aiSettings.system_context || '');
+      setAiIsEnabled(aiSettings.is_enabled !== false);
     }
   }, [bot, contentBlocks, aiSettings]);
 
@@ -408,7 +461,13 @@ export default function Settings() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setWebsiteEnabled(!websiteEnabled)}
+                  onClick={() => {
+                    const newEnabled = !websiteEnabled;
+                    setWebsiteEnabled(newEnabled);
+                    if (!newEnabled) {
+                      updateContentMutation.mutate({ key: 'website_link', data: { url: websiteUrl, enabled: false } });
+                    }
+                  }}
                   className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${websiteEnabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
                 >
                   <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${websiteEnabled ? 'left-6.5' : 'left-0.5'}`} />
@@ -450,60 +509,35 @@ export default function Settings() {
                 </div>
               </div>
 
-              {publicSlug?.slug ? (
-                <div className="space-y-2.5">
-                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                    <p className="text-[10px] text-gray-500 font-medium mb-0.5">Your public shop URL</p>
-                    <a
-                      href={`https://telegramecommerce.shop/${publicSlug.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 break-all"
-                    >
-                      telegramecommerce.shop/{publicSlug.slug}
-                      <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                    </a>
+              <div className={`${customDomainEnabled ? 'opacity-40 pointer-events-none select-none' : ''} transition-all duration-300`}>
+                {publicSlug?.slug ? (
+                  <div className="space-y-2.5">
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <p className="text-[10px] text-gray-500 font-medium mb-0.5">Your public shop URL</p>
+                      <a
+                        href={`https://telegramecommerce.shop/${publicSlug.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 break-all"
+                      >
+                        telegramecommerce.shop/{publicSlug.slug}
+                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                      </a>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://telegramecommerce.shop/${publicSlug.slug}`);
+                          addToast('URL copied to clipboard');
+                        }}
+                        className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl hover:bg-gray-100 transition-all font-bold text-xs flex items-center justify-center gap-1.5"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        Copy URL
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(`https://telegramecommerce.shop/${publicSlug.slug}`);
-                        addToast('URL copied to clipboard');
-                      }}
-                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl hover:bg-gray-100 transition-all font-bold text-xs flex items-center justify-center gap-1.5"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      Copy URL
-                    </button>
-                    <button
-                      onClick={() => setShowRevokeConfirm(true)}
-                      disabled={generateSlugMutation.isPending}
-                      className="flex-1 px-3 py-2 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-xs"
-                    >
-                      {generateSlugMutation.isPending ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-3.5 h-3.5" />
-                      )}
-                      Revoke URL
-                    </button>
-                  </div>
-
-                  <ConfirmDialog
-                    open={showRevokeConfirm}
-                    onClose={() => setShowRevokeConfirm(false)}
-                    onConfirm={() => {
-                      setShowRevokeConfirm(false);
-                      generateSlugMutation.mutate();
-                    }}
-                    title="Revoke Public URL?"
-                    message="The current public shop link will stop working immediately. A new URL will be generated. Are you sure?"
-                    confirmText="Revoke"
-                    variant="danger"
-                    loading={generateSlugMutation.isPending}
-                  />
-                </div>
-              ) : (
+                ) : (
                 <div className="space-y-2.5">
                   <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 text-center">
                     <p className="text-xs text-gray-400">No public URL generated yet</p>
@@ -522,6 +556,7 @@ export default function Settings() {
                   </button>
                 </div>
               )}
+                </div>
             </section>
 
             <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
@@ -530,96 +565,158 @@ export default function Settings() {
                   <Globe className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-base font-bold text-gray-900">Custom Domain</h3>
-                  <p className="text-[10px] text-gray-500">Use your own domain for the public shop</p>
+                  <h3 className="text-base font-bold text-gray-900">Custom Domains</h3>
+                  <p className="text-[10px] text-gray-500">Use up to 3 custom domains for the public shop</p>
                 </div>
-                <button
-                  onClick={() => setShowDomainGuide(true)}
-                  className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors flex-shrink-0"
-                >
-                  <HelpCircle className="w-4 h-4" />
-                </button>
+                {hasUnverifiedDomain && (
+                  <button
+                    onClick={() => setShowDomainGuide(true)}
+                    className="w-10 h-10 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-500 hover:text-indigo-700 flex items-center justify-center transition-all flex-shrink-0 font-bold text-lg shadow-sm"
+                    title="Setup guide"
+                  >
+                    <HelpCircle className="w-5 h-5" />
+                  </button>
+                )}
               </div>
 
               <div className="space-y-2.5">
-                {domainStatus?.custom_domain ? (
-                  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 mb-3">
-                    <p className="text-xs text-gray-500 mb-0.5">Your custom domain</p>
-                    <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                      {domainStatus.custom_domain}
-                      {domainStatus.domain_verified ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      ) : (
-                        <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin" />
-                      )}
-                    </p>
-                    <p className={`text-[10px] mt-1 ${domainStatus.domain_verified ? 'text-emerald-600' : 'text-amber-600'}`}>
-                      {domainStatus.domain_verified ? 'Verified' : 'Not verified'}
-                    </p>
-                  </div>
-                ) : null}
-
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={domainInput}
-                    onChange={(e) => setDomainInput(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
-                    placeholder="shop.yourdomain.com"
-                  />
-                  <button
-                    onClick={() => setDomainMutation.mutate(domainInput)}
-                    disabled={!domainInput || setDomainMutation.isPending}
-                    className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50"
-                  >
-                    {setDomainMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      'Save'
-                    )}
-                  </button>
-                </div>
-
-                {domainStatus?.custom_domain && !domainStatus.domain_verified && (
-                  <div className="space-y-2">
-                    <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-                      <p className="text-xs font-bold text-amber-700 mb-1">DNS Setup Instructions</p>
-                      <p className="text-[11px] text-amber-600 leading-relaxed">
-                        1. Add an A record in your Cloudflare DNS: <strong>{domainStatus.custom_domain}</strong> → <strong>139.180.156.116</strong>
-                      </p>
-                      <p className="text-[11px] text-amber-600 leading-relaxed">
-                        2. Enable the orange cloud (proxy) for SSL
-                      </p>
-                      <p className="text-[11px] text-amber-600 leading-relaxed">
-                        3. Click "Verify" to confirm
-                      </p>
+                {domains.map(domain => (
+                  <div key={domain.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5 break-all">
+                          {domain.domain}
+                          {domain.verified ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                          ) : (
+                            <HelpCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          )}
+                        </p>
+                        <p className={`text-[10px] mt-0.5 ${domain.verified ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          {domain.verified ? 'Verified' : 'Not verified'} · {domain.enabled ? 'Enabled' : 'Disabled'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                        {!domain.verified && (
+                          <button
+                            onClick={() => verifyDomainMutation.mutate(domain.id)}
+                            disabled={verifyDomainMutation.isPending}
+                            className="px-2.5 py-1.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-all text-[11px] disabled:opacity-50 flex items-center gap-1"
+                          >
+                            {verifyDomainMutation.isPending ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="w-3 h-3" />
+                            )}
+                            Verify
+                          </button>
+                        )}
+                        {domain.verified && (
+                          <button
+                            onClick={() => toggleDomainMutation.mutate({ domainId: domain.id, enabled: !domain.enabled })}
+                            disabled={toggleDomainMutation.isPending}
+                            className={`px-2.5 py-1.5 rounded-lg font-bold transition-all text-[11px] disabled:opacity-50 flex items-center gap-1 ${
+                              domain.enabled
+                                ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                                : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                            }`}
+                          >
+                            <Power className="w-3 h-3" />
+                            {domain.enabled ? 'Disable' : 'Enable'}
+                          </button>
+                        )}
+                        {deletingDomainId === domain.id ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => { deleteDomainMutation.mutate(domain.id); setDeletingDomainId(null); }}
+                              disabled={deleteDomainMutation.isPending}
+                              className="px-2 py-1.5 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all text-[11px]"
+                            >
+                              {deleteDomainMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
+                            </button>
+                            <button
+                              onClick={() => setDeletingDomainId(null)}
+                              className="px-2 py-1.5 bg-gray-200 text-gray-600 font-bold rounded-lg hover:bg-gray-300 transition-all text-[11px]"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setDeletingDomainId(domain.id)}
+                            className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 flex items-center justify-center transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
+                    {!domain.verified && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <p className="text-[10px] text-amber-600">
+                          Add A record: <strong className="break-all">{domain.domain}</strong> → <strong>139.180.156.116</strong>
+                        </p>
+                      </div>
+                    )}
+                    {domain.verified && domain.enabled && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <a
+                          href={`https://${domain.domain}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-emerald-600 font-medium hover:underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          https://{domain.domain}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {domains.length < 3 && !hasUnverifiedDomain && (
+                  showAddInput ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={addDomainInput}
+                        onChange={(e) => setAddDomainInput(e.target.value)}
+                        className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
+                        placeholder="shop.yourdomain.com"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => addDomainMutation.mutate(addDomainInput)}
+                        disabled={!addDomainInput || addDomainMutation.isPending}
+                        className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50"
+                      >
+                        {addDomainMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          'Save'
+                        )}
+                      </button>
+                      <button
+                        onClick={() => { setShowAddInput(false); setAddDomainInput(''); }}
+                        className="px-3 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all text-sm"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
                     <button
-                      onClick={() => verifyDomainMutation.mutate()}
-                      disabled={verifyDomainMutation.isPending}
-                      className="w-full px-3 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      onClick={() => setShowAddInput(true)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all text-sm font-bold text-gray-500"
                     >
-                      {verifyDomainMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4" />
-                      )}
-                      Verify Domain
+                      <Plus className="w-4 h-4" />
+                      Add New Domain
                     </button>
-                  </div>
+                  )
                 )}
 
-                {domainStatus?.custom_domain && domainStatus.domain_verified && (
-                  <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
-                    <p className="text-xs text-emerald-700">
-                      Your shop is live at <strong>https://{domainStatus.custom_domain}</strong>
-                    </p>
-                  </div>
-                )}
-
-                {!domainStatus?.custom_domain && !domainInput && (
+                {domains.length === 0 && !showAddInput && (
                   <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 text-center">
-                    <p className="text-xs text-gray-400">Enter your domain above to get started</p>
+                    <p className="text-xs text-gray-400">Add up to 3 custom domains for your public shop</p>
                   </div>
                 )}
               </div>
@@ -674,7 +771,7 @@ export default function Settings() {
                           <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm flex-shrink-0">3</div>
                           <div>
                             <p className="text-sm font-bold text-gray-900">Add DNS Record(s)</p>
-                            <p className="text-xs text-gray-500 mt-0.5">Create an A record pointing to our server.</p>
+                            <p className="text-xs text-gray-500 mt-0.5">Add record and fill exactly like this</p>
                             <div className="mt-2 bg-white rounded-xl border-2 border-gray-200 overflow-hidden text-xs">
                               <div className="divide-y divide-gray-100">
                                 <div className="flex items-center px-4 py-2.5">
@@ -686,13 +783,29 @@ export default function Settings() {
                                     <span className="font-bold text-gray-900">A</span>
                                   </div>
                                 </div>
-                                <div className="flex items-center px-4 py-2.5">
+                                <div className="flex items-center px-4 py-2.5 gap-2">
                                   <span className="w-24 text-gray-400 font-medium">Name</span>
-                                  <input type="text" value="shop" readOnly className="flex-1 px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-gray-900 font-medium outline-none" />
+                                  <div className="flex-1 flex items-center gap-2">
+                                    <span className="text-gray-900 font-bold">{guideName}</span>
+                                    <button
+                                      onClick={() => { navigator.clipboard.writeText(guideName); addToast('Copied'); }}
+                                      className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 flex items-center justify-center transition-colors"
+                                    >
+                                      <Copy className="w-3 h-3" />
+                                    </button>
+                                  </div>
                                 </div>
                                 <div className="flex items-center px-4 py-2.5">
                                   <span className="w-24 text-gray-400 font-medium">IPv4 address</span>
-                                  <input type="text" value="139.180.156.116" readOnly className="flex-1 px-2 py-1 bg-gray-50 rounded-lg border border-gray-200 text-gray-900 font-mono font-bold outline-none" />
+                                  <div className="flex-1 flex items-center gap-2">
+                                    <span className="text-gray-900 font-mono font-bold">139.180.156.116</span>
+                                    <button
+                                      onClick={() => { navigator.clipboard.writeText('139.180.156.116'); addToast('Copied'); }}
+                                      className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 flex items-center justify-center transition-colors"
+                                    >
+                                      <Copy className="w-3 h-3" />
+                                    </button>
+                                  </div>
                                 </div>
                                 <div className="flex items-center px-4 py-2.5">
                                   <span className="w-24 text-gray-400 font-medium">Proxy status</span>
@@ -709,7 +822,7 @@ export default function Settings() {
                                 </div>
                               </div>
                             </div>
-                            <p className="text-[11px] text-gray-400 mt-1">Use <span className="font-bold">@</span> for root domain (yourdomain.com) or a subdomain like <span className="font-bold">shop</span></p>
+                            <p className="text-[11px] text-gray-400 mt-1">Use <span className="font-bold">@</span> for root domain ({guideRootDomain}) or a subdomain like <span className="font-bold">shop</span>, <span className="font-bold">www</span>, <span className="font-bold">support</span>, etc. (no spaces)</p>
                           </div>
                         </div>
 
@@ -725,7 +838,7 @@ export default function Settings() {
                           <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm flex-shrink-0">5</div>
                           <div>
                             <p className="text-sm font-bold text-gray-900">Click Verify</p>
-                            <p className="text-xs text-gray-500 mt-0.5">Come back here and click "Verify Domain" to confirm your DNS is set up correctly.</p>
+                            <p className="text-xs text-gray-500 mt-0.5">Come back here and click "Verify" to confirm your DNS is set up correctly.</p>
                           </div>
                         </div>
                       </div>
@@ -742,6 +855,59 @@ export default function Settings() {
               )}
             </AnimatePresence>
 
+            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-9 h-9 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center">
+                  <Palette className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Public Shop Theme</h3>
+                  <p className="text-[10px] text-gray-500">Choose your shop's color scheme</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-5 gap-2.5">
+                {Object.entries(THEMES).map(([key, theme]) => {
+                  const isActive = selectedTheme === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setPendingTheme(key);
+                        setShowThemeConfirm(true);
+                      }}
+                      disabled={updateContentMutation.isPending}
+                      className="flex flex-col items-center gap-1.5 group"
+                    >
+                      <div
+                        className={`w-full aspect-square rounded-xl transition-all ${isActive ? 'ring-2 ring-offset-2 ring-indigo-600 scale-105' : 'group-hover:scale-105'}`}
+                        style={{ background: theme.preview }}
+                      />
+                      <span className={`text-[10px] font-medium text-center leading-tight ${isActive ? 'text-indigo-600 font-bold' : 'text-gray-600'}`}>
+                        {theme.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <ConfirmDialog
+                open={showThemeConfirm}
+                onClose={() => { setShowThemeConfirm(false); setPendingTheme(null); }}
+                onConfirm={() => {
+                  setShowThemeConfirm(false);
+                  if (pendingTheme) {
+                    setSelectedTheme(pendingTheme);
+                    updateContentMutation.mutate({ key: 'shop_theme', data: { theme: pendingTheme } });
+                  }
+                  setPendingTheme(null);
+                }}
+                title="Apply Theme?"
+                message={pendingTheme ? `Switch to the "${THEMES[pendingTheme]?.name}" theme for your shop?` : ''}
+                confirmText="Apply"
+                variant="primary"
+                loading={updateContentMutation.isPending}
+              />
+            </section>
 
             <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center gap-2.5 mb-4">
@@ -871,10 +1037,66 @@ export default function Settings() {
                 </div>
               </div>
             </section>
+
+            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-9 h-9 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center">
+                  <Brain className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">AI Agent</h3>
+                  <p className="text-[10px] text-gray-500">Let AI answer customer questions on your shop</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Enable AI Agent</span>
+                  <button
+                    onClick={() => {
+                      const newVal = !aiIsEnabled;
+                      setAiIsEnabled(newVal);
+                      updateAiMutation.mutate({ is_enabled: newVal, api_key: aiApiKey, system_context: aiContext });
+                    }}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${aiIsEnabled ? 'bg-cyan-500' : 'bg-gray-300'}`}
+                  >
+                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${aiIsEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">API Key (DeepSeek)</label>
+                  <input
+                    type="password"
+                    value={aiApiKey}
+                    onChange={(e) => setAiApiKey(e.target.value)}
+                    placeholder="sk-..."
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">System Context</label>
+                  <textarea
+                    value={aiContext}
+                    onChange={(e) => setAiContext(e.target.value)}
+                    rows={4}
+                    placeholder="Instructions for the AI assistant..."
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm resize-none"
+                  />
+                </div>
+                <button
+                  onClick={() => updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, is_enabled: aiIsEnabled })}
+                  disabled={updateAiMutation.isPending || !aiApiKey.trim()}
+                  className="w-full px-4 py-2 bg-cyan-500 text-white font-bold rounded-xl hover:bg-cyan-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                >
+                  {updateAiMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save AI Settings
+                </button>
+              </div>
+            </section>
           </div>
         )}
 
         {activeTab === 'shop' && (
+          <>
           <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -892,7 +1114,26 @@ export default function Settings() {
               isPending={updateContentMutation.isPending}
             />
           </section>
-        )}
+
+          <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+                <ImageUp className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Update Poster</h3>
+                <p className="text-[10px] text-gray-500">Upload poster images shown in your bot</p>
+              </div>
+            </div>
+
+            <PosterEditor
+              contentBlocks={contentBlocks}
+              onSave={(key, data) => updateContentMutation.mutate({ key, data })}
+              isPending={updateContentMutation.isPending}
+              botId={selectedBotId}
+            />
+          </section>
+          </>)}
 
         {activeTab === 'bots' && isSuperadmin && (
           <ManageBots 
@@ -1033,6 +1274,200 @@ function CaptionEditor({ contentBlocks, onSave, isPending }) {
           </>
         )}
       </AnimatePresence>
+    </>
+  );
+}
+
+const POSTER_ITEMS = [
+  { key: 'welcome_poster', icon: '🏠', label: 'Update Main Menu Poster' },
+  { key: 'shopping_poster', icon: '🛍️', label: 'Update Shopping Poster' },
+  { key: 'search_poster', icon: '🔍', label: 'Update Search Poster' },
+  { key: 'view_cart_poster', icon: '🛒', label: 'Update View Cart Poster' },
+  { key: 'my_orders_poster', icon: '📦', label: 'Update My Orders Poster' },
+  { key: 'profile_poster', icon: '👤', label: 'Update Profile Poster' },
+  { key: 'settings_poster', icon: '⚙️', label: 'Update Settings Poster' },
+  { key: 'support_poster', icon: '📞', label: 'Update Support Poster' },
+  { key: 'about_poster', icon: 'ℹ️', label: 'Update About Poster' },
+  { key: 'admin_panel_poster', icon: '👑', label: 'Update Control Center Poster' },
+  { key: 'admin_panel_2_poster', icon: '👑', label: 'Update Shop Setup Poster' },
+];
+
+function PosterEditor({ contentBlocks, onSave, botId }) {
+  const { addToast } = useToastStore();
+  const [showPanel, setShowPanel] = useState(false);
+  const [uploadingKey, setUploadingKey] = useState(null);
+  const [selectedPoster, setSelectedPoster] = useState(null);
+  const fileInputRef = React.useRef(null);
+
+  const posterData = selectedPoster ? POSTER_ITEMS.find(p => p.key === selectedPoster) : null;
+  const uploadedCount = contentBlocks?.filter(b => POSTER_ITEMS.some(p => p.key === b.key) && b.content_data?.file_id).length || 0;
+
+  const getPosterUrl = (key) => {
+    const block = contentBlocks?.find(b => b.key === key);
+    const fileId = block?.content_data?.file_id;
+    return fileId ? `https://api.telegramecommerce.shop/telegram/file/${fileId}?bot_id=${botId}` : null;
+  };
+
+  const handleUpload = async (e, key) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select an image file', 'error');
+      return;
+    }
+    setUploadingKey(key);
+    try {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      await new Promise(resolve => { img.onload = resolve; img.src = url; });
+
+      const MAX = 720;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round((height / width) * MAX); width = MAX; }
+        else { width = Math.round((width / height) * MAX); height = MAX; }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+      URL.revokeObjectURL(url);
+
+      const data = await uploadImage(blob, botId);
+
+      onSave(key, { file_id: data.file_id, source: 'telegram' });
+      setSelectedPoster(null);
+    } catch (err) {
+      addToast(err.message || 'Failed to upload poster', 'error');
+    } finally {
+      setUploadingKey(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const triggerUpload = (key) => {
+    fileInputRef.current._posterKey = key;
+    fileInputRef.current.click();
+  };
+
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const key = e.target._posterKey || POSTER_ITEMS[0].key;
+          handleUpload(e, key);
+        }}
+      />
+      <button
+        onClick={() => setShowPanel(true)}
+        className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 transition-all active:scale-[0.99]"
+      >
+        <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+          <ImageUp className="w-4 h-4" />
+        </div>
+        <div className="flex-1 text-left">
+          <p className="text-sm font-bold text-gray-900">Update Posters</p>
+          <p className="text-[11px] text-gray-500">{uploadedCount}/{POSTER_ITEMS.length} uploaded</p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-gray-400" />
+      </button>
+
+      {showPanel && (
+        <div className="fixed inset-0 z-50 flex flex-col">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowPanel(false)}
+          />
+          <div className="relative mt-auto bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 pb-3 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Bot Posters</h3>
+                <p className="text-xs text-gray-500">{uploadedCount}/{POSTER_ITEMS.length} uploaded</p>
+              </div>
+              <button
+                onClick={() => setShowPanel(false)}
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {POSTER_ITEMS.map(({ key, icon, label }) => {
+                  const url = getPosterUrl(key);
+                  return (
+                    <div key={key} className="bg-gray-50 rounded-xl border border-gray-100 p-3 flex items-center gap-3">
+                      <div className="w-14 h-14 rounded-lg bg-white border border-gray-200 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        {url ? (
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-lg">{icon}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-gray-900 truncate">{label}</p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedPoster(key)}
+                        className="px-3 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-[11px] flex items-center gap-1 flex-shrink-0"
+                      >
+                        <ImageUp className="w-3 h-3" />
+                        Upload
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedPoster && posterData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setSelectedPoster(null)}
+          />
+          <div className="relative bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full mx-auto">
+            <button
+              onClick={() => setSelectedPoster(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex flex-col items-center text-center pt-2">
+              <div className="w-40 h-40 rounded-2xl bg-gray-50 border border-gray-200 overflow-hidden flex items-center justify-center mb-4">
+                {getPosterUrl(selectedPoster) ? (
+                  <img src={getPosterUrl(selectedPoster)} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-4xl">{posterData.icon}</span>
+                )}
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">{posterData.label}</h3>
+              <p className="text-xs text-gray-500 mb-6">Choose a new image to update this poster</p>
+              <button
+                onClick={() => triggerUpload(selectedPoster)}
+                disabled={uploadingKey === selectedPoster}
+                className="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+              >
+                {uploadingKey === selectedPoster ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ImageUp className="w-4 h-4" />
+                )}
+                {uploadingKey === selectedPoster ? 'Uploading...' : 'Choose Image'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

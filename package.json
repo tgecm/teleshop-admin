@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
+    "build": "vite build && node -e \"require('fs').writeFileSync('dist/build-version.json',JSON.stringify({version:require('crypto').randomBytes(8).toString('hex'),timestamp:new Date().toISOString()}))\"",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist && rsync -avz --delete dist/ root@139.180.156.116:/var/www/teleshop-admin/dist"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",
@@ -20,8 +20,10 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dom-to-image-more": "^3.7.2",
+    "firebase": "^12.13.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.13.1",
