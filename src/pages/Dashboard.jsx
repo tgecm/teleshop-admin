@@ -2,19 +2,21 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query';
 import { getStats, getOrdersByDay, getTopProducts, getUsersByDay } from '../api/stats';
 import { getImageUrl } from '../api/products';
+import { getOrders } from '../api/orders';
+import { getUsers } from '../api/customers';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import StatCard from '../components/shared/StatCard';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import {
   DollarSign, ShoppingBag, Users, Clock, TrendingUp, Trophy, Sparkles, Zap, Package,
-  BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown,
+  BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, X, Loader2,
 } from 'lucide-react';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
 } from 'recharts';
 import { motion } from 'motion/react';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInDays, subDays } from 'date-fns';
 import { useToastStore } from '../store/toastStore';
 
 const containerVariants = {
@@ -127,6 +129,18 @@ export default function Dashboard() {
   const [itemsPeriod, setItemsPeriod] = useState('total');
   const [productsPeriod, setProductsPeriod] = useState('total');
 
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportOpts, setExportOpts] = useState({
+    datePreset: '30',
+    customStart: '',
+    customEnd: '',
+    status: '',
+    sections: { orders: true, daily: true, products: false, customers: false, stats: false },
+    filename: '',
+  });
+  const [exportLoading, setExportLoading] = useState(false);
+
   const toggleMetric = (key) => {
     setVisibleMetrics((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -233,23 +247,126 @@ export default function Dashboard() {
     return { avgDailyRevenue: avgDaily, maxRevenue: maxRev, bestDay, growthRate: growth };
   }, [mergedChartData]);
 
-  // CSV export
-  const exportCSV = useCallback(() => {
-    if (!mergedChartData?.length) return;
-    const headers = 'Date,Revenue,Orders,Users';
-    const rows = mergedChartData.map((d) => `${d.day},${d.revenue || 0},${d.count || 0},${d.users || 0}`);
-    const csv = [headers, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `dashboard-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    addToast('Chart data exported as CSV');
-  }, [mergedChartData, addToast]);
+  // Generate CSV
+  const generateCSV = useCallback(async () => {
+    setExportLoading(true);
+    try {
+      const { datePreset, customStart, customEnd, status, sections, filename } = exportOpts;
+      const startDate = datePreset === 'custom' && customStart ? customStart : format(subDays(new Date(), datePreset === '365' ? 365 : Number(datePreset)), 'yyyy-MM-dd');
+      const endDate = datePreset === 'custom' && customEnd ? customEnd : format(new Date(), 'yyyy-MM-dd');
+      const parts = [];
+
+      // 1. Order Details
+      if (sections.orders) {
+        const params = { bot_id: Number(selectedBotId), limit: 10000 };
+        if (status) params.status = status;
+        const orders = await getOrders(params).catch(() => []);
+        const filtered = orders.filter(o => {
+          const d = o.created_at?.split('T')[0];
+          return d >= startDate && d <= endDate;
+        });
+        parts.push('=== Order Details ===');
+        parts.push('Order ID,Product/Web ID,Product Name,Variant,Price,Quantity,Customer,Status,Date');
+        filtered.forEach(o => {
+          const items = o.items || [];
+          if (items.length) {
+            items.forEach(item => {
+              parts.push([
+                o.id,
+                item.product_id || '',
+                `"${(item.name || '').replace(/"/g, '""')}"`,
+                `"${(item.variant || '').replace(/"/g, '""')}"`,
+                item.price || '',
+                item.quantity || 1,
+                `"${(o.first_name || '').replace(/"/g, '""')}"`,
+                o.status || '',
+                o.created_at ? o.created_at.split('T')[0] : '',
+              ].join(','));
+            });
+          } else {
+            parts.push([
+              o.id, '', '', '', o.total || o.amount || '', 1,
+              `"${(o.first_name || '').replace(/"/g, '""')}"`,
+              o.status || '', o.created_at ? o.created_at.split('T')[0] : '',
+            ].join(','));
+          }
+        });
+        parts.push('');
+      }
+
+      // 2. Daily Summary
+      if (sections.daily && mergedChartData?.length) {
+        parts.push('=== Daily Summary ===');
+        parts.push('Date,Revenue,Orders,Users');
+        mergedChartData.forEach(d => parts.push(`${d.day},${d.revenue || 0},${d.count || 0},${d.users || 0}`));
+        parts.push('');
+      }
+
+      // 3. Top Products
+      if (sections.products && topProductsWithPct?.length) {
+        parts.push('=== Top Products ===');
+        parts.push('Product Name,Total Revenue,Quantity Sold,Times Ordered');
+        topProductsWithPct.forEach(p => parts.push([
+          `"${(p.name || '').replace(/"/g, '""')}"`,
+          p.total_revenue || 0,
+          p.order_count || 0,
+        ].join(',')));
+        parts.push('');
+      }
+
+      // 4. Customers
+      if (sections.customers) {
+        const users = await getUsers({ bot_id: Number(selectedBotId) }).catch(() => []);
+        parts.push('=== Customers ===');
+        parts.push('Customer ID,Name,Username,Email,Phone,Total Orders');
+        users.forEach(u => parts.push([
+          u.id,
+          `"${(u.first_name || '').replace(/"/g, '""')}"`,
+          u.username || '',
+          u.email || '',
+          u.phone_number || '',
+          u.order_count || 0,
+        ].join(',')));
+        parts.push('');
+      }
+
+      // 5. Stats Snapshot
+      if (sections.stats) {
+        parts.push('=== Stats Snapshot ===');
+        parts.push('Metric,Value');
+        parts.push(`Total Revenue,${totalRevenue}`);
+        parts.push(`Total Orders,${totalOrders}`);
+        parts.push(`Total Users,${totalUsers}`);
+        parts.push(`Items Sold,${itemsSold}`);
+        parts.push(`Products Sold,${productsSold}`);
+        parts.push(`Pending Orders,${pendingOrders}`);
+        parts.push(`Today's Revenue,${todayRevenue}`);
+        parts.push(`Monthly Revenue,${monthlyRevenue}`);
+        if (quickStats) {
+          parts.push(`Avg Daily Revenue,${quickStats.avgDailyRevenue.toFixed(0)}`);
+          parts.push(`Growth Rate,${quickStats.growthRate.toFixed(1)}%`);
+        }
+        parts.push('');
+      }
+
+      const csv = parts.join('\n');
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `export-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      addToast('CSV exported successfully');
+      setShowExportModal(false);
+    } catch (err) {
+      addToast(err.message || 'Export failed', 'error');
+    } finally {
+      setExportLoading(false);
+    }
+  }, [exportOpts, selectedBotId, mergedChartData, topProductsWithPct, totalRevenue, totalOrders, totalUsers, itemsSold, productsSold, pendingOrders, todayRevenue, monthlyRevenue, quickStats, addToast]);
 
   if (!selectedBotId) {
     return (
@@ -286,9 +403,9 @@ export default function Dashboard() {
             </button>
           </div>
           {/* CSV export */}
-          <button onClick={exportCSV} disabled={!mergedChartData?.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border border-gray-100 bg-white text-gray-500 hover:bg-gray-50 transition-all disabled:opacity-40">
-            <Download className="w-3.5 h-3.5" /> CSV
+          <button onClick={() => setShowExportModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border border-gray-100 bg-white text-gray-500 hover:bg-gray-50 transition-all">
+            <Download className="w-3.5 h-3.5" /> Export
           </button>
         </div>
       </motion.div>
@@ -516,6 +633,91 @@ export default function Dashboard() {
           </div>
         </motion.div>
       </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowExportModal(false)} />
+          <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-[28px] shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-9 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-6 pb-3 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">Export Data</h3>
+              <button onClick={() => setShowExportModal(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+              {/* Date range */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Date Range</p>
+                <div className="flex items-center bg-gray-100 p-0.5 rounded-xl w-fit">
+                  {['7', '30', '90', '365'].map(d => (
+                    <button key={d} onClick={() => setExportOpts(p => ({ ...p, datePreset: d }))}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${exportOpts.datePreset === d ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{d}d</button>
+                  ))}
+                  <button onClick={() => setExportOpts(p => ({ ...p, datePreset: 'custom' }))}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${exportOpts.datePreset === 'custom' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <Calendar className="w-3 h-3" /></button>
+                </div>
+                {exportOpts.datePreset === 'custom' && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input type="date" value={exportOpts.customStart} onChange={e => setExportOpts(p => ({ ...p, customStart: e.target.value }))} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none" />
+                    <span className="text-xs text-gray-400">to</span>
+                    <input type="date" value={exportOpts.customEnd} onChange={e => setExportOpts(p => ({ ...p, customEnd: e.target.value }))} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none" />
+                  </div>
+                )}
+              </div>
+              {/* Status filter */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</p>
+                <div className="flex items-center bg-gray-100 p-0.5 rounded-xl w-fit">
+                  {[{ value: '', label: 'All' }, { value: 'confirmed', label: 'Completed' }, { value: 'pending', label: 'Pending' }, { value: 'cancelled', label: 'Cancelled' }].map(s => (
+                    <button key={s.value} onClick={() => setExportOpts(p => ({ ...p, status: s.value }))}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${exportOpts.status === s.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{s.label}</button>
+                  ))}
+                </div>
+              </div>
+              {/* Sections */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Include</p>
+                <div className="space-y-2">
+                  {[
+                    { key: 'orders', label: 'Order Details', desc: 'Order ID, Product/Web ID, Product Name, Variant, Price, Quantity, Customer, Status, Date' },
+                    { key: 'daily', label: 'Daily Summary', desc: 'Date, Revenue, Orders, Users' },
+                    { key: 'products', label: 'Top Products', desc: 'Product Name, Total Revenue, Quantity Sold' },
+                    { key: 'customers', label: 'Customers', desc: 'Customer ID, Name, Username, Email, Phone, Total Orders' },
+                    { key: 'stats', label: 'Stats Snapshot', desc: 'Total Revenue, Orders, Users, Items Sold, Growth Rate' },
+                  ].map(s => (
+                    <label key={s.key} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all">
+                      <input type="checkbox" checked={exportOpts.sections[s.key]} onChange={() => setExportOpts(p => ({ ...p, sections: { ...p.sections, [s.key]: !p.sections[s.key] } }))} className="mt-0.5 accent-indigo-600 w-4 h-4" />
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{s.label}</p>
+                        <p className="text-[10px] text-gray-400">{s.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {/* Filename */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Filename</p>
+                <input type="text" value={exportOpts.filename} onChange={e => setExportOpts(p => ({ ...p, filename: e.target.value }))}
+                  placeholder={`export-${format(new Date(), 'yyyy-MM-dd')}.csv`}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100">
+              <button onClick={generateCSV} disabled={exportLoading || !Object.values(exportOpts.sections).some(Boolean)}
+                className="w-full py-3.5 bg-indigo-600 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50">
+                {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {exportLoading ? 'Exporting...' : 'Export CSV'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </motion.div>
   );
 }
