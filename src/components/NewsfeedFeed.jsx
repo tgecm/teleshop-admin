@@ -14,12 +14,35 @@ function getVisitorId() {
   return id;
 }
 
+const GUEST_NAMES = ['Traveler', 'Explorer', 'Shopper', 'Visitor', 'Guest', 'Newcomer', 'Wanderer', 'Browser', 'Viewer', 'Stranger'];
+
 function getVisitorName() {
-  return localStorage.getItem('newsfeed_visitor_name') || '';
+  let name = localStorage.getItem('newsfeed_visitor_name');
+  if (!name) {
+    name = GUEST_NAMES[Math.floor(Math.random() * GUEST_NAMES.length)] + Math.random().toString(36).slice(2, 5);
+    localStorage.setItem('newsfeed_visitor_name', name);
+  }
+  return name;
 }
 
 function setVisitorName(name) {
   localStorage.setItem('newsfeed_visitor_name', name);
+}
+
+function getLikedPosts() {
+  try { return JSON.parse(localStorage.getItem('newsfeed_liked') || '[]'); } catch { return []; }
+}
+
+function setLikedPost(postId, liked) {
+  const likedPosts = getLikedPosts();
+  const updated = liked
+    ? [...new Set([...likedPosts, postId])]
+    : likedPosts.filter(id => id !== postId);
+  localStorage.setItem('newsfeed_liked', JSON.stringify(updated));
+}
+
+function isPostLiked(postId) {
+  return getLikedPosts().includes(postId);
 }
 
 export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug, initialPostCode, shop }) {
@@ -192,6 +215,15 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
   const [expanded, setExpanded] = useState(false);
   const [comments, setComments] = useState(null);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [optimisticLike, setOptimisticLike] = useState(null);
+  const liked = optimisticLike !== null ? optimisticLike : (post.liked_by_me || isPostLiked(post.id));
+
+  const handleLike = () => {
+    const newLiked = !liked;
+    setOptimisticLike(newLiked);
+    setLikedPost(post.id, newLiked);
+    onLike();
+  };
 
   const toggleComments = async () => {
     if (showComments) { setShowComments(false); return; }
@@ -207,6 +239,7 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
   };
 
   const images = Array.isArray(post.images) ? post.images : [];
+  const hasLongContent = post.content.length > 200;
 
   return (
     <div id={`newsfeed-post-${post.id}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -232,14 +265,9 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
         <div className={`text-sm text-gray-800 leading-relaxed whitespace-pre-wrap ${!expanded ? 'line-clamp-3' : ''}`}>
           {linkifyText(post.content)}
         </div>
-        {!expanded && post.content.length > 200 && (
-          <button onClick={() => setExpanded(true)} className="text-sm font-bold text-indigo-600 mt-1 hover:underline">
-            Read More...
-          </button>
-        )}
-        {expanded && post.content.length > 200 && (
-          <button onClick={() => setExpanded(false)} className="text-sm font-bold text-indigo-600 mt-1 hover:underline">
-            See Less...
+        {hasLongContent && (
+          <button onClick={() => setExpanded(!expanded)} className="text-sm font-bold text-indigo-600 mt-1 hover:underline">
+            {expanded ? 'See Less...' : 'See More...'}
           </button>
         )}
       </div>
@@ -399,6 +427,11 @@ const icons = {
   X: '/share-icons/x.png',
 };
 
+function getPostPermalink(slug, shareCode) {
+  if (typeof window === 'undefined') return '';
+  return window.location.origin + '/?p=/' + slug + '&post=' + shareCode;
+}
+
 function PhotoViewer({ images, botId, initialIndex, onClose }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const scrollRef = useRef(null);
@@ -476,9 +509,7 @@ function PhotoViewer({ images, botId, initialIndex, onClose }) {
 
 function ShareSheet({ shareCode, onClose, slug }) {
   const [copied, setCopied] = useState(false);
-  const url = typeof window !== 'undefined'
-    ? window.location.origin + '/public/post/' + shareCode
-    : '';
+  const url = getPostPermalink(slug, shareCode);
 
   const shareData = [
     { name: 'Facebook', color: 'bg-blue-700',
@@ -498,7 +529,7 @@ function ShareSheet({ shareCode, onClose, slug }) {
       <div className="fixed inset-0 z-50" onClick={onClose} />
       <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl border-t border-gray-100 z-[60] p-6 animate-slide-up">
         <h3 className="text-sm font-bold text-gray-900 mb-4 text-center">Share this post</h3>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-2">
           {shareData.map(s => (
             s.action === 'copy' ? (
               <button key={s.name} onClick={() => {

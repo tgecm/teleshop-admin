@@ -54,3 +54,19 @@ export async function signInWithGoogle(): Promise<void> {
   const credential = GoogleAuthProvider.credential(null, accessToken);
   await signInWithCredential(auth, credential);
 }
+
+export async function exchangeGoogleToken(
+  accessToken: string,
+  shopSlug: string
+): Promise<{ token: string; user: { id: string; name: string; email: string; photo_url: string } }> {
+  const resp = await fetch('https://api.telegramecommerce.shop/auth/google', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ access_token: accessToken, shop_slug: shopSlug }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: 'Google authentication failed' }));
+    throw new Error(err.detail || 'Google authentication failed');
+  }
+  return resp.json();
+}

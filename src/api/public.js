@@ -65,3 +65,15 @@ export const createPublicProduct = (data) => {
     return res.json();
   });
 };
+
+export const getPublicNewsfeed = (botId, visitorId, limit = 10, offset = 0) =>
+  client.get(`/public/newsfeed/${botId}`, { params: { visitor_id: visitorId, limit, offset } }).then(res => res.data);
+
+export const getPublicNewsfeedComments = (postId) =>
+  client.get(`/public/newsfeed/${postId}/comments`).then(res => res.data);
+
+export const toggleNewsfeedLike = (postId, visitorId) =>
+  client.post(`/public/newsfeed/${postId}/like`, { visitor_id: visitorId }).then(res => res.data);
+
+export const addNewsfeedComment = (postId, visitorId, content, visitorName) =>
+  client.post(`/public/newsfeed/${postId}/comment`, { visitor_id: visitorId, content, visitor_name: visitorName }).then(res => res.data);

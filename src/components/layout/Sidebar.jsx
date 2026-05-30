@@ -12,6 +12,8 @@ import {
   CreditCard,
   Settings,
   ShieldCheck,
+  Palette,
+  ShieldAlert,
   LogOut
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -20,7 +22,7 @@ import { getUnreadCount } from '../../api/chats';
 import { getPendingOrderCount } from '../../api/orders';
 
 export default function Sidebar() {
-  const { logout } = useAuthStore();
+  const { logout, isSuperadmin } = useAuthStore();
   const { selectedBotId } = useBotStore();
 
   const { data: unread } = useQuery({
@@ -46,6 +48,7 @@ export default function Sidebar() {
     { to: '/broadcast', icon: Radio, label: 'Broadcast' },
     { to: '/commands', icon: Terminal, label: 'Commands' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
+    { to: '/customization', icon: Palette, label: 'Customize' },
     { to: '/subscription', icon: ShieldCheck, label: 'Subscription' },
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
@@ -78,7 +81,20 @@ export default function Sidebar() {
         ))}
       </div>
       
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-gray-100 space-y-1">
+        {isSuperadmin && (
+          <NavLink
+            to="/superadmin"
+            data-haptic
+            className={({ isActive }) => `
+              flex items-center gap-3 w-full px-4 py-3 rounded-xl text-sm font-medium transition-all
+              ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}
+            `}
+          >
+            <ShieldAlert className="w-5 h-5" />
+            Superadmin
+          </NavLink>
+        )}
         <button
           onClick={logout}
           data-haptic

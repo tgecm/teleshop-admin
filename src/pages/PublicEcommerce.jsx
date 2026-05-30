@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getPublicShop, getPublicShopByDomain } from '../api/public';
-import { getImageUrl } from '../api/products';
 import {
   ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
-  Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown,
+  Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
   Minus, Plus, Trash2, LogOut, CheckCircle, Loader2, User,
   MessageCircle, Send, ImageUp, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
+import { useToastStore } from '../store/toastStore';
+import ShopBanner from '../components/shared/ShopBanner';
 import { useAuth } from '../context/AuthContext';
 import { useTelegramAuth } from '../context/TelegramAuthContext';
 import { useTelegramLogin } from '../hooks/useTelegramLogin';
@@ -18,6 +19,9 @@ import Receipt from '../components/orders/Receipt';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { signInWithGoogle } from '../lib/googleSignIn';
+import { isMainDomain } from '../utils/authProxy';
+import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
+import NewsfeedFeed from '../components/NewsfeedFeed';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
 
@@ -352,6 +356,13 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   }, [status, onSuccess, onClose, shopSlug]);
 
   const handleSignIn = async () => {
+    if (!isMainDomain()) {
+      // Custom domain — redirect to auth proxy on main domain
+      const redirectUri = window.location.href;
+      const params = new URLSearchParams({ shop_slug: shopSlug || propBotUsername || '', redirect_uri: redirectUri });
+      window.location.href = `https://www.telegramecommerce.shop/#/auth/google/proxy?${params}`;
+      return;
+    }
     setSigningIn(true);
     try {
       await signInWithGoogle();
@@ -435,6 +446,8 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [agreed1, setAgreed1] = useState(false);
+  const [agreed2, setAgreed2] = useState(false);
 
   useEffect(() => {
     const tgToken = localStorage.getItem('telegram_token');
@@ -571,7 +584,6 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <motion.div
         initial={{ y: '100%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '100%', opacity: 0 }}
@@ -716,13 +728,31 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
             )}
             {uploadingProof && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
           </div>
+
+          {/* Agreement checkboxes */}
+          <div className="space-y-3 pt-2">
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input type="checkbox" checked={agreed1} onChange={(e) => setAgreed1(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+              <span className="text-[12px] text-gray-600 leading-relaxed group-hover:text-gray-900 transition-colors">
+                အထက်ပါ ဆက်သွယ်ရန် အချက်အလက်များကို မှန်ကန်တိကျစွာ ဖြည့်ပြီးပါပြီ။
+              </span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input type="checkbox" checked={agreed2} onChange={(e) => setAgreed2(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+              <span className="text-[12px] text-gray-600 leading-relaxed group-hover:text-gray-900 transition-colors">
+                ဖုန်းနံပါတ်၊ Email၊ လိပ်စာ၊ Telegram၊ Viber နံပါတ်များ မှားယွင်းစွာထည့်ထားပြီး Admin Team မှ ဆက်သွယ်၍မရပါက ဝယ်ယူသူ၏ တာဝန်သာဖြစ်ကြောင်း သဘောတူလက်ခံပါသည်။
+              </span>
+            </label>
+          </div>
         </div>
 
         {error && <p className="text-rose-500 text-sm mt-3 text-center">{error}</p>}
 
         <button
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || !agreed1 || !agreed2}
           className="w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-base text-white transition-all active:scale-[0.98] disabled:opacity-60"
           style={{ background: THEMES[DEFAULT_THEME].css['--theme-btn'] }}
         >
@@ -733,8 +763,9 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
   );
 }
 
-function OrderConfirmation({ data, shop, onContinueShopping }) {
+function OrderConfirmation({ data, shop, onContinueShopping, viewMode }) {
   const [showInvoice, setShowInvoice] = useState(false);
+  const isGuest = viewMode === 'guest';
   return (
     <>
       <motion.div
@@ -751,7 +782,7 @@ function OrderConfirmation({ data, shop, onContinueShopping }) {
         >
           <CheckCircle className="w-10 h-10 text-emerald-600" />
         </motion.div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Order Placed!</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Order တင်ပြီးပါပြီ။</h2>
         <p className="text-sm text-gray-500 mb-1">Your order has been placed successfully.</p>
         <p className="text-sm text-gray-500 mb-6">
           Order ID: <span className="font-bold text-gray-900">{data?.order_number}</span>
@@ -759,17 +790,19 @@ function OrderConfirmation({ data, shop, onContinueShopping }) {
 
         <div className="bg-gray-50 rounded-2xl p-4 mb-6 text-left text-sm text-gray-600 space-y-1">
           <p>The shop owner will review your order and contact you.</p>
-          <p>You can track your order status in your dashboard.</p>
+          {!isGuest && <p>You can track your order status in your dashboard.</p>}
         </div>
 
         <div className="flex flex-col gap-3">
-          <a
-            href={`/?p=/${shop?.bot_username}-user-dashboard`}
-            className="w-full py-3.5 rounded-2xl font-bold text-sm text-white text-center transition-all active:scale-[0.98] shadow-lg"
-            style={{ background: THEMES[DEFAULT_THEME].css['--theme-btn'] }}
-          >
-            View My Orders
-          </a>
+          {!isGuest && (
+            <a
+              href={`/?p=/${shop?.bot_username}-user-dashboard`}
+              className="w-full py-3.5 rounded-2xl font-bold text-sm text-white text-center transition-all active:scale-[0.98] shadow-lg"
+              style={{ background: THEMES[DEFAULT_THEME].css['--theme-btn'] }}
+            >
+              View My Orders
+            </a>
+          )}
           <button
             onClick={() => setShowInvoice(true)}
             className="w-full py-3.5 rounded-2xl font-bold text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-all active:scale-[0.98]"
@@ -878,12 +911,21 @@ const PAYMENT_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '
 
 function PaymentSelect({ paymentMethods, onBack, onNext }) {
   const [selectedId, setSelectedId] = useState(null);
+  const { addToast } = useToastStore();
+
+  const handleCopy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast('Copied to clipboard');
+    } catch {
+      addToast('Failed to copy', 'error');
+    }
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onBack(); }}
     >
       <motion.div
         initial={{ y: '100%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '100%', opacity: 0 }}
@@ -948,7 +990,13 @@ function PaymentSelect({ paymentMethods, onBack, onNext }) {
                         {pm.payment_number && (
                           <div>
                             <p className="text-xs text-gray-400 font-medium mb-0.5">Account Number</p>
-                            <p className="text-sm font-bold text-gray-900">{pm.payment_number}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-bold text-gray-900">{pm.payment_number}</p>
+                              <button onClick={() => handleCopy(pm.payment_number)}
+                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-90">
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         )}
                         {pm.description && (
@@ -1000,6 +1048,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [sortBy, setSortBy] = useState('default');
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [showNewsfeed, setShowNewsfeed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [cartItems, setCartItems] = useState([]);
@@ -1032,6 +1082,12 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   // Product link mode — show single product instead of full shop
   const [initialProductCode] = useState(() => new URLSearchParams(window.location.search).get('product'));
   const [productLinkActive, setProductLinkActive] = useState(!!initialProductCode);
+  const [initialPostCode] = useState(() => new URLSearchParams(window.location.search).get('post'));
+
+  // Auto-open newsfeed when post param is present (from permalink)
+  useEffect(() => {
+    if (initialPostCode) setShowNewsfeed(true);
+  }, [initialPostCode]);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: viaDomain ? ['public-ecommerce-by-domain'] : ['public-ecommerce', slug],
@@ -1056,6 +1112,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const productLinkProduct = productLinkActive && initialProductCode
     ? products.find(p => p.link_code === initialProductCode) || null
     : null;
+
+  useAuthTokenFromUrl();
 
   // Load cart from localStorage
   useEffect(() => {
@@ -1157,7 +1215,16 @@ export default function PublicEcommerce({ slug, viaDomain }) {
     const colors = getProductColors(product);
     const selColor = selectedColors[product.id];
     if (colors.length > 0 && !selColor) return;
-    addToCart(product, selColor);
+    // Replace entire cart with just this product (instant buy, no cart accumulation)
+    const images = getPublicImageUrls(product.image_url, shop?.id);
+    setCartItems([{
+      product_id: product.id,
+      name: product.name,
+      price: Number(product.price),
+      quantity: 1,
+      image_url: images[0] || '',
+      selected_color: selColor || null,
+    }]);
     if (viewMode === 'guest') {
       setShowCart(false);
       paymentMethods.length > 0 ? setShowPaymentSelect(true) : setCheckoutOpen(true);
@@ -1172,7 +1239,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
         setShowRegister(true);
       }
     }
-  }, [user, tgLoggedIn, registered, addToCart, getProductColors, selectedColors, viewMode, paymentMethods.length]);
+  }, [user, tgLoggedIn, registered, getProductColors, selectedColors, viewMode, paymentMethods.length, shop?.id]);
 
   const handleSignInSuccess = useCallback(() => {
     setShowSignIn(false);
@@ -1511,85 +1578,72 @@ export default function PublicEcommerce({ slug, viaDomain }) {
     }}>
       {/* Header */}
       <div className="relative" style={{ background: theme.css['--theme-header'] }}>
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/5 rounded-full" />
-        <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-white/5 rounded-full" />
-        <div className="max-w-7xl mx-auto px-4 pt-10 md:pt-12 pb-16 md:pb-20 relative">
-          <div className="flex items-center justify-between gap-2">
-            {/* Left: Logo + Shop info */}
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2.5 md:gap-4 min-w-0 flex-1">
-              <div className="w-10 h-10 md:w-14 md:h-14 bg-white/20 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center shadow-xl border border-white/30 overflow-hidden flex-shrink-0">
-                {shop?.profile_picture ? (
-                  <img src={shop.profile_picture} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-white font-bold text-base md:text-2xl">{getInitials(shop.bot_full_name)}</span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-base md:text-xl lg:text-3xl font-bold text-white drop-shadow-sm truncate leading-tight">{shop?.bot_full_name}</h1>
-                <div className="flex items-center gap-2 md:gap-3 mt-0.5">
-                  <span className="flex items-center gap-1 text-white/70 text-[10px] md:text-sm whitespace-nowrap">
-                    <Package className="w-2.5 h-2.5 md:w-4 md:h-4" />{products.length} product{products.length !== 1 ? 's' : ''}
-                  </span>
-                  {categories.length > 0 && (
-                    <span className="flex items-center gap-1 text-white/70 text-[10px] md:text-sm whitespace-nowrap">
-                      <Tag className="w-2.5 h-2.5 md:w-4 md:h-4" />{categories.length} categor{categories.length !== 1 ? 'ies' : 'y'}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right: Auth + Cart (ecommerce & guest modes) */}
-            {viewMode !== 'telegram' && (
-              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
-                {viewMode === 'ecommerce' && ((user || tgLoggedIn) ? (
-                  <div className="relative">
-                    <button onClick={() => setShowProfileMenu(p => !p)}
-                      className="flex items-center gap-1 md:gap-1.5 bg-white/15 hover:bg-white/25 rounded-xl px-2 md:px-3 py-2 md:py-2.5 transition-all active:scale-95 min-h-[44px]">
-                      {user?.photoURL && <img src={user.photoURL} alt="" className="w-6 h-6 md:w-7 md:h-7 rounded-full ring-2 ring-white/30 flex-shrink-0" />}
-                      <span className="text-white text-xs md:text-sm font-medium max-w-[70px] md:max-w-[100px] truncate hidden sm:inline">
-                        {user?.displayName || user?.email?.split('@')[0] || telegramUser?.name || telegramUser?.username || 'Account'}
-                      </span>
-                    </button>
-                    {showProfileMenu && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
-                        <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 min-w-[190px] overflow-hidden">
-                          <div className="px-4 py-2.5 border-b border-gray-100 sm:hidden">
-                            <p className="text-sm font-bold text-gray-900 truncate">{user?.displayName || user?.email?.split('@')[0] || telegramUser?.name || telegramUser?.username || 'Account'}</p>
-                            {user?.email && <p className="text-[11px] text-gray-400 truncate">{user.email}</p>}
-                          </div>
-                          <a href={dashboardUrl}
-                            className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                            <User className="w-4 h-4" /> My Dashboard
-                          </a>
-                          <button onClick={() => { setShowProfileMenu(false); handleSignOut(); }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
-                            <LogOut className="w-4 h-4" /> Sign Out
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <button onClick={() => setShowSignIn(true)}
-                    className="flex items-center gap-1.5 px-3.5 md:px-4 py-2 md:py-2.5 bg-white text-gray-800 rounded-xl hover:bg-gray-100 transition-all active:scale-95 font-bold text-xs md:text-sm shadow-md min-h-[44px]">
-                    <User className="w-4 h-4" /> Sign In
-                  </button>
-                ))}
-                <button onClick={() => setShowCart(true)}
-                  className="relative w-[44px] h-[44px] bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center hover:bg-white/30 transition-all active:scale-90 flex-shrink-0">
-                  <ShoppingCart className="w-5 h-5 text-white" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg">
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
-                  )}
-                </button>
+        <ShopBanner banners={data?.banners} botId={shop?.id} theme={theme}>
+          {!data?.banners?.length && (
+            <>
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/5 rounded-full" />
+              <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-white/5 rounded-full" />
+            </>
+          )}
+          <div className="max-w-7xl mx-auto px-4 pt-6 md:pt-8 pb-16 md:pb-20 relative">
+            <div className="flex items-center justify-between gap-2">
+              {/* Left: Shop name only */}
+              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="min-w-0 flex-1">
+                <h1 className="text-lg md:text-2xl lg:text-4xl font-bold leading-tight text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.6), 0 0 4px rgba(0,0,0,0.4)' }}>{shop?.bot_full_name}</h1>
               </motion.div>
-            )}
+
+              {/* Right: Auth + Cart (ecommerce & guest modes) */}
+              {viewMode !== 'telegram' && (
+                <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+                  {viewMode === 'ecommerce' && ((user || tgLoggedIn) ? (
+                    <div className="relative">
+                      <button onClick={() => setShowProfileMenu(p => !p)}
+                        className="flex items-center gap-1 md:gap-1.5 bg-white/15 hover:bg-white/25 rounded-xl px-2 md:px-3 py-2 md:py-2.5 transition-all active:scale-95 min-h-[44px]">
+                        {user?.photoURL && <img src={user.photoURL} alt="" className="w-6 h-6 md:w-7 md:h-7 rounded-full ring-2 ring-white/30 flex-shrink-0" />}
+                        <span className="text-white text-xs md:text-sm font-medium max-w-[70px] md:max-w-[100px] truncate hidden sm:inline">
+                          {user?.displayName || user?.email?.split('@')[0] || telegramUser?.name || telegramUser?.username || 'Account'}
+                        </span>
+                      </button>
+                      {showProfileMenu && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
+                          <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 min-w-[190px] overflow-hidden">
+                            <div className="px-4 py-2.5 border-b border-gray-100 sm:hidden">
+                              <p className="text-sm font-bold text-gray-900 truncate">{user?.displayName || user?.email?.split('@')[0] || telegramUser?.name || telegramUser?.username || 'Account'}</p>
+                              {user?.email && <p className="text-[11px] text-gray-400 truncate">{user.email}</p>}
+                            </div>
+                            <a href={dashboardUrl}
+                              className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                              <User className="w-4 h-4" /> My Dashboard
+                            </a>
+                            <button onClick={() => { setShowProfileMenu(false); handleSignOut(); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                              <LogOut className="w-4 h-4" /> Sign Out
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowSignIn(true)}
+                      className="flex items-center gap-1.5 px-3.5 md:px-4 py-2 md:py-2.5 bg-white text-gray-800 rounded-xl hover:bg-gray-100 transition-all active:scale-95 font-bold text-xs md:text-sm shadow-md min-h-[44px]">
+                      <User className="w-4 h-4" /> Sign In
+                    </button>
+                  ))}
+                  <button onClick={() => setShowCart(true)}
+                    className="relative w-[44px] h-[44px] bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center hover:bg-white/30 transition-all active:scale-90 flex-shrink-0">
+                    <ShoppingCart className="w-5 h-5 text-white" />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg">
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    )}
+                  </button>
+                </motion.div>
+              )}
+            </div>
           </div>
-        </div>
+        </ShopBanner>
         <div className="absolute -bottom-1 left-0 right-0 h-6 md:h-8 rounded-t-[28px] md:rounded-t-[32px]" style={{ backgroundColor: theme.css['--theme-bg'] }} />
       </div>
 
@@ -1641,7 +1695,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                         <div className="flex flex-wrap gap-2">
                           {productColors.map(c => (
                             <div key={c.color} className="w-10 h-10 rounded-xl border-2 border-gray-300 shadow-sm" style={{ backgroundColor: c.color }}>
-                              {c.file_id && <img src={getImageUrl(c.file_id, shop?.id)} alt="" className="w-full h-full object-cover rounded-xl" />}
+                              {c.file_id && <img src={`https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(c.file_id)}?bot_id=${shop?.id}`} alt="" className="w-full h-full object-cover rounded-xl" />}
                             </div>
                           ))}
                         </div>
@@ -1700,20 +1754,57 @@ export default function PublicEcommerce({ slug, viaDomain }) {
         ) : (
           <>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="mb-6 flex items-center gap-2">
-          <button onClick={() => setShowSearch(!showSearch)}
-            className={`p-3 rounded-xl transition-all ${showSearch ? 'theme-filter-active' : 'bg-white text-gray-400 hover:bg-gray-100 border border-gray-200 shadow-sm'}`}>
-            {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
-          </button>
-          <div className="relative flex-1 max-w-[160px] ml-auto">
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-              className="w-full px-3 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer">
-              <option value="default">Sort: Default</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="newest">Newest First</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          className="-mt-8 md:-mt-10 mb-6 flex items-center gap-2">
+          {/* Logo - circular */}
+          <div className="-mt-6 md:-mt-8 w-[64px] h-[64px] md:w-[80px] md:h-[80px] rounded-full overflow-hidden flex-shrink-0 bg-white/20 backdrop-blur-md border-2 border-white/40 shadow-md">
+            {shop?.profile_picture ? (
+              <img src={shop.profile_picture} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+                <span className="text-white font-bold text-sm">{getInitials(shop?.bot_full_name)}</span>
+              </div>
+            )}
+          </div>
+          <div className="ml-auto flex items-center gap-1.5 relative">
+            <button onClick={() => setShowNewsfeed(true)}
+              className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90">
+              <Newspaper className="w-[15px] h-[15px]" />
+            </button>
+            <button onClick={() => setShowSearch(!showSearch)}
+              className={`w-[44px] h-[44px] rounded-full flex items-center justify-center transition-all ${showSearch ? 'theme-filter-active' : 'bg-white text-gray-400 hover:bg-gray-100 border border-gray-200 shadow-sm'}`}>
+              {showSearch ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+            </button>
+            <button onClick={() => setShowSortMenu(!showSortMenu)}
+              className={`w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all active:scale-90 ${
+                sortBy !== 'default'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm'
+              }`}>
+              <ArrowUpDown className="w-[15px] h-[15px]" />
+            </button>
+            {showSortMenu && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowSortMenu(false)} />
+                <div className="absolute right-0 top-full mt-2 z-40 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 min-w-[160px] overflow-hidden">
+                  <button onClick={() => { setSortBy('price-low'); setShowSortMenu(false); }}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'price-low' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-600'}`}>
+                    Low to High
+                    {sortBy === 'price-low' && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                  </button>
+                  <button onClick={() => { setSortBy('price-high'); setShowSortMenu(false); }}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'price-high' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-600'}`}>
+                    High to Low
+                    {sortBy === 'price-high' && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                  </button>
+                  <div className="border-t border-gray-100 my-1" />
+                  <button onClick={() => { setSortBy('newest'); setShowSortMenu(false); }}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'newest' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-600'}`}>
+                    Newest First
+                    {sortBy === 'newest' && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </motion.div>
 
@@ -1726,7 +1817,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
             { key: 'guest', label: 'Buy as a Guest' },
           ].map(opt => (
             <button key={opt.key} onClick={() => setViewMode(opt.key)}
-              className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all active:scale-95 ${
+              className={`flex-1 px-1.5 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold leading-tight text-center transition-all active:scale-95 ${
                 viewMode === opt.key
                   ? 'theme-filter-active'
                   : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'
@@ -1985,7 +2076,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
       {/* Sign In Modal */}
       <AnimatePresence>
         {showSignIn && (
-          <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} botUsername={shop?.bot_username} shopSlug={slug} />
+          <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} botUsername={shop?.bot_username} shopSlug={slug || shop?.bot_username || ''} />
         )}
       </AnimatePresence>
 
@@ -2120,6 +2211,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
           <OrderConfirmation
             data={orderPlaced}
             shop={shop}
+            viewMode={viewMode}
             onContinueShopping={() => setOrderPlaced(null)}
           />
         )}
@@ -2271,6 +2363,19 @@ export default function PublicEcommerce({ slug, viaDomain }) {
             </motion.div>
           )}
         </>
+      )}
+
+      {/* Newsfeed Modal */}
+      {showNewsfeed && (
+        <NewsfeedFeed
+          botId={shop?.id}
+          botName={shop?.bot_full_name}
+          onClose={() => setShowNewsfeed(false)}
+          viaDomain={viaDomain}
+          slug={slug}
+          shop={shop}
+          initialPostCode={initialPostCode}
+        />
       )}
     </div>
   );

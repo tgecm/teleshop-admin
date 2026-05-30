@@ -29,16 +29,20 @@ const Settings = React.lazy(() => import('./pages/Settings'));
 const Chats = React.lazy(() => import('./pages/Chats'));
 const WebPanel = React.lazy(() => import('./pages/WebPanel'));
 const PublicShop = React.lazy(() => import('./pages/PublicShop'));
+const GoogleAuthProxy = React.lazy(() => import('./pages/GoogleAuthProxy'));
 const PublicAddProduct = React.lazy(() => import('./pages/PublicAddProduct'));
 const PublicAddPayment = React.lazy(() => import('./pages/PublicAddPayment'));
 const CustomerLogin = React.lazy(() => import('./pages/CustomerLogin'));
 const CustomerDashboard = React.lazy(() => import('./pages/CustomerDashboard'));
 const PublicEcommerce = React.lazy(() => import('./pages/PublicEcommerce'));
+const Customization = React.lazy(() => import('./pages/Customization'));
+const NewsfeedAdmin = React.lazy(() => import('./pages/NewsfeedAdmin'));
+const SuperadminDashboard = React.lazy(() => import('./pages/SuperadminDashboard'));
 
 const ADMIN_PATHS = new Set([
   'login', 'dashboard', 'orders', 'products', 'customers',
   'broadcast', 'commands', 'payments', 'subscription', 'settings',
-  'chats', 'more',
+  'chats', 'more', 'customization', 'newsfeed', 'superadmin',
 ]);
 
 const PUBLIC_DOMAIN = 'telegramecommerce.shop';
@@ -308,6 +312,14 @@ export default function App() {
           <ToastContainer />
           <SelectionToolbar />
         </>
+      ) : window.location.hash.startsWith('#/auth/google/proxy') ? (
+        <>
+          <Suspense fallback={<SuspenseFallback />}>
+            <GoogleAuthProxy />
+          </Suspense>
+          <ToastContainer />
+          <SelectionToolbar />
+        </>
       ) : isCustomDomain() ? (
         <>
           <Suspense fallback={<SuspenseFallback />}>
@@ -340,7 +352,10 @@ export default function App() {
                 <Route path="subscription" element={<Subscription />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="chats" element={<Chats />} />
+                <Route path="customization" element={<Customization />} />
+                <Route path="superadmin" element={<SuperadminDashboard />} />
                 <Route path="more" element={<Navigate to="/broadcast" replace />} />
+                <Route path="newsfeed" element={<NewsfeedAdmin />} />
               </Route>
               <Route path="*" element={<PublicRoute />} />
             </Routes>
