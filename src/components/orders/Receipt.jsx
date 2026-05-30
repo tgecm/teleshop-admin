@@ -4,6 +4,8 @@ import { X, Download, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
+import { isInAppBrowser, downloadViaNative } from '../../utils/download';
+import { generateInvoiceNumber } from '../../api/orders';
 
 const RECEIPT_W = 800;
 const MAIN_BLUE = '#003366';
@@ -94,6 +96,13 @@ const s = {
   receiptBlock: { textAlign: 'right' },
   receiptHeading: {
     fontFamily: 'Roboto, system-ui, sans-serif',
+    fontSize: 48,
+    fontWeight: 700,
+    color: MAIN_BLUE,
+    lineHeight: 1,
+  },
+  invoiceHeading: {
+    fontFamily: 'Roboto, system-ui, sans-serif',
     fontSize: 42,
     fontWeight: 700,
     color: MAIN_BLUE,
@@ -101,7 +110,7 @@ const s = {
   },
   thankYou: {
     fontFamily: "'Dancing Script', cursive",
-    fontSize: 15,
+    fontSize: 17,
     color: ACCENT_LINE,
     marginTop: 5,
     marginBottom: 15,
@@ -177,10 +186,12 @@ const s = {
     overflow: 'hidden',
   },
   thId: { width: 50, padding: '10px 15px' },
-  thProduct: { flex: 1, padding: '10px 15px' },
+  thProduct: { flex: 1, padding: '10px 15px', maxWidth: 280 },
   thQty: { width: 80, padding: '10px 15px', textAlign: 'center' },
-  thPrice: { width: 120, padding: '10px 15px', textAlign: 'right' },
-  thTotal: { width: 120, padding: '10px 15px', textAlign: 'right' },
+  thPrice: { width: 145, padding: '10px 15px', textAlign: 'right' },
+  thTotal: { width: 145, padding: '10px 15px', textAlign: 'right' },
+  thPriceInv: { width: 120, padding: '10px 15px', textAlign: 'right' },
+  thTotalInv: { width: 120, padding: '10px 15px', textAlign: 'right' },
   tableRow: {
     display: 'flex',
     alignItems: 'center',
@@ -197,6 +208,10 @@ const s = {
     flex: 1,
     padding: '12px 15px',
     color: TEXT_DARK,
+    maxWidth: 280,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   tdQty: {
     width: 80,
@@ -205,12 +220,24 @@ const s = {
     color: TEXT_DARK,
   },
   tdUnit: {
-    width: 120,
+    width: 145,
     padding: '12px 15px',
     textAlign: 'right',
     color: TEXT_DARK,
   },
   tdTotal: {
+    width: 145,
+    padding: '12px 15px',
+    textAlign: 'right',
+    color: TEXT_DARK,
+  },
+  tdUnitInv: {
+    width: 120,
+    padding: '12px 15px',
+    textAlign: 'right',
+    color: TEXT_DARK,
+  },
+  tdTotalInv: {
     width: 120,
     padding: '12px 15px',
     textAlign: 'right',
@@ -328,7 +355,8 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minRows) {
+function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minRows, invoiceNumber, receiptNumber, type = 'receipt') {
+  const isInvoice = type === 'invoice';
   const W = 800;
   const PAD = 40;
   const CW = W - PAD * 2;
@@ -339,6 +367,12 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const BL = '#ddd';
   const LB = '#e0f2f7';
   const FS = '#bbb';
+
+  const qtyX = isInvoice ? 550 : 470;
+  const priceX = isInvoice ? 645 : 610;
+  const totalX = isInvoice ? 760 : 740;
+  const hdgSize = isInvoice ? 44 : 52;
+  const subSize = isInvoice ? 15 : 16;
 
   const orderNum = esc(order.order_number || `#${order.id}`);
   const cName = esc(order.buyer_snapshot?.full_name || order.customer?.first_name || '—');
@@ -359,7 +393,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const tot = `MMK ${(total || 0).toFixed(2)}`;
 
   const HDR_Y = 40;
-  const HDR_H = 150;
+  const HDR_H = 170;
   const MID_Y = HDR_Y + HDR_H + 5;
   const MID_END = MID_Y + 12 + 118 + 6 + 12;
   const TBL_BAR = MID_END + 6;
@@ -386,16 +420,16 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
       cells = `
         <text x="55" y="${ry+19}" fill="${MB}" font-weight="600" font-size="12">${i+1}</text>
         <text x="100" y="${ry+19}" fill="${TD}" font-size="12">${pn}</text>
-        <text x="550" y="${ry+19}" text-anchor="middle" fill="${TD}" font-size="12">${item.quantity||'—'}</text>
-        <text x="645" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">MMK ${(item.price||0).toFixed(2)}</text>
-        <text x="760" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${ln}</text>`;
+        <text x="${qtyX}" y="${ry+19}" text-anchor="middle" fill="${TD}" font-size="12">${item.quantity||'—'}</text>
+        <text x="${priceX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">MMK ${(item.price||0).toFixed(2)}</text>
+        <text x="${totalX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${ln}</text>`;
     } else {
       cells = `
         <text x="55" y="${ry+19}" fill="${FS}" font-weight="600" font-size="12">${i+1}</text>
         <text x="100" y="${ry+19}" fill="${FS}" font-size="12">${'·'.repeat(30)}</text>
-        <text x="550" y="${ry+19}" text-anchor="middle" fill="${FS}" font-size="12">${'·'.repeat(4)}</text>
-        <text x="645" y="${ry+19}" text-anchor="end" fill="${FS}" font-size="12">${'·'.repeat(10)}</text>
-        <text x="760" y="${ry+19}" text-anchor="end" fill="${FS}" font-size="12">${'·'.repeat(10)}</text>`;
+        <text x="${qtyX}" y="${ry+19}" text-anchor="middle" fill="${FS}" font-size="12">${'·'.repeat(4)}</text>
+        <text x="${priceX}" y="${ry+19}" text-anchor="end" fill="${FS}" font-size="12">${'·'.repeat(10)}</text>
+        <text x="${totalX}" y="${ry+19}" text-anchor="end" fill="${FS}" font-size="12">${'·'.repeat(10)}</text>`;
     }
     tableRows += `<g>
       <line x1="40" y1="${ry+ROW_H-1}" x2="760" y2="${ry+ROW_H-1}" stroke="${BL}" stroke-width="1"/>
@@ -441,54 +475,83 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     <text x="140" y="44" fill="${TM}" font-size="13">Your Trusted Online Store</text>
 
     <!-- Contacts -->
-    <text x="140" y="68" fill="${TM}" font-size="12">📍</text>
-    <text x="160" y="68" fill="${TM}" font-size="12">${cAddr}</text>
+    <text x="140" y="68" fill="${TM}" font-size="12">📞</text>
+    <text x="160" y="68" fill="${TM}" font-size="12">Phone</text>
     <line x1="160" y1="74" x2="350" y2="74" stroke="${BL}" stroke-width="1"/>
 
-    <text x="140" y="90" fill="${TM}" font-size="12">📞</text>
-    <text x="160" y="90" fill="${TM}" font-size="12">${cPhone}</text>
+    <text x="140" y="90" fill="${TM}" font-size="12">✉️</text>
+    <text x="160" y="90" fill="${TM}" font-size="12">Email</text>
     <line x1="160" y1="96" x2="350" y2="96" stroke="${BL}" stroke-width="1"/>
 
-    <text x="140" y="112" fill="${TM}" font-size="12">✉️</text>
-    <text x="160" y="112" fill="${TM}" font-size="12">${cEmail}</text>
+    <text x="140" y="112" fill="${TM}" font-size="12">🌐</text>
+    <text x="160" y="112" fill="${TM}" font-size="12">Website</text>
     <line x1="160" y1="118" x2="350" y2="118" stroke="${BL}" stroke-width="1"/>
 
-    <text x="140" y="134" fill="${TM}" font-size="12">🌐</text>
-    <text x="160" y="134" fill="${TM}" font-size="12">${tg}</text>
+    <text x="140" y="134" fill="${TM}" font-size="12">📍</text>
+    <text x="160" y="134" fill="${TM}" font-size="12">Address</text>
     <line x1="160" y1="140" x2="350" y2="140" stroke="${BL}" stroke-width="1"/>
 
-    <!-- RECEIPT heading (right) -->
-    <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="44" font-weight="700" class="r">RECEIPT</text>
+    ${isInvoice ? `<!-- INVOICE heading (right) -->
+    <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="44" font-weight="700" class="r">INVOICE</text>
     <text x="720" y="46" text-anchor="end" fill="${AL}" font-size="15" class="dc">Thank you for your purchase!</text>
     <line x1="550" y1="54" x2="720" y2="54" stroke="${AL}" stroke-width="2"/>
 
-    <!-- Meta rows (labels aligned, colons fixed at x=605) -->
+    <!-- Meta rows -->
     <g transform="translate(0, 0)">
-      <text x="510" y="80" fill="${TD}" font-size="13" font-weight="600">Receipt No.</text>
-      <text x="605" y="80" fill="${TM}" font-size="13">:</text>
-      <text x="620" y="80" fill="${TM}" font-size="13">${orderNum}</text>
-      <line x1="620" y1="86" x2="720" y2="86" stroke="${BL}" stroke-width="1"/>
+      <text x="460" y="80" fill="${TD}" font-size="13" font-weight="600">Invoice No.</text>
+      <text x="565" y="80" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="80" fill="${TM}" font-size="13">${esc(invoiceNumber)}</text>
+      <line x1="580" y1="86" x2="720" y2="86" stroke="${BL}" stroke-width="1"/>
     </g>
     <g transform="translate(0, 0)">
-      <text x="510" y="102" fill="${TD}" font-size="13" font-weight="600">Date</text>
-      <text x="605" y="102" fill="${TM}" font-size="13">:</text>
-      <text x="620" y="102" fill="${TM}" font-size="13">${fmtDate}</text>
-      <line x1="620" y1="108" x2="720" y2="108" stroke="${BL}" stroke-width="1"/>
+      <text x="460" y="102" fill="${TD}" font-size="13" font-weight="600">Date</text>
+      <text x="565" y="102" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="102" fill="${TM}" font-size="13">${fmtDate}</text>
+      <line x1="580" y1="108" x2="720" y2="108" stroke="${BL}" stroke-width="1"/>
     </g>
     <g transform="translate(0, 0)">
-      <text x="510" y="124" fill="${TD}" font-size="13" font-weight="600">Order ID</text>
-      <text x="605" y="124" fill="${TM}" font-size="13">:</text>
-      <text x="620" y="124" fill="${TM}" font-size="13">${orderNum}</text>
-      <line x1="620" y1="130" x2="720" y2="130" stroke="${BL}" stroke-width="1"/>
+      <text x="460" y="124" fill="${TD}" font-size="13" font-weight="600">Order ID</text>
+      <text x="565" y="124" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="124" fill="${TM}" font-size="13">${orderNum}</text>
+      <line x1="580" y1="130" x2="720" y2="130" stroke="${BL}" stroke-width="1"/>
     </g>
+    <g transform="translate(0, 0)">
+      <text x="460" y="146" fill="${TD}" font-size="13" font-weight="600">Payment Status</text>
+      <text x="565" y="146" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="146" fill="${TM}" font-size="13">Pending</text>
+      <line x1="580" y1="152" x2="720" y2="152" stroke="${BL}" stroke-width="1"/>
+    </g>` : `<!-- RECEIPT heading (right) -->
+    <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="52" font-weight="700" class="r">RECEIPT</text>
+    <text x="720" y="48" text-anchor="end" fill="${AL}" font-size="16" class="dc">Thank you for your purchase!</text>
+    <line x1="550" y1="56" x2="720" y2="56" stroke="${AL}" stroke-width="2"/>
+
+    <!-- Meta rows -->
+    <g transform="translate(0, 0)">
+      <text x="460" y="80" fill="${TD}" font-size="13" font-weight="600">Invoice No.</text>
+      <text x="565" y="80" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="80" fill="${TM}" font-size="13">${esc(invoiceNumber)}</text>
+      <line x1="580" y1="86" x2="720" y2="86" stroke="${BL}" stroke-width="1"/>
+    </g>
+    <g transform="translate(0, 0)">
+      <text x="460" y="102" fill="${TD}" font-size="13" font-weight="600">Receipt No.</text>
+      <text x="565" y="102" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="102" fill="${TM}" font-size="13">${esc(receiptNumber)}</text>
+      <line x1="580" y1="108" x2="720" y2="108" stroke="${BL}" stroke-width="1"/>
+    </g>
+    <g transform="translate(0, 0)">
+      <text x="460" y="124" fill="${TD}" font-size="13" font-weight="600">Payment Status</text>
+      <text x="565" y="124" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="124" fill="${TM}" font-size="13">Paid</text>
+      <line x1="580" y1="130" x2="720" y2="130" stroke="${BL}" stroke-width="1"/>
+    </g>`}
   </g>
   <line x1="${PAD}" y1="${HDR_Y+HDR_H}" x2="${W-PAD}" y2="${HDR_Y+HDR_H}" stroke="${BL}" stroke-width="1"/>
 
   <!-- ============ MID SECTION (y=${MID_Y}) ============ -->
-  <!-- Bill To -->
+  <!-- ${isInvoice ? 'Bill To' : 'Received From'} -->
   <g transform="translate(${PAD}, ${MID_Y+12})">
-    <rect x="0" y="0" width="115" height="28" rx="5" fill="${MB}"/>
-    <text x="12" y="19" fill="#fff" font-size="13" font-weight="500" class="r">👤 BUYER INFO</text>
+    <rect x="0" y="0" width="${isInvoice ? 115 : 150}" height="28" rx="5" fill="${MB}"/>
+    <text x="12" y="19" fill="#fff" font-size="13" font-weight="500" class="r">👤 ${isInvoice ? 'Bill To' : 'Received From'}</text>
     <text x="0" y="52" fill="${TD}" font-size="12" font-weight="600">Name</text>
     <text x="60" y="52" fill="${TM}" font-size="12">:</text>
     <text x="70" y="52" fill="${TM}" font-size="12">${cName}</text>
@@ -513,29 +576,29 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   <!-- Vertical divider -->
   <line x1="400" y1="${MID_Y+12}" x2="400" y2="${MID_END-5}" stroke="${BL}" stroke-width="1"/>
 
-  <!-- Order Details -->
+  <!-- ${isInvoice ? 'Order Details' : 'Payment Details'} -->
   <g transform="translate(415, ${MID_Y+12})">
-    <rect x="0" y="0" width="150" height="28" rx="5" fill="${MB}"/>
-    <text x="12" y="19" fill="#fff" font-size="13" font-weight="500" class="r">🧾 ORDER DETAILS</text>
-    <text x="0" y="52" fill="${TD}" font-size="12" font-weight="600">User ID</text>
-    <text x="70" y="52" fill="${TM}" font-size="12">:</text>
-    <text x="80" y="52" fill="${TM}" font-size="12">${uid}</text>
-    <line x1="80" y1="58" x2="345" y2="58" stroke="${BL}" stroke-width="1"/>
+    <rect x="0" y="0" width="${isInvoice ? 170 : 200}" height="28" rx="5" fill="${MB}"/>
+    <text x="12" y="19" fill="#fff" font-size="13" font-weight="500" class="r">🧾 ${isInvoice ? 'ORDER DETAILS' : 'PAYMENT DETAILS'}</text>
+    <text x="0" y="52" fill="${TD}" font-size="12" font-weight="600">${isInvoice ? 'Amount to pay' : 'Amount Paid'}</text>
+    <text x="85" y="52" fill="${TM}" font-size="12">:</text>
+    <text x="95" y="52" fill="${TM}" font-size="12">${tot}</text>
+    <line x1="95" y1="58" x2="345" y2="58" stroke="${BL}" stroke-width="1"/>
 
-    <text x="0" y="74" fill="${TD}" font-size="12" font-weight="600">Date</text>
-    <text x="70" y="74" fill="${TM}" font-size="12">:</text>
-    <text x="80" y="74" fill="${TM}" font-size="12">${fmtDate}</text>
-    <line x1="80" y1="80" x2="345" y2="80" stroke="${BL}" stroke-width="1"/>
+    <text x="0" y="74" fill="${TD}" font-size="12" font-weight="600">Payment</text>
+    <text x="85" y="74" fill="${TM}" font-size="12">:</text>
+    <text x="95" y="74" fill="${TM}" font-size="12">${payM}</text>
+    <line x1="95" y1="80" x2="345" y2="80" stroke="${BL}" stroke-width="1"/>
 
-    <text x="0" y="96" fill="${TD}" font-size="12" font-weight="600">Payment</text>
-    <text x="70" y="96" fill="${TM}" font-size="12">:</text>
-    <text x="80" y="96" fill="${TM}" font-size="12">${payM}</text>
-    <line x1="80" y1="102" x2="345" y2="102" stroke="${BL}" stroke-width="1"/>
+    <text x="0" y="96" fill="${TD}" font-size="12" font-weight="600">Date</text>
+    <text x="85" y="96" fill="${TM}" font-size="12">:</text>
+    <text x="95" y="96" fill="${TM}" font-size="12">${fmtDate}</text>
+    <line x1="95" y1="102" x2="345" y2="102" stroke="${BL}" stroke-width="1"/>
 
     <text x="0" y="118" fill="${TD}" font-size="12" font-weight="600">Notes</text>
-    <text x="70" y="118" fill="${TM}" font-size="12">:</text>
-    <text x="80" y="118" fill="${TM}" font-size="12">${note}</text>
-    <line x1="80" y1="124" x2="345" y2="124" stroke="${BL}" stroke-width="1"/>
+    <text x="85" y="118" fill="${TM}" font-size="12">:</text>
+    <text x="95" y="118" fill="${TM}" font-size="12">${note}</text>
+    <line x1="95" y1="124" x2="345" y2="124" stroke="${BL}" stroke-width="1"/>
   </g>
   <line x1="${PAD}" y1="${MID_END}" x2="${W-PAD}" y2="${MID_END}" stroke="${BL}" stroke-width="1"/>
 
@@ -543,9 +606,9 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   <rect x="${PAD}" y="${TBL_BAR}" width="${CW}" height="${TBL_H}" rx="5" fill="${MB}"/>
   <text x="55" y="${TBL_BAR+19}" fill="#fff" font-size="12" font-weight="600" class="r">#</text>
   <text x="100" y="${TBL_BAR+19}" fill="#fff" font-size="12" font-weight="600" class="r">PRODUCTS</text>
-  <text x="550" y="${TBL_BAR+19}" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" class="r">QTY</text>
-  <text x="645" y="${TBL_BAR+19}" text-anchor="end" fill="#fff" font-size="12" font-weight="600" class="r">UNIT PRICE</text>
-  <text x="760" y="${TBL_BAR+19}" text-anchor="end" fill="#fff" font-size="12" font-weight="600" class="r">TOTAL PRICE</text>
+  <text x="${qtyX}" y="${TBL_BAR+19}" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" class="r">QTY</text>
+  <text x="${priceX}" y="${TBL_BAR+19}" text-anchor="end" fill="#fff" font-size="12" font-weight="600" class="r">UNIT PRICE</text>
+  <text x="${totalX}" y="${TBL_BAR+19}" text-anchor="end" fill="#fff" font-size="12" font-weight="600" class="r">TOTAL PRICE</text>
   ${tableRows}
 
   <!-- ============ BOTTOM (y=${BOT_Y}) ============ -->
@@ -556,7 +619,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     <text x="15" y="42" fill="${TM}" font-size="12">${payM}</text>
 
     <rect x="0" y="65" width="290" height="70" rx="8" fill="#fff" stroke="${BL}" stroke-width="1"/>
-    <text x="15" y="85" fill="${MB}" font-size="13" font-weight="500" class="r">💰 AMOUNT PAID</text>
+    <text x="15" y="85" fill="${MB}" font-size="13" font-weight="500" class="r">💰 ${isInvoice ? 'AMOUNT TO PAY' : 'AMOUNT PAID'}</text>
     <text x="15" y="115" fill="${MB}" font-size="16" font-weight="700">${tot}</text>
     <line x1="15" y1="122" x2="130" y2="122" stroke="${AL}" stroke-width="2"/>
 
@@ -582,18 +645,23 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
 
   <!-- ============ WEBSITE BAR ============ -->
   <rect x="0" y="${WEB_Y}" width="${W}" height="${WEB_H}" fill="${MB}"/>
-  <text x="400" y="${WEB_Y+18}" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="11">Powered by ${sName}</text>
+  <text x="400" y="${WEB_Y+18}" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="11">${sName}</text>
 </svg>`;
 }
 
-export default function Receipt({ order, bot, open, onClose }) {
+export default function Receipt({ order, bot, open, onClose, receiptType = 'receipt' }) {
   const receiptRef = useRef(null);
   const [generating, setGenerating] = useState(false);
   const [scale, setScale] = useState(1);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
   const { addToast } = useToastStore();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !order) return;
+    setInvoiceNumber('');
+    generateInvoiceNumber(order.id).then(res => {
+      setInvoiceNumber(res.invoice_number);
+    }).catch(() => {});
     const calc = () => {
       const vw = window.innerWidth - 32;
       setScale(Math.min(1, vw / RECEIPT_W));
@@ -601,7 +669,7 @@ export default function Receipt({ order, bot, open, onClose }) {
     calc();
     window.addEventListener('resize', calc);
     return () => window.removeEventListener('resize', calc);
-  }, [open]);
+  }, [open, order]);
 
   if (!order) return null;
 
@@ -612,12 +680,17 @@ export default function Receipt({ order, bot, open, onClose }) {
   const orderDate = order.created_at ? new Date(order.created_at) : new Date();
   const paymentMethod = order.payment_method || 'Cash';
 
+  const initials = botName.split(' ').map(w => w.charAt(0).toUpperCase()).join('');
+  const receiptNumber = `${initials}-ECM-${format(orderDate, 'yyyyMMdd')}-${(order.order_number || String(order.id)).slice(-3)}`;
+
   const minTableRows = Math.max(5, items.length);
+
+  const isInv = receiptType === 'invoice';
 
   const handleDownload = async () => {
     setGenerating(true);
     try {
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows);
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType);
       const blob = new Blob([svg], { type: 'image/svg+xml' });
       const url = URL.createObjectURL(blob);
 
@@ -677,7 +750,7 @@ export default function Receipt({ order, bot, open, onClose }) {
       }
 
       const link = document.createElement('a');
-      link.download = `receipt-${order.order_number || order.id}.png`;
+      link.download = `${receiptType}-${order.order_number || order.id}.png`;
       link.href = canvas.toDataURL('image/png');
       document.body.appendChild(link);
       link.click();
@@ -714,7 +787,7 @@ export default function Receipt({ order, bot, open, onClose }) {
             </div>
 
             <div className="flex items-center justify-between px-4 pb-3 flex-shrink-0">
-              <h2 className="text-lg font-bold text-gray-900">Receipt</h2>
+              <h2 className="text-lg font-bold text-gray-900">{receiptType === 'invoice' ? 'Invoice' : 'Receipt'}</h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleDownload}
@@ -754,49 +827,71 @@ export default function Receipt({ order, bot, open, onClose }) {
                           <div style={s.shopName}>{botName}</div>
                           <div style={s.tagline}>Your Trusted Online Store</div>
                           <div style={s.contactRow}>
-                            <span style={s.contactIcon}>📍</span>
-                            <span style={s.contactValue}>{order.buyer_snapshot?.address || '……………………………………'}</span>
-                          </div>
-                          <div style={s.contactRow}>
                             <span style={s.contactIcon}>📞</span>
-                            <span style={s.contactValue}>{order.buyer_snapshot?.phone || '……………………………………'}</span>
+                            <span style={s.contactValue}>Phone</span>
                           </div>
                           <div style={s.contactRow}>
                             <span style={s.contactIcon}>✉️</span>
-                            <span style={s.contactValue}>{order.buyer_snapshot?.email || '……………………………………'}</span>
+                            <span style={s.contactValue}>Email</span>
                           </div>
                           <div style={s.contactRow}>
                             <span style={s.contactIcon}>🌐</span>
-                            <span style={s.contactValue}>{bot?.bot_username ? `@${bot.bot_username}` : '……………………………………'}</span>
+                            <span style={s.contactValue}>Website</span>
+                          </div>
+                          <div style={s.contactRow}>
+                            <span style={s.contactIcon}>📍</span>
+                            <span style={s.contactValue}>Address</span>
                           </div>
                         </div>
                       </div>
 
                       <div style={s.receiptBlock}>
-                        <div style={s.receiptHeading}>RECEIPT</div>
+                        <div style={isInv ? s.invoiceHeading : s.receiptHeading}>{isInv ? 'INVOICE' : 'RECEIPT'}</div>
                         <div style={s.thankYou}>Thank you for your purchase!</div>
                         <div style={s.metaRight}>
-                          <span style={s.metaLabel}>Receipt No.</span>
+                          <span style={s.metaLabel}>Invoice No.</span>
                           <span style={s.metaColon}>:</span>
-                          <span style={s.metaValue}>{order.order_number || `#${order.id}`}</span>
+                          <span style={s.metaValue}>{invoiceNumber || '...'}</span>
                         </div>
-                        <div style={s.metaRight}>
-                          <span style={s.metaLabel}>Date</span>
-                          <span style={s.metaColon}>:</span>
-                          <span style={s.metaValue}>{format(orderDate, 'MMM dd, yyyy')}</span>
-                        </div>
-                        <div style={s.metaRight}>
-                          <span style={s.metaLabel}>Order ID</span>
-                          <span style={s.metaColon}>:</span>
-                          <span style={s.metaValue}>{order.order_number || `#${order.id}`}</span>
-                        </div>
+                        {isInv ? (
+                          <>
+                            <div style={s.metaRight}>
+                              <span style={s.metaLabel}>Date</span>
+                              <span style={s.metaColon}>:</span>
+                              <span style={s.metaValue}>{format(orderDate, 'MMM dd, yyyy')}</span>
+                            </div>
+                            <div style={s.metaRight}>
+                              <span style={s.metaLabel}>Order ID</span>
+                              <span style={s.metaColon}>:</span>
+                              <span style={s.metaValue}>{order.order_number || `#${order.id}`}</span>
+                            </div>
+                            <div style={s.metaRight}>
+                              <span style={s.metaLabel}>Payment Status</span>
+                              <span style={s.metaColon}>:</span>
+                              <span style={s.metaValue}>Pending</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={s.metaRight}>
+                              <span style={s.metaLabel}>Receipt No.</span>
+                              <span style={s.metaColon}>:</span>
+                              <span style={s.metaValue}>{receiptNumber}</span>
+                            </div>
+                            <div style={s.metaRight}>
+                              <span style={s.metaLabel}>Payment Status</span>
+                              <span style={s.metaColon}>:</span>
+                              <span style={s.metaValue}>Paid</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
-                    {/* Bill To / Order Details */}
+                    {/* Bill To / Received From */}
                     <div style={s.mid}>
                       <div style={s.midColBorder}>
-                        <div style={s.sectionTitle}><span>👤</span> BUYER INFO</div>
+                        <div style={s.sectionTitle}><span>👤</span> {isInv ? 'Bill To' : 'Received From'}</div>
                         <div style={s.fieldItem}>
                           <span style={s.fieldLabel}>Name</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{order.buyer_snapshot?.full_name || order.customer?.first_name || '—'}</span>
                         </div>
@@ -811,15 +906,15 @@ export default function Receipt({ order, bot, open, onClose }) {
                         </div>
                       </div>
                       <div style={s.midCol}>
-                        <div style={s.sectionTitle}><span>🧾</span> ORDER DETAILS</div>
+                        <div style={s.sectionTitle}><span>🧾</span> {isInv ? 'ORDER DETAILS' : 'PAYMENT DETAILS'}</div>
                         <div style={{ ...s.fieldItem, ...{ '--label-w': '120px' } }}>
-                          <span style={s.fieldLabelWide}>User ID</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{order.customer?.telegram_id || order.customer?.id || '—'}</span>
+                          <span style={s.fieldLabelWide}>{isInv ? 'Amount to pay' : 'Amount Paid'}</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{total.toFixed(2)} MMK</span>
+                        </div>
+                        <div style={s.fieldItem}>
+                          <span style={s.fieldLabelWide}>Payment</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{paymentMethod}</span>
                         </div>
                         <div style={s.fieldItem}>
                           <span style={s.fieldLabelWide}>Date</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{format(orderDate, 'MMM dd, yyyy')}</span>
-                        </div>
-                        <div style={s.fieldItem}>
-                          <span style={s.fieldLabelWide}>Payment Method</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{paymentMethod}</span>
                         </div>
                         <div style={s.fieldItem}>
                           <span style={s.fieldLabelWide}>Notes</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{order.notes || '—'}</span>
@@ -834,8 +929,8 @@ export default function Receipt({ order, bot, open, onClose }) {
                         <div style={s.thId}>#</div>
                         <div style={s.thProduct}>PRODUCTS</div>
                         <div style={s.thQty}>QTY</div>
-                        <div style={s.thPrice}>UNIT PRICE</div>
-                        <div style={s.thTotal}>TOTAL PRICE</div>
+                        <div style={isInv ? s.thPriceInv : s.thPrice}>UNIT PRICE</div>
+                        <div style={isInv ? s.thTotalInv : s.thTotal}>TOTAL PRICE</div>
                       </div>
                       {/* Data rows */}
                       {Array.from({ length: minTableRows }).map((_, i) => {
@@ -847,8 +942,8 @@ export default function Receipt({ order, bot, open, onClose }) {
                               <div style={s.tdId}>{i + 1}</div>
                               <div style={s.tdProduct}>{item.product_name || item.name || '—'}</div>
                               <div style={s.tdQty}>{item.quantity || '—'}</div>
-                              <div style={s.tdUnit}>MMK {(item.price || 0).toFixed(2)}</div>
-                              <div style={s.tdTotal}>MMK {lineTotal.toFixed(2)}</div>
+                              <div style={isInv ? s.tdUnitInv : s.tdUnit}>MMK {(item.price || 0).toFixed(2)}</div>
+                              <div style={isInv ? s.tdTotalInv : s.tdTotal}>MMK {lineTotal.toFixed(2)}</div>
                             </div>
                           );
                         }
@@ -857,8 +952,8 @@ export default function Receipt({ order, bot, open, onClose }) {
                             <div style={s.tdId}>{i + 1}</div>
                             <div style={s.tdProduct}>{'·'.repeat(30)}</div>
                             <div style={s.tdQty}>{'·'.repeat(4)}</div>
-                            <div style={s.tdUnit}>{'·'.repeat(8)}</div>
-                            <div style={s.tdTotal}>{'·'.repeat(8)}</div>
+                            <div style={isInv ? s.tdUnitInv : s.tdUnit}>{'·'.repeat(8)}</div>
+                            <div style={isInv ? s.tdTotalInv : s.tdTotal}>{'·'.repeat(8)}</div>
                           </div>
                         );
                       })}
@@ -872,7 +967,7 @@ export default function Receipt({ order, bot, open, onClose }) {
                           <div style={s.payValue}>{paymentMethod}</div>
                         </div>
                         <div style={{ ...s.payBox, ...s.amountPaid }}>
-                          <div style={s.payTitle}>💰 AMOUNT PAID</div>
+                          <div style={s.payTitle}>💰 {isInv ? 'AMOUNT TO PAY' : 'AMOUNT PAID'}</div>
                           <div style={s.amountValue}>MMK {total.toFixed(2)}</div>
                         </div>
                       </div>
@@ -909,7 +1004,7 @@ export default function Receipt({ order, bot, open, onClose }) {
                     </div>
 
                     <div style={s.websiteBar}>
-                      <span>Powered by {botName}</span>
+                      <span>{botName}</span>
                     </div>
                   </div>
                 </div>
