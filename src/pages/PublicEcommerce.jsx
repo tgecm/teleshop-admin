@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTelegramAuth } from '../context/TelegramAuthContext';
 import { useTelegramLogin } from '../hooks/useTelegramLogin';
 import TelegramLoginModal from '../components/TelegramLoginModal';
+import Receipt from '../components/orders/Receipt';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { signInWithGoogle } from '../lib/googleSignIn';
@@ -733,11 +734,13 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
 }
 
 function OrderConfirmation({ data, shop, onContinueShopping }) {
+  const [showInvoice, setShowInvoice] = useState(false);
   return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-    >
+    <>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      >
       <motion.div
         initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         className="bg-white rounded-[32px] p-8 max-w-sm w-full text-center shadow-2xl"
@@ -768,6 +771,12 @@ function OrderConfirmation({ data, shop, onContinueShopping }) {
             View My Orders
           </a>
           <button
+            onClick={() => setShowInvoice(true)}
+            className="w-full py-3.5 rounded-2xl font-bold text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-all active:scale-[0.98]"
+          >
+            Download Invoice
+          </button>
+          <button
             onClick={onContinueShopping}
             className="w-full py-3.5 rounded-2xl font-bold text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all active:scale-[0.98]"
           >
@@ -776,6 +785,15 @@ function OrderConfirmation({ data, shop, onContinueShopping }) {
         </div>
       </motion.div>
     </motion.div>
+
+    <Receipt
+      order={data}
+      bot={shop}
+      open={showInvoice}
+      onClose={() => setShowInvoice(false)}
+      receiptType="invoice"
+    />
+    </>
   );
 }
 

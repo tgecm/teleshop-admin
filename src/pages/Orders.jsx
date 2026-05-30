@@ -21,6 +21,7 @@ import {
   Receipt as ReceiptIcon,
   UserCircle,
   Filter,
+  Truck,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,7 +33,7 @@ const STATUS_STEPS = [
   {key: 'shipped', label: 'Shipped'},
   {key: 'delivered', label: 'Delivered'},
 ];
-const TERMINAL_STATUSES = ['cancelled', 'rejected'];
+const TERMINAL_STATUSES = ['rejected'];
 
 export default function Orders() {
   const { selectedBotId } = useBotStore();
@@ -46,6 +47,7 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptType, setReceiptType] = useState('invoice');
   const [orderTab, setOrderTab] = useState('telegram');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showFilter, setShowFilter] = useState(false);
@@ -80,7 +82,13 @@ export default function Orders() {
     if (orderTab === 'telegram' && (isWebsite || isGuest)) return false;
     if (orderTab === 'ecommerce' && !isWebsite) return false;
     if (orderTab === 'guest' && !isGuest) return false;
-    if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'pending') {
+        if (o.status !== 'pending' && o.status !== 'pending_review') return false;
+      } else if (statusFilter === 'rejected') {
+        if (o.status !== 'rejected' && o.status !== 'payment_failed') return false;
+      } else if (o.status !== statusFilter) return false;
+    }
     const term = search.toLowerCase().trim();
     return (
       o.buyer_snapshot?.name?.toLowerCase().includes(term) ||
@@ -412,14 +420,35 @@ export default function Orders() {
                   </div>
 
 
-                  {selectedOrder.status === 'confirmed' && (
-                    <button
-                      onClick={() => setShowReceipt(true)}
-                      className="w-full py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-indigo-100"
-                    >
-                      <ReceiptIcon className="w-5 h-5" />
-                      Download Receipt
-                    </button>
+                  {selectedOrder.status !== 'pending' && selectedOrder.status !== 'pending_review' && !TERMINAL_STATUSES.includes(selectedOrder.status) && (
+                    <div className="space-y-2">
+                      <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Update Status</h3>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                          { key: 'processing', label: 'Processing', icon: Package, color: 'bg-indigo-600 hover:bg-indigo-700' },
+                          { key: 'shipped', label: 'Shipped', icon: Truck, color: 'bg-purple-600 hover:bg-purple-700' },
+                          { key: 'delivered', label: 'Delivered', icon: CheckCircle2, color: 'bg-emerald-600 hover:bg-emerald-700' },
+                          { key: 'cancelled', label: 'Cancelled', icon: XCircle, color: 'bg-rose-600 hover:bg-rose-700' },
+                        ].map(({ key, label, icon: Icon, color }) => {
+                          const isCurrent = selectedOrder.status === key;
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => !isCurrent && statusMutation.mutate({ id: selectedOrder.id, status: key })}
+                              disabled={isCurrent || statusMutation.isPending}
+                              className={`flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all active:scale-[0.95] ${
+                                isCurrent
+                                  ? 'bg-gray-100 text-gray-400 cursor-default'
+                                  : `${color} text-white shadow-sm`
+                              }`}
+                            >
+                              <Icon className="w-4 h-4" />
+                              <span className="text-[9px] font-bold leading-tight">{label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
 
 
@@ -508,20 +537,27 @@ export default function Orders() {
                             <p className="text-sm font-bold text-gray-900 text-center">
                               {confirmAction === 'confirm'
                                 ? 'Confirm payment receipt? This will notify the buyer and deduct stock.'
-                                : 'Reject this payment? The buyer will be notified.'}
+                                : confirmAction === 'reject'
+                                  ? 'Reject this payment? The buyer will be notified.'
+                                  : `Mark order as ${confirmAction}?`}
                             </p>
                             <div className="flex gap-2">
                               <button
-                                onClick={() => statusMutation.mutate({ id: selectedOrder.id, status: confirmAction === 'confirm' ? 'confirmed' : 'rejected' })}
+                                onClick={() => {
+                                  const status = confirmAction === 'confirm' ? 'confirmed' : confirmAction === 'reject' ? 'rejected' : confirmAction;
+                                  statusMutation.mutate({ id: selectedOrder.id, status });
+                                }}
                                 disabled={statusMutation.isPending}
-                                className={`flex-1 py-2.5 font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm ${
-                                  confirmAction === 'confirm'
-                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                    : 'bg-rose-600 text-white hover:bg-rose-700'
-                                } disabled:opacity-50`}
+                                className={`flex-1 py-2.5 font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 ${
+                                  confirmAction === 'confirm' || confirmAction === 'reject'
+                                    ? confirmAction === 'confirm'
+                                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                      : 'bg-rose-600 text-white hover:bg-rose-700'
+                                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                }`}
                               >
                                 {statusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                                Yes, {confirmAction === 'confirm' ? 'Confirm' : 'Reject'}
+                                Yes
                               </button>
                               <button
                                 onClick={() => setConfirmAction(null)}
@@ -534,7 +570,34 @@ export default function Orders() {
                           </motion.div>
                         )}
                       </div>
+
+                      <button
+                        onClick={() => { setReceiptType('invoice'); setShowReceipt(true); }}
+                        className="w-full py-3 bg-white text-gray-700 font-bold rounded-2xl border border-gray-200 hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        <ReceiptIcon className="w-5 h-5" />
+                        Download Invoice
+                      </button>
                     </>
+                  )}
+
+                  {['confirmed', 'processing', 'shipped', 'delivered'].includes(selectedOrder.status) && (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => { setReceiptType('invoice'); setShowReceipt(true); }}
+                        className="flex-1 py-3 bg-white text-gray-700 font-bold rounded-2xl border border-gray-200 hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        <ReceiptIcon className="w-5 h-5" />
+                        Download Invoice
+                      </button>
+                      <button
+                        onClick={() => { setReceiptType('receipt'); setShowReceipt(true); }}
+                        className="flex-1 py-3 bg-white text-gray-700 font-bold rounded-2xl border border-gray-200 hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        <ReceiptIcon className="w-5 h-5" />
+                        Download Receipt
+                      </button>
+                    </div>
                   )}
 
                 </div>
@@ -549,6 +612,7 @@ export default function Orders() {
         bot={currentBot}
         open={showReceipt}
         onClose={() => setShowReceipt(false)}
+        receiptType={receiptType}
       />
     </div>
   );

@@ -74,8 +74,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ShoppingBag, Package, Clock, CheckCircle2, XCircle, ChevronRight,
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
-  ShoppingCart, Home, Truck, Copy
+  ShoppingCart, Home, Truck, Copy, Receipt as ReceiptIcon
 } from 'lucide-react';
+import Receipt from '../components/orders/Receipt';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
 
@@ -188,7 +189,7 @@ export default function CustomerDashboard({ shopSlug }) {
             transition={{ duration: 0.15 }}
           >
             {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} />}
-            {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} />}
+            {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} />}
             {activeTab === 'cart' && <CartTab shopSlug={shopSlug} user={user} />}
             {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} />}
           </motion.div>
@@ -348,10 +349,12 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
 }
 
 /* ─── ORDERS TAB ─── */
-function OrdersTab({ shopSlug, uid }) {
+function OrdersTab({ shopSlug, uid, shop }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
+  const [downloadOrder, setDownloadOrder] = useState(null);
+  const [downloadType, setDownloadType] = useState('invoice');
 
   // Safety timeout: never show loading spinner for more than 20 seconds
   const loadingTimeoutRef = useRef(null);
@@ -406,7 +409,8 @@ function OrdersTab({ shopSlug, uid }) {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-3">
+    <>
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-3">
       <h2 className="text-lg font-bold text-gray-900 mb-1">My Orders</h2>
       {orders.map(order => {
         const status = statusConfig[order.status] || statusConfig.pending;
@@ -494,6 +498,34 @@ function OrdersTab({ shopSlug, uid }) {
                         <p className="text-xs text-amber-600">{order.payment_info}</p>
                       </div>
                     )}
+                    <div className="flex gap-2 pt-1">
+                      {order.status === 'pending' ? (
+                        <button
+                          onClick={() => { setDownloadType('invoice'); setDownloadOrder(order); }}
+                          className="flex-1 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+                        >
+                          <ReceiptIcon className="w-3.5 h-3.5 inline mr-1" />
+                          Download Invoice
+                        </button>
+                      ) : order.status !== 'cancelled' && order.status !== 'rejected' && order.status !== 'payment_failed' ? (
+                        <>
+                          <button
+                            onClick={() => { setDownloadType('invoice'); setDownloadOrder(order); }}
+                            className="flex-1 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+                          >
+                            <ReceiptIcon className="w-3.5 h-3.5 inline mr-1" />
+                            Download Invoice
+                          </button>
+                          <button
+                            onClick={() => { setDownloadType('receipt'); setDownloadOrder(order); }}
+                            className="flex-1 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+                          >
+                            <ReceiptIcon className="w-3.5 h-3.5 inline mr-1" />
+                            Download Receipt
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -502,6 +534,15 @@ function OrdersTab({ shopSlug, uid }) {
         );
       })}
     </div>
+
+    <Receipt
+      order={downloadOrder}
+      bot={shop}
+      open={!!downloadOrder}
+      onClose={() => setDownloadOrder(null)}
+      receiptType={downloadType}
+    />
+    </>
   );
 }
 

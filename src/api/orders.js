@@ -8,3 +8,6 @@ export const updateOrder = (id, data) =>
 
 export const getPendingOrderCount = (botId) =>
   client.get('/orders/pending-count', { params: { bot_id: botId } }).then(res => res.data);
+
+export const generateInvoiceNumber = (orderId) =>
+  client.post(`/orders/${orderId}/invoice-number`).then(res => res.data);
