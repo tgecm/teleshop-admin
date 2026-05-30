@@ -13,6 +13,8 @@ import {
   CreditCard,
   Settings,
   ShieldCheck,
+  Palette,
+  ShieldAlert,
   LogOut,
   X
 } from 'lucide-react';
@@ -24,7 +26,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function BottomNav() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
-  const { logout } = useAuthStore();
+  const { logout, isSuperadmin } = useAuthStore();
   const { selectedBotId } = useBotStore();
   const location = useLocation();
 
@@ -54,9 +56,14 @@ export default function BottomNav() {
     { to: '/broadcast', icon: Radio, label: 'Broadcast' },
     { to: '/commands', icon: Terminal, label: 'Commands' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
+    { to: '/customization', icon: Palette, label: 'Customize' },
     { to: '/settings', icon: Settings, label: 'Settings' },
     { to: '/subscription', icon: ShieldCheck, label: 'Subscription' },
   ];
+
+  if (isSuperadmin) {
+    moreItems.push({ to: '/superadmin', icon: ShieldAlert, label: 'Superadmin' });
+  }
 
   const isMoreActive = moreItems.some(item => location.pathname.startsWith(item.to));
 

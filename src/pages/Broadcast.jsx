@@ -5,17 +5,19 @@ import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
-import { 
-  Send, 
-  Gift, 
-  Plus, 
-  Search, 
-  Users, 
-  Calendar, 
-  Clock, 
-  ChevronRight, 
-  X, 
-  CheckCircle2, 
+import NewsfeedPanel from '../components/admin/NewsfeedPanel';
+import {
+  Send,
+  Gift,
+  Newspaper,
+  Plus,
+  Search,
+  Users,
+  Calendar,
+  Clock,
+  ChevronRight,
+  X,
+  CheckCircle2,
   AlertCircle,
   Loader2,
   MessageSquare,
@@ -87,6 +89,13 @@ export default function Broadcast() {
             <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Giveaways
           </button>
+          <button
+            onClick={() => setActiveTab('newsfeed')}
+            className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-[10px] sm:rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'newsfeed' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-500 hover:bg-gray-50'}`}
+          >
+            <Newspaper className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            Newsfeed
+          </button>
         </div>
       </div>
 
@@ -97,7 +106,7 @@ export default function Broadcast() {
       <div className="grid gap-4">
         {activeTab === 'broadcasts' ? (
           <>
-            <button 
+            <button
               onClick={() => setIsModalOpen(true)}
               className="w-full p-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
             >
@@ -138,7 +147,7 @@ export default function Broadcast() {
               ))
             )}
           </>
-        ) : (
+        ) : activeTab === 'giveaways' ? (
           <>
             <button 
               onClick={() => setIsModalOpen(true)}
@@ -186,10 +195,12 @@ export default function Broadcast() {
               ))
             )}
           </>
+        ) : (
+          <NewsfeedPanel botId={Number(selectedBotId)} />
         )}
       </div>
 
-      
+
       <AnimatePresence>
         {selectedGiveaway && (
           <>

@@ -4,7 +4,7 @@ import { getPublicShop, getPublicShopByDomain } from '../api/public';
 import {
   ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, TrendingUp, Clock, Star, Search, X, ChevronLeft,
-  MessageCircle, Send, ImageUp, Loader2
+  MessageCircle, Send, ImageUp, Loader2, ArrowUpDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -347,6 +347,7 @@ export default function PublicShop({ slug, viaDomain }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [sortBy, setSortBy] = useState('default');
   const [isTelegramWA, setIsTelegramWA] = useState(false);
   const [sentProductIds, setSentProductIds] = useState(new Set());
   const [chatOpen, setChatOpen] = useState(false);
@@ -601,6 +602,18 @@ export default function PublicShop({ slug, viaDomain }) {
     return true;
   });
 
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (sortBy === 'price_asc') return a.price - b.price;
+    if (sortBy === 'price_desc') return b.price - a.price;
+    return 0;
+  });
+
+  const cycleSort = () => {
+    const modes = ['default', 'price_asc', 'price_desc'];
+    const idx = modes.indexOf(sortBy);
+    setSortBy(modes[(idx + 1) % modes.length]);
+  };
+
   const getInitials = (name) => {
     return (name || 'S').charAt(0).toUpperCase();
   };
@@ -730,16 +743,28 @@ export default function PublicShop({ slug, viaDomain }) {
               <p className="text-sm font-bold text-gray-900">Shop & Save Today</p>
             </div>
           </div>
-          <button
-            onClick={() => setShowSearch(!showSearch)}
-            className={`p-2.5 rounded-xl transition-all ${
-              showSearch
-                ? 'theme-filter-active'
-                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-            }`}
-          >
-            {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowSearch(!showSearch)}
+              className={`w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all ${
+                showSearch
+                  ? 'theme-filter-active'
+                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+              }`}
+            >
+              {showSearch ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={cycleSort}
+              className={`w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all ${
+                sortBy !== 'default'
+                  ? 'theme-filter-active'
+                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+              }`}
+            >
+              <ArrowUpDown className="w-4 h-4" />
+            </button>
+          </div>
         </motion.div>
 
         {/* Switch to E-commerce banner */}
@@ -827,13 +852,19 @@ export default function PublicShop({ slug, viaDomain }) {
           </motion.div>
         )}
 
-        {searchQuery && (
-          <p className="text-sm text-gray-400 mb-4 ml-1">
-            {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''} for "{searchQuery}"
+        {sortBy !== 'default' && !searchQuery && (
+          <p className="text-xs mb-3 ml-1 font-medium" style={{ color: theme.css['--theme-primary'] }}>
+            Sorted: {sortBy === 'price_asc' ? 'Low to High' : 'High to Low'}
           </p>
         )}
 
-        {filteredProducts.length === 0 ? (
+        {searchQuery && (
+          <p className="text-sm text-gray-400 mb-4 ml-1">
+            {sortedProducts.length} result{sortedProducts.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
+          </p>
+        )}
+
+        {sortedProducts.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -855,7 +886,7 @@ export default function PublicShop({ slug, viaDomain }) {
           </motion.div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5 pb-8">
-            {filteredProducts.map((product, index) => {
+            {sortedProducts.map((product, index) => {
               const isOutOfStock = product.stock_quantity !== null && product.stock_quantity === 0;
               const stockLow = product.stock_quantity !== null && product.stock_quantity <= 5 && product.stock_quantity > 0;
               const productImages = getPublicImageUrls(product.image_url, shop.id);

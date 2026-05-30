@@ -6,6 +6,7 @@ import { ShoppingBag, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { useTelegramLogin } from '../hooks/useTelegramLogin';
 import { useTelegramAuth } from '../context/TelegramAuthContext';
 import TelegramLoginModal from '../components/TelegramLoginModal';
+import { isMainDomain } from '../utils/authProxy';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
 
@@ -93,6 +94,11 @@ export default function CustomerLogin({ shopSlug }) {
   }, [telegramLoggedIn, shopSlug]);
 
   const handleGoogleSignIn = async () => {
+    if (!isMainDomain()) {
+      const params = new URLSearchParams({ shop_slug: shopSlug || '', redirect_uri: window.location.href });
+      window.location.href = `https://www.telegramecommerce.shop/#/auth/google/proxy?${params}`;
+      return;
+    }
     setSigningIn(true);
     setError('');
     try {

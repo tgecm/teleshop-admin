@@ -26,6 +26,12 @@ export const uploadImage = (file, bot_id) => {
   }).then(res => res.data);
 };
 
+export const updateProductSortOrder = (botId, items) =>
+  client.put('/products/sort-order', { bot_id: Number(botId), items }).then(res => res.data);
+
+export const updateCategory = (id, data) =>
+  client.patch(`/categories/${id}`, data).then(res => res.data);
+
 export const getImageUrl = (image_url, bot_id) => {
   if (!image_url) return null;
   if (image_url.startsWith('http')) return image_url;

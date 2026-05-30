@@ -5,10 +5,11 @@ import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import ProductSorting from '../components/ProductSorting';
 import {
   Plus, Search, Edit2, Trash2, Package, Tag, MoreVertical, X,
   Image as ImageIcon, ChevronRight, AlertCircle, CheckCircle2,
-  Loader2, FolderPlus, ImageUp, Palette, Copy
+  Loader2, FolderPlus, ImageUp, Palette, Copy, ArrowUpDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -35,6 +36,7 @@ export default function Products() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isDeleting, setIsDeleting] = useState(null);
+  const [showSorting, setShowSorting] = useState(false);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', selectedBotId],
@@ -123,6 +125,14 @@ export default function Products() {
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
             />
           </div>
+          <button
+            onClick={() => setShowSorting(true)}
+            className="p-2.5 bg-white text-gray-600 border border-gray-200 rounded-2xl shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95"
+            title="Drag to reorder products"
+          >
+            <ArrowUpDown className="w-5 h-5" />
+            <span className="hidden sm:inline font-bold">Sort</span>
+          </button>
           <button
             onClick={() => setIsModalOpen(true)}
             className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 active:scale-95"
@@ -291,6 +301,15 @@ export default function Products() {
         variant="danger"
         loading={deleteMutation.isPending}
       />
+
+      {showSorting && (
+        <ProductSorting
+          products={products || []}
+          categories={categories || []}
+          botId={selectedBotId}
+          onClose={() => setShowSorting(false)}
+        />
+      )}
     </div>
   );
 }
