@@ -8,7 +8,8 @@ import {
   Star, Zap, Bot, Calendar, Clock, ChevronDown,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { format, addDays } from 'date-fns';
+import { addDays } from 'date-fns';
+import { myanmarFormat } from '../utils/date';
 
 const PLANS = [
   { key: 'basic', name: 'Basic', price: '135,000 MMK/yr', icon: Star, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', days: 365 },
@@ -66,7 +67,7 @@ export default function SuperadminKeys() {
 
   const copyAll = () => {
     const text = generatedKeys.map(k =>
-      `${k.key} | ${PLANS.find(p => p.key === k.plan)?.name} | Expires: ${format(new Date(k.expiresAt), 'MMM d, yyyy')}`
+      `${k.key} | ${PLANS.find(p => p.key === k.plan)?.name} | Expires: ${myanmarFormat(k.expiresAt, 'MMM d, yyyy')}`
     ).join('\n');
     navigator.clipboard.writeText(text);
     addToast(`${generatedKeys.length} key${generatedKeys.length !== 1 ? 's' : ''} copied`);
@@ -78,7 +79,7 @@ export default function SuperadminKeys() {
       bot_id: botId,
       plan: key.plan,
       amount: planObj?.price.replace(/[^0-9]/g, '') || '0',
-      notes: `Key: ${key.key} (generated ${format(new Date(key.createdAt), 'MMM d')})`,
+      notes: `Key: ${key.key} (generated ${myanmarFormat(key.createdAt, 'MMM d')})`,
     });
   };
 
@@ -171,7 +172,7 @@ export default function SuperadminKeys() {
                       <div>
                         <code className="text-sm font-mono font-bold text-gray-900 tracking-wider">{k.key}</code>
                         <p className="text-[10px] text-gray-400">
-                          {PLANS.find(p => p.key === k.plan)?.name} · Expires {format(new Date(k.expiresAt), 'MMM d, yyyy')}
+                          {PLANS.find(p => p.key === k.plan)?.name} · Expires {myanmarFormat(k.expiresAt, 'MMM d, yyyy')}
                         </p>
                       </div>
                     </div>
@@ -237,7 +238,7 @@ export default function SuperadminKeys() {
                 <div key={p.id} className="flex items-center justify-between text-xs">
                   <span className="font-bold text-gray-900 truncate max-w-[120px]">{p.bot_username || `Bot #${p.bot_id}`}</span>
                   <span className="text-gray-500">{Number(p.amount || 0).toLocaleString()} MMK</span>
-                  <span className="text-gray-400">{p.created_at ? format(new Date(p.created_at), 'MMM d') : ''}</span>
+                  <span className="text-gray-400">{p.created_at ? myanmarFormat(p.created_at, 'MMM d') : ''}</span>
                 </div>
               ))}
             </div>

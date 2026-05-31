@@ -45,6 +45,18 @@ export const getPublicShopByDomain = () =>
     return res.json();
   });
 
+export const getShopBio = async (botId) => {
+  const base = 'https://api.telegramecommerce.shop';
+  try {
+    const res = await fetch(`${base}/public/shop-bio/${botId}`);
+    if (!res.ok) return '';
+    const data = await res.json();
+    return data?.text || '';
+  } catch {
+    return '';
+  }
+};
+
 export const resolveBotForProductForm = (username, code) => {
   const base = 'https://api.telegramecommerce.shop';
   return fetch(`${base}/public/bot-resolve/${encodeURIComponent(username)}/${encodeURIComponent(code)}`)
@@ -77,3 +89,9 @@ export const toggleNewsfeedLike = (postId, visitorId) =>
 
 export const addNewsfeedComment = (postId, visitorId, content, visitorName) =>
   client.post(`/public/newsfeed/${postId}/comment`, { visitor_id: visitorId, content, visitor_name: visitorName }).then(res => res.data);
+
+export const editNewsfeedComment = (postId, commentId, visitorId, content) =>
+  client.patch(`/public/newsfeed/${postId}/comment/${commentId}`, { visitor_id: visitorId, content }).then(res => res.data);
+
+export const deleteNewsfeedComment = (postId, commentId, visitorId) =>
+  client.delete(`/public/newsfeed/${postId}/comment/${commentId}?visitor_id=${visitorId}`).then(res => res.data);

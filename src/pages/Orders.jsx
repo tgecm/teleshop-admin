@@ -23,7 +23,7 @@ import {
   Filter,
   Truck,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
 
 const STATUS_STEPS = [
@@ -217,7 +217,7 @@ export default function Orders() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{order.buyer_snapshot?.name || order.customer?.first_name || 'Customer'}</p>
-                      <p className="text-[10px] text-gray-500">{format(new Date(order.created_at), 'MMM d, h:mm a')}</p>
+                      <p className="text-[10px] text-gray-500">{myanmarFormat(order.created_at, 'MMM d, h:mm a')}</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -357,7 +357,7 @@ export default function Orders() {
                   <div className="pt-3 border-t border-gray-100 space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">Date</span>
-                      <span className="font-bold text-gray-900">{format(new Date(selectedOrder.created_at), 'MMM d, yyyy')} at {format(new Date(selectedOrder.created_at), 'h:mm a')}</span>
+                      <span className="font-bold text-gray-900">{myanmarFormat(selectedOrder.created_at, 'MMM d, yyyy')} at {myanmarFormat(selectedOrder.created_at, 'h:mm a')}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">Amount</span>

@@ -376,7 +376,7 @@ export default function ProductSorting({ products, categories, botId, onClose })
         </div>
 
         {/* Sortable List */}
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto px-5 pt-5 pb-64">
           {selectedCategory && orderedIds[selectedCategory]?.length > 0 ? (
             <div className="space-y-2">
               <DndContext

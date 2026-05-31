@@ -12,7 +12,7 @@ import {
   ShieldAlert, ShieldCheck, Loader2, Phone, Mail, MapPin, X,
   Package, Hash, DollarSign, ChevronDown, Globe, Smartphone
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Customers() {
@@ -254,7 +254,7 @@ export default function Customers() {
                       {customer.created_at && (
                         <>
                           <span className="text-gray-300">·</span>
-                          <span className="whitespace-nowrap">Joined {format(new Date(customer.created_at), 'MMM d')}</span>
+                          <span className="whitespace-nowrap">Joined {myanmarFormat(customer.created_at, 'MMM d')}</span>
                         </>
                       )}
                     </div>
@@ -330,7 +330,7 @@ export default function Customers() {
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
                 <div className="bg-gray-50 rounded-2xl p-4 space-y-4">
                   {detailCustomer.created_at && (
-                    <DetailRow icon={Calendar} label="Joined" value={format(new Date(detailCustomer.created_at), 'MMM d, yyyy')} />
+                    <DetailRow icon={Calendar} label="Joined" value={myanmarFormat(detailCustomer.created_at, 'MMM d, yyyy')} />
                   )}
                   {detailCustomer.phone_number && (
                     <DetailRow icon={Phone} label="Phone" value={detailCustomer.phone_number} />
@@ -367,7 +367,7 @@ export default function Customers() {
                               #{order.id} {order.product_name && `· ${order.product_name}`}
                             </p>
                             <p className="text-[10px] text-gray-500 mt-0.5">
-                              {order.created_at ? format(new Date(order.created_at), 'MMM d, HH:mm') : ''}
+                              {order.created_at ? myanmarFormat(order.created_at, 'MMM d, HH:mm') : ''}
                             </p>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0 ml-3">

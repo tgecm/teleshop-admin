@@ -28,7 +28,8 @@ import {
   Brain, FileText, Globe, Download,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { format, differenceInDays, subDays } from 'date-fns';
+import { differenceInDays, subDays } from 'date-fns';
+import { myanmarFormat } from '../utils/date';
 
 // ─── Plan Config ──────────────────────────────────────────────
 const PLANS = [
@@ -46,7 +47,7 @@ function getPlanStyle(planName) {
 
 // ─── Utility ──────────────────────────────────────────────────
 function safeFormat(dateStr, fmt = 'MMM d, yyyy') {
-  try { return format(new Date(dateStr), fmt); }
+  try { return myanmarFormat(dateStr, fmt); }
   catch { return dateStr || '—'; }
 }
 
@@ -344,7 +345,7 @@ function OverviewTab({ globalStats, statsLoading, allBots, botsLoading, recentOr
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `bots-export-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+        a.download = `bots-export-${myanmarFormat(new Date(), 'yyyy-MM-dd')}.csv`;
         a.click();
         URL.revokeObjectURL(url);
         addToast('Bots CSV exported');

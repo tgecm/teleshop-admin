@@ -53,6 +53,7 @@ export default function GoogleAuthProxy() {
   const handleSignIn = useCallback(async () => {
     if (!proxyParams) return;
     const { shopSlug, redirectUri } = proxyParams;
+    const qs = redirectUri.includes('?') ? '&' : '?';
     setSigningIn(true);
 
     let accessToken: string;
@@ -60,7 +61,7 @@ export default function GoogleAuthProxy() {
       accessToken = await requestGoogleIdToken();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Authentication cancelled';
-      window.location.href = `${redirectUri}?auth_status=failed&auth_error=${encodeURIComponent(msg)}`;
+      window.location.href = `${redirectUri}${qs}auth_status=failed&auth_error=${encodeURIComponent(msg)}`;
       return;
     }
 
@@ -69,12 +70,12 @@ export default function GoogleAuthProxy() {
       result = await exchangeGoogleToken(accessToken, shopSlug);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
-      window.location.href = `${redirectUri}?auth_status=failed&auth_error=${encodeURIComponent(msg)}`;
+      window.location.href = `${redirectUri}${qs}auth_status=failed&auth_error=${encodeURIComponent(msg)}`;
       return;
     }
 
     const userEncoded = encodeURIComponent(JSON.stringify(result.user));
-    window.location.href = `${redirectUri}?auth_token=${result.token}&auth_status=success&auth_user=${userEncoded}`;
+    window.location.href = `${redirectUri}${qs}auth_token=${result.token}&auth_status=success&auth_user=${userEncoded}`;
   }, [proxyParams]);
 
   return (

@@ -16,7 +16,8 @@ import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
 } from 'recharts';
 import { motion } from 'motion/react';
-import { format, parseISO, differenceInDays, subDays, addDays } from 'date-fns';
+import { parseISO, differenceInDays, subDays, addDays } from 'date-fns';
+import { myanmarFormat } from '../utils/date';
 import { useToastStore } from '../store/toastStore';
 
 const containerVariants = {
@@ -39,7 +40,7 @@ const METRIC_CONFIG = {
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const formatted = (() => {
-    try { return format(parseISO(label), 'MMM d, yyyy'); }
+    try { return myanmarFormat(parseISO(label), 'MMM d, yyyy'); }
     catch { return label; }
   })();
   return (
@@ -265,7 +266,7 @@ export default function Dashboard() {
     const startDate = subDays(endDate, days - 1);
     const result = [];
     for (let d = startDate; d <= endDate; d = addDays(d, 1)) {
-      const key = format(d, 'yyyy-MM-dd');
+      const key = myanmarFormat(d, 'yyyy-MM-dd');
       const entry = dataMap.get(key);
       result.push({
         day: key,
@@ -303,8 +304,8 @@ export default function Dashboard() {
     setExportLoading(true);
     try {
       const { datePreset, customStart, customEnd, status, sections, filename } = exportOpts;
-      const startDate = datePreset === 'custom' && customStart ? customStart : format(subDays(new Date(), datePreset === '365' ? 365 : Number(datePreset)), 'yyyy-MM-dd');
-      const endDate = datePreset === 'custom' && customEnd ? customEnd : format(new Date(), 'yyyy-MM-dd');
+      const startDate = datePreset === 'custom' && customStart ? customStart : myanmarFormat(subDays(new Date(), datePreset === '365' ? 365 : Number(datePreset)), 'yyyy-MM-dd');
+      const endDate = datePreset === 'custom' && customEnd ? customEnd : myanmarFormat(new Date(), 'yyyy-MM-dd');
       const parts = [];
 
       // 1. Order Details
@@ -405,7 +406,7 @@ export default function Dashboard() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename || `export-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      link.download = filename || `export-${myanmarFormat(new Date(), 'yyyy-MM-dd')}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -568,7 +569,7 @@ export default function Dashboard() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                     <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} dy={10}
-                      tickFormatter={(v) => { try { return format(parseISO(v), 'd MMM'); } catch { return v; } }} />
+                      tickFormatter={(v) => { try { return myanmarFormat(parseISO(v), 'd MMM'); } catch { return v; } }} />
                     <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                       tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                     <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
@@ -581,7 +582,7 @@ export default function Dashboard() {
                   <BarChart data={mergedChartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                     <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} dy={10}
-                      tickFormatter={(v) => { try { return format(parseISO(v), 'd MMM'); } catch { return v; } }} />
+                      tickFormatter={(v) => { try { return myanmarFormat(parseISO(v), 'd MMM'); } catch { return v; } }} />
                     <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                       tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                     <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
@@ -594,7 +595,7 @@ export default function Dashboard() {
                   <LineChart data={mergedChartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                     <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} dy={10}
-                      tickFormatter={(v) => { try { return format(parseISO(v), 'd MMM'); } catch { return v; } }} />
+                      tickFormatter={(v) => { try { return myanmarFormat(parseISO(v), 'd MMM'); } catch { return v; } }} />
                     <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                       tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                     <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
@@ -614,7 +615,7 @@ export default function Dashboard() {
               <div className="text-center">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Best Day</p>
                 <p className="text-sm font-bold text-gray-900 mt-0.5">
-                  {quickStats.bestDay ? (() => { try { return format(parseISO(quickStats.bestDay), 'd MMM'); } catch { return quickStats.bestDay; } })() : '—'}
+                  {quickStats.bestDay ? (() => { try { return myanmarFormat(parseISO(quickStats.bestDay), 'd MMM'); } catch { return quickStats.bestDay; } })() : '—'}
                 </p>
                 <p className="text-[10px] text-indigo-600 font-semibold">{quickStats.maxRevenue.toLocaleString()} MMK</p>
               </div>
@@ -768,7 +769,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Filename</p>
                 <input type="text" value={exportOpts.filename} onChange={e => setExportOpts(p => ({ ...p, filename: e.target.value }))}
-                  placeholder={`export-${format(new Date(), 'yyyy-MM-dd')}.csv`}
+                  placeholder={`export-${myanmarFormat(new Date(), 'yyyy-MM-dd')}.csv`}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             </div>

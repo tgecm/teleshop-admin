@@ -60,9 +60,12 @@ export default function ShopBanner({ banners, botId, theme, children }) {
     >
       {/* Slides */}
       {banners.map((banner, i) => (
-        <div
+        <a
           key={banner.file_id}
-          className={`absolute inset-0 transition-opacity duration-700 ${i === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          href={banner.link || undefined}
+          target={banner.link ? "_blank" : undefined}
+          rel={banner.link ? "noopener noreferrer" : undefined}
+          className={`absolute inset-0 transition-opacity duration-700 block ${i === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           <img
             src={getBannerUrl(banner.file_id)}
@@ -70,15 +73,17 @@ export default function ShopBanner({ banners, botId, theme, children }) {
             className="w-full h-full object-cover object-center"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
-        </div>
+        </a>
       ))}
 
       {/* Gradient overlay for readability on any banner color */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/40" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/40 pointer-events-none" />
 
       {/* Content overlay */}
-      <div className="absolute inset-0">
-        {children}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="pointer-events-auto">
+          {children}
+        </div>
       </div>
 
     </div>

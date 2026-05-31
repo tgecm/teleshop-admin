@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, getImageUrl, uploadImage } from '../api/products';
 import { useBotStore } from '../store/botStore';
@@ -37,6 +37,7 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [isDeleting, setIsDeleting] = useState(null);
   const [showSorting, setShowSorting] = useState(false);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', selectedBotId],
@@ -93,6 +94,7 @@ export default function Products() {
 
   const filteredProducts = products?.filter(p => {
     const term = normalizeForSearch(search).toLowerCase();
+    if (selectedCategoryFilter && p.category_id !== Number(selectedCategoryFilter)) return false;
     return (
       normalizeForSearch(p.name).toLowerCase().includes(term) ||
       normalizeForSearch(p.description).toLowerCase().includes(term)
@@ -125,6 +127,11 @@ export default function Products() {
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
             />
           </div>
+          <CategoryDropdown
+            categories={categories || []}
+            selected={selectedCategoryFilter}
+            onSelect={setSelectedCategoryFilter}
+          />
           <button
             onClick={() => setShowSorting(true)}
             className="p-2.5 bg-white text-gray-600 border border-gray-200 rounded-2xl shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95"
@@ -341,6 +348,52 @@ function compressImage(file, maxDimension = 720) {
     };
     img.src = URL.createObjectURL(file);
   });
+}
+
+function CategoryDropdown({ categories, selected, onSelect }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handle = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('pointerdown', handle);
+    return () => document.removeEventListener('pointerdown', handle);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`p-2.5 rounded-2xl border transition-all flex items-center gap-2 active:scale-95 text-sm font-bold whitespace-nowrap ${
+          selected
+            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+            : 'bg-white text-gray-600 border-gray-200 shadow-sm hover:bg-gray-50'
+        }`}
+      >
+        <Tag className="w-5 h-5" />
+        <span className="hidden sm:inline max-w-[80px] truncate">{selected ? categories.find(c => String(c.id) === selected)?.name || 'Category' : 'All'}</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-60 overflow-y-auto">
+          <button
+            onClick={() => { onSelect(''); setOpen(false); }}
+            className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${!selected ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}
+          >
+            All
+          </button>
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => { onSelect(String(cat.id)); setOpen(false); }}
+              className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${selected === String(cat.id) ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ProductForm({ product, categories, onClose, onSubmit, isLoading, selectedBotId }) {

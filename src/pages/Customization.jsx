@@ -24,6 +24,7 @@ import {
   X,
   CheckCircle2,
   ShieldCheck,
+  Link,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -31,10 +32,17 @@ import { THEMES, DEFAULT_THEME } from '../themes/themes';
 function BannerEditor({ contentBlocks, onSave, botId }) {
   const { addToast } = useToastStore();
   const [uploading, setUploading] = useState(false);
+  const [editingLinkIndex, setEditingLinkIndex] = useState(null);
+  const [linkInput, setLinkInput] = useState('');
   const fileInputRef = useRef(null);
 
   const block = contentBlocks?.find(b => b.key === 'shop_banners');
   const banners = block?.content_data?.banners || [];
+
+  const setBannerLink = (index, link) => {
+    const newBanners = banners.map((b, i) => i === index ? { ...b, link: link || undefined } : b);
+    onSave('shop_banners', { banners: newBanners });
+  };
 
   const getBannerUrl = (fileId) => {
     return fileId ? `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(fileId)}?bot_id=${botId}` : null;
@@ -108,7 +116,70 @@ function BannerEditor({ contentBlocks, onSave, botId }) {
                 <div className="w-20 h-[66px] rounded-lg bg-white border border-gray-200 overflow-hidden flex-shrink-0">
                   {url && <img src={url} alt="" className="w-full h-full object-cover" />}
                 </div>
-                <span className="text-[10px] text-gray-400 font-mono flex-1 truncate">{banner.file_id}</span>
+                <div className="flex-1 min-w-0">
+                  {editingLinkIndex === index ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="url"
+                        value={linkInput}
+                        onChange={e => setLinkInput(e.target.value)}
+                        onBlur={() => setEditingLinkIndex(null)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            setBannerLink(index, linkInput.trim());
+                            setEditingLinkIndex(null);
+                          }
+                          if (e.key === 'Escape') setEditingLinkIndex(null);
+                        }}
+                        className="flex-1 px-2 py-1 text-[11px] bg-white border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-rose-500 w-full"
+                        placeholder="https://..."
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => setEditingLinkIndex(null)}
+                        className="p-1 rounded text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : banner.link ? (
+                    <div className="flex items-center gap-1 min-w-0">
+                      <a
+                        href={banner.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-indigo-600 font-medium truncate hover:underline"
+                      >
+                        {banner.link}
+                      </a>
+                      <button
+                        onClick={() => {
+                          setLinkInput(banner.link);
+                          setEditingLinkIndex(index);
+                        }}
+                        className="p-0.5 rounded text-gray-400 hover:text-indigo-500 flex-shrink-0"
+                        title="Edit link"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => setBannerLink(index, null)}
+                        className="p-0.5 rounded text-gray-400 hover:text-rose-500 flex-shrink-0"
+                        title="Remove link"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setEditingLinkIndex(index); setLinkInput(''); }}
+                      className="text-[10px] text-gray-400 hover:text-rose-500 font-medium flex items-center gap-1"
+                    >
+                      <Link className="w-3 h-3" />
+                      Add Link
+                    </button>
+                  )}
+                </div>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => moveBanner(index, -1)}
@@ -204,6 +275,8 @@ export default function Customization() {
   const [editingAiApiKey, setEditingAiApiKey] = useState(false);
   const [profilePicture, setProfilePicture] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [bioText, setBioText] = useState('');
+  const [editingBio, setEditingBio] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState(DEFAULT_THEME);
   const [showThemeConfirm, setShowThemeConfirm] = useState(false);
   const [pendingTheme, setPendingTheme] = useState(null);
@@ -222,6 +295,8 @@ export default function Customization() {
       } else {
         setSelectedTheme(DEFAULT_THEME);
       }
+      const bioBlock = contentBlocks.find(b => b.key === 'shop_bio');
+      setBioText(bioBlock?.content_data?.text || '');
     }
     if (aiSettings) {
       setAiApiKey(aiSettings.api_key || '');
@@ -536,6 +611,56 @@ export default function Customization() {
           isPending={updateContentMutation.isPending}
           botId={selectedBotId}
         />
+
+        {/* Shop Bio */}
+        <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <Edit2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Edit Bio</h3>
+              <p className="text-[10px] text-gray-500">Short bio shown on your shop page (max 150 characters)</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <textarea
+              value={bioText}
+              onChange={e => { if (e.target.value.length <= 150) setBioText(e.target.value); }}
+              disabled={!editingBio}
+              placeholder="Enter your shop bio..."
+              rows={2}
+              className="w-full px-3 py-2 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm resize-none disabled:bg-gray-100 disabled:cursor-not-allowed enabled:bg-white"
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-gray-400">{bioText.length}/150</span>
+              {editingBio ? (
+                <button
+                  onClick={() => {
+                    updateContentMutation.mutate({ key: 'shop_bio', data: { text: bioText.trim() } });
+                    setEditingBio(false);
+                  }}
+                  disabled={updateContentMutation.isPending || bioText.trim() === (contentBlocks?.find(b => b.key === 'shop_bio')?.content_data?.text || '')}
+                  className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-sm flex items-center gap-1.5"
+                >
+                  {updateContentMutation.isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5" />
+                  )}
+                  Save
+                </button>
+              ) : (
+                <button
+                  onClick={() => setEditingBio(true)}
+                  className="px-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
       </section>
 
     </div>
