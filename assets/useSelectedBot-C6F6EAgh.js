@@ -1,0 +1,1 @@
+import{u as s}from"./index-BPfM5US3.js";const c=()=>{const o=s(t=>t.selectedBotId),e=s(t=>t.bots).find(t=>t.id.toString()===(o==null?void 0:o.toString()));return{selectedBotId:o,selectedBot:e}};export{c as u};

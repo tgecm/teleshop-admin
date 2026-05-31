@@ -1,1 +1,0 @@
-import{q as a}from"./index-Ca7VgzlI.js";const o=t=>a.get("/stats",{params:t}).then(s=>s.data),r=t=>a.get("/stats/orders-by-day",{params:t}).then(s=>s.data),d=t=>a.get("/stats/top-products",{params:t}).then(s=>s.data),g=t=>a.get("/stats/users-by-day",{params:t}).then(s=>s.data);export{r as a,g as b,d as c,o as g};
