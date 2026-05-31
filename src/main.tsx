@@ -6,11 +6,13 @@ import App from './App.tsx';
 import './index.css';
 
 const updateSW = () => {
-  import.meta.env.DEV
-    ? undefined
-    : import('virtual:pwa-register').then((m) =>
-        m.registerSW({onOfflineReady: () => {}}),
-      );
+  if (import.meta.env.DEV) return;
+  import('virtual:pwa-register').then(({registerSW}) => {
+    const needUpdate = registerSW({
+      onOfflineReady: () => {},
+      onNeedRefresh: () => needUpdate(),
+    });
+  });
 };
 updateSW();
 

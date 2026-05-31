@@ -1129,11 +1129,6 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const [productLinkActive, setProductLinkActive] = useState(!!initialProductCode);
   const [initialPostCode] = useState(() => new URLSearchParams(window.location.search).get('post'));
 
-  // Auto-open newsfeed when post param is present (from permalink)
-  useEffect(() => {
-    if (initialPostCode) setShowNewsfeed(true);
-  }, [initialPostCode]);
-
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: viaDomain ? ['public-ecommerce-by-domain'] : ['public-ecommerce', slug],
     queryFn: viaDomain ? getPublicShopByDomain : () => getPublicShop(slug),
@@ -1141,6 +1136,12 @@ export default function PublicEcommerce({ slug, viaDomain }) {
     retry: 2,
     retryDelay: 1000,
   });
+
+  // Auto-open newsfeed when post param is present (from permalink)
+  // Wait for shop data so NewsfeedFeed mounts with the correct botId
+  useEffect(() => {
+    if (initialPostCode && data?.shop?.id) setShowNewsfeed(true);
+  }, [initialPostCode, data?.shop?.id]);
 
   const shop = data?.shop;
   const products = data?.products || [];
