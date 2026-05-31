@@ -477,7 +477,8 @@ const icons = {
 
 function getPostPermalink(slug, shareCode) {
   if (typeof window === 'undefined') return '';
-  return window.location.origin + '/?p=/' + slug + '&post=' + shareCode;
+  const s = slug || 'shop';
+  return window.location.origin + '/?p=/' + encodeURIComponent(s) + '&post=' + encodeURIComponent(shareCode);
 }
 
 function PhotoViewer({ images, botId, initialIndex, onClose }) {

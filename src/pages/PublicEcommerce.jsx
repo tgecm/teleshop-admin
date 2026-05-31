@@ -2444,7 +2444,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
           botName={shop?.bot_full_name}
           onClose={() => setShowNewsfeed(false)}
           viaDomain={viaDomain}
-          slug={slug}
+          slug={slug || shop?.public_slug}
           shop={shop}
           initialPostCode={initialPostCode}
         />
