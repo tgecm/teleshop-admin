@@ -1,0 +1,1 @@
+import{q as r}from"./index-DQ-sLwyc.js";const s=t=>r.get("/orders",{params:t}).then(e=>e.data),o=(t,e)=>r.patch(`/orders/${t}/status`,e).then(a=>a.data),d=t=>r.get("/orders/pending-count",{params:{bot_id:t}}).then(e=>e.data),c=t=>r.post(`/orders/${t}/invoice-number`).then(e=>e.data);export{s as a,c as b,d as g,o as u};
