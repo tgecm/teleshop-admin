@@ -1,1 +1,0 @@
-import{s as e}from"./index-DcXKkWM8.js";const o=t=>e.get("/users",{params:t}).then(s=>s.data),n=(t,s)=>e.patch(`/users/${t}`,s).then(a=>a.data),c=t=>e.get(`/website-customers/${t}`).then(s=>s.data);export{c as a,o as g,n as u};
