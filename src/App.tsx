@@ -248,10 +248,10 @@ export default function App() {
           icon.setAttribute('href', '/vite.svg');
         }
       } else {
-        document.title = 'Admin Panel';
+        document.title = 'E-commerce Myanmar';
       }
     } else {
-      document.title = 'Admin Panel';
+      document.title = 'E-commerce Myanmar';
     }
   }, [selectedBotId, bots]);
 

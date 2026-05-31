@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getChats, getChatMessages, sendChatMessage, deleteChat, markChatRead, markChatUnread,
   getWebVisitors, getWebVisitorMessages, sendWebVisitorMessage, deleteWebVisitor, toggleWebVisitorAI,
@@ -24,10 +24,21 @@ import {
   Globe,
   Smartphone,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
 import client from '../api/client';
 import { useAuthStore } from '../store/authStore';
+
+const fileTypeLabel = (type) => {
+  const labels = { photo: 'Sent a photo', video: 'Sent a video', document: 'Sent a file', audio: 'Sent an audio', voice: 'Sent a voice message', sticker: 'Sent a sticker' };
+  return labels[type] || 'Sent a file';
+};
+
+const lastMessageText = (msg, fileType) => {
+  if (msg) return msg.length > 40 ? msg.slice(0, 40) + '...' : msg;
+  if (fileType) return fileTypeLabel(fileType);
+  return 'No messages';
+};
 
 function ChatBubble({ message, isAdmin, botId, botUsername }) {
   const token = useAuthStore(s => s.token);
@@ -44,18 +55,25 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
             <img
               src={fileUrl}
               alt="Photo"
-              className="max-w-full rounded-lg cursor-pointer max-h-64 object-cover"
+              className="max-w-full rounded-lg max-h-64 object-cover select-none"
               loading="lazy"
-              onClick={(e) => { e.stopPropagation(); window.open(fileUrl, '_blank'); }}
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
             />
+            <a href={tgLink} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
+              onClick={(e) => e.stopPropagation()}>
+              Open in Telegram ↗
+            </a>
           </div>
         );
       case 'video':
         return (
           <div className="mb-2">
-            <video controls controlsList="nodownload" className="max-w-full rounded-lg max-h-64 w-full" preload="metadata">
-              <source src={fileUrl} />
-            </video>
+            <div className="flex items-center gap-2 p-3 bg-white/10 rounded-xl">
+              <FileText className="w-4 h-4 flex-shrink-0" />
+              <p className="text-sm font-medium">Sent a video</p>
+            </div>
             <a href={tgLink} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
               onClick={(e) => e.stopPropagation()}>
@@ -93,15 +111,29 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
             <img src={fileUrl} alt="Sticker" className="max-w-[128px]" loading="lazy" />
           </div>
         );
+      case 'document':
+        return (
+          <div className="mb-2">
+            <div className="flex items-center gap-2 p-3 bg-white/10 rounded-xl">
+              <FileText className="w-5 h-5 flex-shrink-0" />
+              <p className="text-sm font-medium">Document</p>
+            </div>
+            <a href={tgLink} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
+              onClick={(e) => e.stopPropagation()}>
+              Open in Telegram ↗
+            </a>
+          </div>
+        );
       default:
         return (
           <div className="mb-2">
-            <div className="flex items-center gap-2 opacity-90">
-              <FileText className="w-4 h-4 flex-shrink-0" />
-              <p className="text-sm">Sent a file</p>
+            <div className="flex items-center gap-2 p-3 bg-white/10 rounded-xl">
+              <FileText className="w-5 h-5 flex-shrink-0" />
+              <p className="text-sm font-medium">{fileTypeLabel(message.file_type)}</p>
             </div>
             <a href={tgLink} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-bold mt-1 hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
               onClick={(e) => e.stopPropagation()}>
               Open in Telegram ↗
             </a>
@@ -130,7 +162,7 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
             isAdmin ? 'text-indigo-200' : 'text-gray-400'
           }`}
         >
-          {format(new Date(message.created_at), 'h:mm a')}
+          {myanmarFormat(message.created_at, 'h:mm a')}
         </p>
       </div>
     </div>
@@ -167,13 +199,13 @@ function ConversationItem({ chat, isActive, onClick, onContextMenu }) {
               </p>
               {chat.last_time && (
                 <span className="text-[10px] text-gray-400 flex-shrink-0">
-                  {format(new Date(chat.last_time), 'MMM d')}
+                  {myanmarFormat(chat.last_time, 'MMM d')}
                 </span>
               )}
             </div>
             <p className={`text-xs truncate mt-0.5 flex items-center gap-1 ${unread > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
               {chat.last_sender === 'admin' && <CheckCheck className="w-3 h-3 flex-shrink-0 text-indigo-400" />}
-              {(chat.last_message || '').length > 40 ? (chat.last_message || '').slice(0, 40) + '...' : (chat.last_message || 'No messages')}
+              {lastMessageText(chat.last_message, chat.last_file_type)}
             </p>
           </div>
           <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
@@ -200,6 +232,7 @@ export default function Chats() {
   const menuRef = useRef(null);
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
+  const [unreadOverrides, setUnreadOverrides] = useState({});
 
   const { data: chats = [], isLoading } = useQuery({
     queryKey: ['chats', selectedBotId],
@@ -228,6 +261,17 @@ export default function Chats() {
     enabled: !!selectedBotId && !!selectedVisitor && (chatTab === 'web' || chatTab === 'guest'),
     refetchInterval: 10000,
   });
+
+  // Apply local unread overrides on top of server data
+  const displayedChats = useMemo(() =>
+    chats.map(c => ({ ...c, unread_count: unreadOverrides[c.user_id] ?? c.unread_count })),
+    [chats, unreadOverrides]
+  );
+
+  const displayedWebVisitors = useMemo(() =>
+    webVisitors.map(v => ({ ...v, unread_count: unreadOverrides[v.visitor_id] ?? v.unread_count })),
+    [webVisitors, unreadOverrides]
+  );
 
   const sendMutation = useMutation({
     mutationFn: ({ userId, message, visitorId, fileId, fileType }) => {
@@ -271,15 +315,30 @@ export default function Chats() {
 
   const readMutation = useMutation({
     mutationFn: ({ userId, visitorId, markAsRead }) => {
-      if (visitorId) {
-        return markAsRead ? markWebVisitorRead(visitorId, Number(selectedBotId)) : markWebVisitorUnread(visitorId, Number(selectedBotId));
+      if (!markAsRead) {
+        // "Mark as Unread" is local-only to avoid auto-mark-read reverting it
+        return Promise.resolve();
       }
-      return markAsRead ? markChatRead(userId, Number(selectedBotId)) : markChatUnread(userId, Number(selectedBotId));
+      if (visitorId) {
+        return markWebVisitorRead(visitorId, Number(selectedBotId));
+      }
+      return markChatRead(userId, Number(selectedBotId));
+    },
+    onMutate: (vars) => {
+      setContextMenu(null);
+      const key = vars.userId ?? vars.visitorId;
+      if (key) {
+        setUnreadOverrides(prev => ({ ...prev, [key]: vars.markAsRead ? 0 : 1 }));
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
       queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
-      setContextMenu(null);
+    },
+    onError: (err) => {
+      console.error('Mark read/unread failed:', err);
+      queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
     },
   });
 
@@ -313,13 +372,13 @@ export default function Chats() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const telegramUnread = chats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-  const webVisitorsWithUid = webVisitors.filter(v => v.firebase_uid);
-  const webVisitorsGuest = webVisitors.filter(v => !v.firebase_uid);
+  const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+  const webVisitorsWithUid = displayedWebVisitors.filter(v => v.firebase_uid);
+  const webVisitorsGuest = displayedWebVisitors.filter(v => !v.firebase_uid);
   const websiteUnread = webVisitorsWithUid.reduce((sum, v) => sum + (v.unread_count || 0), 0);
   const guestUnread = webVisitorsGuest.reduce((sum, v) => sum + (v.unread_count || 0), 0);
 
-  const filteredChats = chats.filter(c => {
+  const filteredChats = displayedChats.filter(c => {
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
@@ -328,14 +387,14 @@ export default function Chats() {
     );
   });
 
-  const filteredWebVisitors = webVisitors.filter(v => {
+  const filteredWebVisitors = displayedWebVisitors.filter(v => {
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return v.name.toLowerCase().includes(term) || v.phone.includes(term);
   });
 
-  const selectedChat = chats.find(c => c.user_id === selectedUser);
-  const selectedWebChat = webVisitors.find(v => v.visitor_id === selectedVisitor);
+  const selectedChat = displayedChats.find(c => c.user_id === selectedUser);
+  const selectedWebChat = displayedWebVisitors.find(v => v.visitor_id === selectedVisitor);
   const isWebTab = chatTab === 'web' || chatTab === 'guest';
 
   const handleSend = () => {
@@ -488,12 +547,7 @@ export default function Chats() {
                 isActive={selectedUser === chat.user_id}
                 onClick={() => {
                   setSelectedUser(chat.user_id);
-                  if (chat.unread_count > 0) {
-                    queryClient.setQueryData(['chats', selectedBotId], (old) =>
-                      old?.map(c => c.user_id === chat.user_id ? { ...c, unread_count: 0 } : c)
-                    );
-                    markChatRead(chat.user_id, Number(selectedBotId)).catch(() => {});
-                  }
+                  setUnreadOverrides(prev => { const n = {...prev}; delete n[chat.user_id]; return n; });
                 }}
                 onContextMenu={handleContextMenu}
               />
@@ -521,11 +575,7 @@ export default function Chats() {
                   <button
                     onClick={() => {
                       setSelectedVisitor(v.visitor_id);
-                      if (v.unread_count > 0) {
-                        queryClient.setQueryData(['webVisitors', selectedBotId], (old) =>
-                          old?.map(c => c.visitor_id === v.visitor_id ? { ...c, unread_count: 0 } : c)
-                        );
-                      }
+                      setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
                     }}
                     onContextMenu={(e) => handleContextMenu(e, v)}
                     className={`w-full text-left p-3 rounded-2xl transition-all active:scale-[0.98] ${
@@ -550,12 +600,12 @@ export default function Chats() {
                           </p>
                           {v.last_time && (
                             <span className="text-[10px] text-gray-400 flex-shrink-0">
-                              {format(new Date(v.last_time), 'MMM d')}
+                              {myanmarFormat(v.last_time, 'MMM d')}
                             </span>
                           )}
                         </div>
                         <p className={`text-xs truncate mt-0.5 ${v.unread_count > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
-                          {(v.last_message || '').length > 40 ? (v.last_message || '').slice(0, 40) + '...' : (v.last_message || 'No messages')}
+                          {(v.last_message || '').length > 40 ? (v.last_message || '').slice(0, 40) + '...' : lastMessageText(v.last_message, v.last_file_type)}
                         </p>
                         {v.phone && <p className="text-[10px] text-gray-400 mt-0.5">{v.phone}</p>}
                       </div>

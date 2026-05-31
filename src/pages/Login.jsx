@@ -22,6 +22,7 @@ export default function Login() {
     if (needsCode && codeRefs.current[0]) codeRefs.current[0].focus();
   }, [needsCode]);
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -57,6 +58,26 @@ export default function Login() {
     }
   };
 
+  const tryAutoSubmit = async (codeArr) => {
+    if (!needsCode || loading) return;
+    setLoading(true);
+    setError('');
+    try {
+      const codeStr = codeArr.join('');
+      const data = await verifyLoginCode(loginToken, codeStr);
+      if (data.success) {
+        setAuth(data.token, data);
+        navigate('/dashboard');
+      } else {
+        setError('Verification failed. Try again.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Verification failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 flex items-center justify-center p-4 pt-safe pb-safe">
       <motion.div
@@ -66,15 +87,15 @@ export default function Login() {
       >
         <div className="p-6 sm:p-8 md:p-10">
           <div className="flex justify-center mb-6 sm:mb-8">
-            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-100">
-              <span className="text-white font-bold text-4xl">T</span>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
           </div>
 
           <div className="text-center mb-8 sm:mb-10">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome Back</h1>
             <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">
-              {needsCode ? 'Enter the code sent to your Telegram' : 'Sign in to manage your TeleShop bots'}
+              {needsCode ? 'Enter the code sent to your Telegram' : 'Sign in to manage your Multi-Platform E-commerce'}
             </p>
           </div>
 
@@ -147,6 +168,7 @@ export default function Login() {
                         next[i] = val;
                         setCode(next);
                         if (val && i < 5) codeRefs.current[i + 1]?.focus();
+                        if (val && i === 5) tryAutoSubmit(next);
                       }}
                       onPaste={(e) => {
                         e.preventDefault();
@@ -159,6 +181,7 @@ export default function Login() {
                         setCode(next);
                         const targetIdx = Math.min(i + pasted.length, 5);
                         codeRefs.current[targetIdx]?.focus();
+                        if (next.every(d => d !== '')) tryAutoSubmit(next);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Backspace' && !code[i] && i > 0) {

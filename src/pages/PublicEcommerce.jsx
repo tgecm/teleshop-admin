@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getPublicShop, getPublicShopByDomain } from '../api/public';
+import { getPublicShop, getPublicShopByDomain, getShopBio } from '../api/public';
 import {
   ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
@@ -31,6 +31,13 @@ function authHeaders() {
 }
 
 const CART_KEY = 'ecommerce_cart';
+
+function getCartKey(slug, viaDomain, viewMode) {
+  const base = CART_KEY + '_' + (slug || 'domain');
+  if (viewMode === 'guest') return base + '_guest';
+  if (viewMode === 'ecommerce') return base + '_user';
+  return base;
+}
 
 const COLOR_NAMES = {
   '#FF0000': 'Red', '#2563EB': 'Blue', '#16A34A': 'Green', '#EAB308': 'Yellow',
@@ -358,8 +365,8 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   const handleSignIn = async () => {
     if (!isMainDomain()) {
       // Custom domain — redirect to auth proxy on main domain
-      const redirectUri = window.location.href;
-      const params = new URLSearchParams({ shop_slug: shopSlug || propBotUsername || '', redirect_uri: redirectUri });
+      const dashboardUri = window.location.origin + '/?p=/' + encodeURIComponent(shopSlug || propBotUsername || '') + '-user-dashboard';
+      const params = new URLSearchParams({ shop_slug: shopSlug || propBotUsername || '', redirect_uri: dashboardUri });
       window.location.href = `https://www.telegramecommerce.shop/#/auth/google/proxy?${params}`;
       return;
     }
@@ -477,6 +484,30 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
       .catch(() => setProfileLoaded(true));
   }, [user?.uid, shop?.bot_username, user?.displayName, user?.email, profileLoaded]);
 
+  // Load guest mode cached contact info
+  useEffect(() => {
+    if (viewMode !== 'guest' || !shopSlug || profileLoaded) return;
+    const cacheKey = 'guest_contact_' + shopSlug;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (data && data.name) {
+          setForm({
+            name: data.name || '',
+            phones: data.phones?.length > 0 ? data.phones : [''],
+            emails: data.email ? [data.email] : [''],
+            telegram: data.telegram || '',
+            viber: data.viber || '',
+            address: data.address || '',
+            notes: data.notes || '',
+          });
+        }
+      }
+    } catch {}
+    setProfileLoaded(true);
+  }, [viewMode, shopSlug, profileLoaded]);
+
   const setPhone = (idx, val) => setForm(p => { const n = [...p.phones]; n[idx] = val; return { ...p, phones: n }; });
   const addPhone = () => setForm(p => ({ ...p, phones: [...p.phones, ''] }));
   const removePhone = (idx) => setForm(p => ({ ...p, phones: p.phones.filter((_, i) => i !== idx) }));
@@ -572,6 +603,20 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Failed to place order');
+      if (viewMode === 'guest') {
+        const cacheKey = 'guest_contact_' + shopSlug;
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({
+            name: form.name.trim(),
+            phones: form.phones.filter(Boolean).map(p => p.trim()),
+            email: emailStr,
+            telegram: form.telegram.trim(),
+            viber: form.viber.trim(),
+            address: form.address.trim(),
+            notes: form.notes.trim(),
+          }));
+        } catch {}
+      }
       onOrderPlaced(data);
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
@@ -1118,19 +1163,32 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   // Load cart from localStorage
   useEffect(() => {
     if (!slug && !viaDomain) return;
-    const key = CART_KEY + '_' + (slug || 'domain');
+    const key = getCartKey(slug, viaDomain, viewMode);
     try {
       const saved = localStorage.getItem(key);
-      if (saved) setCartItems(JSON.parse(saved));
+      if (saved) { setCartItems(JSON.parse(saved)); return; }
     } catch {}
-  }, [slug, viaDomain]);
+    setCartItems([]);
+  }, [slug, viaDomain, viewMode]);
 
   // Save cart to localStorage
   useEffect(() => {
     if (!slug && !viaDomain) return;
-    const key = CART_KEY + '_' + (slug || 'domain');
+    const key = getCartKey(slug, viaDomain, viewMode);
     localStorage.setItem(key, JSON.stringify(cartItems));
-  }, [cartItems, slug, viaDomain]);
+  }, [cartItems, slug, viaDomain, viewMode]);
+
+  // Fetch shop bio
+  const [shopBio, setShopBio] = useState('');
+  useEffect(() => {
+    if (!shop?.id) return;
+    // Check if already in public API response
+    if (data?.shop_bio?.text) {
+      setShopBio(data.shop_bio.text);
+      return;
+    }
+    getShopBio(shop.id).then(setShopBio);
+  }, [shop?.id, data?.shop_bio]);
 
   // Check if user is registered for this specific shop
   useEffect(() => {
@@ -1243,10 +1301,12 @@ export default function PublicEcommerce({ slug, viaDomain }) {
 
   const handleSignInSuccess = useCallback(() => {
     setShowSignIn(false);
-    if (!pendingBuyNowRef.current) {
-      setShowCart(true);
+    if (pendingBuyNowRef.current) return;
+    const target = slug || shop?.bot_username || '';
+    if (target) {
+      window.location.href = `/?p=/${encodeURIComponent(target)}-user-dashboard`;
     }
-  }, []);
+  }, [slug, shop?.bot_username]);
 
   // After sign-in, wait for registered check, then proceed buy-now
   useEffect(() => {
@@ -1592,44 +1652,9 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                 <h1 className="text-lg md:text-2xl lg:text-4xl font-bold leading-tight text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.6), 0 0 4px rgba(0,0,0,0.4)' }}>{shop?.bot_full_name}</h1>
               </motion.div>
 
-              {/* Right: Auth + Cart (ecommerce & guest modes) */}
+              {/* Right: Cart (all non-telegram modes) */}
               {viewMode !== 'telegram' && (
                 <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
-                  {viewMode === 'ecommerce' && ((user || tgLoggedIn) ? (
-                    <div className="relative">
-                      <button onClick={() => setShowProfileMenu(p => !p)}
-                        className="flex items-center gap-1 md:gap-1.5 bg-white/15 hover:bg-white/25 rounded-xl px-2 md:px-3 py-2 md:py-2.5 transition-all active:scale-95 min-h-[44px]">
-                        {user?.photoURL && <img src={user.photoURL} alt="" className="w-6 h-6 md:w-7 md:h-7 rounded-full ring-2 ring-white/30 flex-shrink-0" />}
-                        <span className="text-white text-xs md:text-sm font-medium max-w-[70px] md:max-w-[100px] truncate hidden sm:inline">
-                          {user?.displayName || user?.email?.split('@')[0] || telegramUser?.name || telegramUser?.username || 'Account'}
-                        </span>
-                      </button>
-                      {showProfileMenu && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
-                          <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 min-w-[190px] overflow-hidden">
-                            <div className="px-4 py-2.5 border-b border-gray-100 sm:hidden">
-                              <p className="text-sm font-bold text-gray-900 truncate">{user?.displayName || user?.email?.split('@')[0] || telegramUser?.name || telegramUser?.username || 'Account'}</p>
-                              {user?.email && <p className="text-[11px] text-gray-400 truncate">{user.email}</p>}
-                            </div>
-                            <a href={dashboardUrl}
-                              className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                              <User className="w-4 h-4" /> My Dashboard
-                            </a>
-                            <button onClick={() => { setShowProfileMenu(false); handleSignOut(); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
-                              <LogOut className="w-4 h-4" /> Sign Out
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <button onClick={() => setShowSignIn(true)}
-                      className="flex items-center gap-1.5 px-3.5 md:px-4 py-2 md:py-2.5 bg-white text-gray-800 rounded-xl hover:bg-gray-100 transition-all active:scale-95 font-bold text-xs md:text-sm shadow-md min-h-[44px]">
-                      <User className="w-4 h-4" /> Sign In
-                    </button>
-                  ))}
                   <button onClick={() => setShowCart(true)}
                     className="relative w-[44px] h-[44px] bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center hover:bg-white/30 transition-all active:scale-90 flex-shrink-0">
                     <ShoppingCart className="w-5 h-5 text-white" />
@@ -1754,9 +1779,9 @@ export default function PublicEcommerce({ slug, viaDomain }) {
         ) : (
           <>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="-mt-8 md:-mt-10 mb-6 flex items-center gap-2">
+          className="-mt-8 md:-mt-10 mb-2 flex items-center gap-2">
           {/* Logo - circular */}
-          <div className="-mt-6 md:-mt-8 w-[64px] h-[64px] md:w-[80px] md:h-[80px] rounded-full overflow-hidden flex-shrink-0 bg-white/20 backdrop-blur-md border-2 border-white/40 shadow-md">
+          <div className="-mt-6 md:-mt-8 w-[80px] h-[80px] md:w-[100px] md:h-[100px] rounded-full overflow-hidden flex-shrink-0 bg-white/20 backdrop-blur-md border-2 border-white/40 shadow-md">
             {shop?.profile_picture ? (
               <img src={shop.profile_picture} alt="Logo" className="w-full h-full object-cover" />
             ) : (
@@ -1765,7 +1790,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
               </div>
             )}
           </div>
-          <div className="ml-auto flex items-center gap-1.5 relative">
+          <div className="ml-auto flex items-center gap-1.5 relative -mt-6 md:-mt-12">
             <button onClick={() => setShowNewsfeed(true)}
               className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90">
               <Newspaper className="w-[15px] h-[15px]" />
@@ -1805,8 +1830,55 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                 </div>
               </>
             )}
+            {viewMode === 'ecommerce' && (
+              <div className="relative">
+                <button onClick={() => setShowProfileMenu(p => !p)}
+                  className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
+                  ) : (
+                    <User className="w-[15px] h-[15px]" />
+                  )}
+                </button>
+                {showProfileMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
+                    <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 min-w-[180px] overflow-hidden">
+                      {(user || tgLoggedIn) ? (
+                        <>
+                          <div className="px-4 py-2.5 border-b border-gray-100">
+                            <p className="text-sm font-bold text-gray-900 truncate">{user?.displayName || user?.email?.split('@')[0] || telegramUser?.name || telegramUser?.username || 'Account'}</p>
+                            {user?.email && <p className="text-[11px] text-gray-400 truncate">{user.email}</p>}
+                          </div>
+                          <a href={dashboardUrl}
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                            <User className="w-4 h-4" /> My Dashboard
+                          </a>
+                          <button onClick={() => { setShowProfileMenu(false); handleSignOut(); }}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                            <LogOut className="w-4 h-4" /> Sign Out
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => { setShowProfileMenu(false); setShowSignIn(true); }}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors">
+                          <User className="w-4 h-4" /> Sign In
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </motion.div>
+
+        {shopBio && (
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="text-[11px] md:text-[12px] text-gray-500 leading-relaxed mb-2 px-1 whitespace-pre-wrap">
+            {shopBio}
+          </motion.p>
+        )}
 
         {/* View mode toggle */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}

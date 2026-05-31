@@ -24,7 +24,7 @@ import {
   Trophy,
   User
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Broadcast() {
@@ -134,7 +134,7 @@ export default function Broadcast() {
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-gray-900 line-clamp-2">{b.message}</p>
                         <p className="text-[10px] text-gray-500 mt-1.5 flex items-center gap-1 font-bold uppercase tracking-wider">
-                          <Calendar className="w-3 h-3" /> {format(new Date(b.sent_at || b.created_at), 'MMM d, yyyy')}
+                          <Calendar className="w-3 h-3" /> {myanmarFormat(b.sent_at || b.created_at, 'MMM d, yyyy')}
                         </p>
                       </div>
                     </div>
@@ -187,7 +187,7 @@ export default function Broadcast() {
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ends on</p>
-                      <p className="text-xs font-bold text-gray-900">{format(new Date(g.end_date), 'MMM d')}</p>
+                      <p className="text-xs font-bold text-gray-900">{myanmarFormat(g.end_date, 'MMM d')}</p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300 hidden sm:block" />
                   </div>
@@ -242,7 +242,7 @@ export default function Broadcast() {
                     </div>
                     <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center">
                       <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Ends In</p>
-                      <p className="text-sm font-bold text-gray-900">{format(new Date(selectedGiveaway.end_date), 'MMM d, yyyy')}</p>
+                      <p className="text-sm font-bold text-gray-900">{myanmarFormat(selectedGiveaway.end_date, 'MMM d, yyyy')}</p>
                     </div>
                   </div>
                   

@@ -10,7 +10,7 @@ import {
   CheckCircle2, XCircle, Loader2, Filter, Truck, Bot,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { format } from 'date-fns';
+import { myanmarFormat } from '../utils/date';
 
 const STATUS_STEPS = [
   { key: 'pending', label: 'Pending' },
@@ -182,7 +182,7 @@ export default function SuperadminOrders() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-sm font-bold text-gray-900">{(o.total_amount || o.amount || 0).toLocaleString()} MMK</p>
-                  <p className="text-[10px] text-gray-400">{o.created_at ? format(new Date(o.created_at), 'MMM d') : ''}</p>
+                  <p className="text-[10px] text-gray-400">{o.created_at ? myanmarFormat(o.created_at, 'MMM d') : ''}</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
               </div>
@@ -252,7 +252,7 @@ export default function SuperadminOrders() {
                 <div className="border-t border-gray-100 pt-3 space-y-1.5">
                   <div className="flex justify-between text-sm"><span className="text-gray-500">Amount</span><span className="font-bold text-indigo-600">{(selectedOrder.total_amount || selectedOrder.amount || 0).toLocaleString()} MMK</span></div>
                   <div className="flex justify-between text-sm"><span className="text-gray-500">Status</span><StatusBadge status={selectedOrder.status} /></div>
-                  <div className="flex justify-between text-sm"><span className="text-gray-500">Date</span><span className="font-bold text-gray-900">{format(new Date(selectedOrder.created_at), 'MMM d, yyyy h:mm a')}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-gray-500">Date</span><span className="font-bold text-gray-900">{myanmarFormat(selectedOrder.created_at, 'MMM d, yyyy h:mm a')}</span></div>
                 </div>
 
                 {/* Status timeline + actions */}

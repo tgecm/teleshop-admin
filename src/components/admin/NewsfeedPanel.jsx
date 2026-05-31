@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getNewsfeedPosts, createNewsfeedPost, updateNewsfeedPost, deleteNewsfeedPost } from '../../api/newsfeed';
+import { getNewsfeedPosts, createNewsfeedPost, updateNewsfeedPost, deleteNewsfeedPost, getNewsfeedPostComments, adminDeleteNewsfeedComment } from '../../api/newsfeed';
 import { uploadImage } from '../../api/products';
 import { useToastStore } from '../../store/toastStore';
 import LoadingSkeleton from '../shared/LoadingSkeleton';
 import { Plus, X, Loader2, Image as ImageIcon, Heart, MessageCircle, Trash2, Edit2, Newspaper, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
+import { myanmarFormat } from '../../utils/date';
 
 export default function NewsfeedPanel({ botId }) {
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
+  const [commentsPost, setCommentsPost] = useState(null);
+  const [comments, setComments] = useState(null);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ['newsfeed', botId],
@@ -48,6 +52,28 @@ export default function NewsfeedPanel({ botId }) {
     onError: () => addToast('Failed to delete post', 'error'),
   });
 
+  const handleViewComments = async (post) => {
+    setCommentsPost(post);
+    setComments(null);
+    setLoadingComments(true);
+    try {
+      const data = await getNewsfeedPostComments(post.id);
+      setComments(data);
+    } catch { setComments([]); }
+    setLoadingComments(false);
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!commentsPost) return;
+    setDeletingCommentId(commentId);
+    try {
+      await adminDeleteNewsfeedComment(commentsPost.id, commentId);
+      setComments(prev => prev.filter(c => c.id !== commentId));
+      addToast('Comment deleted');
+    } catch { addToast('Failed to delete comment', 'error'); }
+    setDeletingCommentId(null);
+  };
+
   if (isLoading) return <LoadingSkeleton type="list" count={3} />;
 
   return (
@@ -82,7 +108,7 @@ export default function NewsfeedPanel({ botId }) {
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-gray-900">Shop Newsfeed</p>
                     <p className="text-[10px] text-gray-400 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> {format(new Date(post.created_at), 'MMM d, yyyy')}
+                      <Calendar className="w-3 h-3" /> {myanmarFormat(post.created_at, 'MMM d, yyyy')}
                     </p>
                   </div>
                 </div>
@@ -112,9 +138,10 @@ export default function NewsfeedPanel({ botId }) {
                 <span className="flex items-center gap-1 text-xs text-gray-400">
                   <Heart className="w-3.5 h-3.5" /> {post.like_count || 0}
                 </span>
-                <span className="flex items-center gap-1 text-xs text-gray-400">
+                <button onClick={() => handleViewComments(post)}
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-500 transition-all">
                   <MessageCircle className="w-3.5 h-3.5" /> {post.comment_count || 0}
-                </span>
+                </button>
               </div>
             </div>
           ))}
@@ -133,6 +160,57 @@ export default function NewsfeedPanel({ botId }) {
           }}
           isPending={createMutation.isPending || updateMutation.isPending}
         />
+      )}
+
+      {/* Comments Modal */}
+      {commentsPost && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setCommentsPost(null)} />
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[70vh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">Comments ({commentsPost.comment_count || 0})</h2>
+                <button onClick={() => setCommentsPost(null)} className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform">
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+              {loadingComments ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                </div>
+              ) : comments && comments.length > 0 ? (
+                <div className="space-y-3">
+                  {comments.map(c => (
+                    <div key={c.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                      <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-[11px] font-bold text-indigo-600 flex-shrink-0">
+                        {(c.visitor_name || 'G')[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-bold text-gray-700">{c.visitor_name || 'Guest'}</p>
+                          <button
+                            onClick={() => handleDeleteComment(c.id)}
+                            disabled={deletingCommentId === c.id}
+                            className="p-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-all flex-shrink-0">
+                            {deletingCommentId === c.id
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-0.5">{c.content}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          {c.created_at ? myanmarFormat(c.created_at, 'MMM d, yyyy · h:mm a') : ''}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-8">No comments yet.</p>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

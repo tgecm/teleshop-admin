@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { getPublicNewsfeed, getPublicNewsfeedComments, toggleNewsfeedLike, addNewsfeedComment } from '../api/public';
+import { getPublicNewsfeed, getPublicNewsfeedComments, toggleNewsfeedLike, addNewsfeedComment, editNewsfeedComment, deleteNewsfeedComment } from '../api/public';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Heart, MessageCircle, Share2, Send, ChevronLeft, Loader2, Newspaper, Link as LinkIcon, Check } from 'lucide-react';
-import { format } from 'date-fns';
+import { X, Heart, MessageCircle, Share2, Send, ChevronLeft, Loader2, Newspaper, Link as LinkIcon, Check, Edit2, Trash2 } from 'lucide-react';
+import { myanmarFormat } from '../utils/date';
 
 function getVisitorId() {
   let id = localStorage.getItem('newsfeed_visitor_id');
@@ -256,7 +256,7 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-gray-900 truncate">{shopName || post.bot_name || 'Shop Newsfeed'}</p>
-          <p className="text-[11px] text-gray-400">{format(new Date(post.created_at), 'MMM d, yyyy · h:mm a')}</p>
+          <p className="text-[11px] text-gray-400">{myanmarFormat(post.created_at, 'MMM d, yyyy · h:mm a')}</p>
         </div>
       </div>
 
@@ -331,10 +331,12 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
 }
 
 function CommentSection({ postId, comments, loading, visitorId, botId }) {
-  const [name, setName] = useState(getVisitorName);
+  const [name] = useState(getVisitorName);
   const [content, setContent] = useState('');
   const [localComments, setLocalComments] = useState(comments || []);
   const [sending, setSending] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -352,31 +354,45 @@ function CommentSection({ postId, comments, loading, visitorId, botId }) {
       const result = await addNewsfeedComment(postId, visitorId, content.trim(), displayName);
       setLocalComments(prev => [...prev, {
         id: result.id,
+        visitor_id: visitorId,
         visitor_name: displayName,
         content: content.trim(),
-        created_at: result.created_at,
+        created_at: result.created_at || new Date().toISOString(),
       }]);
       setContent('');
-      if (!getVisitorName()) setVisitorName(displayName);
     } catch (e) { /* ignore */ }
     setSending(false);
   };
 
+  const handleEdit = async (commentId) => {
+    if (!editText.trim()) return;
+    try {
+      await editNewsfeedComment(postId, commentId, visitorId, editText.trim());
+      setLocalComments(prev => prev.map(c =>
+        c.id === commentId ? { ...c, content: editText.trim() } : c
+      ));
+      setEditingId(null);
+      setEditText('');
+    } catch (e) { /* ignore */ }
+  };
+
+  const handleDelete = async (commentId) => {
+    if (!confirm('Delete this comment?')) return;
+    try {
+      await deleteNewsfeedComment(postId, commentId, visitorId);
+      setLocalComments(prev => prev.filter(c => c.id !== commentId));
+    } catch (e) { /* ignore */ }
+  };
+
+  const startEdit = (comment) => {
+    setEditingId(comment.id);
+    setEditText(comment.content);
+  };
+
   return (
     <div className="border-t border-gray-50 bg-gray-50/50 px-4 py-3">
-      {/* Name input */}
-      <div className="mb-2">
-        <input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="Your name (optional)"
-          maxLength={50}
-          className="w-full px-3 py-1.5 text-xs bg-white border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-        />
-      </div>
-
       {/* Comment input */}
-      <form onSubmit={handleSubmit} className="flex gap-2">
+      <form onSubmit={handleSubmit} className="flex gap-2 mb-3">
         <input
           ref={inputRef}
           value={content}
@@ -397,19 +413,51 @@ function CommentSection({ postId, comments, loading, visitorId, botId }) {
           <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
         </div>
       ) : localComments.length > 0 ? (
-        <div className="mt-3 space-y-3 max-h-48 overflow-y-auto">
+        <div className="space-y-3 max-h-48 overflow-y-auto">
           {localComments.map(c => (
-            <div key={c.id} className="flex items-start gap-2">
+            <div key={c.id} className="flex items-start gap-2 group">
               <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 flex-shrink-0 mt-0.5">
                 {(c.visitor_name || 'G')[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-gray-700">{c.visitor_name || 'Guest'}</p>
-                <p className="text-xs text-gray-600 mt-0.5">{c.content}</p>
+                {editingId === c.id ? (
+                  <div className="flex gap-1 mt-1">
+                    <input
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      maxLength={500}
+                      className="flex-1 px-2 py-1 text-xs bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                      autoFocus
+                      onKeyDown={e => { if (e.key === 'Enter') handleEdit(c.id); if (e.key === 'Escape') setEditingId(null); }}
+                    />
+                    <button onClick={() => handleEdit(c.id)} className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-all">
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded transition-all">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-600 mt-0.5">{c.content}</p>
+                )}
                 <p className="text-[10px] text-gray-400 mt-0.5">
-                  {c.created_at ? format(new Date(c.created_at), 'MMM d, h:mm a') : ''}
+                  {c.created_at ? myanmarFormat(c.created_at, 'MMM d, h:mm a') : ''}
                 </p>
               </div>
+              {/* Edit/delete buttons — only for the author */}
+              {c.visitor_id === visitorId && editingId !== c.id && (
+                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
+                  <button onClick={() => startEdit(c)}
+                    className="p-1 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded transition-all">
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                  <button onClick={() => handleDelete(c.id)}
+                    className="p-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-all">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Download, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { myanmarFormat } from '../../utils/date';
 import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
 import { isInAppBrowser, downloadViaNative } from '../../utils/download';
@@ -387,7 +387,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const note = esc(order.notes || '—');
   const initial = esc(botName.charAt(0).toUpperCase());
   const sName = esc(botName);
-  const fmtDate = format(orderDate, 'MMM dd, yyyy');
+  const fmtDate = myanmarFormat(orderDate, 'MMM dd, yyyy');
   const payM = esc(paymentMethod);
   const sub = `MMK ${(subtotal || 0).toFixed(2)}`;
   const tot = `MMK ${(total || 0).toFixed(2)}`;
@@ -681,7 +681,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
   const paymentMethod = order.payment_method || 'Cash';
 
   const initials = botName.split(' ').map(w => w.charAt(0).toUpperCase()).join('');
-  const receiptNumber = `${initials}-ECM-${format(orderDate, 'yyyyMMdd')}-${(order.order_number || String(order.id)).slice(-3)}`;
+  const receiptNumber = `${initials}-ECM-${myanmarFormat(orderDate, 'yyyyMMdd')}-${(order.order_number || String(order.id)).slice(-3)}`;
 
   const minTableRows = Math.max(5, items.length);
 
@@ -858,7 +858,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                             <div style={s.metaRight}>
                               <span style={s.metaLabel}>Date</span>
                               <span style={s.metaColon}>:</span>
-                              <span style={s.metaValue}>{format(orderDate, 'MMM dd, yyyy')}</span>
+                              <span style={s.metaValue}>{myanmarFormat(orderDate, 'MMM dd, yyyy')}</span>
                             </div>
                             <div style={s.metaRight}>
                               <span style={s.metaLabel}>Order ID</span>
@@ -914,7 +914,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                           <span style={s.fieldLabelWide}>Payment</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{paymentMethod}</span>
                         </div>
                         <div style={s.fieldItem}>
-                          <span style={s.fieldLabelWide}>Date</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{format(orderDate, 'MMM dd, yyyy')}</span>
+                          <span style={s.fieldLabelWide}>Date</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{myanmarFormat(orderDate, 'MMM dd, yyyy')}</span>
                         </div>
                         <div style={s.fieldItem}>
                           <span style={s.fieldLabelWide}>Notes</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{order.notes || '—'}</span>

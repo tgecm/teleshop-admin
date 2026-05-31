@@ -14,7 +14,8 @@ import {
   Crown,
   Key
 } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { differenceInDays } from 'date-fns';
+import { myanmarFormat } from '../utils/date';
 import { motion } from 'motion/react';
 
 export default function Subscription() {
@@ -119,7 +120,7 @@ export default function Subscription() {
               {currentPlan === 'free'
                 ? 'Never expires'
                 : expiryDate
-                  ? `Expires on ${format(expiryDate, 'MMM d, yyyy')}`
+                  ? `Expires on ${myanmarFormat(expiryDate, 'MMM d, yyyy')}`
                   : 'No active subscription found.'}
             </p>
           </div>
