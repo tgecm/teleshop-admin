@@ -141,10 +141,20 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
     if (!initialPostCode || !posts || posts.length === 0) return;
     const target = posts.find(p => p.share_code === initialPostCode);
     if (!target) return;
-    const timer = setTimeout(() => {
-      const el = document.getElementById('newsfeed-post-' + target.id);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300);
+
+    let timer, elapsed = 0;
+    const id = 'newsfeed-post-' + target.id;
+    function poll() {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      elapsed += 50;
+      if (elapsed > 5000) return;
+      timer = setTimeout(poll, 50);
+    }
+    timer = setTimeout(poll, 50);
     return () => clearTimeout(timer);
   }, [initialPostCode, posts]);
 
