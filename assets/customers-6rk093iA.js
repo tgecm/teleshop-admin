@@ -1,1 +1,0 @@
-import{q as s}from"./index-C2RKjid9.js";const o=t=>s.get("/users",{params:t}).then(e=>e.data),n=(t,e)=>s.patch(`/users/${t}`,e).then(a=>a.data),c=t=>s.get(`/website-customers/${t}`).then(e=>e.data);export{c as a,o as g,n as u};
