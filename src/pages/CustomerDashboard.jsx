@@ -112,10 +112,10 @@ export default function CustomerDashboard({ shopSlug }) {
       return u ? JSON.parse(u) : null;
     } catch { return null; }
   })();
-  // Also try to extract user ID from the JWT token as a last resort
+  // Use Firebase UID when available (Google auth), fall back to JWT sub (telegram_id)
   const uid = user?.uid
-    || (isTelegramUser && telegramUser?.id ? String(telegramUser.id) : '')
-    || (isTelegramUser && telegramToken ? (getUserIdFromToken() || '') : '');
+    || (telegramToken ? (getUserIdFromToken() || '') : '')
+    || (telegramUser?.id ? String(telegramUser.id) : '');
   const displayName = user?.displayName || telegramUser?.name || 'User';
   const photoUrl = user?.photoURL || telegramUser?.photo_url || null;
 
@@ -750,15 +750,27 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Resolve bot_id from shopSlug once and cache it
+  const botIdRef = useRef(null);
+  const [resolving, setResolving] = useState(false);
+
   useEffect(() => {
     if (!uid || !shopSlug) {
       setLoading(false);
       return;
     }
-    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/profile?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : {})
+    setResolving(true);
+    fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(shopData => {
+        const botId = shopData?.shop?.id;
+        if (!botId) { setLoading(false); setResolving(false); return; }
+        botIdRef.current = botId;
+        return fetch(`${API_BASE}/api/customer-profile?bot_id=${botId}&uid=${encodeURIComponent(uid)}`);
+      })
+      .then(r => r && r.ok ? r.json() : {})
       .then(data => {
-        if (data && data.display_name) {
+        if (data && data.id) {
           setDisplayName(data.display_name || '');
           const pl = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
           setPhones(pl.length > 0 ? pl : ['']);
@@ -773,8 +785,9 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
           setEmails([email || '']);
         }
         setLoading(false);
+        setResolving(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => { setLoading(false); setResolving(false); });
   }, [uid, shopSlug, defaultName, email]);
 
   const addPhone = () => setPhones(prev => [...prev, '']);
@@ -789,60 +802,37 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
     setSaved(false);
     setSaveError('');
     try {
-      const shopRes = await fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`);
-      const shopData = await shopRes.json();
-      const botId = shopData?.shop?.id;
-      if (!botId) throw new Error('Shop not found');
-
-      // Build request body dynamically, only including known fields
-      const body = {
-        bot_id: botId,
-        display_name: displayName.trim(),
-        email: emails.filter(Boolean).map(e => e.trim()).join(', '),
-        phone: phones.filter(Boolean).map(p => p.trim()).join(', '),
-        telegram_username: telegram.trim(),
-        viber_number: viber.trim(),
-        address: address.trim(),
-        notes: notes.trim(),
-        photo_url: user?.photoURL || telegramUser?.photo_url || '',
-      };
-
-      // Only include the ID that applies to this user
-      if (user?.uid) {
-        body.uid = user.uid;
+      let botId = botIdRef.current;
+      if (!botId) {
+        const shopRes = await fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`);
+        const shopData = await shopRes.json();
+        botId = shopData?.shop?.id;
+        if (!botId) throw new Error('Shop not found');
+        botIdRef.current = botId;
       }
-      if (isTelegramUser) {
-        body.uid = telegramUser?.id || (uid ? Number(uid) : null);
-      }
-
-      const res = await fetch(`${API_BASE}/customer/profile/save`, {
+      const res = await fetch(`${API_BASE}/api/customer-profile/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          bot_id: botId,
+          uid: uid,
+          display_name: displayName.trim(),
+          email: emails.filter(Boolean).map(e => e.trim()).join(', '),
+          phone: phones.filter(Boolean).map(p => p.trim()).join(', '),
+          telegram_username: telegram.trim(),
+          viber_number: viber.trim(),
+          address: address.trim(),
+          notes: notes.trim(),
+        }),
       });
       if (res.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
-        // Refresh profile data so user sees what was saved
-        const refreshed = await fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/profile?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).catch(() => {});
-        if (refreshed?.display_name) {
-          setDisplayName(refreshed.display_name || '');
-          const pl = refreshed.phone ? refreshed.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
-          setPhones(pl.length > 0 ? pl : ['']);
-          const el = refreshed.email ? refreshed.email.split(',').map(s => s.trim()).filter(Boolean) : [''];
-          setEmails(el.length > 0 ? el : ['']);
-          setTelegram(refreshed.telegram_username || '');
-          setViber(refreshed.viber_number || '');
-          setAddress(refreshed.address || '');
-          setNotes(refreshed.notes || '');
-        }
       } else {
         const errText = await res.text().catch(() => '');
-        console.error('Profile save failed:', res.status, res.statusText, errText);
         setSaveError(errText || 'Save failed. Please try again later.');
       }
     } catch (err) {
-      console.error('Failed to save profile:', err);
       setSaveError('Failed to save. Please check your connection and try again.');
     } finally {
       setSaving(false);
@@ -1217,7 +1207,7 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
     fetch(`${API_BASE}/customer/${encodeURIComponent(customerUid)}/profile?shop=${encodeURIComponent(shopSlug)}`, { headers })
       .then(r => r.ok ? r.json() : {})
       .then(data => {
-        if (data && data.display_name) {
+        if (data && data.id) {
           const pl = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
           const el = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [user?.email || ''];
           setForm({

@@ -102,7 +102,7 @@ export default function CustomerLogin({ shopSlug }) {
     setSigningIn(true);
     setError('');
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(shopSlug);
     } catch (err) {
       setError('Sign in failed. Please try again.');
       console.error('Google sign-in error:', err);

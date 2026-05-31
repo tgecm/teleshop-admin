@@ -49,20 +49,33 @@ export function requestGoogleIdToken(): Promise<string> {
   });
 }
 
-export async function signInWithGoogle(): Promise<void> {
+export async function signInWithGoogle(
+  shopSlug?: string
+): Promise<{ token: string; user: { id: string; name: string; email: string; photo_url: string } } | void> {
   const accessToken = await requestGoogleIdToken();
   const credential = GoogleAuthProvider.credential(null, accessToken);
-  await signInWithCredential(auth, credential);
+  const userCred = await signInWithCredential(auth, credential);
+  // Exchange the Google access token for a backend JWT so subsequent
+  // API calls carry an Authorization header (needed on main domain too).
+  if (shopSlug) {
+    const result = await exchangeGoogleToken(accessToken, shopSlug, userCred.user.uid);
+    localStorage.setItem('telegram_token', result.token);
+    localStorage.setItem('telegram_user', JSON.stringify(result.user));
+    return result;
+  }
 }
 
 export async function exchangeGoogleToken(
   accessToken: string,
-  shopSlug: string
+  shopSlug: string,
+  firebaseUid?: string
 ): Promise<{ token: string; user: { id: string; name: string; email: string; photo_url: string } }> {
+  const body: Record<string, string> = { access_token: accessToken, shop_slug: shopSlug };
+  if (firebaseUid) body.firebase_uid = firebaseUid;
   const resp = await fetch('https://api.telegramecommerce.shop/auth/google', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ access_token: accessToken, shop_slug: shopSlug }),
+    body: JSON.stringify(body),
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: 'Google authentication failed' }));

@@ -372,7 +372,7 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
     }
     setSigningIn(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(shopSlug || propBotUsername || '');
       onSuccess?.();
     } catch (err) {
       console.error('Sign-in error:', err);
@@ -841,7 +841,7 @@ function OrderConfirmation({ data, shop, onContinueShopping, viewMode }) {
         <div className="flex flex-col gap-3">
           {!isGuest && (
             <a
-              href={`/?p=/${shop?.bot_username}-user-dashboard`}
+              href={`/?p=/${shop?.public_slug || shop?.bot_username}-user-dashboard`}
               className="w-full py-3.5 rounded-2xl font-bold text-sm text-white text-center transition-all active:scale-[0.98] shadow-lg"
               style={{ background: THEMES[DEFAULT_THEME].css['--theme-btn'] }}
             >
@@ -1128,6 +1128,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const [initialProductCode] = useState(() => new URLSearchParams(window.location.search).get('product'));
   const [productLinkActive, setProductLinkActive] = useState(!!initialProductCode);
   const [initialPostCode] = useState(() => new URLSearchParams(window.location.search).get('post'));
+  const [fullscreenLogo, setFullscreenLogo] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: viaDomain ? ['public-ecommerce-by-domain'] : ['public-ecommerce', slug],
@@ -1221,8 +1222,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
   const totalAmount = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const dashboardUrl = viaDomain
-    ? `/?p=/${(shop?.bot_username || slug || 'shop')}-user-dashboard-login`
-    : `/${(slug || shop?.bot_username || 'shop')}-user-dashboard-login`;
+    ? `/?p=/${(shop?.public_slug || slug || shop?.bot_username || 'shop')}-user-dashboard-login`
+    : `/${(slug || shop?.public_slug || shop?.bot_username || 'shop')}-user-dashboard-login`;
 
   const getProductColors = useCallback((product) => {
     if (product.specifications?.colors && Array.isArray(product.specifications.colors)) {
@@ -1303,11 +1304,11 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const handleSignInSuccess = useCallback(() => {
     setShowSignIn(false);
     if (pendingBuyNowRef.current) return;
-    const target = slug || shop?.bot_username || '';
+    const target = slug || shop?.public_slug || shop?.bot_username || '';
     if (target) {
       window.location.href = `/?p=/${encodeURIComponent(target)}-user-dashboard`;
     }
-  }, [slug, shop?.bot_username]);
+  }, [slug, shop?.public_slug, shop?.bot_username]);
 
   // After sign-in, wait for registered check, then proceed buy-now
   useEffect(() => {
@@ -1782,7 +1783,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="-mt-8 md:-mt-10 mb-2 flex items-center gap-2">
           {/* Logo - circular */}
-          <div className="-mt-6 md:-mt-8 w-[80px] h-[80px] md:w-[100px] md:h-[100px] rounded-full overflow-hidden flex-shrink-0 bg-white/20 backdrop-blur-md border-2 border-white/40 shadow-md">
+          <button onClick={() => setFullscreenLogo(true)}
+            className="-mt-6 md:-mt-8 w-[80px] h-[80px] md:w-[100px] md:h-[100px] rounded-full overflow-hidden flex-shrink-0 bg-white/20 backdrop-blur-md border-2 border-white/40 shadow-md cursor-pointer active:scale-95 transition-transform">
             {shop?.profile_picture ? (
               <img src={shop.profile_picture} alt="Logo" className="w-full h-full object-cover" />
             ) : (
@@ -1790,7 +1792,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                 <span className="text-white font-bold text-sm">{getInitials(shop?.bot_full_name)}</span>
               </div>
             )}
-          </div>
+          </button>
           <div className="ml-auto flex items-center gap-1.5 relative -mt-6 md:-mt-12">
             <button onClick={() => setShowNewsfeed(true)}
               className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90">
@@ -2149,7 +2151,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
       {/* Sign In Modal */}
       <AnimatePresence>
         {showSignIn && (
-          <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} botUsername={shop?.bot_username} shopSlug={slug || shop?.bot_username || ''} />
+          <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} botUsername={shop?.bot_username} shopSlug={slug || shop?.public_slug || shop?.bot_username || ''} />
         )}
       </AnimatePresence>
 
@@ -2450,6 +2452,32 @@ export default function PublicEcommerce({ slug, viaDomain }) {
           initialPostCode={initialPostCode}
         />
       )}
+
+      {/* Fullscreen Logo */}
+      <AnimatePresence>
+        {fullscreenLogo && shop?.profile_picture && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setFullscreenLogo(false)}
+            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center cursor-zoom-out"
+          >
+            <motion.img
+              key="logo-full"
+              src={shop.profile_picture}
+              alt="Logo"
+              initial={{ scale: 0.7, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.7, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="max-w-[85vw] max-h-[85vh] rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
