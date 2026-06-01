@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getPublicShop, getPublicShopByDomain, getShopBio } from '../api/public';
+import { useCartState } from '../context/CartContext';
 import {
   ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
@@ -28,6 +29,22 @@ const API_BASE = 'https://api.telegramecommerce.shop';
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    return JSON.parse(atob(parts[1]));
+  } catch { return null; }
+}
+
+function getUserIdFromToken() {
+  const token = localStorage.getItem('telegram_token');
+  if (!token) return null;
+  const payload = decodeJwtPayload(token);
+  if (!payload) return null;
+  return payload.sub || payload.user_id || payload.id || null;
 }
 
 const CART_KEY = 'ecommerce_cart';
@@ -458,9 +475,10 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
 
   useEffect(() => {
     const tgToken = localStorage.getItem('telegram_token');
-    const customerUid = user?.uid || (tgToken ? '_' : '');
-    if (!customerUid || !shopSlug || profileLoaded) return;
-    fetch(`${API_BASE}/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}`)
+    const customerUid = user?.uid
+      || (tgToken ? (getUserIdFromToken() || '_') : '');
+    if (!customerUid || !shopSlug || profileLoaded || !shop?.id) return;
+    fetch(`${API_BASE}/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
       .then(r => r.ok ? r.json() : {})
       .then(data => {
         if (data && data.display_name) {
@@ -553,18 +571,19 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
       const phoneStr = form.phones.filter(Boolean).map(p => p.trim()).join(', ');
       const emailStr = form.emails.filter(Boolean).map(e => e.trim()).join(', ');
 
-      // Save profile first
-      if (user?.uid) {
+      // Save profile first (use uid from Firebase or JWT token for custom domain proxy auth)
+      const profileUid = viewMode === 'guest' ? '' : (user?.uid || getUserIdFromToken() || '');
+      if (profileUid) {
         await fetch(API_BASE + '/api/customer-profile/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            uid: user.uid,
+            uid: profileUid,
             bot_id: shop.id,
             display_name: form.name.trim(),
             email: emailStr,
             phone: phoneStr,
-            photo_url: user.photoURL || '',
+            photo_url: user?.photoURL || '',
             telegram_username: form.telegram.trim(),
             viber_number: form.viber.trim(),
             address: form.address.trim(),
@@ -575,8 +594,8 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
 
       const body = {
         bot_id: shop.id,
-        ...(user?.uid ? { firebase_uid: user.uid } : {}),
-        ...(telegramUser?.id ? { telegram_id: telegramUser.id } : {}),
+        ...(profileUid ? { firebase_uid: profileUid } : {}),
+        ...(viewMode !== 'guest' && telegramUser?.id ? { telegram_id: telegramUser.id } : {}),
         customer_name: form.name.trim(),
         phone: phoneStr,
         email: emailStr,
@@ -1096,7 +1115,6 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const [showNewsfeed, setShowNewsfeed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [cartItems, setCartItems] = useState([]);
   const [showCart, setShowCart] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -1161,23 +1179,19 @@ export default function PublicEcommerce({ slug, viaDomain }) {
 
   useAuthTokenFromUrl();
 
-  // Load cart from localStorage
-  useEffect(() => {
-    if (!slug && !viaDomain) return;
-    const key = getCartKey(slug, viaDomain, viewMode);
-    try {
-      const saved = localStorage.getItem(key);
-      if (saved) { setCartItems(JSON.parse(saved)); return; }
-    } catch {}
-    setCartItems([]);
-  }, [slug, viaDomain, viewMode]);
+  const cart = useCartState(shop?.id, slug || shop?.public_slug || shop?.bot_username || '', user, viewMode);
+  const { items: cartItems, cartCount, totalAmount, loading: cartLoading, addItem, updateQty, removeItem, clearCart } = cart;
 
-  // Save cart to localStorage
-  useEffect(() => {
-    if (!slug && !viaDomain) return;
-    const key = getCartKey(slug, viaDomain, viewMode);
-    localStorage.setItem(key, JSON.stringify(cartItems));
-  }, [cartItems, slug, viaDomain, viewMode]);
+  // Wrap addItem to resolve image URLs before saving
+  const addToCart = useCallback((product, colorHex) => {
+    const images = getPublicImageUrls(product.image_url, shop?.id);
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: Number(product.price),
+      image_url: images[0] || '',
+    }, colorHex || null);
+  }, [addItem, shop?.id]);
 
   // Fetch shop bio
   const [shopBio, setShopBio] = useState('');
@@ -1218,8 +1232,6 @@ export default function PublicEcommerce({ slug, viaDomain }) {
 
   // Auto-open product from ?product= URL param on page load — handled inline
 
-  const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
-  const totalAmount = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const dashboardUrl = viaDomain
     ? `/?p=/${(shop?.public_slug || slug || shop?.bot_username || 'shop')}-user-dashboard-login`
     : `/${(slug || shop?.public_slug || shop?.bot_username || 'shop')}-user-dashboard-login`;
@@ -1229,36 +1241,6 @@ export default function PublicEcommerce({ slug, viaDomain }) {
       return product.specifications.colors;
     }
     return [];
-  }, []);
-
-  const addToCart = useCallback((product, colorHex) => {
-    setCartItems(prev => {
-      const existing = prev.find(i => i.product_id === product.id);
-      if (existing) {
-        return prev.map(i => i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
-      }
-      const images = getPublicImageUrls(product.image_url, shop?.id);
-      return [...prev, {
-        product_id: product.id,
-        name: product.name,
-        price: Number(product.price),
-        quantity: 1,
-        image_url: images[0] || '',
-        selected_color: colorHex || null,
-      }];
-    });
-  }, [shop?.id]);
-
-  const updateQty = useCallback((productId, delta) => {
-    setCartItems(prev => prev.map(i => {
-      if (i.product_id !== productId) return i;
-      const newQty = i.quantity + delta;
-      return newQty <= 0 ? null : { ...i, quantity: newQty };
-    }).filter(Boolean));
-  }, []);
-
-  const removeItem = useCallback((productId) => {
-    setCartItems(prev => prev.filter(i => i.product_id !== productId));
   }, []);
 
   const handleBuyClick = useCallback(() => {
@@ -1275,15 +1257,13 @@ export default function PublicEcommerce({ slug, viaDomain }) {
     const selColor = selectedColors[product.id];
     if (colors.length > 0 && !selColor) return;
     // Replace entire cart with just this product (instant buy, no cart accumulation)
-    const images = getPublicImageUrls(product.image_url, shop?.id);
-    setCartItems([{
-      product_id: product.id,
+    clearCart();
+    addItem({
+      id: product.id,
       name: product.name,
       price: Number(product.price),
-      quantity: 1,
-      image_url: images[0] || '',
-      selected_color: selColor || null,
-    }]);
+      image_url: (getPublicImageUrls(product.image_url, shop?.id) || [''])[0],
+    }, selColor || null);
     if (viewMode === 'guest') {
       setShowCart(false);
       paymentMethods.length > 0 ? setShowPaymentSelect(true) : setCheckoutOpen(true);
@@ -1354,9 +1334,9 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const handleOrderPlaced = useCallback((orderData) => {
     setCheckoutOpen(false);
     setOrderPlaced(orderData);
-    setCartItems([]);
+    clearCart();
     setSelectedPaymentMethod(null);
-  }, []);
+  }, [clearCart]);
 
   const handleRegisterSuccess = useCallback(() => {
     setRegistered(true);
@@ -2271,7 +2251,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
             user={user}
             telegramUser={telegramUser}
             viewMode={viewMode}
-            shopSlug={slug}
+            shopSlug={slug || shop?.public_slug || shop?.bot_username || ''}
             selectedPayment={selectedPaymentMethod}
             onClose={() => { setCheckoutOpen(false); setSelectedPaymentMethod(null); }}
             onOrderPlaced={handleOrderPlaced}

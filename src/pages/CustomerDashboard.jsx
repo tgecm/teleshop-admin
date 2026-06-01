@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 import { useTelegramAuth } from '../context/TelegramAuthContext';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
+import { useCartState } from '../context/CartContext';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
@@ -193,9 +194,9 @@ export default function CustomerDashboard({ shopSlug }) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.15 }}
           >
-            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} />}
+            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} />}
             {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} />}
-            {activeTab === 'cart' && <CartTab shopSlug={shopSlug} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} />}
+            {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} />}
             {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} />}
           </motion.div>
         </AnimatePresence>
@@ -240,7 +241,8 @@ export default function CustomerDashboard({ shopSlug }) {
 }
 
 /* ─── OVERVIEW TAB ─── */
-function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate }) {
+function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate, shop }) {
+  const { cartCount } = useCartState(shop?.id, shopSlug, user, 'ecommerce');
   const [orderStats, setOrderStats] = useState(null);
 
   useEffect(() => {
@@ -255,14 +257,6 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
     const interval = setInterval(fetchStats, 5000);
     return () => clearInterval(interval);
   }, [uid, shopSlug]);
-
-  const cartCount = (() => {
-    try {
-      const raw = localStorage.getItem('ecommerce_cart_' + shopSlug);
-      if (raw) return JSON.parse(raw).reduce((s, i) => s + i.quantity, 0);
-    } catch {}
-    return 0;
-  })();
 
   const stats = [
     { label: 'Total Orders', value: orderStats?.total ?? 0, icon: Package, color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -552,32 +546,18 @@ function OrdersTab({ shopSlug, uid, shop }) {
 }
 
 /* ─── CART TAB ─── */
-function CartTab({ shopSlug, user, telegramUser, isTelegramUser }) {
-  const [cartItems, setCartItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   const [shopData, setShopData] = useState(null);
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(null);
+  const effectiveShop = shopData?.shop || shop;
+  const cart = useCartState(effectiveShop?.id, shopSlug, user, 'ecommerce');
+  const { items: cartItems, cartCount, totalAmount, loading, removeItem: removeContextItem, clearCart } = cart;
 
-  useEffect(() => {
-    const loadCart = () => {
-      try {
-        const raw = localStorage.getItem('ecommerce_cart_' + shopSlug);
-        setCartItems(raw ? JSON.parse(raw) : []);
-      } catch { setCartItems([]); }
-      setLoading(false);
-    };
-    loadCart();
-    const interval = setInterval(loadCart, 3000);
-    return () => clearInterval(interval);
-  }, [shopSlug]);
-
-  const removeItem = (idx) => {
-    const updated = cartItems.filter((_, i) => i !== idx);
-    setCartItems(updated);
-    localStorage.setItem('ecommerce_cart_' + shopSlug, JSON.stringify(updated));
+  const removeItem = (productId) => {
+    removeContextItem(productId);
   };
 
   const fetchShopDataIfNeeded = async () => {
@@ -611,8 +591,7 @@ function CartTab({ shopSlug, user, telegramUser, isTelegramUser }) {
   const handleOrderPlacedCallback = (orderData) => {
     setCheckoutOpen(false);
     setOrderPlaced(orderData);
-    localStorage.removeItem('ecommerce_cart_' + shopSlug);
-    setCartItems([]);
+    clearCart();
     setSelectedPayment(null);
   };
 
@@ -656,7 +635,7 @@ function CartTab({ shopSlug, user, telegramUser, isTelegramUser }) {
     );
   }
 
-  const total = cartItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1), 0);
+  // totalAmount from cart context
 
   return (
     <>
@@ -665,9 +644,9 @@ function CartTab({ shopSlug, user, telegramUser, isTelegramUser }) {
           <h2 className="text-lg font-bold text-gray-900">My Cart</h2>
           <span className="text-xs font-medium text-gray-400">{cartItems.length} item{cartItems.length !== 1 ? 's' : ''}</span>
         </div>
-        {cartItems.map((item, idx) => (
+        {cartItems.map((item) => (
           <motion.div
-            key={item.id || idx}
+            key={item.product_id}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3"
@@ -690,7 +669,7 @@ function CartTab({ shopSlug, user, telegramUser, isTelegramUser }) {
                 <p className="text-xs text-gray-400 mt-0.5">Qty: {item.quantity}</p>
               )}
             </div>
-            <button onClick={() => removeItem(idx)}
+            <button onClick={() => removeItem(item.product_id)}
               className="w-8 h-8 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 active:bg-rose-200 transition-all shrink-0" title="Remove">
               <Trash2 className="w-4 h-4" strokeWidth={2} />
             </button>
@@ -699,7 +678,7 @@ function CartTab({ shopSlug, user, telegramUser, isTelegramUser }) {
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mt-4">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-bold text-gray-700">Total</span>
-            <span className="text-xl font-black text-gray-900">{formatPrice(total)} MMK</span>
+            <span className="text-xl font-black text-gray-900">{formatPrice(totalAmount)} MMK</span>
           </div>
           <button onClick={handleCheckoutAll}
             className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-indigo-100 hover:shadow-xl transition-all active:scale-[0.98]">
@@ -722,7 +701,7 @@ function CartTab({ shopSlug, user, telegramUser, isTelegramUser }) {
         <CheckoutFormInline
           shop={shopData?.shop || null}
           cartItems={cartItems}
-          totalAmount={total}
+          totalAmount={totalAmount}
           user={user}
           telegramUser={telegramUser}
           shopSlug={shopSlug}
@@ -1195,15 +1174,16 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
   };
 
   useEffect(() => {
-    if (!shopSlug || profileLoaded) return;
+    if (!shopSlug || profileLoaded || !shop?.id) return;
     const tgToken = localStorage.getItem('telegram_token');
-    const customerUid = user?.uid || (tgToken ? '_' : '');
+    const customerUid = user?.uid
+      || (tgToken ? (getUserIdFromToken() || '_') : '');
     if (!customerUid) {
       loadContactCache();
       setProfileLoaded(true);
       return;
     }
-    fetch(`${API_BASE}/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}`)
+    fetch(`${API_BASE}/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
       .then(r => r.ok ? r.json() : {})
       .then(data => {
         if (data && data.id) {
@@ -1225,7 +1205,7 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
         setProfileLoaded(true);
       })
       .catch(() => { loadContactCache(); setProfileLoaded(true); });
-  }, [shopSlug, user?.uid, user?.displayName, user?.email, profileLoaded]);
+  }, [shopSlug, user?.uid, shop?.id, user?.displayName, user?.email, profileLoaded]);
 
   const setPhone = (idx, val) => setForm(p => { const n = [...p.phones]; n[idx] = val; return { ...p, phones: n }; });
   const addPhone = () => setForm(p => ({ ...p, phones: [...p.phones, ''] }));
@@ -1273,17 +1253,18 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
       const phoneStr = form.phones.filter(Boolean).map(p => p.trim()).join(', ');
       const emailStr = form.emails.filter(Boolean).map(e => e.trim()).join(', ');
 
-      if (user?.uid) {
+      const profileUid = user?.uid || getUserIdFromToken() || '';
+      if (profileUid) {
         await fetch(API_BASE + '/api/customer-profile/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            uid: user.uid,
+            uid: profileUid,
             bot_id: shop.id,
             display_name: form.name.trim(),
             email: emailStr,
             phone: phoneStr,
-            photo_url: user.photoURL || '',
+            photo_url: user?.photoURL || '',
             telegram_username: form.telegram.trim(),
             viber_number: form.viber.trim(),
             address: form.address.trim(),
@@ -1294,7 +1275,7 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
 
       const body = {
         bot_id: shop.id,
-        ...(user?.uid ? { firebase_uid: user.uid } : {}),
+        ...(profileUid ? { firebase_uid: profileUid } : {}),
         ...(telegramUser?.id ? { telegram_id: telegramUser.id } : {}),
         customer_name: form.name.trim(),
         phone: phoneStr,
