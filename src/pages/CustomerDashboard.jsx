@@ -1203,8 +1203,7 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
       setProfileLoaded(true);
       return;
     }
-    const headers = tgToken && !user?.uid ? authHeaders() : {};
-    fetch(`${API_BASE}/customer/${encodeURIComponent(customerUid)}/profile?shop=${encodeURIComponent(shopSlug)}`, { headers })
+    fetch(`${API_BASE}/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}`)
       .then(r => r.ok ? r.json() : {})
       .then(data => {
         if (data && data.id) {
@@ -1275,7 +1274,7 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
       const emailStr = form.emails.filter(Boolean).map(e => e.trim()).join(', ');
 
       if (user?.uid) {
-        await fetch(API_BASE + '/customer/profile/save', {
+        await fetch(API_BASE + '/api/customer-profile/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
