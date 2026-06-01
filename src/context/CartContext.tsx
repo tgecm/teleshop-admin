@@ -40,6 +40,10 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
   const isGuest = !user?.uid || viewMode === 'guest';
   const firebaseUid = viewMode === 'guest' ? '' : (user?.uid || '');
 
+  // Set key synchronously so save-to-localStorage works even before botId resolves
+  const cartKey = shopSlug ? getCartKey(shopSlug, viewMode) : null;
+  if (cartKey) keyRef.current = cartKey;
+
   // When viewMode changes: save current items to the OLD key before loading from NEW key
   useEffect(() => {
     if (prevViewMode.current !== viewMode && shopSlug) {

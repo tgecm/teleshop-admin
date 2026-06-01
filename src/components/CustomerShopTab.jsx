@@ -195,7 +195,8 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
                       </button>
                       <span className="text-sm font-bold text-gray-900 min-w-[20px] text-center">{qty}</span>
                       <button onClick={() => updateQty(product.id, 1)}
-                        className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all">
+                        disabled={product.stock_quantity !== null && qty >= product.stock_quantity}
+                        className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all disabled:opacity-40">
                         +
                       </button>
                     </div>
