@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getPublicShop, getPublicShopByDomain, getShopBio } from '../api/public';
 import { useCartState } from '../context/CartContext';
@@ -269,9 +269,9 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
           {viewMode !== 'telegram' && (
             <button
               onClick={() => onAddToCart(product, selectedColor)}
-              disabled={isOutOfStock || (productColors.length > 0 && !selectedColor)}
+              disabled={isOutOfStock || (productColors.length > 0 && !selectedColor) || (product.stock_quantity !== null && cartQty >= product.stock_quantity)}
               className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-base transition-all ${
-                isOutOfStock
+                isOutOfStock || (product.stock_quantity !== null && cartQty >= product.stock_quantity)
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : productColors.length > 0 && !selectedColor
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -279,7 +279,7 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
               }`}
             >
               <ShoppingCart className="w-5 h-5" />
-              {isOutOfStock ? 'Currently Unavailable' : productColors.length > 0 && !selectedColor ? 'Select a Color' : cartQty > 0 ? `Add to Cart (${cartQty} in cart)` : 'Add to Cart'}
+              {isOutOfStock ? 'Currently Unavailable' : product.stock_quantity !== null && cartQty >= product.stock_quantity ? 'Max Reached' : productColors.length > 0 && !selectedColor ? 'Select a Color' : cartQty > 0 ? `Add to Cart (${cartQty} in cart)` : 'Add to Cart'}
             </button>
           )}
 
@@ -551,6 +551,23 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
     setLoading(true);
     setError('');
     try {
+      // Check stock before proceeding
+      const stockRes = await fetch(API_BASE + '/public/check-stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bot_id: shop.id, items: cartItems.map(i => ({ product_id: i.product_id, quantity: i.quantity })) }),
+      });
+      if (stockRes.ok) {
+        const stockData = await stockRes.json();
+        const oosItems = stockData.items?.filter(i => !i.in_stock) || [];
+        if (oosItems.length > 0) {
+          const names = oosItems.map(i => i.name || `Product #${i.product_id}`).join(', ');
+          setError(`Out of stock: ${names}. Please remove them and try again.`);
+          setLoading(false);
+          return;
+        }
+      }
+
       let paymentProof = '';
       if (proofFile) {
         setUploadingProof(true);
@@ -1139,6 +1156,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const visitorIdRef = useRef('');
   const pendingBuyNowRef = useRef(false);
   const [selectedColors, setSelectedColors] = useState({});
+  const [oosMap, setOosMap] = useState({});
   const [viewMode, setViewMode] = useState('telegram');
   const [sentProducts, setSentProducts] = useState(new Set());
   // Product link mode — show single product instead of full shop
@@ -1163,6 +1181,11 @@ export default function PublicEcommerce({ slug, viaDomain }) {
 
   const shop = data?.shop;
   const products = data?.products || [];
+  const productStockMap = useMemo(() => {
+    const map = {};
+    products.forEach(p => { map[p.id] = p.stock_quantity; });
+    return map;
+  }, [products]);
   const categories = data?.categories || [];
   const paymentMethods = (data?.payment_methods || []).map(pm => {
     if (pm.qr_code_url && !pm.qr_code_url.startsWith('http')) {
@@ -1548,6 +1571,23 @@ export default function PublicEcommerce({ slug, viaDomain }) {
     else if (icon) icon.setAttribute('href', '/vite.svg');
     return () => { document.title = 'TeleShop'; };
   }, [shop?.bot_full_name, shop?.profile_picture]);
+
+  // Check stock for cart items when the cart opens
+  useEffect(() => {
+    if (!showCart || !shop?.id || cartItems.length === 0) { setOosMap({}); return; }
+    fetch(API_BASE + '/public/check-stock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bot_id: shop.id, items: cartItems.map(i => ({ product_id: i.product_id, quantity: i.quantity })) }),
+    })
+      .then(r => r.ok ? r.json() : { items: [] })
+      .then(data => {
+        const map = {};
+        (data.items || []).forEach(i => { if (!i.in_stock) map[i.product_id] = true; });
+        setOosMap(map);
+      })
+      .catch(() => {});
+  }, [showCart, shop?.id, cartItems]);
 
   const categoryMap = {};
   categories.forEach(c => { categoryMap[c.id] = c.name; });
@@ -1940,6 +1980,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
               const productImages = getPublicImageUrls(product.image_url, shop.id);
               const cartItem = cartItems.find(i => i.product_id === product.id);
               const inCartQty = cartItem?.quantity || 0;
+              const atStockMax = product.stock_quantity !== null && inCartQty >= product.stock_quantity;
 
               return (
                 <motion.div key={product.id} layout
@@ -2045,7 +2086,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                           </button>
                           <span className="text-sm font-bold text-gray-900 min-w-[24px] text-center">{inCartQty}</span>
                           <button onClick={(e) => { e.stopPropagation(); addToCart(product); }}
-                            className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-90 transition-all">
+                            disabled={atStockMax}
+                            className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-40">
                             <Plus className="w-3 h-3 text-gray-600" />
                           </button>
                         </div>
@@ -2162,8 +2204,10 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                     <p className="text-gray-400 text-sm">Your cart is empty</p>
                   </div>
                 ) : (
-                  cartItems.map(item => (
-                    <div key={item.product_id} className="flex items-center gap-3 bg-gray-50 rounded-2xl p-3">
+                  cartItems.map(item => {
+                    const isOOS = oosMap[item.product_id];
+                    return (
+                    <div key={item.product_id} className={`flex items-center gap-3 bg-gray-50 rounded-2xl p-3 ${isOOS ? 'opacity-50' : ''}`}>
                       {item.image_url ? (
                         <img src={item.image_url} alt={item.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
                       ) : (
@@ -2174,6 +2218,9 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
                         <p className="text-xs text-gray-500">{formatPrice(item.price)} MMK each</p>
+                        {isOOS && (
+                          <p className="text-[10px] font-bold text-rose-500 mt-1">Out of stock</p>
+                        )}
                         <div className="flex items-center gap-2 mt-1.5">
                           <button onClick={() => updateQty(item.product_id, -1)}
                             className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-90 transition-all">
@@ -2181,7 +2228,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                           </button>
                           <span className="text-sm font-bold text-gray-900 min-w-[20px] text-center">{item.quantity}</span>
                           <button onClick={() => updateQty(item.product_id, 1)}
-                            className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-90 transition-all">
+                            disabled={productStockMap[item.product_id] !== null && productStockMap[item.product_id] !== undefined && item.quantity >= productStockMap[item.product_id]}
+                            className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-40">
                             <Plus className="w-3 h-3 text-gray-600" />
                           </button>
                           <button onClick={() => removeItem(item.product_id)}
@@ -2191,7 +2239,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                         </div>
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
@@ -2203,10 +2252,11 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                   </div>
                   <button
                     onClick={handleCheckout}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white transition-all active:scale-[0.98] shadow-lg"
+                    disabled={Object.keys(oosMap).length > 0}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white transition-all active:scale-[0.98] shadow-lg disabled:opacity-50"
                     style={{ background: theme.css['--theme-btn'] }}
                   >
-                    Proceed to Checkout <ChevronRight className="w-4 h-4" />
+                    {Object.keys(oosMap).length > 0 ? 'Remove out of stock items first' : 'Proceed to Checkout'} <ChevronRight className="w-4 h-4" />
                   </button>
                   {!user && !tgLoggedIn && (
                     <p className="text-xs text-gray-400 text-center">You'll need to sign in during checkout</p>

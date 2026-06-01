@@ -105,6 +105,9 @@ export default function CustomerDashboard({ shopSlug }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [shopData, setShopData] = useState(null);
   const [savedName, setSavedName] = useState('');
+  const [orderStats, setOrderStats] = useState(null);
+  const [customerOrders, setCustomerOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([{ role: 'assistant', content: 'Hi! How can I help you today?' }]);
@@ -158,16 +161,42 @@ export default function CustomerDashboard({ shopSlug }) {
       .catch(() => {});
   }, [shopSlug, user?.uid, user?.displayName, user?.email, user?.photoURL]);
 
-  // Chat: load existing messages on open
+  // Fetch order stats (cached in parent so OverviewTab doesn't re-fetch on switch)
+  useEffect(() => {
+    if (!uid || !shopSlug) return;
+    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders/stats?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(s => { if (s) setOrderStats(s); })
+      .catch(() => {});
+  }, [uid, shopSlug]);
+
+  // Fetch customer orders (cached in parent so OrdersTab doesn't re-fetch on switch)
+  useEffect(() => {
+    if (!uid) { setCustomerOrders([]); setOrdersLoading(false); return; }
+    setOrdersLoading(true);
+    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { setCustomerOrders(Array.isArray(data) ? data : []); setOrdersLoading(false); })
+      .catch(() => { setCustomerOrders([]); setOrdersLoading(false); });
+  }, [uid, shopSlug]);
+
+  // Chat: register visitor + load existing messages on open
   useEffect(() => {
     if (!chatOpen || !shopData?.shop?.id || !uid) return;
+    // Register visitor so the admin panel can see this chat
+    fetch(`${API_BASE}/public/visitor/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visitor_id: uid, bot_id: shopData.shop.id, firebase_uid: uid, name: displayName }),
+    }).catch(() => {});
+    // Load existing messages
     fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(uid)}/messages`)
       .then(r => r.ok ? r.json() : [])
       .then(msgs => {
         if (msgs.length > 0) {
           const formatted = msgs.map(m => ({
-            role: m.role || (m.is_admin ? 'assistant' : 'user'),
-            content: m.content || '',
+            role: m.sender_type === 'admin' ? 'assistant' : 'user',
+            content: m.message_text || '',
             file_id: m.file_id,
             file_type: m.file_type,
           }));
@@ -180,7 +209,7 @@ export default function CustomerDashboard({ shopSlug }) {
       .catch(() => {});
   }, [chatOpen, shopData?.shop?.id, uid]);
 
-  // Chat: poll for admin replies every 3s
+  // Chat: poll for admin/AI replies every 3s
   useEffect(() => {
     if (!chatOpen || !shopData?.shop?.id || !uid) return;
     const interval = setInterval(async () => {
@@ -190,8 +219,8 @@ export default function CustomerDashboard({ shopSlug }) {
         const msgs = await res.json();
         if (!msgs.length) return;
         const formatted = msgs.map(m => ({
-          role: m.role || (m.is_admin ? 'assistant' : 'user'),
-          content: m.content || '',
+          role: m.sender_type === 'admin' || m.sender_type === 'ai' ? 'assistant' : 'user',
+          content: m.message_text || '',
           file_id: m.file_id,
           file_type: m.file_type,
         }));
@@ -285,7 +314,7 @@ export default function CustomerDashboard({ shopSlug }) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.15 }}
           >
-            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} />}
+            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} orderStats={orderStats} />}
             {activeTab === 'shop' && <CustomerShopTab shopSlug={shopSlug} shop={shopData?.shop} user={user} />}
             {activeTab === 'newsfeed' && (
               <div className="fixed inset-0 z-50">
@@ -299,9 +328,9 @@ export default function CustomerDashboard({ shopSlug }) {
                 />
               </div>
             )}
-            {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} />}
+            {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} />}
             {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} />}
-            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} />}
+            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -415,27 +444,13 @@ export default function CustomerDashboard({ shopSlug }) {
 }
 
 /* ─── OVERVIEW TAB ─── */
-function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate, shop }) {
+function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate, shop, orderStats }) {
   const { cartCount } = useCartState(shop?.id, shopSlug, user, 'ecommerce');
-  const [orderStats, setOrderStats] = useState(null);
-
-  useEffect(() => {
-    if (!uid || !shopSlug) return;
-    const fetchStats = () => {
-      fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders/stats?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
-        .then(r => r.ok ? r.json() : null)
-        .then(s => setOrderStats(s || { total: 0, pending: 0, delivered: 0, cancelled: 0 }))
-        .catch(() => {});
-    };
-    fetchStats();
-    const interval = setInterval(fetchStats, 5000);
-    return () => clearInterval(interval);
-  }, [uid, shopSlug]);
 
   const stats = [
-    { label: 'Total Orders', value: orderStats?.total ?? 0, icon: Package, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { label: 'Pending', value: orderStats?.pending ?? 0, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Completed', value: orderStats?.delivered ?? 0, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Total Orders', value: orderStats?.total, icon: Package, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Pending', value: orderStats?.pending, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Completed', value: orderStats?.delivered, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { label: 'Cart Items', value: cartCount, icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
   ];
 
@@ -476,7 +491,7 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
                 <Icon className={`w-4 h-4 ${s.color}`} strokeWidth={2.5} />
                 <span className="text-xs font-medium text-gray-500">{s.label}</span>
               </div>
-              <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+              <p className={`text-2xl font-black ${s.color}`}>{s.value !== undefined && s.value !== null ? s.value : '—'}</p>
             </motion.div>
           );
         })}
@@ -522,35 +537,10 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
 }
 
 /* ─── ORDERS TAB ─── */
-function OrdersTab({ shopSlug, uid, shop }) {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
   const [expandedId, setExpandedId] = useState(null);
   const [downloadOrder, setDownloadOrder] = useState(null);
   const [downloadType, setDownloadType] = useState('invoice');
-
-  // Safety timeout: never show loading spinner for more than 20 seconds
-  const loadingTimeoutRef = useRef(null);
-  useEffect(() => {
-    loadingTimeoutRef.current = setTimeout(() => setLoading(false), 20000);
-    return () => clearTimeout(loadingTimeoutRef.current);
-  }, []);
-
-  useEffect(() => {
-    if (!uid) {
-      setLoading(false);
-      return;
-    }
-    const fetchOrders = () => {
-      fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
-        .then(r => r.ok ? r.json() : [])
-        .then(data => { setOrders(Array.isArray(data) ? data : []); setLoading(false); })
-        .catch(() => { setOrders([]); setLoading(false); });
-    };
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 5000);
-    return () => { clearInterval(interval); clearTimeout(loadingTimeoutRef.current); };
-  }, [uid, shopSlug]);
 
   if (loading) {
     return (
@@ -726,6 +716,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(null);
+  const [oosMap, setOosMap] = useState({});
   const effectiveShop = shopData?.shop || shop;
   const cart = useCartState(effectiveShop?.id, shopSlug, user, 'ecommerce');
   const { items: cartItems, cartCount, totalAmount, loading, removeItem: removeContextItem, clearCart } = cart;
@@ -768,6 +759,23 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
     clearCart();
     setSelectedPayment(null);
   };
+
+  // Check stock when cart items change (must be before conditional returns for hooks order)
+  useEffect(() => {
+    if (!effectiveShop?.id || cartItems.length === 0) { setOosMap({}); return; }
+    fetch(API_BASE + '/public/check-stock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bot_id: effectiveShop.id, items: cartItems.map(i => ({ product_id: i.product_id, quantity: i.quantity })) }),
+    })
+      .then(r => r.ok ? r.json() : { items: [] })
+      .then(data => {
+        const map = {};
+        (data.items || []).forEach(i => { if (!i.in_stock) map[i.product_id] = true; });
+        setOosMap(map);
+      })
+      .catch(() => {});
+  }, [effectiveShop?.id, cartItems]);
 
   if (loading) {
     return (
@@ -818,12 +826,14 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
           <h2 className="text-lg font-bold text-gray-900">My Cart</h2>
           <span className="text-xs font-medium text-gray-400">{cartItems.length} item{cartItems.length !== 1 ? 's' : ''}</span>
         </div>
-        {cartItems.map((item) => (
+        {cartItems.map((item) => {
+          const isOOS = oosMap[item.product_id];
+          return (
           <motion.div
             key={item.product_id}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3"
+            className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3 ${isOOS ? 'opacity-50' : ''}`}
           >
             {item.image_url ? (
               <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0">
@@ -839,7 +849,10 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
               <p className="text-sm font-black text-indigo-600 mt-0.5">
                 {formatPrice(item.price)} MMK
               </p>
-              {item.quantity && (
+              {isOOS && (
+                <p className="text-[10px] font-bold text-rose-500 mt-0.5">Out of stock</p>
+              )}
+              {item.quantity && !isOOS && (
                 <p className="text-xs text-gray-400 mt-0.5">Qty: {item.quantity}</p>
               )}
             </div>
@@ -848,15 +861,17 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
               <Trash2 className="w-4 h-4" strokeWidth={2} />
             </button>
           </motion.div>
-        ))}
+          );
+        })}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mt-4">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-bold text-gray-700">Total</span>
             <span className="text-xl font-black text-gray-900">{formatPrice(totalAmount)} MMK</span>
           </div>
           <button onClick={handleCheckoutAll}
-            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-indigo-100 hover:shadow-xl transition-all active:scale-[0.98]">
-            Checkout All
+            disabled={Object.keys(oosMap).length > 0}
+            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-indigo-100 hover:shadow-xl transition-all active:scale-[0.98] disabled:opacity-50">
+            {Object.keys(oosMap).length > 0 ? 'Remove out of stock items first' : 'Checkout All'}
           </button>
         </div>
       </div>
@@ -889,7 +904,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
 }
 
 /* ─── PROFILE TAB ─── */
-function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser, onProfileSaved }) {
+function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser, onProfileSaved, shop: profileShopProp }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -913,35 +928,59 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
       return;
     }
     setResolving(true);
-    fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(shopData => {
-        const botId = shopData?.shop?.id;
-        if (!botId) { setLoading(false); setResolving(false); return; }
-        botIdRef.current = botId;
-        return fetch(`${API_BASE}/api/customer-profile?bot_id=${botId}&uid=${encodeURIComponent(uid)}`);
-      })
-      .then(r => r && r.ok ? r.json() : {})
-      .then(data => {
-        if (data && data.id) {
-          setDisplayName(data.display_name || '');
-          const pl = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
-          setPhones(pl.length > 0 ? pl : ['']);
-          const el = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [email || ''];
-          setEmails(el.length > 0 ? el : ['']);
-          setTelegram(data.telegram_username || '');
-          setViber(data.viber_number || '');
-          setAddress(data.address || '');
-          setNotes(data.notes || '');
-        } else {
-          setDisplayName(defaultName || '');
-          setEmails([email || '']);
-        }
-        setLoading(false);
-        setResolving(false);
-      })
-      .catch(() => { setLoading(false); setResolving(false); });
-  }, [uid, shopSlug, defaultName, email]);
+    // Use parent-cached shop data if available to avoid API call
+    const existingBotId = profileShopProp?.id;
+    if (existingBotId) {
+      botIdRef.current = existingBotId;
+      fetch(`${API_BASE}/api/customer-profile?bot_id=${existingBotId}&uid=${encodeURIComponent(uid)}`)
+        .then(r => r.ok ? r.json() : {})
+        .then(data => {
+          if (data && data.id) {
+            setDisplayName(data.display_name || '');
+            setPhones(data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : ['']);
+            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [email || '']);
+            setTelegram(data.telegram_username || '');
+            setViber(data.viber_number || '');
+            setAddress(data.address || '');
+            setNotes(data.notes || '');
+          } else {
+            setDisplayName(defaultName || '');
+            setEmails([email || '']);
+          }
+          setLoading(false);
+          setResolving(false);
+        })
+        .catch(() => { setLoading(false); setResolving(false); });
+    } else {
+      // Fallback: fetch shop first
+      fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(shopData => {
+          const botId = shopData?.shop?.id;
+          if (!botId) { setLoading(false); setResolving(false); return; }
+          botIdRef.current = botId;
+          return fetch(`${API_BASE}/api/customer-profile?bot_id=${botId}&uid=${encodeURIComponent(uid)}`);
+        })
+        .then(r => r && r.ok ? r.json() : {})
+        .then(data => {
+          if (data && data.id) {
+            setDisplayName(data.display_name || '');
+            setPhones(data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : ['']);
+            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [email || '']);
+            setTelegram(data.telegram_username || '');
+            setViber(data.viber_number || '');
+            setAddress(data.address || '');
+            setNotes(data.notes || '');
+          } else {
+            setDisplayName(defaultName || '');
+            setEmails([email || '']);
+          }
+          setLoading(false);
+          setResolving(false);
+        })
+        .catch(() => { setLoading(false); setResolving(false); });
+    }
+  }, [uid, shopSlug, defaultName, email, profileShopProp?.id]);
 
   const addPhone = () => setPhones(prev => [...prev, '']);
   const removePhone = (idx) => { if (phones.length > 1) setPhones(prev => prev.filter((_, i) => i !== idx)); };
@@ -955,7 +994,7 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
     setSaved(false);
     setSaveError('');
     try {
-      let botId = botIdRef.current;
+      let botId = botIdRef.current || profileShopProp?.id;
       if (!botId) {
         const shopRes = await fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`);
         const shopData = await shopRes.json();
@@ -1408,6 +1447,23 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
     setLoading(true);
     setError('');
     try {
+      // Check stock before proceeding
+      const stockRes = await fetch(API_BASE + '/public/check-stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bot_id: shop?.id, items: cartItems.map(i => ({ product_id: i.product_id, quantity: i.quantity })) }),
+      });
+      if (stockRes.ok) {
+        const stockData = await stockRes.json();
+        const oosItems = stockData.items?.filter(i => !i.in_stock) || [];
+        if (oosItems.length > 0) {
+          const names = oosItems.map(i => i.name || `Product #${i.product_id}`).join(', ');
+          setError(`Out of stock: ${names}. Please remove them and try again.`);
+          setLoading(false);
+          return;
+        }
+      }
+
       let paymentProof = '';
       if (proofFile) {
         setUploadingProof(true);
