@@ -29,10 +29,8 @@ registerRoute(
   new CacheFirst({cacheName: 'image-cache'}),
 );
 
-self.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+self.addEventListener('install', () => {
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
