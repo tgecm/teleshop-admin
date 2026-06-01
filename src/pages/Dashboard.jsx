@@ -187,10 +187,21 @@ export default function Dashboard() {
     return p;
   }, [selectedBotId, datePreset, customStart, customEnd, effectiveDays]);
 
-  // Queries
+  // Stats query with period filter from date preset
+  const statsParams = useMemo(() => {
+    const p = { bot_id: Number(selectedBotId) };
+    if (datePreset === 'custom' && customStart && customEnd) {
+      p.start_date = customStart;
+      p.end_date = customEnd;
+    } else {
+      p.days = effectiveDays;
+    }
+    return p;
+  }, [selectedBotId, datePreset, customStart, customEnd, effectiveDays]);
+
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['stats', selectedBotId],
-    queryFn: () => getStats({ bot_id: Number(selectedBotId) }),
+    queryKey: ['stats', selectedBotId, datePreset, customStart, customEnd],
+    queryFn: () => getStats(statsParams),
     enabled: !!selectedBotId,
   });
 

@@ -150,10 +150,6 @@ export default function Products() {
         </div>
       </div>
 
-      <div className="text-center md:hidden">
-        <p className="text-[10px] text-gray-400 italic">Pull down to refresh</p>
-      </div>
-
       {filteredProducts.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
           <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">

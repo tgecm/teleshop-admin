@@ -77,9 +77,11 @@ import {
   ShoppingBag, Package, Clock, CheckCircle2, XCircle, ChevronRight,
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
   ShoppingCart, Home, Truck, Copy, Receipt as ReceiptIcon,
-  CheckCircle, X, Upload
+  CheckCircle, X, Upload, MessageCircle, Newspaper, Send
 } from 'lucide-react';
 import Receipt from '../components/orders/Receipt';
+import CustomerShopTab from '../components/CustomerShopTab';
+import NewsfeedFeed from '../components/NewsfeedFeed';
 import { useToastStore } from '../store/toastStore';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
@@ -102,6 +104,13 @@ export default function CustomerDashboard({ shopSlug }) {
   const { isAuthenticated } = useRequireAuth(shopSlug);
   const [activeTab, setActiveTab] = useState('overview');
   const [shopData, setShopData] = useState(null);
+  const [savedName, setSavedName] = useState('');
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState([{ role: 'assistant', content: 'Hi! How can I help you today?' }]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatRef = useRef(null);
+  const chatInputRef = useRef(null);
 
   const telegramToken = typeof window !== 'undefined' ? localStorage.getItem('telegram_token') : null;
   const isTelegramUser = !!telegramToken && !user;
@@ -149,6 +158,84 @@ export default function CustomerDashboard({ shopSlug }) {
       .catch(() => {});
   }, [shopSlug, user?.uid, user?.displayName, user?.email, user?.photoURL]);
 
+  // Chat: load existing messages on open
+  useEffect(() => {
+    if (!chatOpen || !shopData?.shop?.id || !uid) return;
+    fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(uid)}/messages`)
+      .then(r => r.ok ? r.json() : [])
+      .then(msgs => {
+        if (msgs.length > 0) {
+          const formatted = msgs.map(m => ({
+            role: m.role || (m.is_admin ? 'assistant' : 'user'),
+            content: m.content || '',
+            file_id: m.file_id,
+            file_type: m.file_type,
+          }));
+          setChatMessages(prev => {
+            const isGreeting = prev.length === 1 && prev[0].role === 'assistant' && prev[0].content === 'Hi! How can I help you today?';
+            return isGreeting ? formatted : [...prev, ...formatted];
+          });
+        }
+      })
+      .catch(() => {});
+  }, [chatOpen, shopData?.shop?.id, uid]);
+
+  // Chat: poll for admin replies every 3s
+  useEffect(() => {
+    if (!chatOpen || !shopData?.shop?.id || !uid) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(uid)}/messages`);
+        if (!res.ok) return;
+        const msgs = await res.json();
+        if (!msgs.length) return;
+        const formatted = msgs.map(m => ({
+          role: m.role || (m.is_admin ? 'assistant' : 'user'),
+          content: m.content || '',
+          file_id: m.file_id,
+          file_type: m.file_type,
+        }));
+        setChatMessages(prev => {
+          const existingKeys = new Set(prev.map(m => `${m.content}|${m.role}|${m.file_id || ''}`));
+          const newMsgs = formatted.filter(m => !existingKeys.has(`${m.content}|${m.role}|${m.file_id || ''}`));
+          return newMsgs.length ? [...prev, ...newMsgs] : prev;
+        });
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [chatOpen, shopData?.shop?.id, uid]);
+
+  // Chat: auto-scroll to bottom
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  const handleChatSend = async () => {
+    if (!chatInput.trim() || chatLoading || !shopData?.shop?.id) return;
+    const msg = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
+    setChatLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, history: chatMessages.slice(-100), visitor_id: uid }),
+      });
+      const d = await res.json();
+      if (d.reply) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
+      }
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
+    } finally {
+      setChatLoading(false);
+      chatInputRef.current?.focus();
+    }
+  };
+
   if (authLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
@@ -174,11 +261,15 @@ export default function CustomerDashboard({ shopSlug }) {
             <h1 className="text-white text-sm font-bold truncate">{shopName}</h1>
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={() => setChatOpen(true)}
+              className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all mr-1">
+              <MessageCircle className="w-4 h-4" />
+            </button>
             {photoUrl && (
               <img src={photoUrl} alt="" className="w-6 h-6 rounded-full ring-2 ring-white/30" />
             )}
             <span className="text-white text-xs font-medium ml-1.5 truncate max-w-[100px]">
-              {displayName}
+              {savedName || displayName}
             </span>
           </div>
         </div>
@@ -195,9 +286,22 @@ export default function CustomerDashboard({ shopSlug }) {
             transition={{ duration: 0.15 }}
           >
             {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} />}
+            {activeTab === 'shop' && <CustomerShopTab shopSlug={shopSlug} shop={shopData?.shop} user={user} />}
+            {activeTab === 'newsfeed' && (
+              <div className="fixed inset-0 z-50">
+                <NewsfeedFeed
+                  botId={shopData?.shop?.id}
+                  botName={shopName}
+                  onClose={() => setActiveTab('overview')}
+                  viaDomain={false}
+                  slug={shopSlug}
+                  shop={shopData?.shop}
+                />
+              </div>
+            )}
             {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} />}
             {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} />}
-            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} />}
+            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -207,6 +311,8 @@ export default function CustomerDashboard({ shopSlug }) {
         <div className="max-w-lg mx-auto flex">
           {[
             { id: 'overview', label: 'Home', icon: Home },
+            { id: 'shop', label: 'Shop', icon: ShoppingBag },
+            { id: 'newsfeed', label: 'Newsfeed', icon: Newspaper },
             { id: 'orders', label: 'Orders', icon: Package },
             { id: 'cart', label: 'Cart', icon: ShoppingCart },
             { id: 'profile', label: 'Profile', icon: User },
@@ -236,6 +342,74 @@ export default function CustomerDashboard({ shopSlug }) {
           })}
         </div>
       </nav>
+
+      {/* Chat Panel */}
+      {chatOpen && shopData?.shop?.id && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white">
+          {/* Chat Header */}
+          <div className="flex items-center justify-between px-4 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 shrink-0">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="w-5 h-5 text-white" />
+              <span className="text-white text-sm font-bold">Shop Assistant</span>
+            </div>
+            <button onClick={() => setChatOpen(false)}
+              className="p-1.5 text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition-all">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            {chatMessages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
+                  msg.role === 'user'
+                    ? 'bg-indigo-600 text-white rounded-br-md'
+                    : 'bg-gray-100 text-gray-800 rounded-bl-md'
+                }`}>
+                  {msg.file_type === 'photo' && msg.file_id ? (
+                    <img src={`${API_BASE}/telegram/file/${encodeURIComponent(msg.file_id)}?bot_id=${shopData.shop.id}`}
+                      alt="" className="max-w-full rounded-lg" />
+                  ) : (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+            {chatLoading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Input */}
+          <div className="shrink-0 border-t border-gray-200 px-4 py-3 bg-white">
+            <div className="flex items-center gap-2">
+              <input
+                ref={chatInputRef}
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+                placeholder="Type a message..."
+                className="flex-1 px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl outline-none text-sm focus:ring-2 focus:ring-indigo-500"
+                disabled={chatLoading}
+              />
+              <button onClick={handleChatSend} disabled={chatLoading || !chatInput.trim()}
+                className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-all disabled:opacity-50 shrink-0">
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -715,7 +889,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
 }
 
 /* ─── PROFILE TAB ─── */
-function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser }) {
+function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser, onProfileSaved }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -806,6 +980,7 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
       });
       if (res.ok) {
         setSaved(true);
+        onProfileSaved?.(displayName.trim());
         setTimeout(() => setSaved(false), 3000);
       } else {
         const errText = await res.text().catch(() => '');

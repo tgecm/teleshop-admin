@@ -38,7 +38,7 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
   const prevViewMode = useRef(viewMode);
 
   const isGuest = !user?.uid || viewMode === 'guest';
-  const firebaseUid = user?.uid || '';
+  const firebaseUid = viewMode === 'guest' ? '' : (user?.uid || '');
 
   // When viewMode changes: save current items to the OLD key before loading from NEW key
   useEffect(() => {
