@@ -460,8 +460,7 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
     const tgToken = localStorage.getItem('telegram_token');
     const customerUid = user?.uid || (tgToken ? '_' : '');
     if (!customerUid || !shopSlug || profileLoaded) return;
-    const headers = tgToken && !user?.uid ? authHeaders() : {};
-    fetch(`${API_BASE}/customer/${encodeURIComponent(customerUid)}/profile?shop=${encodeURIComponent(shopSlug)}`, { headers })
+    fetch(`${API_BASE}/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}`)
       .then(r => r.ok ? r.json() : {})
       .then(data => {
         if (data && data.display_name) {
@@ -482,7 +481,7 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
         setProfileLoaded(true);
       })
       .catch(() => setProfileLoaded(true));
-  }, [user?.uid, shop?.bot_username, user?.displayName, user?.email, profileLoaded]);
+  }, [user?.uid, shop?.id, user?.displayName, user?.email, profileLoaded]);
 
   // Load guest mode cached contact info
   useEffect(() => {
@@ -556,11 +555,11 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
 
       // Save profile first
       if (user?.uid) {
-        await fetch(API_BASE + '/customer/profile/save', {
+        await fetch(API_BASE + '/api/customer-profile/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            firebase_uid: user.uid,
+            uid: user.uid,
             bot_id: shop.id,
             display_name: form.name.trim(),
             email: emailStr,
