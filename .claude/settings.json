@@ -2,6 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(*)"
+    ],
+    "additionalDirectories": [
+      "/home/meriko/VPS/backend-api"
     ]
   }
 }
