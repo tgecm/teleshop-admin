@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllBots } from '../api/superadmin';
 import { createBroadcast } from '../api/broadcasts';
 import { useToastStore } from '../store/toastStore';
+import { myanmarFormat } from '../utils/date';
 import {
   Send, Bot, Loader2, CheckCircle2, Users, MessageSquare,
   Search, X, ChevronDown,
@@ -200,7 +201,7 @@ function RecentBroadcasts() {
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 flex-shrink-0" />
             <div className="min-w-0">
               <p className="text-gray-700 truncate">{b.message}</p>
-              <p className="text-[10px] text-gray-400">{b.target_count || 0} recipients · {b.created_at ? new Date(b.created_at).toLocaleDateString() : ''}</p>
+              <p className="text-[10px] text-gray-400">{b.target_count || 0} recipients · {b.created_at ? myanmarFormat(b.created_at, 'MMM d, yyyy') : ''}</p>
             </div>
           </div>
         ))}

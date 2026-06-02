@@ -30,19 +30,32 @@ function getCartKey(slug: string, viewMode: string): string {
   return base;
 }
 
+function saveToLS(slug: string, viewMode: string, items: CartItem[]) {
+  try {
+    localStorage.setItem(getCartKey(slug, viewMode), JSON.stringify(items));
+  } catch {}
+}
+
+function loadFromLS(slug: string, viewMode: string): CartItem[] {
+  try {
+    const saved = localStorage.getItem(getCartKey(slug, viewMode));
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return [];
+}
+
 export function useCartState(botId: number | undefined, shopSlug: string, user: { uid: string } | null, viewMode: string): CartState {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(() => {
+    // Initialize from localStorage immediately
+    if (shopSlug) return loadFromLS(shopSlug, viewMode);
+    return [];
+  });
   const [loading, setLoading] = useState(true);
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const keyRef = useRef<string>('');
   const prevViewMode = useRef(viewMode);
 
   const isGuest = !user?.uid || viewMode === 'guest';
   const firebaseUid = viewMode === 'guest' ? '' : (user?.uid || '');
-
-  // Set key synchronously so save-to-localStorage works even before botId resolves
-  const cartKey = shopSlug ? getCartKey(shopSlug, viewMode) : null;
-  if (cartKey) keyRef.current = cartKey;
 
   // When viewMode changes: save current items to the OLD key before loading from NEW key
   useEffect(() => {
@@ -54,21 +67,17 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
     }
   }, [viewMode, shopSlug, items]);
 
-  // Load cart on mount or viewMode change — localStorage + optional server merge
+  // Load from server and merge when botId becomes available (once on mount)
+  const loadedRef = useRef(false);
   useEffect(() => {
-    if (!botId || !shopSlug) return;
-    setLoading(true);
+    if (!botId || !shopSlug || loadedRef.current) return;
+    loadedRef.current = true;
 
     const loadCart = async () => {
       const key = getCartKey(shopSlug, viewMode);
-      keyRef.current = key;
-      let localItems: CartItem[] = [];
-      try {
-        const saved = localStorage.getItem(key);
-        if (saved) localItems = JSON.parse(saved);
-      } catch {}
+      const localItems = loadFromLS(shopSlug, viewMode);
 
-      // For logged-in user: load from server and merge (server wins)
+      // For logged-in user: load from server and merge
       if (firebaseUid) {
         try {
           const serverItems = await fetchCart(botId, firebaseUid);
@@ -80,15 +89,17 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
             }
             const mergedItems = Array.from(merged.values());
             setItems(mergedItems);
-            localStorage.setItem(key, JSON.stringify(mergedItems));
-            setLoading(false);
+            saveToLS(shopSlug, viewMode, mergedItems);
             return;
           }
         } catch {}
       }
 
-      // Also try reading from old key (pre-suffix) for backward compat
-      if (firebaseUid && localItems.length === 0) {
+      // If local has items, set them. Otherwise try old key.
+      if (localItems.length > 0) {
+        setItems(localItems);
+      } else if (firebaseUid) {
+        // Try old key (pre-suffix) for backward compat
         try {
           const oldKey = CART_KEY + '_' + shopSlug;
           const oldSaved = localStorage.getItem(oldKey);
@@ -96,26 +107,23 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
             const oldItems: CartItem[] = JSON.parse(oldSaved);
             if (oldItems.length > 0) {
               setItems(oldItems);
-              localStorage.setItem(key, JSON.stringify(oldItems));
+              saveToLS(shopSlug, viewMode, oldItems);
               localStorage.removeItem(oldKey);
-              localItems = oldItems;
             }
           }
         } catch {}
       }
-
-      setItems(localItems);
-      setLoading(false);
     };
 
-    loadCart();
-  }, [botId, shopSlug, viewMode]);
+    loadCart().finally(() => setLoading(false));
+  }, [botId, shopSlug, viewMode, firebaseUid, setLoading]);
 
-  // Save to localStorage on items change (uses keyRef from last load)
+  // Set loading=false after mount even if botId never comes
   useEffect(() => {
-    if (!shopSlug || !keyRef.current) return;
-    localStorage.setItem(keyRef.current, JSON.stringify(items));
-  }, [items, shopSlug]);
+    if (!botId || !shopSlug) {
+      setLoading(false);
+    }
+  }, [botId, shopSlug]);
 
   // Debounced server sync for logged-in users
   useEffect(() => {
@@ -134,38 +142,48 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
   const addItem = useCallback((product: { id: number; name: string; price: number; image_url: string }, colorHex?: string | null) => {
     setItems(prev => {
       const existing = prev.find(i => i.product_id === product.id);
-      if (existing) {
-        return prev.map(i => i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
-      }
-      return [...prev, {
-        product_id: product.id,
-        name: product.name,
-        price: Number(product.price),
-        quantity: 1,
-        image_url: product.image_url || '',
-        selected_color: colorHex || null,
-      }];
+      const newItems: CartItem[] = existing
+        ? prev.map(i => i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i)
+        : [...prev, {
+            product_id: product.id,
+            name: product.name,
+            price: Number(product.price),
+            quantity: 1,
+            image_url: product.image_url || '',
+            selected_color: colorHex || null,
+          }];
+      if (shopSlug) saveToLS(shopSlug, viewMode, newItems);
+      return newItems;
     });
-  }, []);
+  }, [shopSlug, viewMode]);
 
   const updateQty = useCallback((productId: number, delta: number) => {
-    setItems(prev => prev.map(i => {
-      if (i.product_id !== productId) return i;
-      const newQty = i.quantity + delta;
-      return newQty <= 0 ? null : { ...i, quantity: newQty };
-    }).filter(Boolean) as CartItem[]);
-  }, []);
+    setItems(prev => {
+      const newItems = prev.map(i => {
+        if (i.product_id !== productId) return i;
+        const newQty = i.quantity + delta;
+        return newQty <= 0 ? null : { ...i, quantity: newQty };
+      }).filter(Boolean) as CartItem[];
+      if (shopSlug) saveToLS(shopSlug, viewMode, newItems);
+      return newItems;
+    });
+  }, [shopSlug, viewMode]);
 
   const removeItem = useCallback((productId: number) => {
-    setItems(prev => prev.filter(i => i.product_id !== productId));
-  }, []);
+    setItems(prev => {
+      const newItems = prev.filter(i => i.product_id !== productId);
+      if (shopSlug) saveToLS(shopSlug, viewMode, newItems);
+      return newItems;
+    });
+  }, [shopSlug, viewMode]);
 
   const clearCart = useCallback(() => {
     setItems([]);
+    if (shopSlug) saveToLS(shopSlug, viewMode, []);
     if (firebaseUid && botId) {
       clearServerCart(botId, firebaseUid);
     }
-  }, [firebaseUid, botId]);
+  }, [firebaseUid, botId, shopSlug, viewMode]);
 
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0);
   const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);

@@ -225,7 +225,7 @@ export default function Chats() {
   const [inputText, setInputText] = useState('');
   const [contextMenu, setContextMenu] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [chatTab, setChatTab] = useState('telegram');
+  const [chatTab, setChatTab] = useState('all');
   const [selectedVisitor, setSelectedVisitor] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -251,14 +251,14 @@ export default function Chats() {
   const { data: webVisitors = [] } = useQuery({
     queryKey: ['webVisitors', selectedBotId],
     queryFn: () => getWebVisitors(Number(selectedBotId)),
-    enabled: !!selectedBotId && (chatTab === 'web' || chatTab === 'guest'),
+    enabled: !!selectedBotId && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
     refetchInterval: 15000,
   });
 
   const { data: webMessages = [] } = useQuery({
     queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor],
     queryFn: () => getWebVisitorMessages(selectedVisitor, Number(selectedBotId)),
-    enabled: !!selectedBotId && !!selectedVisitor && (chatTab === 'web' || chatTab === 'guest'),
+    enabled: !!selectedBotId && !!selectedVisitor && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
     refetchInterval: 10000,
   });
 
@@ -484,6 +484,14 @@ export default function Chats() {
       {/* Tab switcher */}
       <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 w-full">
         <button
+          onClick={() => { setChatTab('all'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
+          className={`flex-1 px-1.5 py-2 rounded-xl text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+            chatTab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          All
+        </button>
+        <button
           onClick={() => { setChatTab('telegram'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
           className={`flex-1 px-1.5 py-2 rounded-xl text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
             chatTab === 'telegram' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
@@ -527,34 +535,7 @@ export default function Chats() {
         </button>
       </div>
 
-      {chatTab === 'telegram' ? (
-        filteredChats.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
-            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <MessageCircle className="w-8 h-8 text-gray-300" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">No conversations yet</h3>
-            <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
-              {search ? 'Try a different search term.' : 'When users message the bot, their conversations will appear here.'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
-            {filteredChats.map(chat => (
-              <ConversationItem
-                key={chat.user_id}
-                chat={chat}
-                isActive={selectedUser === chat.user_id}
-                onClick={() => {
-                  setSelectedUser(chat.user_id);
-                  setUnreadOverrides(prev => { const n = {...prev}; delete n[chat.user_id]; return n; });
-                }}
-                onContextMenu={handleContextMenu}
-              />
-            ))}
-          </div>
-        )
-      ) : (
+      {chatTab === 'web' || chatTab === 'guest' ? (
         <>
           {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid) : filteredWebVisitors.filter(v => !v.firebase_uid)).length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
@@ -614,6 +595,143 @@ export default function Chats() {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {filteredChats.length > 0 && (
+            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
+              {filteredChats.map(chat => (
+                <ConversationItem
+                  key={chat.user_id}
+                  chat={chat}
+                  isActive={selectedUser === chat.user_id}
+                  onClick={() => {
+                    setSelectedUser(chat.user_id);
+                    setUnreadOverrides(prev => { const n = {...prev}; delete n[chat.user_id]; return n; });
+                  }}
+                  onContextMenu={handleContextMenu}
+                />
+              ))}
+            </div>
+          )}
+          {chatTab === 'all' && filteredWebVisitors.filter(v => v.firebase_uid).length > 0 && (
+            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
+              <div className="flex items-center gap-2 px-1 pt-1">
+                <div className="h-px flex-1 bg-gray-100" />
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Website</span>
+                <div className="h-px flex-1 bg-gray-100" />
+              </div>
+              {filteredWebVisitors.filter(v => v.firebase_uid).map(v => (
+                <div key={v.visitor_id} className="relative group">
+                  <button
+                    onClick={() => {
+                      setSelectedVisitor(v.visitor_id);
+                      setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
+                    }}
+                    onContextMenu={(e) => handleContextMenu(e, v)}
+                    className={`w-full text-left p-3 rounded-2xl transition-all active:scale-[0.98] ${
+                      selectedVisitor === v.visitor_id
+                        ? 'bg-indigo-50 border border-indigo-100'
+                        : 'bg-white border border-transparent hover:border-gray-200'
+                    } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <User className="w-5 h-5 text-gray-500" />
+                        {v.unread_count > 0 && (
+                          <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
+                            <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900`}>
+                            {v.name}
+                          </p>
+                          {v.last_time && (
+                            <span className="text-[10px] text-gray-400 flex-shrink-0">
+                              {myanmarFormat(v.last_time, 'MMM d')}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-xs truncate mt-0.5 ${v.unread_count > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
+                          {(v.last_message || '').length > 40 ? (v.last_message || '').slice(0, 40) + '...' : lastMessageText(v.last_message, v.last_file_type)}
+                        </p>
+                        {v.phone && <p className="text-[10px] text-gray-400 mt-0.5">{v.phone}</p>}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
+                    </div>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {chatTab === 'all' && filteredWebVisitors.filter(v => !v.firebase_uid).length > 0 && (
+            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
+              <div className="flex items-center gap-2 px-1 pt-1">
+                <div className="h-px flex-1 bg-gray-100" />
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Guest</span>
+                <div className="h-px flex-1 bg-gray-100" />
+              </div>
+              {filteredWebVisitors.filter(v => !v.firebase_uid).map(v => (
+                <div key={v.visitor_id} className="relative group">
+                  <button
+                    onClick={() => {
+                      setSelectedVisitor(v.visitor_id);
+                      setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
+                    }}
+                    onContextMenu={(e) => handleContextMenu(e, v)}
+                    className={`w-full text-left p-3 rounded-2xl transition-all active:scale-[0.98] ${
+                      selectedVisitor === v.visitor_id
+                        ? 'bg-indigo-50 border border-indigo-100'
+                        : 'bg-white border border-transparent hover:border-gray-200'
+                    } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <User className="w-5 h-5 text-gray-500" />
+                        {v.unread_count > 0 && (
+                          <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
+                            <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900`}>
+                            {v.name}
+                          </p>
+                          {v.last_time && (
+                            <span className="text-[10px] text-gray-400 flex-shrink-0">
+                              {myanmarFormat(v.last_time, 'MMM d')}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-xs truncate mt-0.5 ${v.unread_count > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
+                          {(v.last_message || '').length > 40 ? (v.last_message || '').slice(0, 40) + '...' : lastMessageText(v.last_message, v.last_file_type)}
+                        </p>
+                        {v.phone && <p className="text-[10px] text-gray-400 mt-0.5">{v.phone}</p>}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
+                    </div>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {filteredChats.length === 0
+            && (chatTab !== 'all' || filteredWebVisitors.length === 0) && (
+            <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-8 h-8 text-gray-300" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">No conversations yet</h3>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
+                {search ? 'Try a different search term.' : 'When users message the bot, their conversations will appear here.'}
+              </p>
             </div>
           )}
         </>

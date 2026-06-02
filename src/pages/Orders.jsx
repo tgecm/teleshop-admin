@@ -48,7 +48,7 @@ export default function Orders() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptType, setReceiptType] = useState('invoice');
-  const [orderTab, setOrderTab] = useState('telegram');
+  const [orderTab, setOrderTab] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showFilter, setShowFilter] = useState(false);
   const filterRef = useRef(null);
@@ -79,6 +79,7 @@ export default function Orders() {
   const filteredOrders = orders?.filter(o => {
     const isWebsite = o.payment_method === 'website';
     const isGuest = o.payment_method === 'guest';
+    if (orderTab === 'all') return true;
     if (orderTab === 'telegram' && (isWebsite || isGuest)) return false;
     if (orderTab === 'ecommerce' && !isWebsite) return false;
     if (orderTab === 'guest' && !isGuest) return false;
@@ -153,6 +154,10 @@ export default function Orders() {
       )}
 
       <div className="flex gap-1 bg-gray-100 rounded-2xl p-1">
+        <button onClick={() => setOrderTab('all')}
+          className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${orderTab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          All
+        </button>
         <button onClick={() => setOrderTab('telegram')}
           className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${orderTab === 'telegram' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           Telegram
@@ -174,7 +179,7 @@ export default function Orders() {
           </div>
           <h3 className="text-lg font-bold text-gray-900">No orders found</h3>
           <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
-            {search ? "Try a different search term." : orderTab === 'telegram' ? "Telegram orders will appear here." : orderTab === 'guest' ? "Guest orders will appear here." : "Website orders will appear here."}
+            {search ? "Try a different search term." : orderTab === 'all' ? "No orders found." : orderTab === 'telegram' ? "Telegram orders will appear here." : orderTab === 'guest' ? "Guest orders will appear here." : "Website orders will appear here."}
           </p>
         </div>
       ) : (

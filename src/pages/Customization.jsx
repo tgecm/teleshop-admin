@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   Link,
+  ShoppingBag,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -271,7 +272,7 @@ export default function Customization() {
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiContext, setAiContext] = useState('');
   const [aiIsEnabled, setAiIsEnabled] = useState(false);
-  const [editingAiContext, setEditingAiContext] = useState(false);
+  const [showAiContextPopup, setShowAiContextPopup] = useState(false);
   const [editingAiApiKey, setEditingAiApiKey] = useState(false);
   const [profilePicture, setProfilePicture] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -280,6 +281,9 @@ export default function Customization() {
   const [selectedTheme, setSelectedTheme] = useState(DEFAULT_THEME);
   const [showThemeConfirm, setShowThemeConfirm] = useState(false);
   const [pendingTheme, setPendingTheme] = useState(null);
+  const [orderButtonLabel, setOrderButtonLabel] = useState('Buy Now');
+  const [showBioPopup, setShowBioPopup] = useState(false);
+  const [showOrderBtnPopup, setShowOrderBtnPopup] = useState(false);
 
   const fileInputRef = React.useRef(null);
 
@@ -297,6 +301,8 @@ export default function Customization() {
       }
       const bioBlock = contentBlocks.find(b => b.key === 'shop_bio');
       setBioText(bioBlock?.content_data?.text || '');
+      const orderBtnBlock = contentBlocks.find(b => b.key === 'order_button_name');
+      setOrderButtonLabel(orderBtnBlock?.content_data?.label || 'Buy Now');
     }
     if (aiSettings) {
       setAiApiKey(aiSettings.api_key || '');
@@ -516,33 +522,20 @@ export default function Customization() {
               )}
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">System Context</label>
-              {editingAiContext ? (
-                <textarea
-                  value={aiContext}
-                  onChange={(e) => setAiContext(e.target.value)}
-                  rows={4}
-                  placeholder="Instructions for the AI assistant..."
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm resize-none"
-                  autoFocus
-                />
-              ) : (
-                <div className="flex items-start justify-between bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100 gap-2">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1 min-w-0">
-                    {aiContext || <span className="text-gray-400 italic">No instructions set</span>}
-                  </p>
-                  <button
-                    onClick={() => setEditingAiContext(true)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 transition-all active:scale-90 flex-shrink-0"
-                    title="Edit system context"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Custom Prompt</label>
+              <button
+                onClick={() => setShowAiContextPopup(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
+              >
+                <Edit2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                <span className="text-sm text-gray-700 truncate flex-1">
+                  {aiContext || <span className="text-gray-400 italic">Custom prompt...</span>}
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              </button>
             </div>
             <button
-              onClick={() => { setEditingAiApiKey(false); setEditingAiContext(false); updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, is_enabled: aiIsEnabled }); }}
+              onClick={() => { setEditingAiApiKey(false); updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, is_enabled: aiIsEnabled }); }}
               disabled={updateAiMutation.isPending || !aiApiKey.trim()}
               className="w-full px-4 py-2 bg-cyan-500 text-white font-bold rounded-xl hover:bg-cyan-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
             >
@@ -553,6 +546,57 @@ export default function Customization() {
         </section>
 
       </div>
+
+      {/* AI Context Popup */}
+      <AnimatePresence>
+        {showAiContextPopup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex flex-col bg-white"
+          >
+            <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-gray-100">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Custom Prompt</h3>
+                <p className="text-[10px] text-gray-400">Instructions for the AI assistant</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAiContextPopup(false)}
+                  className="px-3 py-1.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, is_enabled: aiIsEnabled });
+                    setShowAiContextPopup(false);
+                  }}
+                  disabled={updateAiMutation.isPending}
+                  className="px-4 py-1.5 bg-cyan-500 text-white font-bold rounded-xl hover:bg-cyan-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
+                >
+                  {updateAiMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save
+                </button>
+              </div>
+            </div>
+
+            <textarea
+              value={aiContext}
+              onChange={(e) => setAiContext(e.target.value)}
+              onInput={(e) => {
+                const el = e.target;
+                el.style.height = 'auto';
+                el.style.height = el.scrollHeight + 'px';
+              }}
+              placeholder="လုပ်ငန်းအသေးစိတ်၊ ဖုန်းနံပါတ်၊ လိပ်စာနှင့် ဝန်ဆောင်မှုအကြောင်း အကြမ်းဖျင်းရေးပေးပါ။"
+              className="flex-1 w-full px-5 py-4 bg-white outline-none text-sm resize-none overflow-y-auto"
+              autoFocus
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bot Captions */}
       <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
@@ -593,6 +637,29 @@ export default function Customization() {
         />
       </section>
 
+      {/* Order Button */}
+      <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+            <ShoppingBag className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-gray-900">Order Button</h3>
+            <p className="text-[10px] text-gray-500">Choose the label for the buy button</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowOrderBtnPopup(true)}
+          className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
+        >
+          <ShoppingBag className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          <span className="text-sm text-gray-700 truncate flex-1">
+            Current: <span className="font-bold">{orderButtonLabel}</span>
+          </span>
+          <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+        </button>
+      </section>
+
       {/* Shop Banners */}
       <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-2.5 mb-3">
@@ -620,52 +687,169 @@ export default function Customization() {
             </div>
             <div>
               <h3 className="text-base font-bold text-gray-900">Edit Bio</h3>
-              <p className="text-[10px] text-gray-500">Short bio shown on your shop page (max 150 characters)</p>
+              <p className="text-[10px] text-gray-500">Short bio shown on your shop page</p>
             </div>
           </div>
-          <div className="space-y-2">
-            <textarea
-              value={bioText}
-              onChange={e => { if (e.target.value.length <= 150) setBioText(e.target.value); }}
-              disabled={!editingBio}
-              placeholder="Enter your shop bio..."
-              rows={2}
-              className="w-full px-3 py-2 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm resize-none disabled:bg-gray-100 disabled:cursor-not-allowed enabled:bg-white"
+          <button
+            onClick={() => setShowBioPopup(true)}
+            className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
+          >
+            <Edit2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            <span className="text-sm text-gray-700 truncate flex-1">
+              {bioText || <span className="text-gray-400 italic">Add a shop bio...</span>}
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          </button>
+        </section>
+      </section>
+
+      {/* Bio Popup */}
+      <AnimatePresence>
+        {showBioPopup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setShowBioPopup(false); setBioText(contentBlocks?.find(b => b.key === 'shop_bio')?.content_data?.text || ''); }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-gray-400">{bioText.length}/150</span>
-              {editingBio ? (
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full mx-auto"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Edit Bio</h3>
+                  <p className="text-[10px] text-gray-400">Short bio shown on your shop page (max 150 chars)</p>
+                </div>
+                <button
+                  onClick={() => { setShowBioPopup(false); setBioText(contentBlocks?.find(b => b.key === 'shop_bio')?.content_data?.text || ''); }}
+                  className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+
+              <textarea
+                value={bioText}
+                onChange={e => { if (e.target.value.length <= 150) setBioText(e.target.value); }}
+                onInput={(e) => {
+                  const el = e.target;
+                  el.style.height = 'auto';
+                  el.style.height = el.scrollHeight + 'px';
+                }}
+                rows={2}
+                placeholder="Enter your shop bio..."
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm resize-none overflow-hidden"
+                autoFocus
+              />
+
+              <div className="flex items-center justify-between mt-2 px-1">
+                <span className="text-[11px] text-gray-400">{bioText.length}/150</span>
+              </div>
+
+              <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                <button
+                  onClick={() => { setShowBioPopup(false); setBioText(contentBlocks?.find(b => b.key === 'shop_bio')?.content_data?.text || ''); }}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
+                >
+                  Cancel
+                </button>
                 <button
                   onClick={() => {
                     updateContentMutation.mutate({ key: 'shop_bio', data: { text: bioText.trim() } });
-                    setEditingBio(false);
+                    setShowBioPopup(false);
                   }}
-                  disabled={updateContentMutation.isPending || bioText.trim() === (contentBlocks?.find(b => b.key === 'shop_bio')?.content_data?.text || '')}
-                  className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed text-sm flex items-center gap-1.5"
+                  disabled={updateContentMutation.isPending || !bioText.trim()}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
                 >
-                  {updateContentMutation.isPending ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Save className="w-3.5 h-3.5" />
-                  )}
+                  {updateContentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Save
                 </button>
-              ) : (
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Order Button Popup */}
+      <AnimatePresence>
+        {showOrderBtnPopup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowOrderBtnPopup(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full mx-auto"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Order Button</h3>
+                  <p className="text-[10px] text-gray-400">Choose the label for your shop's buy button</p>
+                </div>
                 <button
-                  onClick={() => setEditingBio(true)}
-                  className="px-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
+                  onClick={() => setShowOrderBtnPopup(false)}
+                  className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform"
                 >
-                  <Edit2 className="w-4 h-4" />
+                  <X className="w-4 h-4 text-gray-500" />
                 </button>
-              )}
-            </div>
-          </div>
-        </section>
-      </section>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
+                {ORDER_BUTTON_OPTIONS.map(option => {
+                  const isActive = orderButtonLabel === option;
+                  return (
+                    <button
+                      key={option}
+                      onClick={() => {
+                        setOrderButtonLabel(option);
+                        updateContentMutation.mutate({ key: 'order_button_name', data: { label: option } });
+                        setShowOrderBtnPopup(false);
+                      }}
+                      disabled={updateContentMutation.isPending}
+                      className={`px-3 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.97] ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-600'
+                          : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
 }
+
+const ORDER_BUTTON_OPTIONS = [
+  'Order Now', 'Shop Now', 'Buy Now', 'Enroll Now', 'Book Now', 'Get Now', 'Grab Now',
+];
 
 const CAPTION_OPTIONS = [
   { key: 'welcome_caption', label: 'Welcome Caption' },
@@ -917,7 +1101,7 @@ function PosterEditor({ contentBlocks, onSave, botId }) {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 pt-4">
+            <div className="flex-1 overflow-y-auto p-5 pt-4 pb-24">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {POSTER_ITEMS.map(({ key, icon, label }) => {
                   const url = getPosterUrl(key);

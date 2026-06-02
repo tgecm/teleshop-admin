@@ -297,7 +297,7 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
               }}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-base transition-all active:scale-[0.98] theme-btn">
                 <ShoppingCart className="w-5 h-5" />
-                Buy Now
+                {orderButtonLabel}
               </button>
             )
           )}
@@ -1195,6 +1195,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   });
   const themeName = data?.theme || DEFAULT_THEME;
   const theme = THEMES[themeName] || THEMES[DEFAULT_THEME];
+  const orderButtonLabel = data?.order_button_name || 'Buy Now';
 
   const productLinkProduct = productLinkActive && initialProductCode
     ? products.find(p => p.link_code === initialProductCode) || null
@@ -2073,7 +2074,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                           }}
                             className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.97] theme-btn">
                             <ShoppingCart className="w-4 h-4" />
-                            Buy Now
+                            {orderButtonLabel}
                           </button>
                         )
                       ) : (
@@ -2113,7 +2114,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                             className={`flex-1 px-3 py-2 rounded-xl font-bold text-xs transition-all active:scale-[0.97] ${
                               getProductColors(product).length > 0 && !selectedColors[product.id] ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'theme-btn shadow-sm'
                             }`}>
-                            Buy Now
+                            {orderButtonLabel}
                           </button>
                         )}
                         {!isOutOfStock && viewMode === 'telegram' && shop?.bot_username && (

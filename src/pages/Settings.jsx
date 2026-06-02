@@ -50,6 +50,7 @@ import {
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
+import Subscription from './Subscription';
 
 export default function Settings() {
   const { isSuperadmin, user } = useAuthStore();
@@ -298,16 +299,16 @@ export default function Settings() {
 
       <div className="space-y-6">
         {activeTab === 'shop' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
 
-            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${shopOpen ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                    <Power className="w-5 h-5" />
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${shopOpen ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                    <Power className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-gray-900">Shop Status</h3>
+                    <h3 className="text-sm font-bold text-gray-900">Shop Status</h3>
                     <p className="text-[10px] text-gray-500">Control your bot's availability</p>
                   </div>
                 </div>
@@ -324,13 +325,13 @@ export default function Settings() {
             </section>
 
 
-            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <Mail className="w-5 h-5" />
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Mail className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-gray-900">Email Notifications</h3>
+                  <h3 className="text-sm font-bold text-gray-900">Email Notifications</h3>
                   <p className="text-[10px] text-gray-500">Receive order alerts via email</p>
                 </div>
               </div>
@@ -365,14 +366,14 @@ export default function Settings() {
             </section>
 
 
-            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <Globe className="w-5 h-5" />
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <Globe className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-gray-900">Website Link</h3>
+                    <h3 className="text-sm font-bold text-gray-900">Website Link</h3>
                     <p className="text-[10px] text-gray-500">Website button in bot's main menu</p>
                   </div>
                 </div>
@@ -427,13 +428,13 @@ export default function Settings() {
             </section>
 
 
-            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                  <Globe className="w-5 h-5" />
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <Globe className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-gray-900">Public Shop Page</h3>
+                  <h3 className="text-sm font-bold text-gray-900">Public Shop Page</h3>
                   <p className="text-[10px] text-gray-500">Your public-facing ecommerce page</p>
                 </div>
               </div>
@@ -488,13 +489,13 @@ export default function Settings() {
                 </div>
             </section>
 
-            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-9 h-9 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
-                  <Globe className="w-5 h-5" />
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+                  <Globe className="w-4 h-4" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-base font-bold text-gray-900">Custom Domains</h3>
+                  <h3 className="text-sm font-bold text-gray-900">Custom Domains</h3>
                   <p className="text-[10px] text-gray-500">Use up to 3 custom domains for the public shop</p>
                 </div>
                 {hasUnverifiedDomain && (
@@ -786,13 +787,13 @@ export default function Settings() {
 
 
 
-            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                  <ShieldCheck className="w-5 h-5" />
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-gray-900">Manage Admins</h3>
+                  <h3 className="text-sm font-bold text-gray-900">Manage Admins</h3>
                   <p className="text-[10px] text-gray-500">Add or remove bot administrators</p>
                 </div>
               </div>
@@ -881,9 +882,13 @@ export default function Settings() {
           <>
           </>)}
 
+        {activeTab === 'subscription' && (
+          <Subscription />
+        )}
+
         {activeTab === 'bots' && isSuperadmin && (
-          <ManageBots 
-            allBots={allBots} 
+          <ManageBots
+            allBots={allBots}
             deleteBotMutation={deleteBotMutation}
             selectedBotId={selectedBotId}
           />

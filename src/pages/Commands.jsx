@@ -67,7 +67,7 @@ export default function Commands() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Commands</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Telegram Commands</h1>
         <div className="flex gap-2">
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -89,11 +89,7 @@ export default function Commands() {
         </div>
       </div>
 
-      <div className="text-center md:hidden">
-        <p className="text-[10px] text-gray-400 italic">Pull down to refresh</p>
-      </div>
-
-      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
+<div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
         <div className="text-sm text-amber-800">
           <p className="font-bold">Text commands only here.</p>

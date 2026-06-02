@@ -6,6 +6,7 @@ import { useRequireAuth } from '../hooks/useRequireAuth';
 import { useTelegramAuth } from '../context/TelegramAuthContext';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { useCartState } from '../context/CartContext';
+import { myanmarFormat } from '../utils/date';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
@@ -603,7 +604,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
                     {order.items_count || 0} item{(order.items_count || 0) !== 1 ? 's' : ''}
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {order.created_at ? new Date(order.created_at).toLocaleDateString() : '—'}
+                    {order.created_at ? myanmarFormat(order.created_at, 'MMM d, yyyy') : '—'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -932,7 +933,7 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
     const existingBotId = profileShopProp?.id;
     if (existingBotId) {
       botIdRef.current = existingBotId;
-      fetch(`${API_BASE}/api/customer-profile?bot_id=${existingBotId}&uid=${encodeURIComponent(uid)}`)
+      fetch(`${API_BASE}/api/customer-profile?bot_id=${existingBotId}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(email || '')}`)
         .then(r => r.ok ? r.json() : {})
         .then(data => {
           if (data && data.id) {
@@ -959,7 +960,7 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
           const botId = shopData?.shop?.id;
           if (!botId) { setLoading(false); setResolving(false); return; }
           botIdRef.current = botId;
-          return fetch(`${API_BASE}/api/customer-profile?bot_id=${botId}&uid=${encodeURIComponent(uid)}`);
+          return fetch(`${API_BASE}/api/customer-profile?bot_id=${botId}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(email || '')}`);
         })
         .then(r => r && r.ok ? r.json() : {})
         .then(data => {
