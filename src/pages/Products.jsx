@@ -462,6 +462,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     return [];
   });
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showPhotoConfirm, setShowPhotoConfirm] = useState(false);
   const [uploadingColor, setUploadingColor] = useState(null);
   const colorFileInputRef = useRef(null);
   const pendingColorRef = useRef(null);
@@ -473,7 +474,15 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     }
     pendingColorRef.current = hex;
     setShowColorPicker(false);
-    setTimeout(() => colorFileInputRef.current?.click(), 100);
+    setShowPhotoConfirm(true);
+  };
+
+  const handleColorNoPhoto = () => {
+    const hex = pendingColorRef.current;
+    if (!hex) return;
+    pendingColorRef.current = null;
+    setShowPhotoConfirm(false);
+    setColors(prev => [...prev, { color: hex }]);
   };
 
   const handleColorImageUpload = async (e) => {
@@ -481,9 +490,10 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     if (!file || !pendingColorRef.current) return;
     const hex = pendingColorRef.current;
     pendingColorRef.current = null;
+    setShowPhotoConfirm(false);
     setUploadingColor(hex);
     try {
-      const compressed = await compressImage(file);
+      const compressed = await compressImage(file, 720);
       const res = await uploadImage(compressed, selectedBotId);
       setColors(prev => [...prev, { color: hex, file_id: res.file_id }]);
     } catch (err) {
@@ -789,8 +799,24 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             </div>
           )}
 
+          {showPhotoConfirm && (
+            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 text-center">
+              <p className="text-sm font-bold text-gray-700 mb-3">Do you want add the photo of this color?</p>
+              <div className="flex gap-3 justify-center">
+                <button type="button" onClick={handleColorNoPhoto}
+                  className="px-6 py-2.5 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 transition-all active:scale-95">
+                  No
+                </button>
+                <button type="button" onClick={() => { setShowPhotoConfirm(false); setTimeout(() => colorFileInputRef.current?.click(), 100); }}
+                  className="px-6 py-2.5 bg-indigo-600 border-2 border-indigo-600 rounded-xl text-sm font-bold text-white hover:bg-indigo-700 transition-all active:scale-95">
+                  Yes
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
-            {!showColorPicker && colors.length < 8 && (
+            {!showColorPicker && !showPhotoConfirm && colors.length < 8 && (
               <button
                 type="button"
                 onClick={() => setShowColorPicker(true)}
