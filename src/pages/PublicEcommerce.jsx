@@ -62,6 +62,17 @@ const COLOR_NAMES = {
   '#FFFFFF': 'White', '#6B7280': 'Gray', '#78350F': 'Brown', '#0D9488': 'Teal',
 };
 
+function linkifyText(text) {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
+    }
+    return part;
+  });
+}
+
 function getPublicImageUrls(image_url, bot_id) {
   if (!image_url) return [];
   if (image_url.startsWith('http')) return [image_url];
@@ -127,7 +138,7 @@ function LoadingSkeleton() {
   );
 }
 
-function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, viewMode, sentProducts, setSentProducts, slug }) {
+function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, viewMode, sentProducts, setSentProducts, slug, orderButtonLabel }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState(null);
   const touchStartX = useRef(null);
@@ -237,13 +248,10 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
             </div>
           )}
 
-          {productColors.length > 0 && (
+          {viewMode !== 'telegram' && productColors.length > 0 && (
             <div className="mb-5">
-              <p className="text-xs text-gray-500 font-medium mb-2 flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: selectedColor || '#ccc' }} />
-                Color: <span className="font-bold text-gray-700">{selectedColor ? COLOR_NAMES[selectedColor] || selectedColor : 'Select'}</span>
-              </p>
-              <div className="flex flex-wrap gap-2">
+              <p className="text-xs text-gray-500 font-medium mb-2.5">Color</p>
+              <div className="flex flex-wrap gap-3">
                 {productColors.map(c => {
                   const isSelected = selectedColor === c.color;
                   return (
@@ -252,13 +260,16 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
                         setSelectedColor(isSelected ? null : c.color);
                         setCurrentImageIndex(0);
                       }}
-                      className={`w-10 h-10 rounded-full border-2 transition-all active:scale-90 ${
-                        isSelected ? 'border-indigo-500 scale-110 shadow-md ring-2 ring-indigo-200' : 'border-gray-300 hover:scale-110'
+                      className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${
+                        isSelected ? 'opacity-100' : 'opacity-70 hover:opacity-100'
                       }`}
-                      style={{ backgroundColor: c.color }}
-                      title={COLOR_NAMES[c.color] || c.color}
                     >
-                      {isSelected && <span className="w-2 h-2 rounded-full bg-white shadow-sm mx-auto block" />}
+                      <div className={`w-10 h-10 rounded-full border-2 ${
+                        isSelected ? 'border-indigo-500 shadow-md ring-2 ring-indigo-200' : 'border-gray-300'
+                      }`} style={{ backgroundColor: c.color }} />
+                      <span className={`text-[10px] font-medium ${isSelected ? 'text-indigo-600' : 'text-gray-500'}`}>
+                        {COLOR_NAMES[c.color] || c.color.replace('#', '')}
+                      </span>
                     </button>
                   );
                 })}
@@ -1708,12 +1719,20 @@ export default function PublicEcommerce({ slug, viaDomain }) {
               const stockLow = productLinkProduct.stock_quantity !== null && productLinkProduct.stock_quantity <= 5 && productLinkProduct.stock_quantity > 0;
               const productColors = productLinkProduct.specifications?.colors && Array.isArray(productLinkProduct.specifications.colors)
                 ? productLinkProduct.specifications.colors : [];
+              const colorImages = productColors.filter(c => c.file_id).map(c => ({
+                file_id: c.file_id, color: c.color,
+                url: `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(c.file_id)}?bot_id=${shop?.id}`,
+              }));
+              const linkSelectedColor = selectedColors['_link'] || null;
+              const linkImages = linkSelectedColor
+                ? [...(colorImages.filter(c => c.color === linkSelectedColor).map(c => c.url)), ...images]
+                : images;
               return (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                   className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 mt-4 max-w-lg mx-auto">
-                  {images.length > 0 && (
+                  {linkImages.length > 0 && (
                     <div className="aspect-square bg-gray-50 relative">
-                      <img src={images[0]} alt={productLinkProduct.name} className="w-full h-full object-cover" />
+                      <img src={linkImages[0]} alt={productLinkProduct.name} className="w-full h-full object-cover" />
                     </div>
                   )}
                   <div className="p-5 space-y-4">
@@ -1736,15 +1755,28 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                         {categories?.find(c => c.id === productLinkProduct.category_id)?.name || 'Uncategorized'}
                       </span>
                     </div>
-                    {productColors.length > 0 && (
+                    {viewMode !== 'telegram' && productColors.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">Colors</p>
-                        <div className="flex flex-wrap gap-2">
-                          {productColors.map(c => (
-                            <div key={c.color} className="w-10 h-10 rounded-xl border-2 border-gray-300 shadow-sm" style={{ backgroundColor: c.color }}>
-                              {c.file_id && <img src={`https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(c.file_id)}?bot_id=${shop?.id}`} alt="" className="w-full h-full object-cover rounded-xl" />}
-                            </div>
-                          ))}
+                        <p className="text-xs text-gray-500 font-medium">Color</p>
+                        <div className="flex flex-wrap gap-3">
+                          {productColors.map(c => {
+                            const isSelected = linkSelectedColor === c.color;
+                            return (
+                              <button key={c.color}
+                                onClick={() => setSelectedColors(prev => ({ ...prev, ['_link']: isSelected ? null : c.color }))}
+                                className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${
+                                  isSelected ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+                                }`}
+                              >
+                                <div className={`w-10 h-10 rounded-full border-2 ${
+                                  isSelected ? 'border-indigo-500 shadow-md ring-2 ring-indigo-200' : 'border-gray-300'
+                                }`} style={{ backgroundColor: c.color }} />
+                                <span className={`text-[10px] font-medium ${isSelected ? 'text-indigo-600' : 'text-gray-500'}`}>
+                                  {COLOR_NAMES[c.color] || c.color.replace('#', '')}
+                                </span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -1761,7 +1793,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                       </button>
                       <button
                         onClick={() => {
-                          addToCart(productLinkProduct, null);
+                          if (productColors.length > 0 && !linkSelectedColor) return;
+                          addToCart(productLinkProduct, linkSelectedColor);
                           if (!user) {
                             setViewMode('ecommerce');
                             pendingBuyNowRef.current = true;
@@ -1775,19 +1808,20 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                             }
                           }
                         }}
-                        disabled={isOutOfStock}
+                        disabled={isOutOfStock || (productColors.length > 0 && !linkSelectedColor)}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-[0.98] text-sm"
                       >
-                        <ShoppingCart className="w-4 h-4" /> Buy on Website
+                        <ShoppingCart className="w-4 h-4" /> {productColors.length > 0 && !linkSelectedColor ? 'Select a Color' : 'Buy on Website'}
                       </button>
                       <button
                         onClick={() => {
+                          if (productColors.length > 0 && !linkSelectedColor) return;
                           setViewMode('guest');
-                          addToCart(productLinkProduct, null);
+                          addToCart(productLinkProduct, linkSelectedColor);
                           setShowCart(false);
                           paymentMethods.length > 0 ? setShowPaymentSelect(true) : setCheckoutOpen(true);
                         }}
-                        disabled={isOutOfStock}
+                        disabled={isOutOfStock || (productColors.length > 0 && !linkSelectedColor)}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-all active:scale-[0.98] text-sm"
                       >
                         <User className="w-4 h-4" /> Buy as a Guest
@@ -1899,7 +1933,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
         {shopBio && (
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="text-[11px] md:text-[12px] text-gray-500 leading-relaxed mb-2 px-1 whitespace-pre-wrap">
-            {shopBio}
+            {linkifyText(shopBio)}
           </motion.p>
         )}
 
@@ -2034,7 +2068,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                       <span className="text-[10px] text-gray-400 font-medium">MMK</span>
                     </div>
 
-                    {(() => {
+                    {viewMode !== 'telegram' && (() => {
                       const productColors = getProductColors(product);
                       if (!productColors.length) return null;
                       return (
@@ -2166,6 +2200,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
             sentProducts={sentProducts}
             setSentProducts={setSentProducts}
             slug={slug}
+            orderButtonLabel={orderButtonLabel}
           />
         )}
       </AnimatePresence>
