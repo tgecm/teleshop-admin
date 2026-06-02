@@ -9,7 +9,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   Radio,
-  Terminal,
+  Send,
   CreditCard,
   Settings,
   ShieldCheck,
@@ -53,7 +53,7 @@ export default function BottomNav() {
 
   const moreItems = [
     { to: '/broadcast', icon: Radio, label: 'Broadcast' },
-    { to: '/commands', icon: Terminal, label: 'Commands' },
+    { to: '/commands', icon: Send, label: 'Telegram Command' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
     { to: '/subscription', icon: ShieldCheck, label: 'Subscription' },
     { to: '/customization', icon: Palette, label: 'Customize' },

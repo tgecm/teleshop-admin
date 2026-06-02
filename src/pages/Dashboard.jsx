@@ -724,7 +724,7 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4 min-h-0 pb-8">
+            <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4 min-h-0 pb-28">
               {/* Date range */}
               <div>
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Date Range</p>
