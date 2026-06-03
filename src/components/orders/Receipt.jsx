@@ -375,7 +375,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const subSize = isInvoice ? 15 : 16;
 
   const orderNum = esc(order.order_number || `#${order.id}`);
-  const cName = esc(order.buyer_snapshot?.full_name || order.customer?.first_name || '—');
+  const cName = esc(order.buyer_snapshot?.name || order.buyer_snapshot?.full_name || order.customer?.first_name || '—');
   const phone = esc(order.buyer_snapshot?.phone || '—');
   const email = esc(order.buyer_snapshot?.email || '—');
   const addr = esc(order.buyer_snapshot?.address || '—');
@@ -658,10 +658,14 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
 
   useEffect(() => {
     if (!open || !order) return;
-    setInvoiceNumber('');
-    generateInvoiceNumber(order.id).then(res => {
-      setInvoiceNumber(res.invoice_number);
-    }).catch(() => {});
+    if (order.invoice_number) {
+      setInvoiceNumber(order.invoice_number);
+    } else {
+      setInvoiceNumber('');
+      generateInvoiceNumber(order.id).then(res => {
+        setInvoiceNumber(res.invoice_number);
+      }).catch(() => {});
+    }
     const calc = () => {
       const vw = window.innerWidth - 32;
       setScale(Math.min(1, vw / RECEIPT_W));
@@ -681,7 +685,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
   const paymentMethod = order.payment_method || 'Cash';
 
   const initials = botName.split(' ').map(w => w.charAt(0).toUpperCase()).join('');
-  const receiptNumber = `${initials}-ECM-${myanmarFormat(orderDate, 'yyyyMMdd')}-${(order.order_number || String(order.id)).slice(-3)}`;
+  const receiptNumber = order.receipt_no || `${initials}-ECM-${myanmarFormat(orderDate, 'yyyyMMdd')}-${(order.order_number || String(order.id)).slice(-3)}`;
 
   const minTableRows = Math.max(5, items.length);
 
@@ -893,7 +897,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                       <div style={s.midColBorder}>
                         <div style={s.sectionTitle}><span>👤</span> {isInv ? 'Bill To' : 'Received From'}</div>
                         <div style={s.fieldItem}>
-                          <span style={s.fieldLabel}>Name</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{order.buyer_snapshot?.full_name || order.customer?.first_name || '—'}</span>
+                          <span style={s.fieldLabel}>Name</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{order.buyer_snapshot?.name || order.buyer_snapshot?.full_name || order.customer?.first_name || '—'}</span>
                         </div>
                         <div style={s.fieldItem}>
                           <span style={s.fieldLabel}>Phone</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{order.buyer_snapshot?.phone || '—'}</span>

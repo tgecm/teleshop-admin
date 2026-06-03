@@ -79,10 +79,11 @@ export default function Orders() {
   const filteredOrders = orders?.filter(o => {
     const isWebsite = o.payment_method === 'website';
     const isGuest = o.payment_method === 'guest';
-    if (orderTab === 'all') return true;
-    if (orderTab === 'telegram' && (isWebsite || isGuest)) return false;
-    if (orderTab === 'ecommerce' && !isWebsite) return false;
-    if (orderTab === 'guest' && !isGuest) return false;
+    if (orderTab !== 'all') {
+      if (orderTab === 'telegram' && (isWebsite || isGuest)) return false;
+      if (orderTab === 'ecommerce' && !isWebsite) return false;
+      if (orderTab === 'guest' && !isGuest) return false;
+    }
     if (statusFilter !== 'all') {
       if (statusFilter === 'pending') {
         if (o.status !== 'pending' && o.status !== 'pending_review') return false;
@@ -91,6 +92,7 @@ export default function Orders() {
       } else if (o.status !== statusFilter) return false;
     }
     const term = search.toLowerCase().trim();
+    if (!term) return true;
     return (
       o.buyer_snapshot?.name?.toLowerCase().includes(term) ||
       o.customer?.first_name?.toLowerCase().includes(term) ||
@@ -98,6 +100,8 @@ export default function Orders() {
       o.buyer_snapshot?.phone?.toLowerCase().includes(term) ||
       o.buyer_snapshot?.email?.toLowerCase().includes(term) ||
       o.order_number?.toLowerCase().includes(term) ||
+      o.invoice_number?.toLowerCase().includes(term) ||
+      o.receipt_no?.toLowerCase().includes(term) ||
       o.id.toString() === term ||
       o.id.toString().includes(term)
     );
@@ -115,7 +119,7 @@ export default function Orders() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search customer or ID..."
+            placeholder="Search name, invoice, receipt, order ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
