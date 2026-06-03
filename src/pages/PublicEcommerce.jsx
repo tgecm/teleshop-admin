@@ -582,9 +582,31 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
   const handleProofFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setProofFile(file);
+    const img = new Image();
     const reader = new FileReader();
-    reader.onload = () => setProofPreview(reader.result);
+    reader.onload = () => {
+      img.src = reader.result;
+      img.onload = () => {
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        const MAX = 854; // 480p width
+        if (w > MAX || h > MAX * 0.75) {
+          if (w > h) { h = (h / w) * MAX; w = MAX; }
+          else { w = (w / h) * (MAX * 0.75); h = MAX * 0.75; }
+        }
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, w, h);
+        c.toBlob(blob => {
+          const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+          setProofFile(compressed);
+          setProofPreview(c.toDataURL('image/jpeg', 0.85));
+        }, 'image/jpeg', 0.85);
+      };
+    };
     reader.readAsDataURL(file);
   };
 
@@ -1211,6 +1233,40 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const [productLinkActive, setProductLinkActive] = useState(!!initialProductCode);
   const [initialPostCode] = useState(() => new URLSearchParams(window.location.search).get('post'));
   const [fullscreenLogo, setFullscreenLogo] = useState(false);
+  const catScrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+
+  const updateCatScroll = useCallback(() => {
+    const el = catScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, []);
+
+  const handleCatMouseDown = useCallback((e) => {
+    isDraggingRef.current = true;
+    startXRef.current = e.pageX - catScrollRef.current.offsetLeft;
+    scrollLeftRef.current = catScrollRef.current.scrollLeft;
+    catScrollRef.current.style.cursor = 'grabbing';
+  }, []);
+
+  const handleCatMouseMove = useCallback((e) => {
+    if (!isDraggingRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - catScrollRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    catScrollRef.current.scrollLeft = scrollLeftRef.current - walk;
+  }, []);
+
+  const handleCatMouseUp = useCallback(() => {
+    isDraggingRef.current = false;
+    if (catScrollRef.current) catScrollRef.current.style.cursor = 'grab';
+    updateCatScroll();
+  }, [updateCatScroll]);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: viaDomain ? ['public-ecommerce-by-domain'] : ['public-ecommerce', slug],
@@ -2042,19 +2098,46 @@ export default function PublicEcommerce({ slug, viaDomain }) {
         {/* Categories */}
         {categories.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-            className="mb-6 overflow-x-auto scrollbar-hide -mx-4 px-4">
-            <div className="flex gap-2 min-w-max pb-2">
-              <button onClick={() => setSelectedCategory(null)}
-                className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${!selectedCategory ? 'theme-filter-active' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'}`}>
-                <Sparkles className="w-4 h-4 inline mr-1.5" />All
-              </button>
-              {categories.map(cat => (
-                <button key={cat.id} onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
-                  className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${selectedCategory === cat.id ? 'theme-filter-active' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'}`}>
-                  {cat.name}
+            className="relative group mb-6 -mx-4 px-4">
+            {/* Left arrow — desktop only, shows on hover */}
+            <button
+              onClick={() => catScrollRef.current?.scrollBy({ left: -240, behavior: 'smooth' })}
+              disabled={!canScrollLeft}
+              className="hidden md:flex absolute left-6 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 shadow-md border border-gray-200 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white disabled:opacity-0"
+            >
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
+            </button>
+
+            <div ref={catScrollRef}
+              onScroll={updateCatScroll}
+              onMouseDown={handleCatMouseDown}
+              onMouseMove={handleCatMouseMove}
+              onMouseUp={handleCatMouseUp}
+              onMouseLeave={handleCatMouseUp}
+              className="overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing select-none"
+            >
+              <div className="flex gap-2 min-w-max pb-2 px-4">
+                <button onClick={() => setSelectedCategory(null)}
+                  className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${!selectedCategory ? 'theme-filter-active' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'}`}>
+                  <Sparkles className="w-4 h-4 inline mr-1.5" />All
                 </button>
-              ))}
+                {categories.map(cat => (
+                  <button key={cat.id} onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
+                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${selectedCategory === cat.id ? 'theme-filter-active' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'}`}>
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Right arrow — desktop only, shows on hover */}
+            <button
+              onClick={() => catScrollRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}
+              disabled={!canScrollRight}
+              className="hidden md:flex absolute right-6 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 shadow-md border border-gray-200 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white disabled:opacity-0"
+            >
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            </button>
           </motion.div>
         )}
 

@@ -273,7 +273,6 @@ export default function Customization() {
   const [aiContext, setAiContext] = useState('');
   const [aiIsEnabled, setAiIsEnabled] = useState(false);
   const [showAiContextPopup, setShowAiContextPopup] = useState(false);
-  const [editingAiApiKey, setEditingAiApiKey] = useState(false);
   const [profilePicture, setProfilePicture] = useState('');
   const [uploading, setUploading] = useState(false);
   const [bioText, setBioText] = useState('');
@@ -492,36 +491,6 @@ export default function Customization() {
               </button>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">API Key (DeepSeek)</label>
-              {editingAiApiKey ? (
-                <input
-                  type="password"
-                  value={aiApiKey}
-                  onChange={(e) => setAiApiKey(e.target.value)}
-                  placeholder="sk-..."
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm"
-                  autoFocus
-                />
-              ) : (
-                <div className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100 gap-2">
-                  <span className="text-sm font-mono text-gray-700 truncate">
-                    {aiApiKey ? (
-                      <span>{aiApiKey.substring(0, 3)}<span className="text-gray-300">{'•'.repeat(Math.min(aiApiKey.length - 3, 24))}</span></span>
-                    ) : (
-                      <span className="text-gray-400 italic">No API key set</span>
-                    )}
-                  </span>
-                  <button
-                    onClick={() => setEditingAiApiKey(true)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-cyan-600 hover:bg-cyan-50 transition-all active:scale-90 flex-shrink-0"
-                    title="Edit API key"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-            <div>
               <label className="text-xs font-medium text-gray-600 mb-1 block">Custom Prompt</label>
               <button
                 onClick={() => setShowAiContextPopup(true)}
@@ -535,8 +504,8 @@ export default function Customization() {
               </button>
             </div>
             <button
-              onClick={() => { setEditingAiApiKey(false); updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, is_enabled: aiIsEnabled }); }}
-              disabled={updateAiMutation.isPending || !aiApiKey.trim()}
+              onClick={() => { updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, is_enabled: aiIsEnabled }); }}
+              disabled={updateAiMutation.isPending}
               className="w-full px-4 py-2 bg-cyan-500 text-white font-bold rounded-xl hover:bg-cyan-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
             >
               {updateAiMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

@@ -77,7 +77,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ShoppingBag, Package, Clock, CheckCircle2, XCircle, ChevronRight,
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
-  ShoppingCart, Home, Truck, Copy, Receipt as ReceiptIcon,
+  ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
   CheckCircle, X, Upload, MessageCircle, Newspaper, Send
 } from 'lucide-react';
 import Receipt from '../components/orders/Receipt';
@@ -720,7 +720,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   const [oosMap, setOosMap] = useState({});
   const effectiveShop = shopData?.shop || shop;
   const cart = useCartState(effectiveShop?.id, shopSlug, user, 'ecommerce');
-  const { items: cartItems, cartCount, totalAmount, loading, removeItem: removeContextItem, clearCart } = cart;
+  const { items: cartItems, cartCount, totalAmount, loading, removeItem: removeContextItem, updateQty, clearCart } = cart;
 
   const removeItem = (productId) => {
     removeContextItem(productId);
@@ -853,14 +853,26 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
               {isOOS && (
                 <p className="text-[10px] font-bold text-rose-500 mt-0.5">Out of stock</p>
               )}
-              {item.quantity && !isOOS && (
-                <p className="text-xs text-gray-400 mt-0.5">Qty: {item.quantity}</p>
+              {!isOOS && (
+                <div className="flex items-center gap-2 mt-1.5">
+                  <button onClick={() => updateQty(item.product_id, -1)}
+                    className="w-7 h-7 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center hover:bg-gray-200 active:scale-90 transition-all">
+                    <Minus className="w-3.5 h-3.5 text-gray-600" />
+                  </button>
+                  <span className="text-sm font-bold text-gray-900 min-w-[20px] text-center">{item.quantity}</span>
+                  <button onClick={() => updateQty(item.product_id, 1)}
+                    className="w-7 h-7 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center hover:bg-gray-200 active:scale-90 transition-all">
+                    <Plus className="w-3.5 h-3.5 text-gray-600" />
+                  </button>
+                </div>
               )}
             </div>
-            <button onClick={() => removeItem(item.product_id)}
-              className="w-8 h-8 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 active:bg-rose-200 transition-all shrink-0" title="Remove">
-              <Trash2 className="w-4 h-4" strokeWidth={2} />
-            </button>
+            <div className="flex flex-col items-center gap-1.5">
+              <button onClick={() => removeItem(item.product_id)}
+                className="w-8 h-8 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 active:bg-rose-200 transition-all shrink-0" title="Remove">
+                <Trash2 className="w-4 h-4" strokeWidth={2} />
+              </button>
+            </div>
           </motion.div>
           );
         })}

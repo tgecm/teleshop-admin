@@ -649,6 +649,8 @@ function BotDetailPanel({ botId, bot, stats, loading, aiSettings, contentBlocks,
 
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiApiKey, setAiApiKey] = useState('');
+  const [showAiApiKeyInput, setShowAiApiKeyInput] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteEnabled, setWebsiteEnabled] = useState(false);
 
@@ -656,6 +658,7 @@ function BotDetailPanel({ botId, bot, stats, loading, aiSettings, contentBlocks,
     if (aiSettings) {
       setAiPrompt(aiSettings.system_prompt || aiSettings.prompt || '');
       setAiEnabled(aiSettings.enabled !== false);
+      setAiApiKey(aiSettings.api_key || '');
     }
     if (contentBlocks) {
       const web = contentBlocks.find(b => b.key === 'website_link');
@@ -801,6 +804,42 @@ function BotDetailPanel({ botId, bot, stats, loading, aiSettings, contentBlocks,
               <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${aiEnabled ? 'left-5.5' : 'left-0.5'}`} />
             </button>
           </label>
+
+          <div>
+            <label className="text-xs font-bold text-gray-500 mb-1.5 block">API Key</label>
+            {showAiApiKeyInput ? (
+              <input type="password" value={aiApiKey} onChange={e => setAiApiKey(e.target.value)}
+                placeholder="sk-... or AIza... or sk-or-..."
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500 mb-2" autoFocus />
+            ) : (
+              <div className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100 mb-2">
+                <span className="text-sm font-mono text-gray-700 truncate">
+                  {aiApiKey ? (
+                    <span>{aiApiKey.substring(0, 4)}<span className="text-gray-300">{'•'.repeat(Math.min(aiApiKey.length - 4, 20))}</span></span>
+                  ) : (
+                    <span className="text-gray-400 italic">No API key set</span>
+                  )}
+                </span>
+                <button onClick={() => setShowAiApiKeyInput(true)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-all text-xs font-semibold">
+                  Edit
+                </button>
+              </div>
+            )}
+            {showAiApiKeyInput && (
+              <div className="flex gap-2 mb-2">
+                <button onClick={() => { setShowAiApiKeyInput(false); setAiApiKey(aiSettings?.api_key || ''); }}
+                  className="px-3 py-1.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all text-xs">
+                  Cancel
+                </button>
+                <button onClick={() => { setShowAiApiKeyInput(false); updateAiMutation.mutate({ botId, data: { api_key: aiApiKey } }); }}
+                  disabled={updateAiMutation.isPending || !aiApiKey.trim()}
+                  className="px-3 py-1.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all disabled:opacity-50 text-xs">
+                  Save Key
+                </button>
+              </div>
+            )}
+          </div>
 
           <div>
             <p className="text-xs font-bold text-gray-500 mb-1.5">System Prompt</p>

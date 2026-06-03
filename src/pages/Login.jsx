@@ -52,7 +52,7 @@ export default function Login() {
         }
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(err.response?.data?.detail || err.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -72,7 +72,7 @@ export default function Login() {
         setError('Verification failed. Try again.');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Verification failed. Please try again.');
+      setError(err.response?.data?.detail || err.response?.data?.message || 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
