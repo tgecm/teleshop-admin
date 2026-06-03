@@ -645,6 +645,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                          {item.variant_label && <p className="text-[10px] text-gray-400 truncate">{item.variant_label}</p>}
                           <p className="text-xs text-gray-400">
                             {item.quantity ? `x${item.quantity}` : ''} {item.price ? `${formatPrice(item.price)} MMK` : ''}
                           </p>
@@ -1528,12 +1529,27 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
         notes: form.notes.trim(),
         telegram_username: form.telegram.trim(),
         viber_number: form.viber.trim(),
-        items: cartItems.map(i => ({
-          product_id: i.product_id,
-          name: i.name,
-          price: i.price,
-          quantity: i.quantity,
-        })),
+        items: cartItems.map(i => {
+          const vp = [];
+          if (i.selected_color) vp.push(i.selected_color);
+          if (i.selected_options) {
+            const p = shopData?.products?.find(pp => pp.id === i.product_id);
+            const opts = p?.specifications?.options || [];
+            Object.entries(i.selected_options).forEach(([optId, valId]) => {
+              const o = opts.find(oo => String(oo.id) === String(optId));
+              if (o) { const v = o.values.find(vv => String(vv.id) === String(valId)); if (v) vp.push(`${o.name}: ${v.label}`); }
+            });
+          }
+          return {
+            product_id: i.product_id,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+            selected_color: i.selected_color,
+            selected_options: i.selected_options,
+            variant_label: vp.join(', '),
+          };
+        }),
         total_amount: totalAmount,
       };
       if (paymentProof) body.payment_proof = paymentProof;

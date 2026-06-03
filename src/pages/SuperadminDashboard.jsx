@@ -651,6 +651,7 @@ function BotDetailPanel({ botId, bot, stats, loading, aiSettings, contentBlocks,
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiApiKey, setAiApiKey] = useState('');
   const [showAiApiKeyInput, setShowAiApiKeyInput] = useState(false);
+  const [aiWebsiteContext, setAiWebsiteContext] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteEnabled, setWebsiteEnabled] = useState(false);
 
@@ -659,6 +660,7 @@ function BotDetailPanel({ botId, bot, stats, loading, aiSettings, contentBlocks,
       setAiPrompt(aiSettings.system_prompt || aiSettings.prompt || '');
       setAiEnabled(aiSettings.enabled !== false);
       setAiApiKey(aiSettings.api_key || '');
+      setAiWebsiteContext(aiSettings.website_system_context || '');
     }
     if (contentBlocks) {
       const web = contentBlocks.find(b => b.key === 'website_link');
@@ -852,6 +854,20 @@ function BotDetailPanel({ botId, bot, stats, loading, aiSettings, contentBlocks,
               className="mt-2 px-4 py-2 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all text-xs disabled:opacity-50 flex items-center gap-1.5">
               {updateAiMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
               Save Prompt
+            </button>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold text-gray-500 mb-1.5">Website System Prompt</p>
+            <textarea value={aiWebsiteContext} onChange={e => setAiWebsiteContext(e.target.value)}
+              rows={6}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500 resize-none font-medium"
+              placeholder="Enter website AI system prompt..." />
+            <button onClick={() => updateAiMutation.mutate({ botId, data: { website_system_context: aiWebsiteContext } })}
+              disabled={updateAiMutation.isPending}
+              className="mt-2 px-4 py-2 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all text-xs disabled:opacity-50 flex items-center gap-1.5">
+              {updateAiMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              Save Website Prompt
             </button>
           </div>
         </div>

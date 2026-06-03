@@ -356,7 +356,7 @@ export default function Orders() {
                     <div className="space-y-1.5">
                       {selectedOrder.items?.map((item, idx) => (
                         <div key={idx} className="text-sm text-gray-700">
-                          • {item.product_name || item.name} (x{item.quantity}) - {(item.price * item.quantity).toLocaleString()} MMK
+                          • {item.product_name || item.name}{item.variant_label ? <span className="text-gray-400"> [{item.variant_label}]</span> : null} (x{item.quantity}) - {(item.price * item.quantity).toLocaleString()} MMK
                         </div>
                       ))}
                     </div>

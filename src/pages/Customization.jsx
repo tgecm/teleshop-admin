@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Link,
   ShoppingBag,
+  Globe,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -273,6 +274,8 @@ export default function Customization() {
   const [aiContext, setAiContext] = useState('');
   const [aiIsEnabled, setAiIsEnabled] = useState(false);
   const [showAiContextPopup, setShowAiContextPopup] = useState(false);
+  const [aiWebsiteContext, setAiWebsiteContext] = useState('');
+  const [showAiWebsiteContextPopup, setShowAiWebsiteContextPopup] = useState(false);
   const [profilePicture, setProfilePicture] = useState('');
   const [uploading, setUploading] = useState(false);
   const [bioText, setBioText] = useState('');
@@ -306,6 +309,7 @@ export default function Customization() {
     if (aiSettings) {
       setAiApiKey(aiSettings.api_key || '');
       setAiContext(aiSettings.system_context || '');
+      setAiWebsiteContext(aiSettings.website_system_context || '');
       setAiIsEnabled(aiSettings.is_enabled !== false);
     }
   }, [contentBlocks, aiSettings]);
@@ -491,7 +495,7 @@ export default function Customization() {
               </button>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">Custom Prompt</label>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Custom Prompt Telegram</label>
               <button
                 onClick={() => setShowAiContextPopup(true)}
                 className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
@@ -503,8 +507,21 @@ export default function Customization() {
                 <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
               </button>
             </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Website Custom Prompt</label>
+              <button
+                onClick={() => setShowAiWebsiteContextPopup(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
+              >
+                <Globe className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                <span className="text-sm text-gray-700 truncate flex-1">
+                  {aiWebsiteContext || <span className="text-gray-400 italic">Custom prompt...</span>}
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              </button>
+            </div>
             <button
-              onClick={() => { updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, is_enabled: aiIsEnabled }); }}
+              onClick={() => { updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, website_system_context: aiWebsiteContext, is_enabled: aiIsEnabled }); }}
               disabled={updateAiMutation.isPending}
               className="w-full px-4 py-2 bg-cyan-500 text-white font-bold rounded-xl hover:bg-cyan-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
             >
@@ -560,6 +577,57 @@ export default function Customization() {
                 el.style.height = el.scrollHeight + 'px';
               }}
               placeholder="လုပ်ငန်းအသေးစိတ်၊ ဖုန်းနံပါတ်၊ လိပ်စာနှင့် ဝန်ဆောင်မှုအကြောင်း အကြမ်းဖျင်းရေးပေးပါ။"
+              className="flex-1 w-full px-5 py-4 bg-white outline-none text-sm resize-none overflow-y-auto"
+              autoFocus
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Website Context Popup */}
+      <AnimatePresence>
+        {showAiWebsiteContextPopup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex flex-col bg-white"
+          >
+            <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-gray-100">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Website Custom Prompt</h3>
+                <p className="text-[10px] text-gray-400">Instructions for the website AI assistant</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAiWebsiteContextPopup(false)}
+                  className="px-3 py-1.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, website_system_context: aiWebsiteContext, is_enabled: aiIsEnabled });
+                    setShowAiWebsiteContextPopup(false);
+                  }}
+                  disabled={updateAiMutation.isPending}
+                  className="px-4 py-1.5 bg-cyan-500 text-white font-bold rounded-xl hover:bg-cyan-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
+                >
+                  {updateAiMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save
+                </button>
+              </div>
+            </div>
+
+            <textarea
+              value={aiWebsiteContext}
+              onChange={(e) => setAiWebsiteContext(e.target.value)}
+              onInput={(e) => {
+                const el = e.target;
+                el.style.height = 'auto';
+                el.style.height = el.scrollHeight + 'px';
+              }}
+              placeholder="E-commerce website assistant instructions..."
               className="flex-1 w-full px-5 py-4 bg-white outline-none text-sm resize-none overflow-y-auto"
               autoFocus
             />

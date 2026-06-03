@@ -22,6 +22,11 @@ export default function Login() {
     if (needsCode && codeRefs.current[0]) codeRefs.current[0].focus();
   }, [needsCode]);
 
+  useEffect(() => {
+    const token = useAuthStore.getState().token || localStorage.getItem('telegram_token');
+    if (token) navigate('/dashboard', { replace: true });
+  }, [navigate]);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
