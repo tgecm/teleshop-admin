@@ -389,8 +389,8 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const sName = esc(botName);
   const fmtDate = myanmarFormat(orderDate, 'MMM dd, yyyy');
   const payM = esc(paymentMethod);
-  const sub = `MMK ${(subtotal || 0).toFixed(2)}`;
-  const tot = `MMK ${(total || 0).toFixed(2)}`;
+  const sub = `${(subtotal || 0).toFixed(2)} MMK`;
+  const tot = `${(total || 0).toFixed(2)} MMK`;
 
   const HDR_Y = 40;
   const HDR_H = 170;
@@ -415,13 +415,14 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     const ry = TBL_BODY + i * ROW_H;
     let cells;
     if (item) {
-      const ln = `MMK ${((item.price||0)*(item.quantity||0)).toFixed(2)}`;
+      const ln = `${((item.price||0)*(item.quantity||0)).toFixed(2)} MMK`;
       const pn = esc(item.product_name || item.name || '—');
+      const vl = item.variant_label ? esc(` [${item.variant_label}]`) : '';
       cells = `
         <text x="55" y="${ry+19}" fill="${MB}" font-weight="600" font-size="12">${i+1}</text>
-        <text x="100" y="${ry+19}" fill="${TD}" font-size="12">${pn}</text>
+        <text x="100" y="${ry+19}" fill="${TD}" font-size="12">${pn}${vl}</text>
         <text x="${qtyX}" y="${ry+19}" text-anchor="middle" fill="${TD}" font-size="12">${item.quantity||'—'}</text>
-        <text x="${priceX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">MMK ${(item.price||0).toFixed(2)}</text>
+        <text x="${priceX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${(item.price||0).toFixed(2)} MMK</text>
         <text x="${totalX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${ln}</text>`;
     } else {
       cells = `
@@ -440,8 +441,8 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const totalLines = [
     { l: 'Subtotal', v: sub },
     { l: 'Discount', v: `- ${sub}` },
-    { l: 'Tax', v: `+ MMK 0.00` },
-    { l: 'Shipping', v: `+ MMK 0.00` },
+    { l: 'Tax', v: `+ 0.00 MMK` },
+    { l: 'Shipping', v: `+ 0.00 MMK` },
   ];
   let totalsSvg = '';
   totalLines.forEach((t, i) => {
@@ -944,10 +945,10 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                           return (
                             <div key={i} style={s.tableRow}>
                               <div style={s.tdId}>{i + 1}</div>
-                              <div style={s.tdProduct}>{item.product_name || item.name || '—'}</div>
+                              <div style={s.tdProduct}>{item.product_name || item.name || '—'}{item.variant_label ? <span style={{color:'#9ca3af',fontSize:10}}> [{item.variant_label}]</span> : null}</div>
                               <div style={s.tdQty}>{item.quantity || '—'}</div>
-                              <div style={isInv ? s.tdUnitInv : s.tdUnit}>MMK {(item.price || 0).toFixed(2)}</div>
-                              <div style={isInv ? s.tdTotalInv : s.tdTotal}>MMK {lineTotal.toFixed(2)}</div>
+                              <div style={isInv ? s.tdUnitInv : s.tdUnit}>{(item.price || 0).toFixed(2)} MMK</div>
+                              <div style={isInv ? s.tdTotalInv : s.tdTotal}>{lineTotal.toFixed(2)} MMK</div>
                             </div>
                           );
                         }
@@ -972,27 +973,27 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                         </div>
                         <div style={{ ...s.payBox, ...s.amountPaid }}>
                           <div style={s.payTitle}>💰 {isInv ? 'AMOUNT TO PAY' : 'AMOUNT PAID'}</div>
-                          <div style={s.amountValue}>MMK {total.toFixed(2)}</div>
+                          <div style={s.amountValue}>{total.toFixed(2)} MMK</div>
                         </div>
                       </div>
 
                       <div style={s.totalsCol}>
                         <div style={s.totalsRow}>
-                          <span style={s.totalLabel}>Subtotal</span><span style={s.totalColon}>:</span><span style={s.totalValue}>MMK {subtotal.toFixed(2)}</span>
+                          <span style={s.totalLabel}>Subtotal</span><span style={s.totalColon}>:</span><span style={s.totalValue}>{subtotal.toFixed(2)} MMK</span>
                         </div>
                         <div style={s.totalsRow}>
-                          <span style={s.totalLabel}>Discount</span><span style={s.totalColon}>:</span><span style={s.totalValue}>- MMK 0.00</span>
+                          <span style={s.totalLabel}>Discount</span><span style={s.totalColon}>:</span><span style={s.totalValue}>- 0.00 MMK</span>
                         </div>
                         <div style={s.totalsRow}>
-                          <span style={s.totalLabel}>Tax</span><span style={s.totalColon}>:</span><span style={s.totalValue}>+ MMK 0.00</span>
+                          <span style={s.totalLabel}>Tax</span><span style={s.totalColon}>:</span><span style={s.totalValue}>+ 0.00 MMK</span>
                         </div>
                         <div style={s.totalsRow}>
-                          <span style={s.totalLabel}>Shipping</span><span style={s.totalColon}>:</span><span style={s.totalValue}>+ MMK 0.00</span>
+                          <span style={s.totalLabel}>Shipping</span><span style={s.totalColon}>:</span><span style={s.totalValue}>+ 0.00 MMK</span>
                         </div>
                         <div style={s.grandTotal}>
                           <span style={{ fontWeight: 700, color: '#fff', fontFamily: "'Roboto', system-ui, sans-serif" }}>TOTAL</span>
                           <span style={{ color: '#fff' }}>:</span>
-                          <span style={s.grandTotalValue}>MMK {total.toFixed(2)}</span>
+                          <span style={s.grandTotalValue}>{total.toFixed(2)} MMK</span>
                         </div>
                       </div>
                     </div>

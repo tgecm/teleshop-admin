@@ -688,12 +688,27 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
         notes: form.notes.trim(),
         telegram_username: form.telegram.trim(),
         viber_number: form.viber.trim(),
-        items: cartItems.map(i => ({
-          product_id: i.product_id,
-          name: i.name,
-          price: i.price,
-          quantity: i.quantity,
-        })),
+        items: cartItems.map(i => {
+          const variantParts = [];
+          if (i.selected_color) variantParts.push(COLOR_NAMES[i.selected_color] || i.selected_color);
+          if (i.selected_options) {
+            const p = products.find(pp => pp.id === i.product_id);
+            const opts = p?.specifications?.options || [];
+            Object.entries(i.selected_options).forEach(([optId, valId]) => {
+              const o = opts.find(oo => String(oo.id) === String(optId));
+              if (o) { const v = o.values.find(vv => String(vv.id) === String(valId)); if (v) variantParts.push(`${o.name}: ${v.label}`); }
+            });
+          }
+          return {
+            product_id: i.product_id,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+            selected_color: i.selected_color,
+            selected_options: i.selected_options,
+            variant_label: variantParts.join(', '),
+          };
+        }),
         total_amount: totalAmount,
       };
       if (paymentProof) body.payment_proof = paymentProof;
