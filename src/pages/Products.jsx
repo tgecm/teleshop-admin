@@ -141,7 +141,7 @@ export default function Products() {
             <span className="hidden sm:inline font-bold">Sort</span>
           </button>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
             className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 active:scale-95"
           >
             <Plus className="w-5 h-5" />
@@ -161,7 +161,7 @@ export default function Products() {
           </p>
           {!search && (
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
               className="mt-6 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all"
             >
               Add Your First Product
@@ -461,6 +461,38 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     }
     return [];
   });
+  const [options, setOptions] = useState(() => {
+    if (product?.specifications?.options && Array.isArray(product.specifications.options)) {
+      return product.specifications.options;
+    }
+    return [];
+  });
+  const [confirmDeleteOptionId, setConfirmDeleteOptionId] = useState(null);
+  const uid = () => Math.random().toString(36).substring(2, 9);
+
+  const addOption = () => {
+    setOptions(prev => [...prev, { id: uid(), name: '', values: [] }]);
+  };
+
+  const removeOption = (id) => {
+    setOptions(prev => prev.filter(o => o.id !== id));
+  };
+
+  const updateOptionName = (id, name) => {
+    setOptions(prev => prev.map(o => o.id === id ? { ...o, name } : o));
+  };
+
+  const addOptionValue = (optionId) => {
+    setOptions(prev => prev.map(o => o.id === optionId ? { ...o, values: [...o.values, { id: uid(), label: '' }] } : o));
+  };
+
+  const updateOptionValue = (optionId, valueId, label) => {
+    setOptions(prev => prev.map(o => o.id === optionId ? { ...o, values: o.values.map(v => v.id === valueId ? { ...v, label } : v) } : o));
+  };
+
+  const removeOptionValue = (optionId, valueId) => {
+    setOptions(prev => prev.map(o => o.id === optionId ? { ...o, values: o.values.filter(v => v.id !== valueId) } : o));
+  };
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showPhotoConfirm, setShowPhotoConfirm] = useState(false);
   const [uploadingColor, setUploadingColor] = useState(null);
@@ -526,7 +558,12 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     const imageUrl = images.length > 0
       ? JSON.stringify(images.map(img => ({ file_id: img.file_id, type: 'photo' })))
       : null;
-    const specs = colors.length > 0 ? { colors } : null;
+    let specs = null;
+    if (colors.length > 0 || options.length > 0) {
+      specs = {};
+      if (colors.length > 0) specs.colors = colors;
+      if (options.length > 0) specs.options = options;
+    }
     onSubmit({
       ...formData,
       price: Number(formData.price),
@@ -778,22 +815,17 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {PREDEFINED_COLORS.map(c => {
-                  const isAdded = colors.some(cc => cc.color === c.hex);
-                  return (
-                    <button
-                      key={c.hex}
-                      type="button"
-                      disabled={isAdded || uploadingColor !== null}
-                      onClick={() => handleColorSelect(c.hex)}
-                      className={`w-9 h-9 rounded-xl border-2 transition-all active:scale-90 ${
-                        isAdded ? 'border-indigo-500 opacity-40 cursor-not-allowed' : 'border-gray-300 hover:scale-110 hover:shadow-md'
-                      } ${c.hex === '#FFFFFF' ? 'shadow-inner' : ''}`}
-                      style={{ backgroundColor: c.hex }}
-                      title={c.name + (isAdded ? ' (already added)' : '')}
-                    />
-                  );
-                })}
+                {PREDEFINED_COLORS.filter(c => !colors.some(cc => cc.color === c.hex)).map(c => (
+                  <button
+                    key={c.hex}
+                    type="button"
+                    disabled={uploadingColor !== null}
+                    onClick={() => handleColorSelect(c.hex)}
+                    className={`w-9 h-9 rounded-xl border-2 border-gray-300 transition-all active:scale-90 hover:scale-110 hover:shadow-md ${c.hex === '#FFFFFF' ? 'shadow-inner' : ''}`}
+                    style={{ backgroundColor: c.hex }}
+                    title={c.name}
+                  />
+                ))}
               </div>
               <p className="text-[10px] text-gray-400 mt-3 text-center">Select a color, then upload its product image</p>
             </div>
@@ -833,6 +865,86 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             )}
           </div>
         </div>
+
+        {/* Options Section */}
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-gray-700 ml-1 flex items-center gap-1.5">
+            <Package className="w-4 h-4" /> Options
+            {options.length > 0 && <span className="text-gray-400 font-normal">({options.length})</span>}
+          </label>
+
+          <div className="space-y-3">
+            {options.map(opt => (
+              <div key={opt.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-200 relative">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <input
+                      type="text"
+                      value={opt.name}
+                      onChange={(e) => updateOptionName(opt.id, e.target.value)}
+                      placeholder="e.g. Size"
+                      className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-800 outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteOptionId(opt.id)}
+                    className="p-1.5 bg-white rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all active:scale-90 flex-shrink-0 ml-2"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {opt.values.map(v => (
+                    <div key={v.id} className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-1">
+                      <input
+                        type="text"
+                        value={v.label}
+                        onChange={(e) => updateOptionValue(opt.id, v.id, e.target.value)}
+                        className="w-20 sm:w-28 text-xs font-bold text-gray-700 bg-transparent outline-none"
+                        placeholder="Option"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeOptionValue(opt.id, v.id)}
+                        className="p-0.5 rounded text-gray-300 hover:text-rose-500 transition-all"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => addOptionValue(opt.id)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-white border-2 border-dashed border-gray-200 rounded-lg text-xs font-bold text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-all active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={addOption}
+            disabled={options.length >= 10}
+            className="px-4 py-2.5 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all active:scale-[0.98] flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Plus className="w-4 h-4" />
+            {options.length >= 10 ? 'Max 10 options' : 'Add Option'}
+          </button>
+        </div>
+
+        <ConfirmDialog
+          open={!!confirmDeleteOptionId}
+          onClose={() => setConfirmDeleteOptionId(null)}
+          onConfirm={() => { removeOption(confirmDeleteOptionId); setConfirmDeleteOptionId(null); }}
+          title="Delete Option"
+          message="Delete this entire option?"
+          confirmText="Delete"
+        />
 
         <div className="pt-4 flex gap-3">
           <button
