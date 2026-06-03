@@ -141,11 +141,14 @@ function LoadingSkeleton() {
 function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, viewMode, sentProducts, setSentProducts, slug, orderButtonLabel }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedOptions, setSelectedOptions] = useState({});
   const touchStartX = useRef(null);
   const images = getPublicImageUrls(product.image_url, shop?.id);
   const isOutOfStock = product.stock_quantity !== null && product.stock_quantity === 0;
   const productColors = product.specifications?.colors && Array.isArray(product.specifications.colors)
     ? product.specifications.colors : [];
+  const productOptions = product.specifications?.options && Array.isArray(product.specifications.options)
+    ? product.specifications.options : [];
 
   const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
   const handleTouchEnd = (e) => {
@@ -183,13 +186,13 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
       <motion.div
         initial={{ y: '100%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '100%', opacity: 0 }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        className="relative bg-white w-full max-w-lg md:rounded-[32px] md:mx-4 max-h-[92svh] overflow-y-auto rounded-t-[32px] shadow-2xl"
+        className="relative bg-white w-full max-w-lg md:rounded-[32px] md:mx-4 max-h-[92svh] overflow-y-auto rounded-t-xl shadow-2xl"
       >
         <button onClick={onClose} className="absolute top-4 right-4 z-20 p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all">
           <X className="w-5 h-5 text-gray-700" />
         </button>
 
-        <div className="relative aspect-square bg-gray-100 overflow-hidden" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        <div className="sticky top-0 z-10 aspect-[16/9] bg-gray-100 overflow-hidden" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           <AnimatePresence mode="wait">
             <motion.img
               key={currentImageIndex} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ duration: 0.2 }}
@@ -235,7 +238,10 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
           </div>
         </div>
 
-        <div className="p-6 pb-8">
+        <div className="p-5 pt-3 pb-6">
+          {colorImages.length > 0 && colorImages.map(c => (
+            <img key={c.color} src={c.url} alt="" className="hidden" aria-hidden="true" />
+          ))}
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
           <div className="flex items-baseline gap-1.5 mb-4">
             <span className="text-2xl font-bold theme-price">{formatPrice(product.price)}</span>
@@ -260,14 +266,14 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
                         setSelectedColor(isSelected ? null : c.color);
                         setCurrentImageIndex(0);
                       }}
-                      className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${
-                        isSelected ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+                      className={`flex flex-col items-center gap-1.5 transition-all active:scale-90 ${
+                        isSelected ? 'scale-110' : 'opacity-70 hover:opacity-100'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-full border-2 ${
-                        isSelected ? 'border-indigo-500 shadow-md ring-2 ring-indigo-200' : 'border-gray-300'
+                      <div className={`w-10 h-10 rounded-full border-[3px] transition-all ${
+                        isSelected ? 'border-white ring-2 ring-offset-2 ring-indigo-500 shadow-lg' : 'border-gray-300'
                       }`} style={{ backgroundColor: c.color }} />
-                      <span className={`text-[10px] font-medium ${isSelected ? 'text-indigo-600' : 'text-gray-500'}`}>
+                      <span className={`text-[10px] font-bold transition-all ${isSelected ? 'text-indigo-600' : 'text-gray-500'}`}>
                         {COLOR_NAMES[c.color] || c.color.replace('#', '')}
                       </span>
                     </button>
@@ -277,20 +283,49 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
             </div>
           )}
 
+          {viewMode !== 'telegram' && productOptions.length > 0 && (
+            <div className="mb-5 space-y-4">
+              {productOptions.map(opt => (
+                <div key={opt.id}>
+                  <p className="text-xs text-gray-500 font-medium mb-2.5">{opt.name}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {opt.values.map(v => {
+                      const isSelected = selectedOptions[opt.id] === v.id;
+                      return (
+                        <button key={v.id}
+                          onClick={() => setSelectedOptions(prev => ({ ...prev, [opt.id]: isSelected ? null : v.id }))}
+                          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {v.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {viewMode !== 'telegram' && (
             <button
-              onClick={() => onAddToCart(product, selectedColor)}
-              disabled={isOutOfStock || (productColors.length > 0 && !selectedColor) || (product.stock_quantity !== null && cartQty >= product.stock_quantity)}
+              onClick={() => onAddToCart(product, selectedColor, selectedOptions)}
+              disabled={isOutOfStock || (productColors.length > 0 && !selectedColor) || (productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id])) || (product.stock_quantity !== null && cartQty >= product.stock_quantity)}
               className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-base transition-all ${
                 isOutOfStock || (product.stock_quantity !== null && cartQty >= product.stock_quantity)
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : productColors.length > 0 && !selectedColor
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id])
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'theme-btn hover:shadow-xl active:scale-[0.98] shadow-lg'
               }`}
             >
               <ShoppingCart className="w-5 h-5" />
-              {isOutOfStock ? 'Currently Unavailable' : product.stock_quantity !== null && cartQty >= product.stock_quantity ? 'Max Reached' : productColors.length > 0 && !selectedColor ? 'Select a Color' : cartQty > 0 ? `Add to Cart (${cartQty} in cart)` : 'Add to Cart'}
+              {isOutOfStock ? 'Currently Unavailable' : product.stock_quantity !== null && cartQty >= product.stock_quantity ? 'Max Reached' : productColors.length > 0 && !selectedColor ? 'Select a Color' : productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id]) ? 'Select Options' : cartQty > 0 ? `Add to Cart (${cartQty} in cart)` : 'Add to Cart'}
             </button>
           )}
 
@@ -1167,6 +1202,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const visitorIdRef = useRef('');
   const pendingBuyNowRef = useRef(false);
   const [selectedColors, setSelectedColors] = useState({});
+  const [linkSelectedOptions, setLinkSelectedOptions] = useState({});
   const [oosMap, setOosMap] = useState({});
   const [viewMode, setViewMode] = useState('telegram');
   const [sentProducts, setSentProducts] = useState(new Set());
@@ -1218,14 +1254,16 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const { items: cartItems, cartCount, totalAmount, loading: cartLoading, addItem, updateQty, removeItem, clearCart } = cart;
 
   // Wrap addItem to resolve image URLs before saving
-  const addToCart = useCallback((product, colorHex) => {
+  const addToCart = useCallback((product, colorHex, selectedOptions) => {
     const images = getPublicImageUrls(product.image_url, shop?.id);
+    const opts = selectedOptions && typeof selectedOptions === 'object' && Object.keys(selectedOptions).length > 0
+      ? selectedOptions : null;
     addItem({
       id: product.id,
       name: product.name,
       price: Number(product.price),
       image_url: images[0] || '',
-    }, colorHex || null);
+    }, colorHex || null, opts);
   }, [addItem, shop?.id]);
 
   // Fetch shop bio
@@ -1710,7 +1748,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
         {productLinkActive && productLinkProduct ? (
           <>
             <button onClick={() => { setProductLinkActive(false); window.history.replaceState(null, '', window.location.pathname); }}
-              className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-gray-500 hover:text-indigo-600 transition-all active:scale-95 px-3 py-2 -ml-2 rounded-xl hover:bg-indigo-50">
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-gray-600 hover:text-indigo-700 transition-all active:scale-95 px-4 py-2.5 -ml-1 rounded-xl bg-white border border-gray-200 shadow-sm hover:bg-indigo-50 hover:border-indigo-200">
               <ChevronLeft className="w-4 h-4" /> Back to all products
             </button>
             {(() => {
@@ -1724,6 +1762,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                 url: `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(c.file_id)}?bot_id=${shop?.id}`,
               }));
               const linkSelectedColor = selectedColors['_link'] || null;
+              const linkProductOptions = productLinkProduct.specifications?.options && Array.isArray(productLinkProduct.specifications.options)
+                ? productLinkProduct.specifications.options : [];
               const linkImages = linkSelectedColor
                 ? [...(colorImages.filter(c => c.color === linkSelectedColor).map(c => c.url)), ...images]
                 : images;
@@ -1737,6 +1777,9 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                   )}
                   <div className="p-5 space-y-4">
                     <div>
+                      {colorImages.length > 0 && colorImages.map(c => (
+                        <img key={c.color} src={c.url} alt="" className="hidden" aria-hidden="true" />
+                      ))}
                       <h2 className="text-xl font-bold text-gray-900">{productLinkProduct.name}</h2>
                       <p className="text-2xl font-bold text-indigo-600 mt-1">{productLinkProduct.price.toLocaleString()} MMK</p>
                     </div>
@@ -1751,11 +1794,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                       ) : productLinkProduct.stock_quantity !== null ? (
                         <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">{productLinkProduct.stock_quantity} In Stock</span>
                       ) : null}
-                      <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold">
-                        {categories?.find(c => c.id === productLinkProduct.category_id)?.name || 'Uncategorized'}
-                      </span>
                     </div>
-                    {viewMode !== 'telegram' && productColors.length > 0 && (
+                    {productColors.length > 0 && (
                       <div className="space-y-2">
                         <p className="text-xs text-gray-500 font-medium">Color</p>
                         <div className="flex flex-wrap gap-3">
@@ -1764,20 +1804,46 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                             return (
                               <button key={c.color}
                                 onClick={() => setSelectedColors(prev => ({ ...prev, ['_link']: isSelected ? null : c.color }))}
-                                className={`flex flex-col items-center gap-1 transition-all active:scale-90 ${
-                                  isSelected ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+                                className={`flex flex-col items-center gap-1.5 transition-all active:scale-90 ${
+                                  isSelected ? 'scale-110' : 'opacity-70 hover:opacity-100'
                                 }`}
                               >
-                                <div className={`w-10 h-10 rounded-full border-2 ${
-                                  isSelected ? 'border-indigo-500 shadow-md ring-2 ring-indigo-200' : 'border-gray-300'
+                                <div className={`w-10 h-10 rounded-full border-[3px] transition-all ${
+                                  isSelected ? 'border-white ring-2 ring-offset-2 ring-indigo-500 shadow-lg' : 'border-gray-300'
                                 }`} style={{ backgroundColor: c.color }} />
-                                <span className={`text-[10px] font-medium ${isSelected ? 'text-indigo-600' : 'text-gray-500'}`}>
+                                <span className={`text-[10px] font-bold transition-all ${isSelected ? 'text-indigo-600' : 'text-gray-500'}`}>
                                   {COLOR_NAMES[c.color] || c.color.replace('#', '')}
                                 </span>
                               </button>
                             );
                           })}
                         </div>
+                      </div>
+                    )}
+                    {linkProductOptions.length > 0 && (
+                      <div className="space-y-3">
+                        {linkProductOptions.map(opt => (
+                          <div key={opt.id}>
+                            <p className="text-xs text-gray-500 font-medium mb-2">{opt.name}</p>
+                            <div className="flex flex-wrap gap-2">
+                              {opt.values.map(v => {
+                                const isSelected = linkSelectedOptions[opt.id] === v.id;
+                                return (
+                                  <button key={v.id}
+                                    onClick={() => setLinkSelectedOptions(prev => ({ ...prev, [opt.id]: isSelected ? null : v.id }))}
+                                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
+                                      isSelected
+                                        ? 'bg-indigo-600 text-white shadow-md'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                  >
+                                    {v.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                     <div className="flex flex-col gap-2 pt-2">
@@ -1794,7 +1860,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                       <button
                         onClick={() => {
                           if (productColors.length > 0 && !linkSelectedColor) return;
-                          addToCart(productLinkProduct, linkSelectedColor);
+                          if (linkProductOptions.length > 0 && linkProductOptions.some(o => !linkSelectedOptions[o.id])) return;
+                          addToCart(productLinkProduct, linkSelectedColor, linkSelectedOptions);
                           if (!user) {
                             setViewMode('ecommerce');
                             pendingBuyNowRef.current = true;
@@ -1808,23 +1875,24 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                             }
                           }
                         }}
-                        disabled={isOutOfStock || (productColors.length > 0 && !linkSelectedColor)}
+                        disabled={isOutOfStock || (productColors.length > 0 && !linkSelectedColor) || (linkProductOptions.length > 0 && linkProductOptions.some(o => !linkSelectedOptions[o.id]))}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-[0.98] text-sm"
                       >
-                        <ShoppingCart className="w-4 h-4" /> {productColors.length > 0 && !linkSelectedColor ? 'Select a Color' : 'Buy on Website'}
+                        <ShoppingCart className="w-4 h-4" /> {linkProductOptions.length > 0 && linkProductOptions.some(o => !linkSelectedOptions[o.id]) ? 'Select Options' : productColors.length > 0 && !linkSelectedColor ? 'Select a Color' : 'Buy on Website'}
                       </button>
                       <button
                         onClick={() => {
                           if (productColors.length > 0 && !linkSelectedColor) return;
+                          if (linkProductOptions.length > 0 && linkProductOptions.some(o => !linkSelectedOptions[o.id])) return;
                           setViewMode('guest');
-                          addToCart(productLinkProduct, linkSelectedColor);
+                          addToCart(productLinkProduct, linkSelectedColor, linkSelectedOptions);
                           setShowCart(false);
                           paymentMethods.length > 0 ? setShowPaymentSelect(true) : setCheckoutOpen(true);
                         }}
-                        disabled={isOutOfStock || (productColors.length > 0 && !linkSelectedColor)}
+                        disabled={isOutOfStock || (productColors.length > 0 && !linkSelectedColor) || (linkProductOptions.length > 0 && linkProductOptions.some(o => !linkSelectedOptions[o.id]))}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-all active:scale-[0.98] text-sm"
                       >
-                        <User className="w-4 h-4" /> Buy as a Guest
+                        <User className="w-4 h-4" /> {linkProductOptions.length > 0 && linkProductOptions.some(o => !linkSelectedOptions[o.id]) ? 'Select Options' : 'Buy as a Guest'}
                       </button>
                     </div>
                   </div>
@@ -2130,6 +2198,8 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                         <button onClick={(e) => {
                           e.stopPropagation();
                           const colors = getProductColors(product);
+                          const hasOptions = product.specifications?.options?.length > 0;
+                          if (hasOptions) { setSelectedProduct(product); return; }
                           if (colors.length > 0 && !selectedColors[product.id]) return;
                           addToCart(product, selectedColors[product.id]);
                         }}
@@ -2143,7 +2213,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                       )}
                       <div className="flex gap-1.5">
                         {!isOutOfStock && (
-                          <button onClick={(e) => { e.stopPropagation(); handleBuyNow(product); }}
+                          <button onClick={(e) => { e.stopPropagation(); const hasOptions = product.specifications?.options?.length > 0; if (hasOptions) { setSelectedProduct(product); return; } handleBuyNow(product); }}
                             disabled={getProductColors(product).length > 0 && !selectedColors[product.id]}
                             className={`flex-1 px-3 py-2 rounded-xl font-bold text-xs transition-all active:scale-[0.97] ${
                               getProductColors(product).length > 0 && !selectedColors[product.id] ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'theme-btn shadow-sm'

@@ -8,6 +8,7 @@ export interface CartItem {
   quantity: number;
   image_url: string;
   selected_color: string | null;
+  selected_options: Record<string, string> | null;
 }
 
 export interface CartState {
@@ -15,7 +16,7 @@ export interface CartState {
   cartCount: number;
   totalAmount: number;
   loading: boolean;
-  addItem: (product: { id: number; name: string; price: number; image_url: string }, colorHex?: string | null) => void;
+  addItem: (product: { id: number; name: string; price: number; image_url: string }, colorHex?: string | null, selectedOptions?: Record<string, string> | null) => void;
   updateQty: (productId: number, delta: number) => void;
   removeItem: (productId: number) => void;
   clearCart: () => void;
@@ -139,7 +140,7 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
     };
   }, [items, firebaseUid, botId]);
 
-  const addItem = useCallback((product: { id: number; name: string; price: number; image_url: string }, colorHex?: string | null) => {
+  const addItem = useCallback((product: { id: number; name: string; price: number; image_url: string }, colorHex?: string | null, selectedOptions?: Record<string, string> | null) => {
     setItems(prev => {
       const existing = prev.find(i => i.product_id === product.id);
       const newItems: CartItem[] = existing
@@ -151,6 +152,7 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
             quantity: 1,
             image_url: product.image_url || '',
             selected_color: colorHex || null,
+            selected_options: selectedOptions || null,
           }];
       if (shopSlug) saveToLS(shopSlug, viewMode, newItems);
       return newItems;

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getStats, getOrdersByDay, getTopProducts, getUsersByDay } from '../api/stats';
-import { getImageUrl } from '../api/products';
+import { getImageUrl, getProducts } from '../api/products';
 import { getOrders } from '../api/orders';
 import { getUsers } from '../api/customers';
 import { useSelectedBot } from '../hooks/useSelectedBot';
@@ -9,7 +9,7 @@ import StatCard from '../components/shared/StatCard';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import {
   DollarSign, ShoppingBag, Users, Clock, TrendingUp, Trophy, Sparkles, Zap, Package,
-  BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, X, Loader2,
+  BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, X, Loader2, ArrowLeftRight,
 } from 'lucide-react';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -128,6 +128,24 @@ export default function Dashboard() {
   const [customEnd, setCustomEnd] = useState('');
   const [itemsPeriod, setItemsPeriod] = useState('total');
   const [productsPeriod, setProductsPeriod] = useState('total');
+  const [showRevenue, setShowRevenue] = useState(true);
+
+  // Products for total stock value
+  const { data: allProducts } = useQuery({
+    queryKey: ['products', selectedBotId],
+    queryFn: () => getProducts({ bot_id: Number(selectedBotId) }),
+    enabled: !!selectedBotId,
+    select: (data) => {
+      const products = Array.isArray(data) ? data : data?.products || data?.data || [];
+      const totalValue = products.reduce((sum, p) => {
+        const qty = p.stock_quantity;
+        if (qty === null || qty === undefined || qty <= 0) return sum;
+        return sum + (Number(p.price) || 0) * qty;
+      }, 0);
+      return { products, totalStockValue: totalValue };
+    },
+  });
+  const totalStockValue = allProducts?.totalStockValue || 0;
 
   // Tooltip smart positioning
   const chartWrapperRef = useRef(null);
@@ -492,7 +510,29 @@ export default function Dashboard() {
               { title: 'Total Orders', value: totalOrders, icon: ShoppingBag, color: 'emerald' },
               { title: 'Total Users', value: totalUsers, icon: Users, color: 'rose' },
               { title: 'Pending Orders', value: pendingOrders, icon: Clock, color: 'amber' },
-            ].map((card, i) => (<motion.div key={i} variants={itemVariants}><StatCard {...card} /></motion.div>))}
+            ].map((card, i) => i === 0 ? (
+              <motion.div key={i} variants={itemVariants}>
+                <div className="bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 flex items-center gap-3 sm:gap-4 h-full">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100 flex-shrink-0">
+                    {showRevenue ? <DollarSign className="w-5 h-5 sm:w-6 sm:h-6" /> : <Package className="w-5 h-5 sm:w-6 sm:h-6" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1">
+                      <p className="text-[9px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider truncate">
+                        {showRevenue ? 'Total Revenue' : 'Total Stock Value'}
+                      </p>
+                      <button onClick={() => setShowRevenue(!showRevenue)}
+                        className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-indigo-600 transition-all active:scale-90 flex-shrink-0">
+                        <ArrowLeftRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <h3 className="text-xs sm:text-lg md:text-2xl font-bold text-gray-900 leading-tight mt-0.5">
+                      {showRevenue ? `${totalRevenue.toLocaleString()} MMK` : `${totalStockValue.toLocaleString()} MMK`}
+                    </h3>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (<motion.div key={i} variants={itemVariants}><StatCard {...card} /></motion.div>))}
       </motion.div>
 
       {/* Mini metrics */}
