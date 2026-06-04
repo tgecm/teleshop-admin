@@ -17,6 +17,7 @@ export default function Login() {
   const codeRefs = useRef([]);
   const setAuth = useAuthStore(state => state.login);
   const navigate = useNavigate();
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     if (needsCode && codeRefs.current[0]) codeRefs.current[0].focus();
@@ -24,8 +25,14 @@ export default function Login() {
 
   useEffect(() => {
     const token = useAuthStore.getState().token || localStorage.getItem('telegram_token');
-    if (token) navigate('/dashboard', { replace: true });
+    if (token) {
+      navigate('/dashboard', { replace: true });
+    } else {
+      setCheckingAuth(false);
+    }
   }, [navigate]);
+
+  if (checkingAuth) return null;
 
 
   const handleSubmit = async (e) => {
