@@ -87,6 +87,17 @@ import { useToastStore } from '../store/toastStore';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
 
+function linkifyText(text) {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
+    }
+    return part;
+  });
+}
+
 function formatPrice(price) {
   return Number(price).toLocaleString();
 }
@@ -453,6 +464,17 @@ export default function CustomerDashboard({ shopSlug }) {
 /* ─── OVERVIEW TAB ─── */
 function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate, shop, orderStats }) {
   const { cartCount } = useCartState(shop?.id, shopSlug, user, 'ecommerce');
+  const [shopBio, setShopBio] = useState('');
+
+  useEffect(() => {
+    if (shop?.shop_bio?.text) setShopBio(shop.shop_bio.text);
+    else if (shop?.id) {
+      fetch(`https://api.telegramecommerce.shop/public/shop-bio/${shop.id}`)
+        .then(r => r.json())
+        .then(d => { if (d?.text) setShopBio(d.text); })
+        .catch(() => {});
+    }
+  }, [shop?.id, shop?.shop_bio?.text]);
 
   const stats = [
     { label: 'Total Orders', value: orderStats?.total, icon: Package, color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -481,6 +503,17 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
           </div>
         </div>
       </motion.div>
+
+      {/* Shop Bio */}
+      {shopBio && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
+        >
+          <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">{linkifyText(shopBio)}</p>
+        </motion.div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 gap-3">
