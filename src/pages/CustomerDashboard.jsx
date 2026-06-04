@@ -78,7 +78,7 @@ import {
   ShoppingBag, Package, Clock, CheckCircle2, XCircle, ChevronRight,
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
   ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
-  CheckCircle, X, Upload, MessageCircle, Newspaper, Send
+  CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw
 } from 'lucide-react';
 import Receipt from '../components/orders/Receipt';
 import CustomerShopTab from '../components/CustomerShopTab';
@@ -109,6 +109,8 @@ export default function CustomerDashboard({ shopSlug }) {
   const [orderStats, setOrderStats] = useState(null);
   const [customerOrders, setCustomerOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([{ role: 'assistant', content: 'Hi! How can I help you today?' }]);
@@ -167,9 +169,9 @@ export default function CustomerDashboard({ shopSlug }) {
     if (!uid || !shopSlug) return;
     fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders/stats?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : null)
-      .then(s => { if (s) setOrderStats(s); })
-      .catch(() => {});
-  }, [uid, shopSlug]);
+      .then(s => { if (s) setOrderStats(s); setRefreshing(false); })
+      .catch(() => { setRefreshing(false); });
+  }, [uid, shopSlug, refreshKey]);
 
   // Fetch customer orders (cached in parent so OrdersTab doesn't re-fetch on switch)
   useEffect(() => {
@@ -179,7 +181,7 @@ export default function CustomerDashboard({ shopSlug }) {
       .then(r => r.ok ? r.json() : [])
       .then(data => { setCustomerOrders(Array.isArray(data) ? data : []); setOrdersLoading(false); })
       .catch(() => { setCustomerOrders([]); setOrdersLoading(false); });
-  }, [uid, shopSlug]);
+  }, [uid, shopSlug, refreshKey]);
 
   // Chat: register visitor + load existing messages on open
   useEffect(() => {
@@ -291,6 +293,10 @@ export default function CustomerDashboard({ shopSlug }) {
             <h1 className="text-white text-sm font-bold truncate">{shopName}</h1>
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={() => { setRefreshKey(k => k + 1); setRefreshing(true); }}
+              className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
             <button onClick={() => setChatOpen(true)}
               className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all mr-1">
               <MessageCircle className="w-4 h-4" />
