@@ -1,25 +1,47 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBot } from '../api/bots';
 import { useSelectedBot } from '../hooks/useSelectedBot';
+import { createPlanOrder } from '../api/public';
+import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
-import { 
-  ShieldCheck, 
-  Calendar, 
-  Clock, 
-  CheckCircle2, 
+import {
+  ShieldCheck,
+  Calendar,
+  Clock,
+  CheckCircle2,
   XCircle,
   Zap,
   Star,
   Crown,
-  Key
+  Key,
+  Loader2,
+  X,
+  Smartphone,
+  CreditCard,
+  Timer,
+  AlertTriangle,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { myanmarFormat } from '../utils/date';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import { QRCodeSVG } from 'qrcode.react';
+
+const PLAN_RANK = { free: 0, basic: 1, standard: 2, pro: 3, business: 4 };
 
 export default function Subscription() {
   const { selectedBotId } = useSelectedBot();
+  const queryClient = useQueryClient();
+  const { addToast } = useToastStore();
+  const [planBilling, setPlanBilling] = useState({});
+  const [orderLoading, setOrderLoading] = useState(false);
+  const [orderData, setOrderData] = useState(null);
+  const [showQr, setShowQr] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(300);
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const pollRef = useRef(null);
+  const timerRef = useRef(null);
 
   const { data: bot, isLoading } = useQuery({
     queryKey: ['bots', selectedBotId],
@@ -30,54 +52,220 @@ export default function Subscription() {
   const plans = [
     {
       key: 'free',
-      name: 'Free Plan',
+      name: 'Free',
       icon: Zap,
       color: 'text-gray-400',
       bg: 'bg-gray-50',
+      border: 'border-gray-200',
       price: 'Free',
-      features: ['Categories: 1', 'Products: 7', 'Admin: Owner only', 'Promotion Button: No', 'Custom Commands: 5', 'Payment Methods: 1', 'Broadcasts: 4/mo', 'Total Bots: 2', 'Watermark: Yes']
+      yearlyPrice: 'Free',
+      monthlyPrice: 'Free',
+      features: [
+        'Categories: 1', 'Products: 5', 'Admin: Owner only',
+        'Update Bot Info: Welcome Message Only', 'Update Photo: Main menu photo only',
+        'Custom Commands: 5', 'Payment Methods: 1', 'Broadcasts: 4/mo', 'Total Bots: 2',
+        'AI Agent: No', 'E-commerce Website: No', 'Admin Panel: Telegram Panel',
+        'Change Order Button Name: No', 'Shop Banner: No', 'New Order Email Notification: No',
+        'Watermark: Powered by @ecommercemyanmar'
+      ],
+      extras: [],
     },
     {
       key: 'basic',
-      name: 'Basic Plan',
+      name: 'Basic',
       icon: Star,
       color: 'text-blue-600',
       bg: 'bg-blue-50',
-      price: '135,000 MMK/yr',
-      features: ['Categories: 7', 'Products: 30', 'Admin: Up to 2', 'Promotion Button: No', 'Update Info: Welcome, About, Support, Cart', 'Update Photo: Main Menu, Shopping, Cart, Support', 'Automation: 10', 'Custom Commands: 25', 'Payment Methods: 3', 'Broadcasts: 10/mo', 'Total Bots: 3', 'AI Agent: No', 'Watermark: Yes']
+      border: 'border-blue-200',
+      yearlyPrice: '150,000 MMK/yr',
+      monthlyPrice: '14,000 MMK/month',
+      yearlyRaw: 150000,
+      monthlyRaw: 14000,
+      features: [
+        'Yearly Plan: 150,000 MMK/year', 'Monthly Plan: 14,000 MMK/monthnth',
+        'Categories: 7', 'Products: 30', 'Add Admin: up to 2',
+        'Update Bot Info: Welcome, About, Support, Cart',
+        'Update Photo: Main Menu, Shopping, Cart, Support',
+        'Automation: 10', 'Custom Commands: 25', 'Payment Method: 3',
+        'Broadcast to Users: 10/mo', 'Total Bots: 3',
+        'AI Agent: ❌', 'E-commerce Website: ❌', 'Custom Domain: ❌',
+        'Change Order Button Name: ❌', 'New Order Email Notification: ❌',
+        'Watermark: ❌'
+      ],
     },
     {
       key: 'standard',
-      name: 'Standard Plan',
+      name: 'Standard',
       icon: Crown,
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
-      price: '225,000 MMK/yr',
-      features: ['Categories: 15', 'Products: 50', 'Admin: Up to 3', 'Promotion Button: Yes', 'Update Info: All', 'Update Photo: All', 'Automation: 20', 'Custom Commands: 25', 'Payment Methods: 5', 'Broadcasts: 25/mo', 'Ads Removed: Yes', 'Total Bots: 7', 'Watermark: Removed']
+      border: 'border-emerald-200',
+      yearlyPrice: '250,000 MMK/yr',
+      monthlyPrice: '20,000 MMK/month',
+      yearlyRaw: 250000,
+      monthlyRaw: 20000,
+      inherited: 'Basic',
+      features: [
+        'Categories: up to 15', 'Products: up to 70', 'Admin: Up to 3',
+        'Update Bot Info: All', 'Update Photo: All',
+        'Automation: 20', 'Custom Commands: 25', 'Payment Methods: 5',
+        'Broadcasts: 25/mo', 'Ads Removed: Yes', 'Total Bots: 7',
+        'AI Agent: Yes (with own API)', 'E-commerce Website: Yes',
+        'Admin Panel: Website Dashboard + Telegram',
+        'Change Order Button Name: Yes', 'Watermark: Removed ✅'
+      ],
     },
     {
       key: 'pro',
-      name: 'Pro Plan',
+      name: 'Pro',
       icon: Key,
       color: 'text-purple-600',
       bg: 'bg-purple-50',
-      price: '350,000 MMK/yr',
-      features: ['Categories: 35', 'Products: 150', 'Admin: Up to 10', 'Promotion Button: Yes', 'Update Info: All', 'Update Photo: All', 'Automation: 50', 'Custom Commands: 50', 'Payment Methods: 10', 'Broadcasts: 75/mo', 'Ads Removed: Yes', 'Total Bots: 25', 'Free API: Yes', 'Help Setting Up: Yes', 'Web Dashboard: Yes', 'E-commerce Website: Yes', 'Watermark: Removed']
+      border: 'border-purple-200',
+      yearlyPrice: '350,000 MMK/yr',
+      monthlyPrice: '35,000 MMK/month',
+      yearlyRaw: 350000,
+      monthlyRaw: 35000,
+      inherited: 'Standard',
+      features: [
+        'Categories: up to 35', 'Products: up to 150', 'Admin: Up to 10',
+        'Automation: 50', 'Custom Commands: 50', 'Payment Methods: 10',
+        'Broadcasts: 75/mo', 'Total Bots: 25',
+        'Free DeepSeek API: ✅', 'Help Setting Up Product: ✅',
+        'AI Agent: Yes (API Provided)',
+        'E-commerce Website: Yes (Multi-Platform)',
+        'Custom Domain: Yes (1)', 'E-commerce Shop Banner: Yes'
+      ],
     },
     {
       key: 'business',
-      name: 'Business Plan',
+      name: 'Business',
       icon: Crown,
       color: 'text-amber-600',
       bg: 'bg-amber-50',
-      price: '600,000 MMK/yr',
-      features: ['Categories: Unlimited', 'Products: Unlimited', 'Admin: Unlimited', 'Promotion Button: Yes', 'Update Info: All', 'Update Photo: All', 'Automation: Unlimited', 'Custom Commands: Unlimited', 'Payment Methods: Unlimited', 'Broadcasts: Unlimited', 'Ads Removed: Yes', 'Total Bots: 50', 'Free API: Yes', 'Help Setting Up: Yes', 'Web Dashboard: Yes', 'E-commerce Website: Yes', 'Watermark: Removed']
+      border: 'border-amber-200',
+      yearlyPrice: '600,000 MMK/yr',
+      monthlyPrice: '55,000 MMK/month',
+      yearlyRaw: 600000,
+      monthlyRaw: 55000,
+      inherited: 'Pro',
+      features: [
+        'Categories: Unlimited', 'Products: Unlimited', 'Admin: Unlimited',
+        'Automation: Unlimited', 'Custom Commands: Unlimited',
+        'Payment Methods: Unlimited', 'Broadcasts: Unlimited', 'Total Bots: 50',
+        'Custom Domain: Yes (up to 3)', 'New Order Email Notification: Yes'
+      ],
     }
   ];
 
   const currentPlan = bot?.plan_name?.toLowerCase() || 'free';
   const expiryDate = bot?.plan_expiry ? new Date(bot.plan_expiry) : null;
   const daysRemaining = expiryDate ? differenceInDays(expiryDate, new Date()) : 0;
+  const currentRank = PLAN_RANK[currentPlan] || 0;
+
+  const handleUpgrade = async (planKey) => {
+    setOrderLoading(true);
+    setOrderData(null);
+    setShowQr(true);
+    setTimeRemaining(300);
+    const plan = plans.find(p => p.key === planKey);
+    const planType = planBilling[planKey] !== false ? 'yearly' : 'monthly';
+
+    try {
+      const result = await createPlanOrder(selectedBotId, planKey, planType);
+      setOrderData({
+        ...result,
+        planName: plan.name,
+        planType,
+        amountFormatted: planBilling[planKey] !== false ? plan.yearlyPrice : plan.monthlyPrice,
+      });
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Failed to create order', 'error');
+      setShowQr(false);
+    } finally {
+      setOrderLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showQr || !orderData || orderLoading || paymentSuccess) return;
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const fresh = await queryClient.fetchQuery({
+          queryKey: ['bots', selectedBotId],
+          queryFn: () => getBot(selectedBotId),
+        });
+        if (fresh?.plan_name?.toLowerCase() === orderData.planName?.toLowerCase()) {
+          clearInterval(pollRef.current);
+          clearInterval(timerRef.current);
+          setPaymentSuccess(true);
+          setTimeout(() => {
+            setShowQr(false);
+            setPaymentSuccess(false);
+            setOrderData(null);
+            queryClient.invalidateQueries({ queryKey: ['bots', selectedBotId] });
+          }, 3000);
+        }
+      } catch {
+        // polling silently retries
+      }
+    }, 3000);
+
+    return () => {
+      clearInterval(pollRef.current);
+      clearInterval(timerRef.current);
+    };
+  }, [showQr, orderData, orderLoading, paymentSuccess]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!showQr || paymentSuccess || orderLoading) return;
+    timerRef.current = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [showQr, paymentSuccess, orderLoading]);
+
+  // Auto-close when timer hits 0
+  useEffect(() => {
+    if (timeRemaining <= 0 && showQr && !paymentSuccess) {
+      closeQrForce();
+    }
+  }, [timeRemaining]);
+
+  const closeQrForce = () => {
+    clearInterval(pollRef.current);
+    clearInterval(timerRef.current);
+    setShowQr(false);
+    setPaymentSuccess(false);
+    setOrderData(null);
+    setShowCloseWarning(false);
+  };
+
+  const closeQr = () => {
+    if (showCloseWarning) {
+      closeQrForce();
+      return;
+    }
+    setShowCloseWarning(true);
+  };
+
+  const cancelClose = () => {
+    setShowCloseWarning(false);
+  };
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className="space-y-5 sm:space-y-8 pb-10">
@@ -88,7 +276,7 @@ export default function Subscription() {
       {isLoading ? (
         <LoadingSkeleton className="h-48" />
       ) : (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col sm:flex-row items-center gap-6 sm:gap-8"
@@ -106,10 +294,10 @@ export default function Subscription() {
              currentPlan === 'basic' ? <Star className="w-10 h-10 sm:w-12 sm:h-12" /> :
              <Zap className="w-10 h-10 sm:w-12 sm:h-12" />}
           </div>
-          
+
           <div className="flex-1 text-center sm:text-left min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 capitalize truncate">{plans.find(p => p.key === currentPlan)?.name || 'Free Plan'}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 capitalize truncate">{plans.find(p => p.key === currentPlan)?.name || 'Free'} Plan</h2>
               <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider self-center sm:self-auto ${
                 daysRemaining > 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
               }`}>
@@ -132,52 +320,233 @@ export default function Subscription() {
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
-        {plans.map((plan) => (
-          <div key={plan.key} className={`bg-white p-6 rounded-3xl shadow-sm border transition-all ${currentPlan === plan.key ? 'border-indigo-600 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
-            <div className={`w-12 h-12 rounded-2xl ${plan.bg} ${plan.color} flex items-center justify-center mb-4 shadow-sm`}>
-              <plan.icon className="w-6 h-6" />
+      {/* Plan Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+        {plans.filter(p => p.key !== 'free').map((plan) => {
+          const isYearly = planBilling[plan.key] !== false;
+          const price = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
+          const planRank = PLAN_RANK[plan.key];
+          const isCurrent = currentPlan === plan.key;
+          const isDowngrade = planRank < currentRank;
+          const canUpgrade = planRank > currentRank;
+          return (
+            <div key={plan.key} className={`bg-white p-6 rounded-3xl shadow-sm border transition-all flex flex-col ${isCurrent ? 'border-indigo-600 ring-4 ring-indigo-50' : 'border-gray-100'}`}>
+              <div className="flex items-start justify-between mb-4">
+                <div className={`w-12 h-12 rounded-2xl ${plan.bg} ${plan.color} flex items-center justify-center shadow-sm`}>
+                  <plan.icon className="w-6 h-6" />
+                </div>
+                <button
+                  onClick={() => setPlanBilling(prev => ({ ...prev, [plan.key]: !isYearly }))}
+                  className="relative w-20 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center p-0.5 transition-colors"
+                >
+                  <div className={`absolute w-[38px] h-7 rounded-full bg-white shadow-sm border border-gray-100 transition-all duration-200 ${isYearly ? 'translate-x-[38px]' : 'translate-x-0'}`} />
+                  <span className={`relative z-10 w-[38px] text-[10px] font-bold text-center transition-colors ${!isYearly ? 'text-indigo-600' : 'text-gray-400'}`}>Mo</span>
+                  <span className={`relative z-10 w-[38px] text-[10px] font-bold text-center transition-colors ${isYearly ? 'text-indigo-600' : 'text-gray-400'}`}>Yr</span>
+                </button>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">{plan.name} Plan</h3>
+              <p className="text-sm font-bold text-indigo-600 mt-1 mb-4">{price}</p>
+              <ul className="space-y-2 flex-1">
+                {plan.inherited && (
+                  <li className="text-xs text-gray-500 italic mb-3 border-b border-gray-100 pb-2">
+                    Everything in {plan.inherited}, plus:
+                  </li>
+                )}
+                {plan.features.map((feature, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 flex-shrink-0" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5">
+                {isCurrent ? (
+                  <span className="block w-full py-2.5 text-center text-xs font-bold text-indigo-600 bg-indigo-50 rounded-xl border border-indigo-100">
+                    Current Plan
+                  </span>
+                ) : canUpgrade ? (
+                  <button
+                    onClick={() => handleUpgrade(plan.key)}
+                    disabled={orderLoading}
+                    className="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-xs"
+                  >
+                    Upgrade
+                  </button>
+                ) : (
+                  <span className="block w-full py-2.5 text-center text-xs font-bold text-gray-400 bg-gray-50 rounded-xl border border-gray-100">
+                    Downgrade
+                  </span>
+                )}
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
-            <p className="text-sm font-bold text-indigo-600 mt-1 mb-4">{plan.price}</p>
-            <ul className="space-y-3">
-              {plan.features.map((feature, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm text-gray-600">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <div className="bg-indigo-600 p-6 sm:p-8 rounded-[32px] shadow-xl shadow-indigo-100 text-white">
-        <div className="flex flex-col lg:flex-row items-center gap-6 sm:gap-8">
-          <div className="flex-1 text-center lg:text-left min-w-0">
-            <h3 className="text-xl sm:text-2xl font-bold mb-2 flex items-center justify-center lg:justify-start gap-2">
-              <Key className="w-6 h-6" />
-              Redeem Key
-            </h3>
-            <p className="text-indigo-100 text-sm">
-              Enter your subscription key to upgrade instantly.
-            </p>
-          </div>
-          <div className="w-full lg:w-auto flex flex-col sm:flex-row gap-3">
-            <input 
-              type="text" 
-              placeholder="Enter your key here..."
-              className="px-6 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder:text-white/50 focus:ring-2 focus:ring-white/50 outline-none w-full sm:w-64 font-bold text-sm"
-            />
-            <button className="px-8 py-3.5 bg-white text-indigo-600 font-bold rounded-2xl hover:bg-indigo-50 transition-all active:scale-95 whitespace-nowrap shadow-lg">
-              Redeem Now
-            </button>
-          </div>
-        </div>
-        <div className="mt-6 pt-6 border-t border-white/10 text-center text-[10px] sm:text-xs text-indigo-200 uppercase font-bold tracking-widest">
-          keys can be purchased through our official support bot
-        </div>
-      </div>
+      {/* QR Code Modal */}
+      <AnimatePresence>
+        {showQr && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => { if (!showCloseWarning) closeQr(); }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden relative"
+            >
+              {/* Header */}
+              <div className="relative bg-gradient-to-br from-indigo-600 to-purple-700 p-6 text-center">
+                <button
+                  onClick={closeQr}
+                  className="absolute top-3 right-3 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+                >
+                  <X className="w-4 h-4 text-white" />
+                </button>
+                {paymentSuccess ? (
+                  <div className="w-16 h-16 mx-auto mb-3 bg-emerald-400 rounded-2xl flex items-center justify-center">
+                    <CheckCircle2 className="w-9 h-9 text-white" />
+                  </div>
+                ) : (
+                  <div className="w-14 h-14 mx-auto mb-3 bg-white/20 rounded-2xl flex items-center justify-center">
+                    <CreditCard className="w-7 h-7 text-white" />
+                  </div>
+                )}
+                {paymentSuccess ? (
+                  <>
+                    <h3 className="text-lg font-bold text-white">Payment Successful!</h3>
+                    <p className="text-indigo-200 text-sm mt-1">
+                      Your plan has been upgraded
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-bold text-white">Scan to Pay</h3>
+                    <p className="text-indigo-200 text-sm mt-1">
+                      Pay with your preferred Mobile Wallet
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* QR Area */}
+              <div className="p-6">
+                {paymentSuccess ? (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="flex flex-col items-center justify-center py-6 gap-3"
+                  >
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: [0, 1.2, 1] }}
+                      transition={{ duration: 0.6, ease: 'easeOut' }}
+                      className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center"
+                    >
+                      <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+                    </motion.div>
+                    <p className="text-lg font-bold text-gray-900">{orderData?.planName} Plan Activated</p>
+                    <p className="text-sm text-gray-400">Your plan has been upgraded successfully!</p>
+                    <p className="text-xs text-gray-300">Closing automatically...</p>
+                  </motion.div>
+                ) : orderLoading ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-3">
+                    <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                    <p className="text-sm text-gray-500 font-medium">Creating payment...</p>
+                  </div>
+                ) : orderData?.qr ? (
+                  <>
+                    {/* Timer */}
+                    {!paymentSuccess && (
+                      <div className="flex items-center justify-center gap-2 mb-4">
+                        <Timer className={`w-4 h-4 ${timeRemaining <= 60 ? 'text-red-500' : 'text-gray-400'}`} />
+                        <span className={`text-sm font-bold tabular-nums ${timeRemaining <= 60 ? 'text-red-500' : 'text-gray-500'}`}>
+                          {formatTime(timeRemaining)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm mb-4">
+                      <div className="bg-white p-3 rounded-xl flex items-center justify-center">
+                        <QRCodeSVG value={orderData.qr} size={220} level="M" includeMargin />
+                      </div>
+                      <div className="flex items-center justify-center gap-2 pt-2 border-t border-gray-50 mt-2">
+                        <img src="/mmqr-logo.png" alt="MMQR" className="w-4 h-4 object-contain" />
+                        <span className="text-[10px] text-gray-400">Payment powered by Myan Myan Pay MMQR</span>
+                      </div>
+                    </div>
+                    <div className="text-center space-y-2">
+                      <p className="text-lg font-bold text-gray-900">{orderData.planName} Plan</p>
+                      <p className="text-2xl font-bold text-indigo-600">{orderData.amountFormatted}</p>
+                    </div>
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl text-center">
+                      <p className="text-xs text-amber-700 font-medium">
+                        Proceed within 5 minutes. No Screenshot need.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-10 gap-3">
+                    <XCircle className="w-10 h-10 text-red-400" />
+                    <p className="text-sm text-gray-500 font-medium">Failed to create payment</p>
+                    <button
+                      onClick={closeQrForce}
+                      className="px-5 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs"
+                    >
+                      Close
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Close Warning Overlay */}
+              <AnimatePresence>
+                {showCloseWarning && !paymentSuccess && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-3xl flex items-center justify-center p-6"
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9 }}
+                      animate={{ scale: 1 }}
+                      className="text-center"
+                    >
+                      <div className="w-16 h-16 mx-auto mb-4 bg-rose-50 rounded-2xl flex items-center justify-center">
+                        <AlertTriangle className="w-8 h-8 text-rose-500" />
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-3">Warning</h3>
+                      <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                        If you close this qr code, dont transfer to this qr code. to proceed again, recreate order by clicking Upgrade button
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={closeQrForce}
+                          className="flex-1 px-4 py-3 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 transition-all text-sm"
+                        >
+                          Close
+                        </button>
+                        <button
+                          onClick={cancelClose}
+                          className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all text-sm"
+                        >
+                          Keep Waiting
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
