@@ -30,8 +30,9 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
+import { requireFeature } from '../utils/plans';
 
-function BannerEditor({ contentBlocks, onSave, botId }) {
+function BannerEditor({ contentBlocks, onSave, botId, planName }) {
   const { addToast } = useToastStore();
   const [uploading, setUploading] = useState(false);
   const [editingLinkIndex, setEditingLinkIndex] = useState(null);
@@ -211,7 +212,10 @@ function BannerEditor({ contentBlocks, onSave, botId }) {
       )}
       {banners.length < 5 && (
         <button
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            if (!requireFeature(planName, 'shop_banner', addToast)) return;
+            fileInputRef.current?.click();
+          }}
           disabled={uploading}
           className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:border-rose-300 hover:bg-rose-50/30 transition-all active:scale-[0.98] disabled:opacity-50"
         >
@@ -485,6 +489,7 @@ export default function Customization() {
               <span className="text-sm font-medium text-gray-700">Enable AI Agent</span>
               <button
                 onClick={() => {
+                  if (!requireFeature(bot?.plan_name, 'ai_agent', addToast)) return;
                   const newVal = !aiIsEnabled;
                   setAiIsEnabled(newVal);
                   updateAiMutation.mutate({ is_enabled: newVal, api_key: aiApiKey, system_context: aiContext });
@@ -521,7 +526,10 @@ export default function Customization() {
               </button>
             </div>
             <button
-              onClick={() => { updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, website_system_context: aiWebsiteContext, is_enabled: aiIsEnabled }); }}
+              onClick={() => {
+                if (!requireFeature(bot?.plan_name, 'ai_agent', addToast)) return;
+                updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, website_system_context: aiWebsiteContext, is_enabled: aiIsEnabled });
+              }}
               disabled={updateAiMutation.isPending}
               className="w-full px-4 py-2 bg-cyan-500 text-white font-bold rounded-xl hover:bg-cyan-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
             >
@@ -671,6 +679,7 @@ export default function Customization() {
           onSave={(key, data) => updateContentMutation.mutate({ key, data })}
           isPending={updateContentMutation.isPending}
           botId={selectedBotId}
+          planName={bot?.plan_name}
         />
       </section>
 
@@ -686,7 +695,10 @@ export default function Customization() {
           </div>
         </div>
         <button
-          onClick={() => setShowOrderBtnPopup(true)}
+          onClick={() => {
+            if (!requireFeature(bot?.plan_name, 'change_order_button_name', addToast)) return;
+            setShowOrderBtnPopup(true);
+          }}
           className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
         >
           <ShoppingBag className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
@@ -714,6 +726,7 @@ export default function Customization() {
           onSave={(key, data) => updateContentMutation.mutate({ key, data })}
           isPending={updateContentMutation.isPending}
           botId={selectedBotId}
+          planName={bot?.plan_name}
         />
 
         {/* Shop Bio */}

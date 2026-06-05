@@ -50,6 +50,7 @@ import {
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
+import { requireFeature } from '../utils/plans';
 import Subscription from './Subscription';
 
 export default function Settings() {
@@ -356,7 +357,10 @@ export default function Settings() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => setEditingEmail(true)}
+                    onClick={() => {
+                      if (!requireFeature(bot?.plan_name, 'new_order_email_notification', addToast)) return;
+                      setEditingEmail(true);
+                    }}
                     className="px-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -473,7 +477,10 @@ export default function Settings() {
                     <p className="text-xs text-gray-400">No public URL generated yet</p>
                   </div>
                   <button
-                    onClick={() => generateSlugMutation.mutate()}
+                    onClick={() => {
+                      if (!requireFeature(bot?.plan_name, 'ecommerce_website', addToast)) return;
+                      generateSlugMutation.mutate();
+                    }}
                     disabled={generateSlugMutation.isPending}
                     className="w-full px-3 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-xs"
                   >
@@ -635,7 +642,10 @@ export default function Settings() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => setShowAddInput(true)}
+                      onClick={() => {
+                        if (!requireFeature(bot?.plan_name, 'custom_domain', addToast)) return;
+                        setShowAddInput(true);
+                      }}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all text-sm font-bold text-gray-500"
                     >
                       <Plus className="w-4 h-4" />

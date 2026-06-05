@@ -95,3 +95,6 @@ export const editNewsfeedComment = (postId, commentId, visitorId, content) =>
 
 export const deleteNewsfeedComment = (postId, commentId, visitorId) =>
   client.delete(`/public/newsfeed/${postId}/comment/${commentId}?visitor_id=${visitorId}`).then(res => res.data);
+
+export const createPlanOrder = (botId, planName, planType) =>
+  client.post('/public/create-plan-order', { bot_id: botId, plan_name: planName, plan_type: planType }).then(res => res.data);

@@ -12,8 +12,8 @@ import { addDays } from 'date-fns';
 import { myanmarFormat } from '../utils/date';
 
 const PLANS = [
-  { key: 'basic', name: 'Basic', price: '135,000 MMK/yr', icon: Star, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', days: 365 },
-  { key: 'standard', name: 'Standard', price: '225,000 MMK/yr', icon: Crown, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', days: 365 },
+  { key: 'basic', name: 'Basic', price: '150,000 MMK/yr', icon: Star, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', days: 365 },
+  { key: 'standard', name: 'Standard', price: '250,000 MMK/yr', icon: Crown, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', days: 365 },
   { key: 'pro', name: 'Pro', price: '350,000 MMK/yr', icon: Key, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200', days: 365 },
   { key: 'business', name: 'Business', price: '600,000 MMK/yr', icon: Crown, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', days: 365 },
 ];
