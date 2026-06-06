@@ -390,7 +390,7 @@ export default function Subscription() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pt-safe pb-safe bg-black/60 backdrop-blur-sm"
             onClick={() => { if (!showCloseWarning) closeQr(); }}
           >
             <motion.div
@@ -398,36 +398,36 @@ export default function Subscription() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden relative"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-[300px] sm:max-w-sm relative max-h-[85dvh] overflow-y-auto"
             >
               {/* Header */}
-              <div className="relative bg-gradient-to-br from-indigo-600 to-purple-700 p-6 text-center">
+              <div className="relative bg-gradient-to-br from-indigo-600 to-purple-700 p-4 sm:p-6 text-center">
                 <button
                   onClick={closeQr}
-                  className="absolute top-3 right-3 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+                  className="absolute top-2 right-2 w-7 h-7 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
                 >
-                  <X className="w-4 h-4 text-white" />
+                  <X className="w-3.5 h-3.5 text-white" />
                 </button>
                 {paymentSuccess ? (
-                  <div className="w-16 h-16 mx-auto mb-3 bg-emerald-400 rounded-2xl flex items-center justify-center">
-                    <CheckCircle2 className="w-9 h-9 text-white" />
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-2 bg-emerald-400 rounded-2xl flex items-center justify-center">
+                    <CheckCircle2 className="w-7 h-7 sm:w-9 sm:h-9 text-white" />
                   </div>
                 ) : (
-                  <div className="w-14 h-14 mx-auto mb-3 bg-white/20 rounded-2xl flex items-center justify-center">
-                    <CreditCard className="w-7 h-7 text-white" />
+                  <div className="w-10 h-10 sm:w-14 sm:h-14 mx-auto mb-2 bg-white/20 rounded-2xl flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
                   </div>
                 )}
                 {paymentSuccess ? (
                   <>
-                    <h3 className="text-lg font-bold text-white">Payment Successful!</h3>
-                    <p className="text-indigo-200 text-sm mt-1">
+                    <h3 className="text-sm sm:text-lg font-bold text-white">Payment Successful!</h3>
+                    <p className="text-indigo-200 text-xs sm:text-sm mt-1">
                       Your plan has been upgraded
                     </p>
                   </>
                 ) : (
                   <>
-                    <h3 className="text-lg font-bold text-white">Scan to Pay</h3>
-                    <p className="text-indigo-200 text-sm mt-1">
+                    <h3 className="text-sm sm:text-lg font-bold text-white">Scan to Pay</h3>
+                    <p className="text-indigo-200 text-xs sm:text-sm mt-1">
                       Pay with your preferred Mobile Wallet
                     </p>
                   </>
@@ -435,67 +435,67 @@ export default function Subscription() {
               </div>
 
               {/* QR Area */}
-              <div className="p-6">
+              <div className="p-4 sm:p-6 pb-safe">
                 {paymentSuccess ? (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="flex flex-col items-center justify-center py-6 gap-3"
+                    className="flex flex-col items-center justify-center py-4 gap-2"
                   >
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: [0, 1.2, 1] }}
                       transition={{ duration: 0.6, ease: 'easeOut' }}
-                      className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center"
+                      className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-emerald-100 flex items-center justify-center"
                     >
-                      <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+                      <CheckCircle2 className="w-7 h-7 sm:w-10 sm:h-10 text-emerald-500" />
                     </motion.div>
-                    <p className="text-lg font-bold text-gray-900">{orderData?.planName} Plan Activated</p>
-                    <p className="text-sm text-gray-400">Your plan has been upgraded successfully!</p>
-                    <p className="text-xs text-gray-300">Closing automatically...</p>
+                    <p className="text-sm sm:text-lg font-bold text-gray-900">{orderData?.planName} Plan Activated</p>
+                    <p className="text-xs sm:text-sm text-gray-400">Your plan has been upgraded successfully!</p>
+                    <p className="text-[11px] text-gray-300">Closing automatically...</p>
                   </motion.div>
                 ) : orderLoading ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-                    <p className="text-sm text-gray-500 font-medium">Creating payment...</p>
+                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                    <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                    <p className="text-xs text-gray-500 font-medium">Creating payment...</p>
                   </div>
                 ) : orderData?.qr ? (
                   <>
                     {/* Timer */}
                     {!paymentSuccess && (
-                      <div className="flex items-center justify-center gap-2 mb-4">
-                        <Timer className={`w-4 h-4 ${timeRemaining <= 60 ? 'text-red-500' : 'text-gray-400'}`} />
-                        <span className={`text-sm font-bold tabular-nums ${timeRemaining <= 60 ? 'text-red-500' : 'text-gray-500'}`}>
+                      <div className="flex items-center justify-center gap-1.5 mb-3">
+                        <Timer className={`w-3 h-3 ${timeRemaining <= 60 ? 'text-red-500' : 'text-gray-400'}`} />
+                        <span className={`text-xs font-bold tabular-nums ${timeRemaining <= 60 ? 'text-red-500' : 'text-gray-500'}`}>
                           {formatTime(timeRemaining)}
                         </span>
                       </div>
                     )}
-                    <div className="bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm mb-4">
-                      <div className="bg-white p-3 rounded-xl flex items-center justify-center">
-                        <QRCodeSVG value={orderData.qr} size={220} level="M" includeMargin />
+                    <div className="bg-white rounded-2xl border-2 border-gray-100 shadow-sm mb-3">
+                      <div className="p-2 sm:p-3 flex items-center justify-center">
+                        <QRCodeSVG value={orderData.qr} size={180} level="M" includeMargin />
                       </div>
-                      <div className="flex items-center justify-center gap-2 pt-2 border-t border-gray-50 mt-2">
-                        <img src="/mmqr-logo.png" alt="MMQR" className="w-4 h-4 object-contain" />
-                        <span className="text-[10px] text-gray-400">Payment powered by Myan Myan Pay MMQR</span>
+                      <div className="flex items-center justify-center gap-1.5 pt-2 pb-2 border-t border-gray-50">
+                        <img src="/mmqr-logo.png" alt="MMQR" className="w-3 h-3 object-contain" />
+                        <span className="text-[9px] text-gray-400">Payment powered by Myan Myan Pay MMQR</span>
                       </div>
                     </div>
-                    <div className="text-center space-y-2">
-                      <p className="text-lg font-bold text-gray-900">{orderData.planName} Plan</p>
-                      <p className="text-2xl font-bold text-indigo-600">{orderData.amountFormatted}</p>
+                    <div className="text-center space-y-1">
+                      <p className="text-sm sm:text-lg font-bold text-gray-900">{orderData.planName} Plan</p>
+                      <p className="text-lg sm:text-2xl font-bold text-indigo-600">{orderData.amountFormatted}</p>
                     </div>
-                    <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl text-center">
-                      <p className="text-xs text-amber-700 font-medium">
+                    <div className="mt-3 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-center">
+                      <p className="text-[11px] text-amber-700 font-medium">
                         Proceed within 5 minutes. No Screenshot need.
                       </p>
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <XCircle className="w-10 h-10 text-red-400" />
-                    <p className="text-sm text-gray-500 font-medium">Failed to create payment</p>
+                  <div className="flex flex-col items-center justify-center py-8 gap-2">
+                    <XCircle className="w-8 h-8 text-red-400" />
+                    <p className="text-xs text-gray-500 font-medium">Failed to create payment</p>
                     <button
                       onClick={closeQrForce}
-                      className="px-5 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs"
+                      className="px-4 py-1.5 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs"
                     >
                       Close
                     </button>
@@ -510,30 +510,30 @@ export default function Subscription() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-3xl flex items-center justify-center p-6"
+                    className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-3xl flex items-center justify-center p-4"
                   >
                     <motion.div
                       initial={{ scale: 0.9 }}
                       animate={{ scale: 1 }}
                       className="text-center"
                     >
-                      <div className="w-16 h-16 mx-auto mb-4 bg-rose-50 rounded-2xl flex items-center justify-center">
-                        <AlertTriangle className="w-8 h-8 text-rose-500" />
+                      <div className="w-10 h-10 mx-auto mb-2 bg-rose-50 rounded-xl flex items-center justify-center">
+                        <AlertTriangle className="w-5 h-5 text-rose-500" />
                       </div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-3">Warning</h3>
-                      <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                      <h3 className="text-sm font-bold text-gray-900 mb-2">Warning</h3>
+                      <p className="text-[11px] text-gray-600 mb-4 leading-relaxed">
                         If you close this qr code, dont transfer to this qr code. to proceed again, recreate order by clicking Upgrade button
                       </p>
-                      <div className="flex gap-3">
+                      <div className="flex gap-2">
                         <button
                           onClick={closeQrForce}
-                          className="flex-1 px-4 py-3 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 transition-all text-sm"
+                          className="flex-1 px-3 py-2.5 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 transition-all text-[11px]"
                         >
                           Close
                         </button>
                         <button
                           onClick={cancelClose}
-                          className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all text-sm"
+                          className="flex-1 px-3 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all text-[11px]"
                         >
                           Keep Waiting
                         </button>
