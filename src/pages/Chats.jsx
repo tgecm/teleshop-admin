@@ -40,8 +40,77 @@ const lastMessageText = (msg, fileType) => {
   return 'No messages';
 };
 
+const FILE_SIZE_LIMIT = 5 * 1024 * 1024; // 5MB
+
+function DocumentItem({ fileUrl, tgLink, isAdmin }) {
+  const [size, setSize] = useState(null);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    fetch(fileUrl, { method: 'HEAD', signal: controller.signal })
+      .then(r => {
+        const len = parseInt(r.headers.get('content-length') || '0', 10);
+        if (!cancelled) { setSize(len); setChecking(false); }
+      })
+      .catch(() => { if (!cancelled) { setSize(0); setChecking(false); } });
+    return () => { cancelled = true; controller.abort(); };
+  }, [fileUrl]);
+
+  if (checking) {
+    return (
+      <div className="mb-2">
+        <div className="flex items-center gap-2 p-3 bg-white/10 rounded-xl">
+          <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />
+          <p className="text-sm font-medium">Checking file...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If under 5MB, render as audio player
+  if (size < FILE_SIZE_LIMIT) {
+    return (
+      <div className={`mb-2 rounded-xl p-3 ${isAdmin ? 'bg-indigo-500/30' : 'bg-white/60'}`}>
+        <div className="flex items-center gap-3 mb-2">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isAdmin ? 'bg-indigo-400/30' : 'bg-gray-200'}`}>
+            <Headphones className={`w-5 h-5 ${isAdmin ? 'text-indigo-200' : 'text-gray-600'}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-bold ${isAdmin ? 'text-white' : 'text-gray-900'}`}>
+              Voice Message
+            </p>
+          </div>
+        </div>
+        <audio controls controlsList="nodownload" className="w-full h-9" preload="metadata">
+          <source src={fileUrl} />
+        </audio>
+      </div>
+    );
+  }
+
+  // Over 5MB, show as document
+  return (
+    <div className="mb-2">
+      <div className="flex items-center gap-2 p-3 bg-white/10 rounded-xl">
+        <FileText className="w-5 h-5 flex-shrink-0" />
+        <p className="text-sm font-medium">Document</p>
+      </div>
+      <a href={tgLink} target="_blank" rel="noreferrer"
+        className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
+        onClick={(e) => e.stopPropagation()}>
+        Open in Telegram ↗
+      </a>
+    </div>
+  );
+}
+
 function ChatBubble({ message, isAdmin, botId, botUsername }) {
   const token = useAuthStore(s => s.token);
+  const copyTimerRef = useRef(null);
+  const touchCopiedRef = useRef(false);
+  const msgRef = useRef(null);
 
   const renderMedia = () => {
     if (!message.file_id) return null;
@@ -112,19 +181,7 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
           </div>
         );
       case 'document':
-        return (
-          <div className="mb-2">
-            <div className="flex items-center gap-2 p-3 bg-white/10 rounded-xl">
-              <FileText className="w-5 h-5 flex-shrink-0" />
-              <p className="text-sm font-medium">Document</p>
-            </div>
-            <a href={tgLink} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
-              onClick={(e) => e.stopPropagation()}>
-              Open in Telegram ↗
-            </a>
-          </div>
-        );
+        return <DocumentItem fileUrl={fileUrl} tgLink={tgLink} isAdmin={isAdmin} />;
       default:
         return (
           <div className="mb-2">
@@ -153,7 +210,28 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
       >
         {renderMedia()}
         {message.message_text && (
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+          <p ref={msgRef} className="text-sm leading-relaxed whitespace-pre-wrap break-words select-all cursor-text"
+            onContextMenu={(e) => {
+              if (touchCopiedRef.current) { touchCopiedRef.current = false; return; }
+              e.preventDefault();
+              e.stopPropagation();
+              navigator.clipboard.writeText(message.message_text);
+              useToastStore.getState().addToast('Copied', 'success');
+            }}
+            onTouchStart={() => {
+              copyTimerRef.current = setTimeout(() => {
+                touchCopiedRef.current = true;
+                navigator.clipboard.writeText(message.message_text);
+                useToastStore.getState().addToast('Copied', 'success');
+                setTimeout(() => { touchCopiedRef.current = false; }, 200);
+              }, 500);
+            }}
+            onTouchEnd={() => {
+              if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+            }}
+            onTouchMove={() => {
+              if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+            }}>
             {message.message_text}
           </p>
         )}
@@ -407,27 +485,56 @@ export default function Chats() {
     }
   };
 
+  const compressImage = (file, maxDim = 720) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width <= maxDim && height <= maxDim) {
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+          }, 'image/jpeg', 0.85);
+          return;
+        }
+        const ratio = Math.min(maxDim / width, maxDim / height);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(width * ratio);
+        canvas.height = Math.round(height * ratio);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  };
+
   const handlePhotoSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !selectedBotId) return;
     setUploading(true);
     try {
+      const compressed = await compressImage(file, 720);
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('bot_id', Number(selectedBotId));
-      const res = await fetch(`${client.defaults.baseURL}/upload/image`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${useAuthStore.getState().token}` },
-        body: formData,
-      });
-      if (!res.ok) throw new Error('Upload failed');
-      const data = await res.json();
+      formData.append('file', compressed);
+      const { file_id } = await client.post(`/upload/image?bot_id=${selectedBotId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then(r => r.data);
       const caption = inputText.trim();
       setInputText('');
       if (isWebTab && selectedVisitor) {
-        sendMutation.mutate({ visitorId: selectedVisitor, message: caption, fileId: data.file_id, fileType: 'photo' });
+        sendMutation.mutate({ visitorId: selectedVisitor, message: caption, fileId: file_id, fileType: 'photo' });
       } else {
-        sendMutation.mutate({ userId: selectedUser, message: caption, fileId: data.file_id, fileType: 'photo' });
+        sendMutation.mutate({ userId: selectedUser, message: caption, fileId: file_id, fileType: 'photo' });
       }
     } catch {
       addToast('Failed to upload photo', 'error');
@@ -438,9 +545,13 @@ export default function Chats() {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter') {
       e.preventDefault();
-      handleSend();
+      const el = e.target;
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      setInputText(inputText.slice(0, start) + '\n' + inputText.slice(end));
+      requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 1; });
     }
   };
 
@@ -937,13 +1048,21 @@ export default function Chats() {
                     <textarea
                       ref={inputRef}
                       value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
+                      onChange={(e) => {
+                        if (e.target.value.length > 4096) return;
+                        setInputText(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                      }}
                       onKeyDown={handleKeyDown}
                       placeholder="Type a message..."
                       rows={1}
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none transition-all"
-                      style={{ maxHeight: 120 }}
+                      style={{ maxHeight: 200 }}
                     />
+                    {inputText.length > 3800 && (
+                      <span className="absolute -bottom-4 right-2 text-[10px] text-gray-400">{inputText.length}/4096</span>
+                    )}
                   </div>
                   <button
                     onClick={handleSend}
