@@ -227,7 +227,10 @@ export default function Products() {
               <div className="p-3 md:p-4">
                 <div className="flex flex-col gap-0.5 mb-1">
                   <h3 className="font-bold text-gray-900 text-sm md:text-base line-clamp-1">{product.name}</h3>
-                  <p className="font-bold text-indigo-600 text-sm md:text-base">{product.price.toLocaleString()} MMK</p>
+                  <p className="font-bold text-indigo-600 text-sm md:text-base">
+                    {product.original_price > 0 && <span className="text-xs line-through text-red-400 font-medium mr-1.5">{product.original_price.toLocaleString()} MMK</span>}
+                    {product.price.toLocaleString()} MMK
+                  </p>
                 </div>
                 <div className="flex items-center gap-1.5 text-[8px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">
                   <Tag className="w-2.5 h-2.5 md:w-3 md:h-3" />
@@ -397,8 +400,10 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     name: product?.name || '',
     description: product?.description || '',
     price: product?.price || '',
+    original_price: product?.original_price || '',
     category_id: product?.category_id || '',
   });
+  const [promotion, setPromotion] = useState(() => !!product?.original_price);
   const [stockOption, setStockOption] = useState(() => {
     if (product?.stock_quantity === null || product?.stock_quantity === undefined) return 'unlimited';
     if (product?.stock_quantity === 0) return 'out';
@@ -555,6 +560,10 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (promotion && Number(formData.price) > Number(formData.original_price)) {
+      addToast('Promotion price cannot exceed original price', 'error');
+      return;
+    }
     const imageUrl = images.length > 0
       ? JSON.stringify(images.map(img => ({ file_id: img.file_id, type: 'photo' })))
       : null;
@@ -567,6 +576,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     onSubmit({
       ...formData,
       price: Number(formData.price),
+      original_price: promotion && formData.original_price ? Number(formData.original_price) : null,
       stock_quantity: stockOption === 'unlimited' ? null : stockOption === 'out' ? 0 : Number(customStock),
       category_id: formData.category_id ? Number(formData.category_id) : null,
       image_url: imageUrl,
@@ -653,15 +663,45 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
 
         <div className="space-y-2">
           <div className="space-y-2">
-            <label className="text-sm font-bold text-gray-700 ml-1">Price (MMK)</label>
-            <input
-              required
-              type="number"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              placeholder="0"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
-            />
+            <label className="text-sm font-bold text-gray-700 ml-1">Price (MMK)
+              <label className="ml-3 text-sm font-normal text-gray-500 cursor-pointer select-none" onClick={(e) => { e.stopPropagation();
+                if (!promotion && !formData.original_price) {
+                  setFormData(prev => ({ ...prev, original_price: prev.price }));
+                }
+                setPromotion(!promotion);
+              }}>
+                <input type="checkbox" checked={promotion} onChange={() => {
+                  if (!promotion && !formData.original_price) {
+                    setFormData(prev => ({ ...prev, original_price: prev.price }));
+                  }
+                  setPromotion(!promotion);
+                }} className="mr-1.5 align-middle" />
+                Promotion
+              </label>
+            </label>
+            {promotion ? (
+              <div className="flex gap-2">
+                <input required type="number" value={formData.original_price}
+                  onChange={(e) => setFormData({ ...formData, original_price: e.target.value })}
+                  placeholder="Original Price"
+                  className="w-1/2 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium" />
+                <input required type="number" value={formData.price}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData({ ...formData, price: val });
+                  }}
+                  placeholder="Promotion Price"
+                  className="w-1/2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium" />
+              </div>
+            ) : (
+              <input required type="number" value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                placeholder="0"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium" />
+            )}
+            {promotion && Number(formData.price) > Number(formData.original_price) && (
+              <p className="text-xs text-rose-500 font-medium mt-1">Promotion price cannot exceed original price</p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-bold text-gray-700 ml-1">Stock</label>

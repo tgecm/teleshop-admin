@@ -277,6 +277,7 @@ export default function Customization() {
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiContext, setAiContext] = useState('');
   const [aiIsEnabled, setAiIsEnabled] = useState(false);
+  const [aiGender, setAiGender] = useState('male');
   const [showAiContextPopup, setShowAiContextPopup] = useState(false);
   const [aiWebsiteContext, setAiWebsiteContext] = useState('');
   const [showAiWebsiteContextPopup, setShowAiWebsiteContextPopup] = useState(false);
@@ -315,6 +316,7 @@ export default function Customization() {
       setAiContext(aiSettings.system_context || '');
       setAiWebsiteContext(aiSettings.website_system_context || '');
       setAiIsEnabled(aiSettings.is_enabled !== false);
+      setAiGender(aiSettings.gender || 'male');
     }
   }, [contentBlocks, aiSettings]);
 
@@ -492,12 +494,33 @@ export default function Customization() {
                   if (!requireFeature(bot?.plan_name, 'ai_agent', addToast)) return;
                   const newVal = !aiIsEnabled;
                   setAiIsEnabled(newVal);
-                  updateAiMutation.mutate({ is_enabled: newVal, api_key: aiApiKey, system_context: aiContext });
+                  updateAiMutation.mutate({ is_enabled: newVal, api_key: aiApiKey, system_context: aiContext, gender: aiGender });
                 }}
                 className={`w-12 h-6 rounded-full transition-colors relative ${aiIsEnabled ? 'bg-cyan-500' : 'bg-gray-300'}`}
               >
                 <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${aiIsEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
               </button>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1.5 block">AI Gender</label>
+              <div className="flex bg-gray-100 rounded-xl p-0.5">
+                <button
+                  onClick={() => setAiGender('male')}
+                  className={`flex-1 px-3 py-1.5 text-sm font-bold rounded-xl transition-all ${
+                    aiGender === 'male' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  ♂ Male
+                </button>
+                <button
+                  onClick={() => setAiGender('female')}
+                  className={`flex-1 px-3 py-1.5 text-sm font-bold rounded-xl transition-all ${
+                    aiGender === 'female' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  ♀ Female
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 mb-1 block">Custom Prompt Telegram</label>
@@ -528,7 +551,7 @@ export default function Customization() {
             <button
               onClick={() => {
                 if (!requireFeature(bot?.plan_name, 'ai_agent', addToast)) return;
-                updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, website_system_context: aiWebsiteContext, is_enabled: aiIsEnabled });
+                updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, website_system_context: aiWebsiteContext, is_enabled: aiIsEnabled, gender: aiGender });
               }}
               disabled={updateAiMutation.isPending}
               className="w-full px-4 py-2 bg-cyan-500 text-white font-bold rounded-xl hover:bg-cyan-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
@@ -564,7 +587,7 @@ export default function Customization() {
                 </button>
                 <button
                   onClick={() => {
-                    updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, is_enabled: aiIsEnabled });
+                    updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, is_enabled: aiIsEnabled, gender: aiGender });
                     setShowAiContextPopup(false);
                   }}
                   disabled={updateAiMutation.isPending}
@@ -615,7 +638,7 @@ export default function Customization() {
                 </button>
                 <button
                   onClick={() => {
-                    updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, website_system_context: aiWebsiteContext, is_enabled: aiIsEnabled });
+                    updateAiMutation.mutate({ api_key: aiApiKey, system_context: aiContext, website_system_context: aiWebsiteContext, is_enabled: aiIsEnabled, gender: aiGender });
                     setShowAiWebsiteContextPopup(false);
                   }}
                   disabled={updateAiMutation.isPending}

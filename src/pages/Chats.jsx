@@ -451,8 +451,8 @@ export default function Chats() {
   }, [messages]);
 
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-  const webVisitorsWithUid = displayedWebVisitors.filter(v => v.firebase_uid);
-  const webVisitorsGuest = displayedWebVisitors.filter(v => !v.firebase_uid);
+  const webVisitorsWithUid = displayedWebVisitors.filter(v => v.firebase_uid || v.telegram_id);
+  const webVisitorsGuest = displayedWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id);
   const websiteUnread = webVisitorsWithUid.reduce((sum, v) => sum + (v.unread_count || 0), 0);
   const guestUnread = webVisitorsGuest.reduce((sum, v) => sum + (v.unread_count || 0), 0);
 
@@ -478,7 +478,7 @@ export default function Chats() {
   const handleSend = () => {
     const text = inputText.trim();
     if (!text || sendMutation.isPending) return;
-    if (isWebTab && selectedVisitor) {
+    if (selectedVisitor) {
       sendMutation.mutate({ visitorId: selectedVisitor, message: text });
     } else {
       sendMutation.mutate({ userId: selectedUser, message: text });
@@ -531,7 +531,7 @@ export default function Chats() {
       }).then(r => r.data);
       const caption = inputText.trim();
       setInputText('');
-      if (isWebTab && selectedVisitor) {
+      if (selectedVisitor) {
         sendMutation.mutate({ visitorId: selectedVisitor, message: caption, fileId: file_id, fileType: 'photo' });
       } else {
         sendMutation.mutate({ userId: selectedUser, message: caption, fileId: file_id, fileType: 'photo' });
@@ -648,7 +648,7 @@ export default function Chats() {
 
       {chatTab === 'web' || chatTab === 'guest' ? (
         <>
-          {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid) : filteredWebVisitors.filter(v => !v.firebase_uid)).length === 0 ? (
+          {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id) : filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id)).length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <MessageCircle className="w-8 h-8 text-gray-300" />
@@ -662,7 +662,7 @@ export default function Chats() {
             </div>
           ) : (
             <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
-              {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid) : filteredWebVisitors.filter(v => !v.firebase_uid)).map(v => (
+              {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id) : filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id)).map(v => (
                 <div key={v.visitor_id} className="relative group">
                   <button
                     onClick={() => {
@@ -727,14 +727,14 @@ export default function Chats() {
               ))}
             </div>
           )}
-          {chatTab === 'all' && filteredWebVisitors.filter(v => v.firebase_uid).length > 0 && (
+          {chatTab === 'all' && filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id).length > 0 && (
             <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
               <div className="flex items-center gap-2 px-1 pt-1">
                 <div className="h-px flex-1 bg-gray-100" />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Website</span>
                 <div className="h-px flex-1 bg-gray-100" />
               </div>
-              {filteredWebVisitors.filter(v => v.firebase_uid).map(v => (
+              {filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id).map(v => (
                 <div key={v.visitor_id} className="relative group">
                   <button
                     onClick={() => {
@@ -780,14 +780,14 @@ export default function Chats() {
               ))}
             </div>
           )}
-          {chatTab === 'all' && filteredWebVisitors.filter(v => !v.firebase_uid).length > 0 && (
+          {chatTab === 'all' && filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id).length > 0 && (
             <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
               <div className="flex items-center gap-2 px-1 pt-1">
                 <div className="h-px flex-1 bg-gray-100" />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Guest</span>
                 <div className="h-px flex-1 bg-gray-100" />
               </div>
-              {filteredWebVisitors.filter(v => !v.firebase_uid).map(v => (
+              {filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id).map(v => (
                 <div key={v.visitor_id} className="relative group">
                   <button
                     onClick={() => {
