@@ -249,7 +249,8 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
             <img key={c.color} src={c.url} alt="" className="hidden" aria-hidden="true" />
           ))}
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
-          <div className="flex items-baseline gap-1.5 mb-4">
+          <div className="mb-4 flex items-baseline gap-1.5">
+            {product.original_price > 0 && <span className="text-lg line-through text-red-400 font-medium">{formatPrice(product.original_price)} MMK</span>}
             <span className="text-2xl font-bold theme-price">{formatPrice(product.price)}</span>
             <span className="text-sm text-gray-400 font-medium">MMK</span>
           </div>
@@ -1639,6 +1640,33 @@ export default function PublicEcommerce({ slug, viaDomain }) {
         }).catch(() => {});
       return;
     }
+    if (tgLoggedIn && telegramUser?.id) {
+      // Telegram auth user: use telegram ID as visitor ID, skip form
+      const tgVisitorId = 'tg_' + telegramUser.id;
+      visitorIdRef.current = tgVisitorId;
+      setVisitorForm({ name: telegramUser.name || '', phone: '', email: '' });
+      setShowVisitorForm(false);
+      // Register as web visitor with telegram_id for admin split
+      fetch(API_BASE + '/public/visitor/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitor_id: tgVisitorId, bot_id: shop.id, name: telegramUser.name || '', email: '', telegram_id: telegramUser.id }),
+      }).catch(() => {});
+      // Load existing chat history
+      fetch(API_BASE + '/public/chat/' + shop.id + '/' + tgVisitorId + '/messages')
+        .then(r => r.json())
+        .then(msgs => {
+          if (msgs && msgs.length > 0) {
+            setChatMessages(msgs.map(m => ({
+              role: m.sender_type === 'user' ? 'user' : 'assistant',
+              content: m.message_text || '',
+              file_id: m.file_id || null,
+              file_type: m.file_type || null
+            })));
+          }
+        }).catch(() => {});
+      return;
+    }
     if (visitorIdRef.current) return;
     const key = 'visitor_' + (shop.bot_username || slug || 'domain');
     const saved = localStorage.getItem(key);
@@ -1663,7 +1691,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
     } else {
       setShowVisitorForm(true);
     }
-  }, [chatOpen, shop?.id, user, slug]);
+  }, [chatOpen, shop?.id, user, slug, tgLoggedIn, telegramUser]);
 
   const handleSignOut = useCallback(async () => {
     try { await signOut(auth); } catch {}
@@ -1858,7 +1886,10 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                         <img key={c.color} src={c.url} alt="" className="hidden" aria-hidden="true" />
                       ))}
                       <h2 className="text-xl font-bold text-gray-900">{productLinkProduct.name}</h2>
-                      <p className="text-2xl font-bold text-indigo-600 mt-1">{productLinkProduct.price.toLocaleString()} MMK</p>
+                      <div className="flex items-baseline gap-1.5 mt-1">
+                        {productLinkProduct.original_price > 0 && <span className="text-lg line-through text-red-400 font-medium">{productLinkProduct.original_price.toLocaleString()} MMK</span>}
+                        <span className="text-2xl font-bold text-indigo-600">{productLinkProduct.price.toLocaleString()} MMK</span>
+                      </div>
                     </div>
                     {productLinkProduct.description && (
                       <p className="text-sm text-gray-500 leading-relaxed">{productLinkProduct.description}</p>
@@ -2236,6 +2267,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                       <p className="text-xs text-gray-400 line-clamp-2 mb-2 leading-relaxed">{product.description}</p>
                     )}
                     <div className="flex items-baseline gap-1 mb-1">
+                      {product.original_price > 0 && <span className="text-xs line-through text-red-400 font-medium mr-1">{formatPrice(product.original_price)} MMK</span>}
                       <span className="font-bold theme-price text-sm md:text-base">{formatPrice(product.price)}</span>
                       <span className="text-[10px] text-gray-400 font-medium">MMK</span>
                     </div>

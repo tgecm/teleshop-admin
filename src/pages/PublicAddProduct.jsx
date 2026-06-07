@@ -37,11 +37,12 @@ function compressImage(file, maxDimension = 720) {
 }
 
 export default function PublicAddProduct({ username, code, secret1 = '', secret2 = '' }) {
-  const initialFormData = { name: '', description: '', price: '', stock_quantity: '', category_id: '' };
+  const initialFormData = { name: '', description: '', price: '', original_price: '', stock_quantity: '', category_id: '' };
   const [state, setState] = useState('loading'); // loading | error | form | success
   const [botInfo, setBotInfo] = useState(null);
   const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({ ...initialFormData });
+  const [promotion, setPromotion] = useState(false);
   const [stockOption, setStockOption] = useState('unlimited');
   const [customStock, setCustomStock] = useState('');
   const [images, setImages] = useState([]);
@@ -153,6 +154,7 @@ export default function PublicAddProduct({ username, code, secret1 = '', secret2
           name: formData.name.trim(),
           description: formData.description.trim() || null,
           price: Number(formData.price),
+          original_price: promotion && formData.original_price ? Number(formData.original_price) : null,
           stock_quantity: stockOption === 'unlimited' ? null : stockOption === 'out' ? 0 : Number(customStock),
           category_id: formData.category_id ? Number(formData.category_id) : null,
           image_url: imageUrl,
@@ -387,15 +389,37 @@ export default function PublicAddProduct({ username, code, secret1 = '', secret2
 
             <div className="space-y-3">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 ml-1">Price (MMK) *</label>
-                <input
-                  required
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="0"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-sm"
-                />
+                <label className="text-sm font-bold text-gray-700 ml-1">Price (MMK) *
+                  <label className="ml-3 text-sm font-normal text-gray-500 cursor-pointer select-none">
+                    <input type="checkbox" checked={promotion} onChange={() => {
+                      if (!promotion && !formData.original_price) {
+                        setFormData(prev => ({ ...prev, original_price: prev.price }));
+                      }
+                      setPromotion(!promotion);
+                    }} className="mr-1.5 align-middle" />
+                    Promotion
+                  </label>
+                </label>
+                {promotion ? (
+                  <div className="flex gap-2">
+                    <input required type="number" value={formData.original_price}
+                      onChange={(e) => setFormData({ ...formData, original_price: e.target.value })}
+                      placeholder="Original Price"
+                      className="w-1/2 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-sm" />
+                    <input required type="number" value={formData.price}
+                      onChange={(e) => { setFormData({ ...formData, price: e.target.value }); }}
+                      placeholder="Promotion Price"
+                      className="w-1/2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-medium text-sm" />
+                  </div>
+                ) : (
+                  <input required type="number" value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    placeholder="0"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-sm" />
+                )}
+                {promotion && Number(formData.price) > Number(formData.original_price) && (
+                  <p className="text-xs text-rose-500 font-medium mt-1">Promotion price cannot exceed original price</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 ml-1">Stock</label>
