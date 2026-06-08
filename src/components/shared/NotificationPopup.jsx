@@ -44,7 +44,7 @@ export default function NotificationPopup() {
     if (timerRef.current) clearTimeout(timerRef.current);
     notificationSound();
     setNotice({ type, msg, path });
-    timerRef.current = setTimeout(() => setNotice(null), 3000);
+    timerRef.current = setTimeout(() => setNotice(null), 10000);
   };
 
   useEffect(() => {
