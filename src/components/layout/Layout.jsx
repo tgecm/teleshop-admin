@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
+import NotificationPopup from '../shared/NotificationPopup';
 import InstallPrompt from '../InstallPrompt';
 import { motion } from 'motion/react';
 
@@ -24,6 +25,7 @@ export default function Layout() {
   return (
     <div className="h-full bg-gray-50 flex flex-col">
       <TopBar />
+      <NotificationPopup />
 
       <div className="flex flex-1 relative min-h-0">
         <Sidebar />
