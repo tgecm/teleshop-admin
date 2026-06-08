@@ -23,6 +23,7 @@ import {
   ImageUp,
   Globe,
   Smartphone,
+  ShieldCheck,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -687,8 +688,8 @@ export default function Chats() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900`}>
-                            {v.name}
+                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900 flex items-center gap-1`}>
+                            {v.name === 'E-commerce Support' ? <>E-commerce Support<ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /></> : v.name}
                           </p>
                           {v.last_time && (
                             <span className="text-[10px] text-gray-400 flex-shrink-0">
@@ -759,8 +760,8 @@ export default function Chats() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900`}>
-                            {v.name}
+                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900 flex items-center gap-1`}>
+                            {v.name === 'E-commerce Support' ? <>E-commerce Support<ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /></> : v.name}
                           </p>
                           {v.last_time && (
                             <span className="text-[10px] text-gray-400 flex-shrink-0">
@@ -812,8 +813,8 @@ export default function Chats() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900`}>
-                            {v.name}
+                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900 flex items-center gap-1`}>
+                            {v.name === 'E-commerce Support' ? <>E-commerce Support<ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /></> : v.name}
                           </p>
                           {v.last_time && (
                             <span className="text-[10px] text-gray-400 flex-shrink-0">

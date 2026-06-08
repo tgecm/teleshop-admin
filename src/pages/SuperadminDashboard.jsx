@@ -228,6 +228,7 @@ export default function SuperadminDashboard() {
     { id: 'search', label: 'Search', icon: Search },
     { id: 'plans', label: 'Plans', icon: Crown },
     { id: 'audit', label: 'Audit', icon: ShieldCheck },
+    { id: 'messages', label: 'Send Message', icon: Mail },
   ];
 
   return (
@@ -1056,95 +1057,4 @@ function PlansTab({ planPayments, allBots }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  AUDIT TAB
-// ═══════════════════════════════════════════════════════════════
-function AuditTab({ loginLogs }) {
-  const [filterSuccess, setFilterSuccess] = useState('all');
-  const adminActivities = useAdminActivities();
-
-  const filtered = useMemo(() => {
-    if (!loginLogs) return [];
-    if (filterSuccess === 'all') return loginLogs;
-    return loginLogs.filter(l => filterSuccess === 'success' ? l.success : !l.success);
-  }, [loginLogs, filterSuccess]);
-
-  const successCount = loginLogs?.filter(l => l.success).length || 0;
-  const failCount = loginLogs?.filter(l => !l.success).length || 0;
-
-  return (
-    <div className="space-y-5">
-      {/* Admin Activity Log (frontend-tracked) */}
-      {adminActivities.length > 0 && (
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-indigo-500" />
-              <h3 className="text-sm font-bold text-gray-900">Admin Activity Log</h3>
-              <span className="text-[10px] text-gray-400 ml-auto">This session</span>
-            </div>
-          </div>
-          <div className="max-h-[300px] overflow-y-auto">
-            {adminActivities.slice(0, 30).map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 border-b border-gray-50 last:border-0">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-gray-900">{a.action.replace(/_/g, ' ')}</p>
-                  <p className="text-[10px] text-gray-400 truncate">{a.detail}</p>
-                </div>
-                <span className="text-[10px] text-gray-400 flex-shrink-0">{safeFormat(a.timestamp, 'HH:mm')}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Login Audit */}
-      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-5 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center"><ShieldCheck className="w-5 h-5" /></div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Login History</h3>
-                <p className="text-xs text-gray-500">Security audit — last 50 login attempts</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-xs font-bold">
-              <span className="text-emerald-600">{successCount} success</span>
-              <span className="text-rose-600">{failCount} failed</span>
-            </div>
-          </div>
-          <div className="flex bg-gray-100 p-0.5 rounded-xl w-fit mt-3">
-            {['all', 'success', 'fail'].map(f => (
-              <button key={f} onClick={() => setFilterSuccess(f)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${filterSuccess === f ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-        {!loginLogs ? (
-          <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin text-gray-300 mx-auto" /></div>
-        ) : filtered.length === 0 ? (
-          <div className="p-12 text-center"><ShieldCheck className="w-12 h-12 text-gray-200 mx-auto mb-3" /><p className="text-gray-500 font-medium">No login attempts found</p></div>
-        ) : (
-          <div className="divide-y divide-gray-50 max-h-[500px] overflow-y-auto">
-            {filtered.map(log => (
-              <div key={log.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${log.success ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900 truncate">{log.email}</p>
-                  <p className="text-[11px] text-gray-500">{log.ip}{log.user_agent ? ` · ${log.user_agent.slice(0, 40)}...` : ''}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg ${log.success ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{log.success ? 'SUCCESS' : 'FAILED'}</span>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{safeFormat(log.created_at, 'MMM d, HH:mm')}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
+//  MESSAGES TAB (Superadmin Send Message)

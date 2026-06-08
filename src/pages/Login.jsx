@@ -175,25 +175,21 @@ export default function Login() {
                       inputMode="numeric"
                       value={digit}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 1);
-                        const next = [...code];
-                        next[i] = val;
-                        setCode(next);
-                        if (val && i < 5) codeRefs.current[i + 1]?.focus();
-                        if (val && i === 5) tryAutoSubmit(next);
-                      }}
-                      onPaste={(e) => {
-                        e.preventDefault();
-                        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-                        if (!pasted) return;
-                        const next = [...code];
-                        for (let j = 0; j < pasted.length; j++) {
-                          if (i + j < 6) next[i + j] = pasted[j];
+                        const raw = e.target.value.replace(/\D/g, '');
+                        if (raw.length > 1) {
+                          const next = [...code];
+                          for (let j = 0; j < raw.length && j < 6; j++) next[j] = raw[j];
+                          setCode(next);
+                          const targetIdx = Math.min(raw.length - 1, 5);
+                          codeRefs.current[targetIdx]?.focus();
+                          if (next.every(d => d !== '')) tryAutoSubmit(next);
+                        } else {
+                          const next = [...code];
+                          next[i] = raw;
+                          setCode(next);
+                          if (raw && i < 5) codeRefs.current[i + 1]?.focus();
+                          if (raw && i === 5) tryAutoSubmit(next);
                         }
-                        setCode(next);
-                        const targetIdx = Math.min(i + pasted.length, 5);
-                        codeRefs.current[targetIdx]?.focus();
-                        if (next.every(d => d !== '')) tryAutoSubmit(next);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Backspace' && !code[i] && i > 0) {
