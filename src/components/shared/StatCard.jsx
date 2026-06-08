@@ -12,16 +12,16 @@ export default function StatCard({ title, value, icon: Icon, trend, color = 'ind
   return (
     <motion.div 
       whileTap={{ scale: 0.98 }}
-      className="bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 flex items-center gap-3 sm:gap-4 active:border-indigo-200 transition-colors"
+      className="bg-white p-3.5 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 flex items-center gap-3 sm:gap-4 md:gap-5 active:border-indigo-200 transition-colors"
     >
-      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${colors[color]} flex items-center justify-center text-white shadow-lg flex-shrink-0`}>
-        <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+      <div className={`w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br ${colors[color]} flex items-center justify-center text-white shadow-lg flex-shrink-0`}>
+        <Icon className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[9px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider truncate">{title}</p>
-        <h3 className="text-xs sm:text-lg md:text-2xl font-bold text-gray-900 leading-tight mt-0.5">{value}</h3>
+        <p className="text-[9px] sm:text-xs md:text-sm font-bold text-gray-400 uppercase tracking-wider truncate">{title}</p>
+        <h3 className="text-xs sm:text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mt-0.5">{value}</h3>
         {trend && (
-          <p className={`text-[10px] sm:text-xs font-bold mt-0.5 ${trend > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          <p className={`text-[10px] sm:text-xs md:text-sm font-bold mt-0.5 ${trend > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
             {trend > 0 ? '+' : ''}{trend}% from last month
           </p>
         )}

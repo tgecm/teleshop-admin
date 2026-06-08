@@ -65,9 +65,9 @@ export default function Commands() {
   if (isLoading) return <LoadingSkeleton type="list" count={5} />;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Telegram Commands</h1>
+        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Telegram Commands</h1>
         <div className="flex gap-2">
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

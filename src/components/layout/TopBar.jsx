@@ -48,10 +48,10 @@ export default function TopBar() {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-indigo-600 shadow-md">
-      <div className="flex items-center justify-between h-10 md:h-14 px-2 md:px-6 gap-1 md:gap-2">
+    <header className="sticky top-0 z-40 w-full bg-indigo-600 shadow-[0_2px_16px_rgba(99,102,241,0.3)]">
+      <div className="flex items-center justify-between h-10 md:h-16 px-2 md:px-6 lg:px-8 gap-1 md:gap-4">
         <div className="flex items-center gap-2.5">
-          <span className="text-white text-base md:text-lg font-black tracking-widest uppercase truncate max-w-[130px] sm:max-w-[220px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
+          <span className="text-white text-base md:text-xl lg:text-2xl font-black tracking-widest uppercase truncate max-w-[130px] sm:max-w-[220px] md:max-w-[300px] lg:max-w-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
         </div>
 
         {user?.is_superadmin && (
@@ -60,12 +60,12 @@ export default function TopBar() {
           </div>
         )}
 
-        <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">
           <button
             onClick={() => navigate('/chats')}
-            className="relative text-white p-1.5 hover:bg-white/10 active:bg-white/15 rounded-xl transition-colors"
+            className="relative text-white p-1.5 md:p-2.5 hover:bg-white/10 active:bg-white/15 rounded-xl transition-colors"
           >
-            <MessageCircle className="w-[20px] h-[20px]" strokeWidth={1.8} />
+            <MessageCircle className="w-[20px] h-[20px] md:w-[22px] md:h-[22px]" strokeWidth={1.8} />
             {unread?.total > 0 && (
               <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-bold min-w-[15px] h-[15px] flex items-center justify-center rounded-full px-0.5 leading-none shadow-sm">
                 {unread.total > 99 ? '99+' : unread.total}
@@ -74,9 +74,9 @@ export default function TopBar() {
           </button>
           <button
             onClick={() => navigate('/orders')}
-            className="relative text-white p-1.5 hover:bg-white/10 active:bg-white/15 rounded-xl transition-colors"
+            className="relative text-white p-1.5 md:p-2.5 hover:bg-white/10 active:bg-white/15 rounded-xl transition-colors"
           >
-            <Package className="w-[20px] h-[20px]" strokeWidth={1.8} />
+            <Package className="w-[20px] h-[20px] md:w-[22px] md:h-[22px]" strokeWidth={1.8} />
             {pendingOrders?.pending > 0 && (
               <span className="absolute -top-0.5 -right-0.5 bg-amber-400 text-white text-[8px] font-bold min-w-[15px] h-[15px] flex items-center justify-center rounded-full px-0.5 leading-none shadow-sm">
                 {pendingOrders.pending > 99 ? '99+' : pendingOrders.pending}
@@ -84,7 +84,7 @@ export default function TopBar() {
             )}
           </button>
           <RefreshButton />
-          <div className="hidden sm:flex flex-col items-end">
+          <div className="hidden md:flex flex-col items-end">
             <span className="text-white text-sm font-medium leading-none">{user?.email?.split('@')[0]}</span>
             <span className="text-indigo-200 text-[10px] mt-1 uppercase font-bold tracking-wider">{user?.is_superadmin ? 'Superadmin' : 'Owner'}</span>
           </div>
@@ -110,19 +110,19 @@ export default function TopBar() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -8, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
-                  className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-1 z-50"
+                  className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50"
                 >
-                  <div className="px-4 py-3 border-b border-gray-50 sm:hidden">
+                  <div className="px-4 py-3 border-b border-gray-50 md:hidden">
                     <p className="text-sm font-bold text-gray-900 truncate">{user?.email}</p>
                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mt-0.5">{user?.is_superadmin ? 'Superadmin' : 'Owner'}</p>
                   </div>
-                  <div className="hidden sm:block px-4 py-3 border-b border-gray-50">
+                  <div className="hidden md:block px-4 py-3 border-b border-gray-50">
                     <p className="text-sm font-bold text-gray-900 truncate">{user?.email}</p>
                     <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mt-0.5">{user?.is_superadmin ? 'Superadmin' : 'Owner'}</p>
                   </div>
                   <button
                     onClick={() => { setMenuOpen(false); setShowLogoutConfirm(true); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-bold text-rose-600 hover:bg-rose-50 active:bg-rose-100 transition-colors"
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-bold text-rose-600 hover:bg-rose-50 active:bg-rose-100 transition-colors rounded-lg mx-1.5"
                   >
                     <LogOut className="w-4 h-4" />
                     Logout

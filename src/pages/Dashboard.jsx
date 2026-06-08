@@ -84,12 +84,12 @@ function MiniMetric({ icon: Icon, label, value, sub, color = 'indigo', period, o
   const showDropdown = !!onPeriodChange;
 
   return (
-    <motion.div variants={itemVariants} className="bg-white rounded-xl border border-gray-100 p-3 sm:p-4 shadow-sm relative" ref={ref}>
-      <div className="flex items-center gap-2.5 mb-2">
-        <div className={`w-7 h-7 rounded-lg ${colors[color]} flex items-center justify-center`}>
-          <Icon className="w-3.5 h-3.5" />
+    <motion.div variants={itemVariants} className="bg-white rounded-xl md:rounded-2xl border border-gray-100 p-3 sm:p-4 md:p-5 shadow-sm relative" ref={ref}>
+      <div className="flex items-center gap-2.5 mb-2 md:mb-3">
+        <div className={`w-7 h-7 md:w-9 md:h-9 rounded-lg md:rounded-xl ${colors[color]} flex items-center justify-center`}>
+          <Icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
         </div>
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">{label}</span>
         {showDropdown && (
           <div className="relative ml-auto">
             <button onClick={() => setOpen(!open)}
@@ -110,8 +110,8 @@ function MiniMetric({ icon: Icon, label, value, sub, color = 'indigo', period, o
           </div>
         )}
       </div>
-      <p className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{value}</p>
-      {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
+      <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 leading-tight">{value}</p>
+      {sub && <p className="text-[10px] md:text-xs text-gray-400 mt-0.5">{sub}</p>}
     </motion.div>
   );
 }
@@ -462,12 +462,12 @@ export default function Dashboard() {
   }
 
   return (
-    <motion.div className="space-y-4 sm:space-y-6" variants={containerVariants} initial="hidden" animate="show">
+    <motion.div className="space-y-4 sm:space-y-6 lg:space-y-8" variants={containerVariants} initial="hidden" animate="show">
       {/* Header */}
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 text-[11px] sm:text-sm mt-0.5 hidden sm:block">Real-time performance metrics for your bot.</p>
+          <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 text-[11px] sm:text-sm lg:text-base mt-0.5 hidden sm:block">Real-time performance metrics for your bot.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* Date presets */}
@@ -502,9 +502,9 @@ export default function Dashboard() {
       )}
 
       {/* Stat cards */}
-      <motion.div variants={containerVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-6">
+      <motion.div variants={containerVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
         {statsLoading
-          ? Array(4).fill(0).map((_, i) => (<motion.div key={i} variants={itemVariants}><LoadingSkeleton className="h-28" /></motion.div>))
+          ? Array(4).fill(0).map((_, i) => (<motion.div key={i} variants={itemVariants}><LoadingSkeleton className="h-28 md:h-32" /></motion.div>))
           : [
               { title: 'Total Revenue', value: `${totalRevenue.toLocaleString()} MMK`, icon: DollarSign, color: 'indigo' },
               { title: 'Total Orders', value: totalOrders, icon: ShoppingBag, color: 'emerald' },
@@ -512,13 +512,13 @@ export default function Dashboard() {
               { title: 'Pending Orders', value: pendingOrders, icon: Clock, color: 'amber' },
             ].map((card, i) => i === 0 ? (
               <motion.div key={i} variants={itemVariants}>
-                <div className="bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 flex items-center gap-3 sm:gap-4 h-full">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100 flex-shrink-0">
-                    {showRevenue ? <DollarSign className="w-5 h-5 sm:w-6 sm:h-6" /> : <Package className="w-5 h-5 sm:w-6 sm:h-6" />}
+                <div className="bg-white p-3.5 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 flex items-center gap-3 sm:gap-4 md:gap-5 h-full">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100 flex-shrink-0">
+                    {showRevenue ? <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" /> : <Package className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1">
-                      <p className="text-[9px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider truncate">
+                      <p className="text-[9px] sm:text-xs md:text-sm font-bold text-gray-400 uppercase tracking-wider truncate">
                         {showRevenue ? 'Total Revenue' : 'Total Stock Value'}
                       </p>
                       <button onClick={() => setShowRevenue(!showRevenue)}
@@ -526,7 +526,7 @@ export default function Dashboard() {
                         <ArrowLeftRight className="w-3 h-3" />
                       </button>
                     </div>
-                    <h3 className="text-xs sm:text-lg md:text-2xl font-bold text-gray-900 leading-tight mt-0.5">
+                    <h3 className="text-xs sm:text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mt-0.5">
                       {showRevenue ? `${totalRevenue.toLocaleString()} MMK` : `${totalStockValue.toLocaleString()} MMK`}
                     </h3>
                   </div>
@@ -536,7 +536,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Mini metrics */}
-      <motion.div variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-6">
+      <motion.div variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
         <MiniMetric icon={ShoppingBag} label="Items Sold" value={itemsSold} color="indigo" period={itemsPeriod} onPeriodChange={setItemsPeriod} />
         <MiniMetric icon={Zap} label="Today's Revenue" value={`${todayRevenue.toLocaleString()} MMK`} color="emerald" />
         <MiniMetric icon={TrendingUp} label="Monthly Revenue" value={`${monthlyRevenue.toLocaleString()} MMK`} sub={`${totalRevenue.toLocaleString()} MMK total`} color="amber" />
@@ -544,12 +544,12 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Chart + Top Products */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        <motion.div variants={itemVariants} className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+        <motion.div variants={itemVariants} className="lg:col-span-2 bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-gray-100">
           {/* Chart controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 lg:mb-6">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm sm:text-lg font-bold text-gray-900">Sales</h3>
+              <h3 className="text-sm sm:text-lg lg:text-xl font-bold text-gray-900">Sales</h3>
               <div className="flex bg-gray-100 p-0.5 rounded-lg">
                 {[
                   { key: 'area', icon: TrendingUp },
@@ -558,8 +558,8 @@ export default function Dashboard() {
                   { key: 'pie', icon: PieChartIcon },
                 ].map(({ key, icon: Icon }) => (
                   <button key={key} onClick={() => setChartType(key)}
-                    className={`p-1.5 rounded-md transition-all ${chartType === key ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                    <Icon className="w-3.5 h-3.5" />
+                    className={`p-1.5 md:p-2 rounded-md transition-all ${chartType === key ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                    <Icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   </button>
                 ))}
               </div>
@@ -567,7 +567,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               {Object.entries(METRIC_CONFIG).map(([key, cfg]) => (
                 <button key={key} onClick={() => toggleMetric(key)}
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all ${
+                  className={`px-2.5 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-bold rounded-lg border transition-all ${
                     visibleMetrics[key]
                       ? 'bg-white text-gray-800 border-gray-200 shadow-sm'
                       : 'bg-gray-50 text-gray-300 border-transparent'
@@ -585,7 +585,7 @@ export default function Dashboard() {
           </div>
 
           {/* Chart area */}
-          <div ref={chartWrapperRef} className="h-[220px] sm:h-[280px] w-full" onMouseMove={handleChartPointerMove} onMouseLeave={handleChartPointerLeave}>
+          <div ref={chartWrapperRef} className="h-[220px] sm:h-[280px] lg:h-[360px] w-full" onMouseMove={handleChartPointerMove} onMouseLeave={handleChartPointerLeave}>
             {chartLoading ? (
               <LoadingSkeleton className="w-full h-full" />
             ) : chartType === 'pie' ? (
@@ -689,7 +689,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Top Products */}
-        <motion.div variants={itemVariants} className="bg-white pt-5 pb-2 px-5 rounded-2xl shadow-sm border border-gray-100">
+        <motion.div variants={itemVariants} className="bg-white pt-5 pb-2 px-5 lg:pt-6 lg:px-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-sm sm:text-lg font-bold text-gray-900 flex items-center gap-2 mb-5">
             <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
             Top Products

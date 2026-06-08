@@ -70,9 +70,9 @@ export default function Broadcast() {
   if (broadcastsLoading || giveawaysLoading) return <LoadingSkeleton type="list" count={5} />;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Engagement</h1>
+        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Engagement</h1>
         <div className="flex bg-white p-0.5 rounded-xl shadow-sm border border-gray-100 self-start w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('broadcasts')}

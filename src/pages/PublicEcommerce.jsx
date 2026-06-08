@@ -5,8 +5,8 @@ import { useCartState } from '../context/CartContext';
 import {
   ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
-  Minus, Plus, Trash2, LogOut, CheckCircle, Loader2, User,
-  MessageCircle, Send, ImageUp, Copy
+  Minus, Plus, Trash2, LogOut, CheckCircle, CheckCircle2, Loader2, User,
+  MessageCircle, Send, ImageUp, Copy, Ticket
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -525,6 +525,12 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [agreed1, setAgreed1] = useState(false);
   const [agreed2, setAgreed2] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(null);
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  const effectiveTotal = couponApplied ? totalAmount - couponApplied.discount : totalAmount;
 
   useEffect(() => {
     const tgToken = localStorage.getItem('telegram_token');
@@ -716,7 +722,8 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
             variant_label: variantParts.join(', '),
           };
         }),
-        total_amount: totalAmount,
+        total_amount: couponApplied ? effectiveTotal : totalAmount,
+        coupon_code: couponApplied?.code || '',
       };
       if (paymentProof) body.payment_proof = paymentProof;
       if (selectedPayment?.name) body.payment_method = selectedPayment.name;
@@ -773,10 +780,92 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
               <span className="font-medium text-gray-900">{formatPrice(item.price * item.quantity)} MMK</span>
             </div>
           ))}
-          <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-bold text-gray-900">
-            <span>Total</span>
-            <span>{formatPrice(totalAmount)} MMK</span>
+          {couponApplied && (
+            <>
+              <div className="flex justify-between text-sm py-1 text-emerald-600">
+                <span>Discount ({couponApplied.code})</span>
+                <span className="font-semibold">-{formatPrice(couponApplied.discount)} MMK</span>
+              </div>
+              <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-900">
+                <span>Total</span>
+                <span>{formatPrice(effectiveTotal)} MMK</span>
+              </div>
+              {couponApplied.discount > 0 && (
+                <p className="text-[10px] text-emerald-500 font-medium text-center mt-1">
+                  🎉 You saved {formatPrice(couponApplied.discount)} MMK!
+                </p>
+              )}
+            </>
+          )}
+          {!couponApplied && (
+            <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-bold text-gray-900">
+              <span>Total</span>
+              <span>{formatPrice(totalAmount)} MMK</span>
+            </div>
+          )}
+        </div>
+
+        {/* Coupon */}
+        <div className="mb-6">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Ticket className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(''); }}
+                placeholder="Coupon code"
+                disabled={!!couponApplied}
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm uppercase font-medium disabled:opacity-50"
+              />
+            </div>
+            {couponApplied ? (
+              <button
+                onClick={() => { setCouponApplied(null); setCouponCode(''); setCouponError(''); }}
+                className="px-4 py-2.5 bg-rose-50 text-rose-600 font-bold rounded-xl hover:bg-rose-100 transition-all text-sm flex items-center gap-1.5"
+              >
+                <X className="w-4 h-4" /> Remove
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  if (!couponCode.trim() || !shop?.id) return;
+                  setCouponLoading(true);
+                  setCouponError('');
+                  try {
+                    const res = await fetch(`${API_BASE}/public/coupon/validate`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ bot_id: shop.id, code: couponCode.trim(), cart_total: totalAmount }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || 'Invalid coupon');
+                    setCouponApplied(data);
+                  } catch (err) {
+                    setCouponError(err.message);
+                    setCouponApplied(null);
+                  } finally {
+                    setCouponLoading(false);
+                  }
+                }}
+                disabled={couponLoading || !couponCode.trim()}
+                className="px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-40 transition-all text-sm flex items-center gap-1.5"
+              >
+                {couponLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Apply
+              </button>
+            )}
           </div>
+          {couponError && (
+            <p className="text-xs text-rose-500 font-medium mt-1.5 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" /> {couponError}
+            </p>
+          )}
+          {couponApplied && (
+            <p className="text-xs text-emerald-600 font-medium mt-1.5 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Coupon applied!
+            </p>
+          )}
         </div>
 
         <div className="space-y-3">

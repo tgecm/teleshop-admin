@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, getImageUrl, uploadImage } from '../api/products';
+import { createCoupon, getCoupons, deleteCoupon } from '../api/coupons';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
@@ -9,7 +10,8 @@ import ProductSorting from '../components/ProductSorting';
 import {
   Plus, Search, Edit2, Trash2, Package, Tag, MoreVertical, X,
   Image as ImageIcon, ChevronRight, AlertCircle, CheckCircle2,
-  Loader2, FolderPlus, ImageUp, Palette, Copy, ArrowUpDown
+  Loader2, FolderPlus, ImageUp, Palette, Copy, ArrowUpDown,
+  Ticket, Percent, CalendarDays, Coins, Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -38,6 +40,16 @@ export default function Products() {
   const [isDeleting, setIsDeleting] = useState(null);
   const [showSorting, setShowSorting] = useState(false);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
+  const [showCouponModal, setShowCouponModal] = useState(false);
+  const [couponForm, setCouponForm] = useState({
+    code: '',
+    discount_type: 'fixed',
+    discount_value: '',
+    end_date: '',
+    total_coupons: '',
+    min_spend: '0',
+  });
+  const [deletingCoupon, setDeletingCoupon] = useState(null);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', selectedBotId],
@@ -90,6 +102,40 @@ export default function Products() {
     onError: () => addToast('Failed to delete product', 'error'),
   });
 
+  const { data: coupons } = useQuery({
+    queryKey: ['coupons', selectedBotId],
+    queryFn: () => getCoupons(Number(selectedBotId)),
+    enabled: !!selectedBotId,
+  });
+
+  const createCouponMutation = useMutation({
+    mutationFn: (data) => createCoupon(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['coupons', selectedBotId]);
+      addToast('Coupon created successfully');
+      setShowCouponModal(false);
+      setCouponForm({ code: '', discount_type: 'fixed', discount_value: '', end_date: '', total_coupons: '', min_spend: '0' });
+    },
+    onError: (err) => addToast(err?.response?.data?.detail || 'Failed to create coupon', 'error'),
+  });
+
+  const deleteCouponMutation = useMutation({
+    mutationFn: (id) => deleteCoupon(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['coupons', selectedBotId]);
+      addToast('Coupon deleted');
+      setDeletingCoupon(null);
+    },
+    onError: () => addToast('Failed to delete coupon', 'error'),
+  });
+
+  const generateCouponCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    setCouponForm(prev => ({ ...prev, code }));
+  };
+
   const normalizeForSearch = (s) => (s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '');
 
   const filteredProducts = products?.filter(p => {
@@ -113,9 +159,9 @@ export default function Products() {
   if (isLoading) return <LoadingSkeleton type="grid" count={6} />;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Products</h1>
+        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Products</h1>
         <div className="flex gap-2">
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -139,6 +185,14 @@ export default function Products() {
           >
             <ArrowUpDown className="w-5 h-5" />
             <span className="hidden sm:inline font-bold">Sort</span>
+          </button>
+          <button
+            onClick={() => setShowCouponModal(true)}
+            className="p-2.5 bg-white text-emerald-600 border border-emerald-200 rounded-2xl shadow-sm hover:bg-emerald-50 transition-all flex items-center gap-2 active:scale-95"
+            title="Create coupon"
+          >
+            <Ticket className="w-5 h-5" />
+            <span className="hidden sm:inline font-bold">Coupon</span>
           </button>
           <button
             onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
@@ -169,27 +223,27 @@ export default function Products() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6 lg:gap-8">
           {filteredProducts.map(product => (
-            <motion.div 
+            <motion.div
               layout
               key={product.id}
-              className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:border-indigo-200 transition-all group"
+              className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:border-indigo-200 hover:shadow-md transition-all group"
             >
-              <div className="aspect-square bg-gray-50 relative overflow-hidden">
+              <div className="aspect-[4/3] md:aspect-square bg-gray-50 relative overflow-hidden">
                 {product.image_url ? (
-                  <img 
-                    src={getImageUrl(product.image_url, selectedBotId)} 
+                  <img
+                    src={getImageUrl(product.image_url, selectedBotId)}
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    onError={(e) => { 
+                    onError={(e) => {
                       console.warn(`[Image] Failed to load for product #${product.id}:`, {
                         image_url: product.image_url,
                         resolved_url: getImageUrl(product.image_url, selectedBotId),
                         bot_id: selectedBotId
                       });
-                      e.target.style.display='none'; 
-                      e.target.nextSibling.style.display='flex'; 
+                      e.target.style.display='none';
+                      e.target.nextSibling.style.display='flex';
                     }}
                   />
                 ) : null}
@@ -198,14 +252,14 @@ export default function Products() {
                 >
                   <ImageIcon className="w-10 h-10 md:w-12 md:h-12" />
                 </div>
-                <div className="absolute top-2 right-2 md:top-3 md:right-3 flex gap-1.5 md:gap-2">
-                  <button 
+                <div className="absolute top-2 right-2 md:top-3 md:right-3 flex gap-1.5 md:gap-2 opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                  <button
                     onClick={() => handleEdit(product)}
                     className="p-1.5 md:p-2 bg-white/90 backdrop-blur-sm rounded-lg md:rounded-xl shadow-sm text-gray-600 hover:text-indigo-600 transition-colors"
                   >
                     <Edit2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(product.id)}
                     className="p-1.5 md:p-2 bg-white/90 backdrop-blur-sm rounded-lg md:rounded-xl shadow-sm text-gray-600 hover:text-rose-600 transition-colors"
                   >
@@ -224,15 +278,15 @@ export default function Products() {
                   </span>
                 </div>
               </div>
-              <div className="p-3 md:p-4">
+              <div className="p-3 md:p-4 lg:p-5">
                 <div className="flex flex-col gap-0.5 mb-1">
-                  <h3 className="font-bold text-gray-900 text-sm md:text-base line-clamp-1">{product.name}</h3>
-                  <p className="font-bold text-indigo-600 text-sm md:text-base">
+                  <h3 className="font-bold text-gray-900 text-sm md:text-base lg:text-lg line-clamp-1">{product.name}</h3>
+                  <p className="font-bold text-indigo-600 text-sm md:text-base lg:text-lg">
                     {product.original_price > 0 && <span className="text-xs line-through text-red-400 font-medium mr-1.5">{product.original_price.toLocaleString()} MMK</span>}
                     {product.price.toLocaleString()} MMK
                   </p>
                 </div>
-                <div className="flex items-center gap-1.5 text-[8px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 text-[8px] md:text-[10px] lg:text-xs text-gray-400 font-bold uppercase tracking-wider">
                   <Tag className="w-2.5 h-2.5 md:w-3 md:h-3" />
                   <span className="truncate">{categories?.find(c => c.id === product.category_id)?.name || 'Uncategorized'}</span>
                 </div>
@@ -267,12 +321,12 @@ export default function Products() {
               onClick={() => setIsModalOpen(false)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             />
-            <motion.div 
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[85svh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10 md:rounded-[32px] md:shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[85svh] overflow-y-auto md:max-w-xl md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px] md:shadow-2xl"
             >
               <ProductForm 
                 product={editingProduct} 
@@ -316,6 +370,247 @@ export default function Products() {
           onClose={() => setShowSorting(false)}
         />
       )}
+
+      {/* Coupon list */}
+      {coupons?.length > 0 && (
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Ticket className="w-4 h-4 text-emerald-600" />
+              <h3 className="text-sm font-bold text-gray-900">Active Coupons</h3>
+              <span className="text-[10px] text-gray-400 font-medium bg-gray-100 px-2 py-0.5 rounded-full">{coupons.length}</span>
+            </div>
+            <button
+              onClick={() => setShowCouponModal(true)}
+              className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" /> New
+            </button>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {coupons.map(coupon => {
+              const isExpired = coupon.end_date && new Date(coupon.end_date) < new Date();
+              const isFullyUsed = coupon.current_uses >= coupon.total_coupons;
+              const status = !coupon.is_active || isExpired ? 'expired' : isFullyUsed ? 'used' : 'active';
+              return (
+                <div key={coupon.id} className="px-5 py-3.5 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      status === 'active' ? 'bg-emerald-100 text-emerald-600' :
+                      status === 'used' ? 'bg-amber-100 text-amber-600' :
+                      'bg-gray-100 text-gray-400'
+                    }`}>
+                      <Percent className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-gray-900 font-mono">{coupon.code}</span>
+                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${
+                          status === 'active' ? 'bg-emerald-50 text-emerald-700' :
+                          status === 'used' ? 'bg-amber-50 text-amber-700' :
+                          'bg-gray-100 text-gray-500'
+                        }`}>
+                          {status === 'active' ? 'Active' : status === 'used' ? 'Used Up' : 'Expired'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 mt-0.5">
+                        {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% off` : `${Number(coupon.discount_value).toLocaleString()} MMK off`}
+                        {Number(coupon.min_spend) > 0 && ` · min ${Number(coupon.min_spend).toLocaleString()} MMK`}
+                        {` · ${coupon.current_uses}/${coupon.total_coupons} used`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setDeletingCoupon(coupon.id)}
+                    className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all flex-shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Coupon Create Modal */}
+      <AnimatePresence>
+        {showCouponModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCouponModal(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[90svh] overflow-y-auto md:max-w-lg md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px] md:shadow-2xl"
+            >
+              <div className="flex justify-center pt-4 pb-1 md:hidden">
+                <div className="w-10 h-1 bg-gray-200 rounded-full" />
+              </div>
+              <div className="px-6 pb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                      <Ticket className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-900">Create Coupon</h2>
+                  </div>
+                  <button onClick={() => setShowCouponModal(false)} className="p-2 bg-gray-100 rounded-full">
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
+
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!couponForm.code || !couponForm.discount_value || !couponForm.end_date || !couponForm.total_coupons) {
+                    addToast('Please fill in all required fields', 'error');
+                    return;
+                  }
+                  createCouponMutation.mutate({
+                    bot_id: Number(selectedBotId),
+                    code: couponForm.code.toUpperCase().slice(0, 9),
+                    discount_type: couponForm.discount_type,
+                    discount_value: Number(couponForm.discount_value),
+                    end_date: couponForm.end_date,
+                    total_coupons: Number(couponForm.total_coupons),
+                    min_spend: Number(couponForm.min_spend) || 0,
+                  });
+                }} className="space-y-4">
+                  {/* Coupon Code */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 ml-1">Coupon Code *</label>
+                    <div className="flex gap-2">
+                      <input
+                        required maxLength={9}
+                        value={couponForm.code}
+                        onChange={(e) => setCouponForm(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+                        placeholder="e.g. SAVE50"
+                        className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-mono font-bold uppercase text-sm tracking-widest"
+                      />
+                      <button type="button" onClick={generateCouponCode}
+                        className="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all text-xs font-bold flex items-center gap-1.5"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        Generate
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400 ml-1">{couponForm.code.length}/9 characters</p>
+                  </div>
+
+                  {/* Discount Type + Value */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 ml-1">Discount *</label>
+                    <div className="flex gap-2">
+                      <div className="flex bg-gray-100 p-0.5 rounded-xl">
+                        <button type="button"
+                          onClick={() => setCouponForm(p => ({ ...p, discount_type: 'fixed' }))}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${couponForm.discount_type === 'fixed' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+                        >
+                          <Coins className="w-3.5 h-3.5 inline mr-1" />Fixed
+                        </button>
+                        <button type="button"
+                          onClick={() => setCouponForm(p => ({ ...p, discount_type: 'percentage' }))}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${couponForm.discount_type === 'percentage' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+                        >
+                          <Percent className="w-3.5 h-3.5 inline mr-1" />%
+                        </button>
+                      </div>
+                      <input
+                        required type="number" min="1"
+                        value={couponForm.discount_value}
+                        onChange={(e) => setCouponForm(p => ({ ...p, discount_value: e.target.value }))}
+                        placeholder={couponForm.discount_type === 'fixed' ? 'Amount in MMK' : 'Percentage'}
+                        className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* End Date */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 ml-1">End Date *</label>
+                    <div className="relative">
+                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                      <input
+                        required type="date"
+                        value={couponForm.end_date}
+                        onChange={(e) => setCouponForm(p => ({ ...p, end_date: e.target.value }))}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Total Coupons */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 ml-1">Total Coupons *</label>
+                    <div className="relative">
+                      <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                      <input
+                        required type="number" min="1"
+                        value={couponForm.total_coupons}
+                        onChange={(e) => setCouponForm(p => ({ ...p, total_coupons: e.target.value }))}
+                        placeholder="How many times can this be used?"
+                        className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Min Spend */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 ml-1">Min. Spend (optional)</label>
+                    <input
+                      type="number" min="0"
+                      value={couponForm.min_spend}
+                      onChange={(e) => setCouponForm(p => ({ ...p, min_spend: e.target.value }))}
+                      placeholder="0 = no minimum"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                    />
+                    <p className="text-[10px] text-gray-400 ml-1">Coupon only applies if cart total is at least this amount</p>
+                  </div>
+
+                  <div className="pt-2 flex gap-3">
+                    <button type="button" onClick={() => setShowCouponModal(false)}
+                      className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={createCouponMutation.isPending}
+                      className="flex-[2] py-3 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm"
+                    >
+                      {createCouponMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ticket className="w-4 h-4" />}
+                      Create Coupon
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <ConfirmDialog
+        open={!!deletingCoupon}
+        onClose={() => setDeletingCoupon(null)}
+        onConfirm={() => {
+          if (deletingCoupon) {
+            deleteCouponMutation.mutate(deletingCoupon);
+          }
+        }}
+        title="Delete Coupon"
+        message="Are you sure you want to delete this coupon?"
+        confirmText="Delete"
+        variant="danger"
+        loading={deleteCouponMutation.isPending}
+      />
     </div>
   );
 }

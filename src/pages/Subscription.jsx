@@ -270,7 +270,7 @@ export default function Subscription() {
   return (
     <div className="space-y-5 sm:space-y-8 pb-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Subscription</h1>
+        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Subscription</h1>
       </div>
 
       {isLoading ? (
