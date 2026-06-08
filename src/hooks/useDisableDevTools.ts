@@ -28,6 +28,11 @@ export function useDisableDevTools() {
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+
+      // Don't show global menu on pages that have their own context menus
+      const path = window.location.pathname;
+      if (path === '/chats' || path.startsWith('/chats/')) return;
+
       clickSound();
       removeMenu(menu);
 

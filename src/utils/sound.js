@@ -37,7 +37,8 @@ export function notificationSound() {
 }
 
 export function successSound() {
-  playTone(523, 0.12, 'sine', 0.12);
-  setTimeout(() => playTone(659, 0.12, 'sine', 0.1), 130);
-  setTimeout(() => playTone(784, 0.2, 'sine', 0.1), 260);
+  playTone(523, 0.3, 'sine', 0.14);
+  setTimeout(() => playTone(659, 0.3, 'sine', 0.12), 250);
+  setTimeout(() => playTone(784, 0.3, 'sine', 0.12), 500);
+  setTimeout(() => playTone(1047, 0.6, 'sine', 0.12), 750);
 }
