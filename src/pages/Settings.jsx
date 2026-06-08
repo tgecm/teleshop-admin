@@ -47,6 +47,7 @@ import {
   ExternalLink,
   HelpCircle,
   Edit2,
+  Volume2,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -251,6 +252,7 @@ export default function Settings() {
   const [websiteEnabled, setWebsiteEnabled] = useState(false);
   const [shopOpen, setShopOpen] = useState(true);
   const [adminSearch, setAdminSearch] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('soundEnabled') !== 'false');
   const [editingEmail, setEditingEmail] = useState(false);
   const [editingWebsiteUrl, setEditingWebsiteUrl] = useState(false);
 
@@ -366,6 +368,30 @@ export default function Settings() {
                     <Edit2 className="w-4 h-4" />
                   </button>
                 )}
+              </div>
+            </section>
+
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
+                    <Volume2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">Sound Effects</h3>
+                    <p className="text-[10px] text-gray-500">Play sounds on clicks and notifications</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const next = !soundEnabled;
+                    setSoundEnabled(next);
+                    localStorage.setItem('soundEnabled', next);
+                  }}
+                  className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${soundEnabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
+                >
+                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${soundEnabled ? 'left-6.5' : 'left-0.5'}`} />
+                </button>
               </div>
             </section>
 

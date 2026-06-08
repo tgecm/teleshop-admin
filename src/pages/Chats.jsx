@@ -323,28 +323,28 @@ export default function Chats() {
     queryKey: ['chats', selectedBotId],
     queryFn: () => getChats(Number(selectedBotId)),
     enabled: !!selectedBotId,
-    refetchInterval: 15000,
+    refetchInterval: 3000,
   });
 
   const { data: messages = [] } = useQuery({
     queryKey: ['chatMessages', selectedBotId, selectedUser],
     queryFn: () => getChatMessages(selectedUser, Number(selectedBotId)),
     enabled: !!selectedBotId && !!selectedUser,
-    refetchInterval: 10000,
+    refetchInterval: 3000,
   });
 
   const { data: webVisitors = [] } = useQuery({
     queryKey: ['webVisitors', selectedBotId],
     queryFn: () => getWebVisitors(Number(selectedBotId)),
     enabled: !!selectedBotId && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
-    refetchInterval: 15000,
+    refetchInterval: 3000,
   });
 
   const { data: webMessages = [] } = useQuery({
     queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor],
     queryFn: () => getWebVisitorMessages(selectedVisitor, Number(selectedBotId)),
     enabled: !!selectedBotId && !!selectedVisitor && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
-    refetchInterval: 10000,
+    refetchInterval: 3000,
   });
 
   // Apply local unread overrides on top of server data

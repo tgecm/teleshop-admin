@@ -40,14 +40,14 @@ export default function BottomNav() {
     queryKey: ['unreadCount', selectedBotId],
     queryFn: () => getUnreadCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
-    refetchInterval: 15000,
+    refetchInterval: 3000,
   });
 
   const { data: pendingOrders } = useQuery({
     queryKey: ['pendingOrderCount', selectedBotId],
     queryFn: () => getPendingOrderCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
-    refetchInterval: 15000,
+    refetchInterval: 3000,
   });
 
   const navItems = [
@@ -147,7 +147,7 @@ export default function BottomNav() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 1 }}
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[28px] shadow-2xl"
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[28px] shadow-2xl max-h-[85dvh] overflow-y-auto"
             >
               <div className="px-5 pt-5 pb-sheet">
                 

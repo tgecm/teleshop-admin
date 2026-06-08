@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { clickSound } from '../utils/sound';
 
 function removeMenu(menu: HTMLDivElement | null) {
   if (menu && menu.parentNode) {
@@ -27,6 +28,7 @@ export function useDisableDevTools() {
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+      clickSound();
       removeMenu(menu);
 
       menu = document.createElement('div');

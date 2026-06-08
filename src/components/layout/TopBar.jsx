@@ -32,20 +32,20 @@ export default function TopBar() {
     queryKey: ['unreadCount', selectedBotId],
     queryFn: () => getUnreadCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
-    refetchInterval: 15000,
+    refetchInterval: 3000,
   });
 
   const { data: pendingOrders } = useQuery({
     queryKey: ['pendingOrderCount', selectedBotId],
     queryFn: () => getPendingOrderCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
-    refetchInterval: 15000,
+    refetchInterval: 3000,
   });
 
   const { data: unreadAdminMsgs } = useQuery({
     queryKey: ['adminUnreadMessages'],
     queryFn: getAdminUnreadMessagesCount,
-    refetchInterval: 15000,
+    refetchInterval: 3000,
   });
 
   const { data: adminMessages } = useQuery({
