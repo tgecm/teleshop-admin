@@ -19,7 +19,9 @@ import {
   ChevronDown,
   Bot,
   Newspaper,
-  Mail
+  Mail,
+  HelpCircle,
+  UserCog
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useBotStore } from '../../store/botStore';
@@ -56,14 +58,15 @@ export default function BottomNav() {
     { to: '/chats', icon: MessageCircle, label: 'Chats' },
   ];
 
-  const { user } = useAuthStore();
+  const { user, isStaff } = useAuthStore();
 
   const moreItems = [
     ...(user?.is_superadmin ? [{ to: '/send-message', icon: Mail, label: 'Send Message' }] : []),
     { to: '/newsfeed', icon: Newspaper, label: 'Newsfeed' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
-    { to: '/subscription', icon: ShieldCheck, label: 'Subscription' },
+    ...(isStaff ? [] : [{ to: '/subscription', icon: ShieldCheck, label: 'Subscription' }]),
     { to: '/customization', icon: Palette, label: 'Customize' },
+    ...(isStaff ? [] : [{ to: '/faqs', icon: HelpCircle, label: 'FAQs' }]),
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -173,7 +176,7 @@ export default function BottomNav() {
                       }`}
                     >
                       <ShoppingBag className="w-5 h-5" />
-                      <span className="font-bold text-[15px] flex-1 text-left">Telegram E-commerce</span>
+                      <span className="font-bold text-[15px] flex-1 text-left">Telegram</span>
                       <ChevronDown className={`w-4 h-4 transition-transform ${telegramMoreExpanded ? 'rotate-0' : '-rotate-90'}`} />
                     </button>
                     {telegramMoreExpanded && (

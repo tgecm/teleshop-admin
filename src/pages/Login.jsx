@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { login as loginApi, verifyLoginCode } from '../api/auth';
+import client from '../api/client';
+import { useBotStore } from '../store/botStore';
 import { motion } from 'motion/react';
-import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff, User, ShieldCheck } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -16,8 +18,11 @@ export default function Login() {
   const [needsCode, setNeedsCode] = useState(false);
   const codeRefs = useRef([]);
   const setAuth = useAuthStore(state => state.login);
+  const setSelectedBot = useBotStore(state => state.setSelectedBot);
   const navigate = useNavigate();
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [staffMode, setStaffMode] = useState(false);
+  const [username, setUsername] = useState('');
 
   useEffect(() => {
     if (needsCode && codeRefs.current[0]) codeRefs.current[0].focus();
@@ -42,12 +47,37 @@ export default function Login() {
     try {
       if (needsCode) {
         const codeStr = code.join('');
-        const data = await verifyLoginCode(loginToken, codeStr);
-        if (data.success) {
-          setAuth(data.token, data);
+        if (staffMode) {
+          const data = await client.post('/auth/staff-login/verify', { login_token: loginToken, code: codeStr }).then(r => r.data);
+          if (data.success) {
+            setAuth(data.token, { ...data.staff, email: data.staff.username }, true);
+            if (data.staff?.bot_id) setSelectedBot(data.staff.bot_id);
+            navigate('/dashboard');
+          } else {
+            setError('Verification failed. Try again.');
+          }
+        } else {
+          const data = await verifyLoginCode(loginToken, codeStr);
+          if (data.success) {
+            setAuth(data.token, data);
+            navigate('/dashboard');
+          } else {
+            setError('Verification failed. Try again.');
+          }
+        }
+      } else if (staffMode) {
+        const data = await client.post('/auth/staff-login', { username, password }).then(r => r.data);
+        if (data.step === '2fa') {
+          setLoginToken(data.login_token);
+          setNeedsCode(true);
+          setPassword('');
+          setError('');
+        } else if (data.success) {
+          setAuth(data.token, { ...data.staff, email: data.staff.username }, true);
+          if (data.staff?.bot_id) setSelectedBot(data.staff.bot_id);
           navigate('/dashboard');
         } else {
-          setError('Verification failed. Try again.');
+          setError('Login failed. Check your credentials.');
         }
       } else {
         const data = await loginApi(email, password);
@@ -76,9 +106,12 @@ export default function Login() {
     setError('');
     try {
       const codeStr = codeArr.join('');
-      const data = await verifyLoginCode(loginToken, codeStr);
+      const data = staffMode
+        ? await client.post('/auth/staff-login/verify', { login_token: loginToken, code: codeStr }).then(r => r.data)
+        : await verifyLoginCode(loginToken, codeStr);
       if (data.success) {
-        setAuth(data.token, data);
+        setAuth(data.token, { ...data.staff, email: data.staff?.username || '' }, staffMode);
+        if (data.staff?.bot_id) setSelectedBot(data.staff.bot_id);
         navigate('/dashboard');
       } else {
         setError('Verification failed. Try again.');
@@ -107,8 +140,14 @@ export default function Login() {
           <div className="text-center mb-8 sm:mb-10">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome Back</h1>
             <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">
-              {needsCode ? 'Enter the code sent to your Telegram' : 'Sign in to manage your Multi-Platform E-commerce'}
+              {needsCode ? (staffMode ? 'Ask your admin to check in Telegram for 2FA codes' : 'Enter the code sent to your Telegram') : (staffMode ? 'Sign in with your staff account' : 'Sign in to manage your Multi-Platform E-commerce')}
             </p>
+            {!needsCode && (
+              <button onClick={() => { setStaffMode(!staffMode); setError(''); }}
+                className="mt-3 text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center justify-center gap-1 mx-auto">
+                {staffMode ? <><Mail className="w-3.5 h-3.5" /> Owner Login</> : <><User className="w-3.5 h-3.5" /> Staff Login</>}
+              </button>
+            )}
           </div>
 
           {error && (
@@ -126,16 +165,16 @@ export default function Login() {
             {!needsCode ? (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-gray-700 ml-1">Email Address</label>
+                  <label className="text-sm font-semibold text-gray-700 ml-1">{staffMode ? 'Username' : 'Email Address'}</label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    {staffMode ? <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" /> : <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />}
                     <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      type={staffMode ? 'text' : 'email'}
+                      value={staffMode ? username : email}
+                      onChange={(e) => staffMode ? setUsername(e.target.value) : setEmail(e.target.value)}
                       required
                       className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base"
-                      placeholder="name@example.com"
+                      placeholder={staffMode ? 'staff_username' : 'name@example.com'}
                     />
                   </div>
                 </div>
@@ -209,7 +248,7 @@ export default function Login() {
               disabled={loading || (needsCode && code.join('').length < 6)}
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 sm:py-4 rounded-2xl shadow-lg shadow-indigo-200 transition-all active:scale-[0.97] disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2 text-base"
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (needsCode ? 'Verify & Sign In' : 'Sign In')}
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (needsCode ? 'Verify & Sign In' : (staffMode ? 'Staff Sign In' : 'Sign In'))}
             </button>
           </form>
         </div>

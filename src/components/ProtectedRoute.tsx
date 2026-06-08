@@ -1,8 +1,10 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useAuthStore } from '../store/authStore';
 
 export default function ProtectedRoute() {
   const { user, loading } = useAuth();
+  const token = useAuthStore(s => s.token);
 
   if (loading) {
     return (
@@ -15,7 +17,7 @@ export default function ProtectedRoute() {
     );
   }
 
-  if (!user) {
+  if (!user && !token) {
     return <Navigate to="/" replace />;
   }
 

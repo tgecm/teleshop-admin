@@ -25,9 +25,10 @@ import {
   Zap, Key, Package, RefreshCw, TrendingUp, Activity,
   Settings as SettingsIcon, CreditCard, MessageSquare,
   ShieldCheck, Calendar, Send, BarChart3, Target, Radio,
-  Brain, FileText, Globe, Download,
+  Brain, FileText, Globe, Download, HelpCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { differenceInDays, subDays } from 'date-fns';
 import { myanmarFormat } from '../utils/date';
 
@@ -322,6 +323,7 @@ export default function SuperadminDashboard() {
 // ═══════════════════════════════════════════════════════════════
 function OverviewTab({ globalStats, statsLoading, allBots, botsLoading, recentOrders, ordersLoading, planPayments, allBotsCount, activeBotsCount, updateGlobalMutation, globalSettings }) {
   const { addToast } = useToastStore();
+  const navigate = useNavigate();
   const freeBots = allBots?.filter(b => !b.plan_name || b.plan_name.toLowerCase() === 'free').length || 0;
   const paidBots = allBotsCount - freeBots;
 
@@ -415,6 +417,11 @@ function OverviewTab({ globalStats, statsLoading, allBots, botsLoading, recentOr
           className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-xs disabled:opacity-50">
           {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
           Export Bots CSV
+        </button>
+        <button onClick={() => navigate('/faqs')}
+          className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-xs">
+          <HelpCircle className="w-3.5 h-3.5" />
+          Create FAQs
         </button>
         {globalSettings && Object.entries(globalSettings).slice(0, 4).map(([key, value]) => (
           <button key={key} onClick={() => updateGlobalMutation.mutate({ key, value: !value })}

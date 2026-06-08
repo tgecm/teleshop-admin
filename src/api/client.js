@@ -17,10 +17,13 @@ client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const url = error.config?.url || '';
+      if (url.includes('/auth/login') || url.includes('/auth/staff-login')) {
+        return Promise.reject(error);
+      }
       const hasTelegramToken = !!localStorage.getItem('telegram_token');
       const hasFirebaseToken = !!useAuthStore.getState().token;
       if (hasTelegramToken && !hasFirebaseToken) {
-        // Customer JWT expired — clear it silently, don't redirect to admin login
         localStorage.removeItem('telegram_token');
         localStorage.removeItem('telegram_user');
       } else {
