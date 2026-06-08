@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
@@ -13,7 +13,11 @@ import {
   Settings,
   ShieldCheck,
   Palette,
-  LogOut
+  LogOut,
+  ChevronDown,
+  Bot,
+  Newspaper,
+  Mail
 } from 'lucide-react';
 import { normalizeText } from '../../utils/normalizeText';
 import { useAuthStore } from '../../store/authStore';
@@ -22,10 +26,13 @@ import { getUnreadCount } from '../../api/chats';
 import { getPendingOrderCount } from '../../api/orders';
 
 export default function Sidebar() {
-  const { logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { bots, selectedBotId } = useBotStore();
   const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
   const botName = selectedBot ? normalizeText(selectedBot.bot_full_name || selectedBot.bot_username || 'Shop') : 'Shop';
+
+  const [telegramExpanded, setTelegramExpanded] = useState(false);
+  const location = useLocation();
 
   const { data: unread } = useQuery({
     queryKey: ['unreadCount', selectedBotId],
@@ -43,17 +50,25 @@ export default function Sidebar() {
 
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    ...(user?.is_superadmin ? [{ to: '/send-message', icon: Mail, label: 'Send Message' }] : []),
     { to: '/orders', icon: Package, label: 'Orders' },
     { to: '/products', icon: ShoppingBag, label: 'Products' },
     { to: '/customers', icon: Users, label: 'Customers' },
     { to: '/chats', icon: MessageCircle, label: 'Chats' },
-    { to: '/broadcast', icon: Radio, label: 'Broadcast' },
-    { to: '/commands', icon: Send, label: 'Telegram Command' },
+    { to: '/newsfeed', icon: Newspaper, label: 'Newsfeed' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
     { to: '/subscription', icon: ShieldCheck, label: 'Subscription' },
     { to: '/customization', icon: Palette, label: 'Customize' },
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
+
+  const telegramItems = [
+    { to: '/broadcast', icon: Radio, label: 'Broadcast' },
+    { to: '/commands', icon: Send, label: 'Telegram Command' },
+    { to: '/bot-customization', icon: Bot, label: 'Bot Customization' },
+  ];
+
+  const isTelegramActive = telegramItems.some(item => location.pathname.startsWith(item.to));
 
   return (
     <aside className="hidden md:flex flex-col w-64 lg:w-72 bg-white border-r border-gray-100 h-full overflow-y-auto scrollbar-hide">
@@ -95,6 +110,44 @@ export default function Sidebar() {
             ) : null}
           </NavLink>
         ))}
+
+        {/* Telegram E-commerce Section */}
+        <div className="pt-3">
+          <button
+            onClick={() => setTelegramExpanded(!telegramExpanded)}
+            data-haptic
+            className={`flex items-center gap-3 w-full px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all border border-transparent ${
+              isTelegramActive
+                ? 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <ShoppingBag className="w-[18px] h-[18px] lg:w-5 lg:h-5 flex-shrink-0" />
+            <span className="flex-1 text-left">Telegram E-commerce</span>
+            <ChevronDown className={`w-4 h-4 transition-transform ${telegramExpanded ? 'rotate-0' : '-rotate-90'}`} />
+          </button>
+
+          {telegramExpanded && (
+            <div className="ml-2 mt-0.5 space-y-0.5 border-l-2 border-indigo-100 pl-2">
+              {telegramItems.map(({ to, icon: Icon, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  data-haptic
+                  className={({ isActive }) => `
+                    flex items-center gap-3 px-4 py-2 lg:py-2.5 rounded-xl text-sm font-medium transition-all
+                    ${isActive
+                      ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
+                  `}
+                >
+                  <Icon className="w-4 h-4 lg:w-[18px] lg:h-[18px] flex-shrink-0" />
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Logout */}

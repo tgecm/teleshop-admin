@@ -15,7 +15,11 @@ import {
   ShieldCheck,
   Palette,
   LogOut,
-  X
+  X,
+  ChevronDown,
+  Bot,
+  Newspaper,
+  Mail
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useBotStore } from '../../store/botStore';
@@ -25,6 +29,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function BottomNav() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [telegramMoreExpanded, setTelegramMoreExpanded] = useState(false);
   const { logout } = useAuthStore();
   const { selectedBotId } = useBotStore();
   const location = useLocation();
@@ -51,14 +56,24 @@ export default function BottomNav() {
     { to: '/chats', icon: MessageCircle, label: 'Chats' },
   ];
 
+  const { user } = useAuthStore();
+
   const moreItems = [
-    { to: '/broadcast', icon: Radio, label: 'Broadcast' },
-    { to: '/commands', icon: Send, label: 'Telegram Command' },
+    ...(user?.is_superadmin ? [{ to: '/send-message', icon: Mail, label: 'Send Message' }] : []),
+    { to: '/newsfeed', icon: Newspaper, label: 'Newsfeed' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
     { to: '/subscription', icon: ShieldCheck, label: 'Subscription' },
     { to: '/customization', icon: Palette, label: 'Customize' },
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
+
+  const telegramMoreItems = [
+    { to: '/broadcast', icon: Radio, label: 'Broadcast' },
+    { to: '/commands', icon: Send, label: 'Telegram Command' },
+    { to: '/bot-customization', icon: Bot, label: 'Bot Customization' },
+  ];
+
+  const isTelegramMoreActive = telegramMoreItems.some(item => location.pathname.startsWith(item.to));
 
   const isMoreActive = moreItems.some(item => location.pathname.startsWith(item.to));
 
@@ -147,6 +162,45 @@ export default function BottomNav() {
                 </div>
 
                 <div className="space-y-[10px]">
+                  {/* Telegram E-commerce group */}
+                  <div>
+                    <button
+                      onClick={() => setTelegramMoreExpanded(!telegramMoreExpanded)}
+                      className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
+                        isTelegramMoreActive
+                          ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                          : 'bg-gray-50 border-transparent text-gray-600'
+                      }`}
+                    >
+                      <ShoppingBag className="w-5 h-5" />
+                      <span className="font-bold text-[15px] flex-1 text-left">Telegram E-commerce</span>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${telegramMoreExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                    </button>
+                    {telegramMoreExpanded && (
+                      <div className="ml-2 mt-1.5 space-y-[6px] border-l-2 border-indigo-100 pl-2">
+                        {telegramMoreItems.map(({ to, icon: Icon, label }) => {
+                          const isActive = location.pathname.startsWith(to);
+                          return (
+                            <NavLink
+                              key={to}
+                              to={to}
+                              onClick={() => setIsMoreOpen(false)}
+                              data-haptic
+                              className={`flex items-center gap-3 p-3 rounded-xl border transition-all active:scale-[0.98] ${
+                                isActive
+                                  ? 'bg-white border-indigo-100 text-indigo-600 shadow-sm'
+                                  : 'bg-white/60 border-transparent text-gray-600 hover:bg-white'
+                              }`}
+                            >
+                              <Icon className="w-[18px] h-[18px]" />
+                              <span className="font-semibold text-sm">{label}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   {moreItems.map(({ to, icon: Icon, label }) => {
                     const isActive = location.pathname.startsWith(to);
                     return (
@@ -155,7 +209,7 @@ export default function BottomNav() {
                         to={to}
                         onClick={() => setIsMoreOpen(false)}
                         data-haptic
-                        className={`flex items-center gap-4 p-3.5 rounded-2xl border transition-all card-press ${
+                        className={`flex items-center gap-4 p-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
                           isActive
                             ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
                             : 'bg-gray-50 border-transparent text-gray-600 active:bg-gray-100'

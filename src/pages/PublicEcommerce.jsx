@@ -249,10 +249,9 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
             <img key={c.color} src={c.url} alt="" className="hidden" aria-hidden="true" />
           ))}
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
-          <div className="mb-4 flex items-baseline gap-1.5">
-            {product.original_price > 0 && <span className="text-lg line-through text-red-400 font-medium">{formatPrice(product.original_price)} MMK</span>}
-            <span className="text-2xl font-bold theme-price">{formatPrice(product.price)}</span>
-            <span className="text-sm text-gray-400 font-medium">MMK</span>
+          <div className="mb-4">
+            {product.original_price > 0 && <p className="text-sm line-through text-red-400 font-medium">{formatPrice(product.original_price)} MMK</p>}
+            <p className="text-2xl font-bold theme-price inline-flex items-baseline gap-1"><span>{formatPrice(product.price)}</span><span className="text-sm text-gray-400 font-medium">MMK</span></p>
           </div>
 
           {product.description && (
@@ -1975,9 +1974,9 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                         <img key={c.color} src={c.url} alt="" className="hidden" aria-hidden="true" />
                       ))}
                       <h2 className="text-xl font-bold text-gray-900">{productLinkProduct.name}</h2>
-                      <div className="flex items-baseline gap-1.5 mt-1">
-                        {productLinkProduct.original_price > 0 && <span className="text-lg line-through text-red-400 font-medium">{productLinkProduct.original_price.toLocaleString()} MMK</span>}
-                        <span className="text-2xl font-bold text-indigo-600">{productLinkProduct.price.toLocaleString()} MMK</span>
+                      <div className="mt-1">
+                        {productLinkProduct.original_price > 0 && <p className="text-sm line-through text-red-400 font-medium">{productLinkProduct.original_price.toLocaleString()} MMK</p>}
+                        <p className="text-2xl font-bold text-indigo-600">{productLinkProduct.price.toLocaleString()} <span className="text-sm font-medium text-indigo-400">MMK</span></p>
                       </div>
                     </div>
                     {productLinkProduct.description && (
@@ -2355,10 +2354,9 @@ export default function PublicEcommerce({ slug, viaDomain }) {
                     {product.description && (
                       <p className="text-xs text-gray-400 line-clamp-2 mb-2 leading-relaxed">{product.description}</p>
                     )}
-                    <div className="flex items-baseline gap-1 mb-1">
-                      {product.original_price > 0 && <span className="text-xs line-through text-red-400 font-medium mr-1">{formatPrice(product.original_price)} MMK</span>}
-                      <span className="font-bold theme-price text-sm md:text-base">{formatPrice(product.price)}</span>
-                      <span className="text-[10px] text-gray-400 font-medium">MMK</span>
+                    <div className="mb-1">
+                      {product.original_price > 0 && <p className="text-[10px] line-through text-red-400 font-medium">{formatPrice(product.original_price)} MMK</p>}
+                      <p className="font-bold theme-price text-sm md:text-base">{formatPrice(product.price)} <span className="text-[10px] text-gray-400 font-medium">MMK</span></p>
                     </div>
 
                     {viewMode !== 'telegram' && (() => {
