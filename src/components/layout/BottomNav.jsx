@@ -66,6 +66,7 @@ export default function BottomNav() {
     { to: '/payments', icon: CreditCard, label: 'Payments' },
     ...(isStaff ? [] : [{ to: '/subscription', icon: ShieldCheck, label: 'Subscription' }]),
     { to: '/customization', icon: Palette, label: 'Customize' },
+    ...(isStaff ? [] : [{ to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' }]),
     ...(isStaff ? [] : [{ to: '/faqs', icon: HelpCircle, label: 'FAQs' }]),
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
@@ -179,29 +180,58 @@ export default function BottomNav() {
                       <span className="font-bold text-[15px] flex-1 text-left">Telegram</span>
                       <ChevronDown className={`w-4 h-4 transition-transform ${telegramMoreExpanded ? 'rotate-0' : '-rotate-90'}`} />
                     </button>
-                    {telegramMoreExpanded && (
-                      <div className="ml-2 mt-1.5 space-y-[6px] border-l-2 border-indigo-100 pl-2">
-                        {telegramMoreItems.map(({ to, icon: Icon, label }) => {
-                          const isActive = location.pathname.startsWith(to);
-                          return (
-                            <NavLink
-                              key={to}
-                              to={to}
-                              onClick={() => setIsMoreOpen(false)}
-                              data-haptic
-                              className={`flex items-center gap-3 p-3 rounded-xl border transition-all active:scale-[0.98] ${
-                                isActive
-                                  ? 'bg-white border-indigo-100 text-indigo-600 shadow-sm'
-                                  : 'bg-white/60 border-transparent text-gray-600 hover:bg-white'
-                              }`}
-                            >
-                              <Icon className="w-[18px] h-[18px]" />
-                              <span className="font-semibold text-sm">{label}</span>
-                            </NavLink>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <AnimatePresence>
+                      {telegramMoreExpanded && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="fixed inset-0 z-[70] flex items-center justify-center p-6"
+                          onClick={() => setTelegramMoreExpanded(false)}
+                        >
+                          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                          <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            onClick={e => e.stopPropagation()}
+                            className="relative bg-white rounded-3xl shadow-2xl p-5 w-full max-w-[300px]"
+                          >
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-base font-bold text-gray-900">Telegram E-commerce</h3>
+                              <button
+                                onClick={() => setTelegramMoreExpanded(false)}
+                                className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                              >
+                                <X className="w-3.5 h-3.5 text-gray-500" />
+                              </button>
+                            </div>
+                            <div className="space-y-2">
+                              {telegramMoreItems.map(({ to, icon: Icon, label }) => {
+                                const isActive = location.pathname.startsWith(to);
+                                return (
+                                  <NavLink
+                                    key={to}
+                                    to={to}
+                                    onClick={() => { setIsMoreOpen(false); setTelegramMoreExpanded(false); }}
+                                    data-haptic
+                                    className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
+                                      isActive
+                                        ? 'bg-indigo-50 border-indigo-100 text-indigo-600 shadow-sm'
+                                        : 'bg-gray-50 border-transparent text-gray-700 hover:bg-gray-100'
+                                    }`}
+                                  >
+                                    <Icon className="w-[22px] h-[22px]" />
+                                    <span className="font-semibold text-[15px]">{label}</span>
+                                  </NavLink>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {moreItems.map(({ to, icon: Icon, label }) => {
