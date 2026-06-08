@@ -281,9 +281,9 @@ export default function Settings() {
   if (botLoading) return <LoadingSkeleton type="list" count={5} />;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Settings</h1>
+        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Settings</h1>
         <div className="flex bg-white p-0.5 rounded-xl shadow-sm border border-gray-100 self-start w-full sm:w-auto overflow-x-auto scrollbar-hide">
           {tabs.map(tab => (
             <button
@@ -300,7 +300,7 @@ export default function Settings() {
 
       <div className="space-y-6">
         {activeTab === 'shop' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
 
             <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-3">

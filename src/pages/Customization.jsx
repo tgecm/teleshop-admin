@@ -372,12 +372,12 @@ export default function Customization() {
   if (botLoading) return <LoadingSkeleton type="list" count={5} />;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex items-center gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Customization</h1>
+        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Customization</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
 
         {/* Shop Theme */}
         <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">

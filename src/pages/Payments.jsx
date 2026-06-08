@@ -124,9 +124,9 @@ export default function Payments() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-20 sm:pb-10">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 pb-20 sm:pb-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Payments</h1>
+        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Payments</h1>
         <button
           onClick={() => openModal()}
           className="hidden sm:flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"

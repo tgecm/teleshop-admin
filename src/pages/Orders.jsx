@@ -110,22 +110,22 @@ export default function Orders() {
   if (isLoading) return <LoadingSkeleton type="list" count={5} />;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Orders</h1>
+          <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Orders</h1>
         </div>
-        <div className="relative w-full sm:w-72">
+        <div className="relative w-full sm:w-72 lg:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             placeholder="Search name, invoice, receipt, order ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
+            className="w-full pl-10 pr-10 py-2.5 lg:py-3 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
           />
           <button onClick={() => setShowFilter(p => !p)}
-            className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${statusFilter !== 'all' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}>
+            className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 lg:w-8 lg:h-8 rounded-lg flex items-center justify-center transition-all ${statusFilter !== 'all' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}>
             <Filter className="w-4 h-4" />
           </button>
         </div>
@@ -157,21 +157,21 @@ export default function Orders() {
         </div>
       )}
 
-      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1">
+      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 w-fit">
         <button onClick={() => setOrderTab('all')}
-          className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${orderTab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-bold text-sm transition-all ${orderTab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           All
         </button>
         <button onClick={() => setOrderTab('telegram')}
-          className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${orderTab === 'telegram' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-bold text-sm transition-all ${orderTab === 'telegram' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           Telegram
         </button>
         <button onClick={() => setOrderTab('ecommerce')}
-          className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${orderTab === 'ecommerce' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-bold text-sm transition-all ${orderTab === 'ecommerce' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           Website
         </button>
         <button onClick={() => setOrderTab('guest')}
-          className={`flex-1 py-2 px-4 rounded-xl font-bold text-sm transition-all ${orderTab === 'guest' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-bold text-sm transition-all ${orderTab === 'guest' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           Guest
         </button>
       </div>
@@ -216,21 +216,21 @@ export default function Orders() {
                   }
                 }}
                 onClick={() => setSelectedOrder(order)}
-                className="relative bg-white p-4 rounded-2xl shadow-sm border border-gray-100 hover:border-indigo-200 transition-all cursor-pointer active:scale-[0.98]"
+                className="relative bg-white p-4 lg:p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
                 style={{touchAction: 'pan-y'}}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 flex-shrink-0">
-                      <UserCircle className="w-6 h-6" />
+                    <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 flex-shrink-0">
+                      <UserCircle className="w-6 h-6 lg:w-7 lg:h-7" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{order.buyer_snapshot?.name || order.customer?.first_name || 'Customer'}</p>
-                      <p className="text-[10px] text-gray-500">{myanmarFormat(order.created_at, 'MMM d, h:mm a')}</p>
+                      <p className="text-sm lg:text-base font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{order.buyer_snapshot?.name || order.customer?.first_name || 'Customer'}</p>
+                      <p className="text-[10px] lg:text-xs text-gray-500">{myanmarFormat(order.created_at, 'MMM d, h:mm a')}</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <p className="text-sm font-bold text-gray-900 whitespace-nowrap">{order.total_amount?.toLocaleString()} MMK</p>
+                    <p className="text-sm lg:text-base font-bold text-gray-900 whitespace-nowrap">{order.total_amount?.toLocaleString()} MMK</p>
                     <StatusBadge status={order.status} />
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-300 hidden sm:block flex-shrink-0" />
@@ -253,18 +253,18 @@ export default function Orders() {
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             />
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[32px] md:rounded-[32px] md:shadow-2xl max-h-[85dvh] overflow-y-auto md:max-w-lg md:mx-auto md:bottom-10"
+              className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[32px] md:rounded-3xl md:shadow-2xl max-h-[85dvh] overflow-y-auto md:max-w-2xl md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px]"
               style={{
                 overscrollBehavior: 'contain',
                 WebkitOverflowScrolling: 'touch',
                 touchAction: 'pan-y',
               }}
             >
-              <div className="sticky top-0 bg-white z-10 rounded-t-[32px] pt-4 pb-2 flex flex-col items-center">
+              <div className="sticky top-0 bg-white z-10 rounded-t-[32px] md:rounded-t-3xl pt-4 pb-2 flex flex-col items-center md:hidden">
                 <div className="w-10 h-1 bg-gray-200 rounded-full" />
               </div>
               <div className="px-5 pb-[calc(max(env(safe-area-inset-bottom),16px)+68px)]">

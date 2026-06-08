@@ -89,9 +89,9 @@ export default function Customers() {
   if (isLoading && section === 'telegram') return <LoadingSkeleton type="list" count={6} />;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Customers</h1>
+        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Customers</h1>
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -237,33 +237,35 @@ export default function Customers() {
               <motion.div
                 layout
                 key={customer.id}
-                className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100"
+                className="contain-content bg-white p-4 rounded-2xl shadow-sm border border-gray-100"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600 overflow-hidden">
-                    {customer.photo_url ? (
-                      <img src={customer.photo_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      customer.display_name?.[0]?.toUpperCase() || 'W'
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-gray-900 truncate">{customer.display_name || 'Website User'}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      {customer.email && <span className="truncate">{customer.email}</span>}
-                      {customer.created_at && (
-                        <>
-                          <span className="text-gray-300">·</span>
-                          <span className="whitespace-nowrap">Joined {myanmarFormat(customer.created_at, 'MMM d')}</span>
-                        </>
+                <button
+                  onClick={() => setDetailCustomer(customer)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600 overflow-hidden">
+                      {customer.photo_url ? (
+                        <img src={customer.photo_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        customer.display_name?.[0]?.toUpperCase() || 'W'
                       )}
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.display_name || 'Website User'}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        {customer.email && <span className="truncate">{customer.email}</span>}
+                        {customer.created_at && (
+                          <>
+                            <span className="text-gray-300">·</span>
+                            <span className="whitespace-nowrap">Joined {myanmarFormat(customer.created_at, 'MMM d')}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-gray-300 flex-shrink-0" />
                   </div>
-                  <div className="flex items-center gap-1 text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">
-                    <Globe className="w-3 h-3" />
-                    <span className="text-[10px] font-bold">Web</span>
-                  </div>
-                </div>
+                </button>
               </motion.div>
             ))}
           </div>
@@ -299,24 +301,38 @@ export default function Customers() {
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70]"
             />
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
               transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 1 }}
-              className="fixed bottom-0 left-0 right-0 z-[80] bg-white rounded-t-[28px] shadow-2xl max-h-[85vh] flex flex-col"
+              className="fixed bottom-0 left-0 right-0 z-[80] bg-white rounded-t-[28px] shadow-2xl max-h-[85vh] flex flex-col md:max-w-xl md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px]"
             >
-              <div className="flex justify-center pt-3 pb-1">
+              <div className="flex justify-center pt-3 pb-1 md:hidden">
                 <div className="w-9 h-1 bg-gray-200 rounded-full" />
               </div>
 
               <div className="flex items-center justify-between px-6 pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm ${detailCustomer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                    {detailCustomer.first_name?.[0] || '?'}
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm overflow-hidden ${
+                    detailCustomer.telegram_id
+                      ? detailCustomer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
+                      : 'bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600'
+                  }`}>
+                    {detailCustomer.photo_url ? (
+                      <img src={detailCustomer.photo_url} alt="" className="w-full h-full object-cover" />
+                    ) : detailCustomer.first_name ? (
+                      detailCustomer.first_name[0]
+                    ) : detailCustomer.display_name ? (
+                      detailCustomer.display_name[0]?.toUpperCase()
+                    ) : (
+                      '?'
+                    )}
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900">{detailCustomer.first_name}</h3>
-                    <p className="text-xs text-gray-500">@{detailCustomer.username || 'no_username'}</p>
+                    <h3 className="text-lg font-bold text-gray-900">{detailCustomer.first_name || detailCustomer.display_name || 'User'}</h3>
+                    <p className="text-xs text-gray-500">
+                      {detailCustomer.telegram_id ? `@${detailCustomer.username || 'no_username'}` : detailCustomer.email || ''}
+                    </p>
                   </div>
                 </div>
                 <button
@@ -329,20 +345,36 @@ export default function Customers() {
 
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
                 <div className="bg-gray-50 rounded-2xl p-4 space-y-4">
-                  {detailCustomer.created_at && (
-                    <DetailRow icon={Calendar} label="Joined" value={myanmarFormat(detailCustomer.created_at, 'MMM d, yyyy')} />
-                  )}
-                  {detailCustomer.phone_number && (
-                    <DetailRow icon={Phone} label="Phone" value={detailCustomer.phone_number} />
-                  )}
-                  {detailCustomer.email && (
-                    <DetailRow icon={Mail} label="Email" value={detailCustomer.email} />
-                  )}
-                  {detailCustomer.address && (
-                    <DetailRow icon={MapPin} label="Address" value={detailCustomer.address} />
-                  )}
-                  {detailCustomer.telegram_id && (
-                    <DetailRow icon={Hash} label="Telegram ID" value={detailCustomer.telegram_id.toString()} />
+                  {detailCustomer.telegram_id ? (
+                    <>
+                      {detailCustomer.created_at && (
+                        <DetailRow icon={Calendar} label="Joined" value={myanmarFormat(detailCustomer.created_at, 'MMM d, yyyy')} />
+                      )}
+                      {detailCustomer.phone_number && (
+                        <DetailRow icon={Phone} label="Phone" value={detailCustomer.phone_number} />
+                      )}
+                      {detailCustomer.email && (
+                        <DetailRow icon={Mail} label="Email" value={detailCustomer.email} />
+                      )}
+                      {detailCustomer.address && (
+                        <DetailRow icon={MapPin} label="Address" value={detailCustomer.address} />
+                      )}
+                      {detailCustomer.telegram_id && (
+                        <DetailRow icon={Hash} label="Telegram ID" value={detailCustomer.telegram_id.toString()} />
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {detailCustomer.created_at && (
+                        <DetailRow icon={Calendar} label="Joined" value={myanmarFormat(detailCustomer.created_at, 'MMM d, yyyy')} />
+                      )}
+                      {detailCustomer.email && (
+                        <DetailRow icon={Mail} label="Email" value={detailCustomer.email} />
+                      )}
+                      {detailCustomer.phone_number && (
+                        <DetailRow icon={Phone} label="Phone" value={detailCustomer.phone_number} />
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -391,25 +423,27 @@ export default function Customers() {
                 </div>
               </div>
 
-              <div className="px-6 py-4 border-t border-gray-100 pb-sheet">
-                <button
-                  onClick={() => {
-                    setConfirmCustomer(detailCustomer);
-                    setDetailCustomer(null);
-                  }}
-                  className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
-                    detailCustomer.is_blocked
-                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      : 'bg-rose-600 text-white hover:bg-rose-700'
-                  }`}
-                >
-                  {detailCustomer.is_blocked ? (
-                    <><ShieldCheck className="w-4 h-4" /> Unblock Customer</>
-                  ) : (
-                    <><Ban className="w-4 h-4" /> Block Customer</>
-                  )}
-                </button>
-              </div>
+              {detailCustomer.telegram_id && (
+                <div className="px-6 py-4 border-t border-gray-100 pb-sheet">
+                  <button
+                    onClick={() => {
+                      setConfirmCustomer(detailCustomer);
+                      setDetailCustomer(null);
+                    }}
+                    className={`w-full py-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+                      detailCustomer.is_blocked
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-rose-600 text-white hover:bg-rose-700'
+                    }`}
+                  >
+                    {detailCustomer.is_blocked ? (
+                      <><ShieldCheck className="w-4 h-4" /> Unblock Customer</>
+                    ) : (
+                      <><Ban className="w-4 h-4" /> Block Customer</>
+                    )}
+                  </button>
+                </div>
+              )}
             </motion.div>
           </>
         )}
