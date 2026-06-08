@@ -47,3 +47,18 @@ export const replySupport = (botId, message) =>
 
 export const deleteAdminMessage = (messageId) =>
   client.delete(`/admin/messages/${messageId}`).then(res => res.data);
+
+export const getFaqs = () =>
+  client.get('/faqs').then(res => res.data);
+
+export const createFaq = (question, answer) =>
+  client.post('/faqs', { question, answer }).then(res => res.data);
+
+export const deleteFaq = (id) =>
+  client.delete(`/faqs/${id}`).then(res => res.data);
+
+export const getStaffActivityLogs = (botId, staffId) =>
+  client.get('/staff/activity-logs', { params: { bot_id: botId, staff_id: staffId } }).then(res => res.data);
+
+export const downloadStaffActivityLogs = (botId, staffId) =>
+  client.get('/staff/activity-logs/download', { params: { bot_id: botId, staff_id: staffId }, responseType: 'blob' }).then(res => res.data);

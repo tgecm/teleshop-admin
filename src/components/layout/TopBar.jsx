@@ -12,6 +12,7 @@ import { normalizeText } from '../../utils/normalizeText';
 import { getUnreadCount } from '../../api/chats';
 import { getPendingOrderCount } from '../../api/orders';
 import { getAdminUnreadMessagesCount, getAdminMessages, markAdminMessagesRead, deleteAdminMessage } from '../../api/superadmin';
+import { linkifyText } from '../../utils/linkify';
 
 export default function TopBar() {
   const { user, logout } = useAuthStore();
@@ -133,7 +134,7 @@ export default function TopBar() {
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
-                              <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap pr-8">{msg.message_text}</p>
+                              <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap pr-8">{linkifyText(msg.message_text)}</p>
                               <div className="flex items-center gap-2 mt-2">
                                 <span className="text-[10px] text-gray-400">
                                   {msg.created_at ? new Date(msg.created_at).toLocaleString() : ''}

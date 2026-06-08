@@ -26,6 +26,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
+import { linkifyText } from '../utils/linkify';
 import { motion, AnimatePresence } from 'motion/react';
 import client from '../api/client';
 import { useAuthStore } from '../store/authStore';
@@ -109,6 +110,8 @@ function DocumentItem({ fileUrl, tgLink, isAdmin }) {
 
 function ChatBubble({ message, isAdmin, botId, botUsername }) {
   const token = useAuthStore(s => s.token);
+  const currentUser = useAuthStore(s => s.user);
+  const isOwner = currentUser?.is_superadmin;
   const copyTimerRef = useRef(null);
   const touchCopiedRef = useRef(false);
   const msgRef = useRef(null);
@@ -210,13 +213,16 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
         }`}
       >
         {renderMedia()}
+        {isAdmin && message.sender_name && isOwner && (
+          <p className="text-[10px] font-bold text-indigo-200 mb-0.5">{message.sender_name}</p>
+        )}
         {message.message_text && (
           <p ref={msgRef} className="text-sm leading-relaxed whitespace-pre-wrap break-words select-all cursor-text"
             onContextMenu={(e) => {
               if (touchCopiedRef.current) { touchCopiedRef.current = false; return; }
               e.preventDefault();
               e.stopPropagation();
-              navigator.clipboard.writeText(message.message_text);
+              navigator.clipboard.writeText(message.message_text.length > 0 ? message.message_text : '');
               useToastStore.getState().addToast('Copied', 'success');
             }}
             onTouchStart={() => {
@@ -233,7 +239,7 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
             onTouchMove={() => {
               if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
             }}>
-            {message.message_text}
+            {linkifyText(message.message_text)}
           </p>
         )}
         <p

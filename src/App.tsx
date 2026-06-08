@@ -40,11 +40,13 @@ const BotCustomization = React.lazy(() => import('./pages/BotCustomization'));
 const NewsfeedAdmin = React.lazy(() => import('./pages/NewsfeedAdmin'));
 const SuperadminDashboard = React.lazy(() => import('./pages/SuperadminDashboard'));
 const SendMessage = React.lazy(() => import('./pages/SendMessage'));
+const FAQs = React.lazy(() => import('./pages/FAQs'));
+const StaffAccounts = React.lazy(() => import('./pages/StaffAccounts'));
 
 const ADMIN_PATHS = new Set([
   'login', 'dashboard', 'orders', 'products', 'customers',
   'broadcast', 'commands', 'payments', 'subscription', 'settings',
-  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message',
+  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts',
 ]);
 
 const PUBLIC_DOMAIN = 'telegramecommerce.shop';
@@ -358,6 +360,8 @@ export default function App() {
                 <Route path="bot-customization" element={<BotCustomization />} />
                 <Route path="superadmin" element={<SuperadminDashboard />} />
                 <Route path="send-message" element={<SendMessage />} />
+                <Route path="faqs" element={<FAQs />} />
+                <Route path="staff-accounts" element={<StaffAccounts />} />
                 <Route path="more" element={<Navigate to="/broadcast" replace />} />
                 <Route path="newsfeed" element={<NewsfeedAdmin />} />
               </Route>

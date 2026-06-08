@@ -7,15 +7,16 @@ export const useAuthStore = create(
       token: null,
       user: null,
       isSuperadmin: false,
-      login: (token, user) => {
+      isStaff: false,
+      login: (token, user, isStaff) => {
         localStorage.setItem('token', token);
-        set({ token, user, isSuperadmin: user.is_superadmin });
+        set({ token, user, isSuperadmin: user.is_superadmin, isStaff: !!isStaff });
       },
       logout: () => {
         localStorage.removeItem('token');
         localStorage.removeItem('auth-storage');
         localStorage.removeItem('selectedBotId');
-        set({ token: null, user: null, isSuperadmin: false });
+        set({ token: null, user: null, isSuperadmin: false, isStaff: false });
       },
       setUser: (user) => set({ user, isSuperadmin: user.is_superadmin }),
     }),
