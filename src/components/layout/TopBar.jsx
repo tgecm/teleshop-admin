@@ -127,14 +127,14 @@ export default function TopBar() {
                       ) : (
                         <div className="space-y-4">
                           {adminMessages.map(msg => (
-                            <div key={msg.id} className="bg-amber-50/50 rounded-2xl p-4 border border-amber-100/50 relative group">
+                            <div key={msg.id} className="bg-amber-50/50 rounded-2xl p-4 border border-amber-100/50 relative">
                               <button
                                 onClick={() => setDeleteConfirm(msg.id)}
-                                className="absolute top-3 right-3 p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all"
+                                className="absolute top-3 right-3 p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
-                              <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap pr-8">{linkifyText(msg.message_text)}</p>
+                              <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap pr-8">{linkifyText(msg.message_text.split(' ').slice(0, 15).join(' ') + (msg.message_text.split(' ').length > 15 ? '...' : ''))}</p>
                               <div className="flex items-center gap-2 mt-2">
                                 <span className="text-[10px] text-gray-400">
                                   {msg.created_at ? new Date(msg.created_at).toLocaleString() : ''}
