@@ -18,6 +18,9 @@ export default function NotificationPopup() {
   const prevUnread = useRef(null);
   const prevPending = useRef(null);
   const prevAdmin = useRef(null);
+  const initUnread = useRef(false);
+  const initPending = useRef(false);
+  const initAdmin = useRef(false);
 
   const { data: unread } = useQuery({
     queryKey: ['unreadCount', selectedBotId],
@@ -44,30 +47,33 @@ export default function NotificationPopup() {
     if (timerRef.current) clearTimeout(timerRef.current);
     notificationSound();
     setNotice({ type, msg, path });
-    timerRef.current = setTimeout(() => setNotice(null), 10000);
+    timerRef.current = setTimeout(() => setNotice(null), 4000);
   };
 
   useEffect(() => {
     const curr = unread?.total ?? 0;
-    if (prevUnread.current !== null && curr > prevUnread.current) {
+    if (initUnread.current && curr > prevUnread.current) {
       pop('message', 'New message', '/chats');
     }
+    if (unread !== undefined) initUnread.current = true;
     prevUnread.current = curr;
   }, [unread?.total]);
 
   useEffect(() => {
     const curr = pendingOrders?.pending ?? 0;
-    if (prevPending.current !== null && curr > prevPending.current) {
+    if (initPending.current && curr > prevPending.current) {
       pop('order', 'New order', '/orders');
     }
+    if (pendingOrders !== undefined) initPending.current = true;
     prevPending.current = curr;
   }, [pendingOrders?.pending]);
 
   useEffect(() => {
     const curr = unreadAdminMsgs?.count ?? 0;
-    if (prevAdmin.current !== null && curr > prevAdmin.current) {
+    if (initAdmin.current && curr > prevAdmin.current) {
       pop('admin', 'New message from Superadmin', '/send-message');
     }
+    if (unreadAdminMsgs !== undefined) initAdmin.current = true;
     prevAdmin.current = curr;
   }, [unreadAdminMsgs?.count]);
 
