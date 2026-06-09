@@ -1299,7 +1299,7 @@ function PaymentSelect({ paymentMethods, onBack, onNext }) {
   );
 }
 
-export default function PublicEcommerce({ slug, viaDomain }) {
+export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const { user, loading: authLoading } = useAuth();
   const { tgLoggedIn, telegramUser, logoutTelegram } = useTelegramAuth();
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -1336,7 +1336,11 @@ export default function PublicEcommerce({ slug, viaDomain }) {
   const [selectedColors, setSelectedColors] = useState({});
   const [linkSelectedOptions, setLinkSelectedOptions] = useState({});
   const [oosMap, setOosMap] = useState({});
-  const [viewMode, setViewMode] = useState('telegram');
+  const [viewMode, rawSetViewMode] = useState(mode || 'telegram');
+  const setViewMode = useCallback((v) => {
+    if (mode) return; // locked — cannot switch mode on dedicated pages
+    rawSetViewMode(v);
+  }, [mode]);
   const [sentProducts, setSentProducts] = useState(new Set());
   // Product link mode — show single product instead of full shop
   const [initialProductCode] = useState(() => new URLSearchParams(window.location.search).get('product'));
@@ -2202,6 +2206,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
         )}
 
         {/* View mode toggle */}
+        {!mode && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="flex gap-1.5 mb-4">
           {[
@@ -2220,6 +2225,7 @@ export default function PublicEcommerce({ slug, viaDomain }) {
             </button>
           ))}
         </motion.div>
+        )}
 
         {/* Search */}
         <AnimatePresence>

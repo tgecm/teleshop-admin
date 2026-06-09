@@ -496,6 +496,40 @@ export default function Settings() {
                         Copy URL
                       </button>
                     </div>
+
+                    <div className="border-t border-gray-100 pt-2.5 mt-2.5">
+                      <p className="text-[10px] text-gray-500 font-medium mb-2">Dedicated mode pages</p>
+                      <div className="space-y-1.5">
+                        {[
+                          { label: 'Telegram', suffix: '/telegram', icon: '💬' },
+                          { label: 'Website', suffix: '/ecommerce', icon: '🛒' },
+                          { label: 'Guest', suffix: '/guest', icon: '👤' },
+                        ].map(mode => (
+                          <div key={mode.suffix} className="flex items-center gap-1.5">
+                            <a
+                              href={`https://telegramecommerce.shop/${publicSlug.slug}${mode.suffix}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 break-all"
+                            >
+                              <span className="text-[10px]">{mode.icon}</span>
+                              .../{publicSlug.slug}{mode.suffix}
+                              <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+                            </a>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(`https://telegramecommerce.shop/${publicSlug.slug}${mode.suffix}`);
+                                addToast(`${mode.label} URL copied`);
+                              }}
+                              className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-indigo-600 transition-all flex-shrink-0"
+                              title={`Copy ${mode.label} URL`}
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                 <div className="space-y-2.5">
@@ -632,6 +666,23 @@ export default function Settings() {
                           <ExternalLink className="w-3 h-3" />
                           https://{domain.domain}
                         </a>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {[
+                            { label: 'Telegram', suffix: '/telegram', icon: '💬' },
+                            { label: 'Website', suffix: '/ecommerce', icon: '🛒' },
+                            { label: 'Guest', suffix: '/guest', icon: '👤' },
+                          ].map(mode => (
+                            <a
+                              key={mode.suffix}
+                              href={`https://${domain.domain}${mode.suffix}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[9px] text-gray-500 hover:text-indigo-600 font-medium flex items-center gap-1 bg-gray-100 hover:bg-indigo-50 px-1.5 py-0.5 rounded-md transition-all"
+                            >
+                              {mode.icon} /{mode.label.toLowerCase()}
+                            </a>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

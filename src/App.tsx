@@ -111,6 +111,10 @@ function PublicRoute() {
   if (!pathname || ADMIN_PATHS.has(pathname.split('/')[0]) || pathname.startsWith('_')) {
     return <Navigate to="/login" replace />;
   }
+  const modeMatch = pathname.match(/^(.+)\/(telegram|ecommerce|guest)$/);
+  if (modeMatch) {
+    return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={modeMatch[1]} mode={modeMatch[2]} /></Suspense>;
+  }
   return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={pathname} /></Suspense>;
 }
 
@@ -310,6 +314,8 @@ export default function App() {
               if (cd) return <CustomerDashboard shopSlug={cd[1]} />;
               const ec = publicSlug.match(/^(.+)-ecommerce$/);
               if (ec) return <PublicEcommerce slug={ec[1]} />;
+              const modeSlug = publicSlug.match(/^(.+)\/(telegram|ecommerce|guest)$/);
+              if (modeSlug) return <PublicEcommerce slug={modeSlug[1]} mode={modeSlug[2]} />;
               return <PublicEcommerce slug={publicSlug} />;
             })()}
           </Suspense>
@@ -325,13 +331,18 @@ export default function App() {
           <SelectionToolbar />
         </>
       ) : isCustomDomain() ? (
-        <>
-          <Suspense fallback={<SuspenseFallback />}>
-            <PublicEcommerce viaDomain />
-          </Suspense>
-          <ToastContainer />
-          <SelectionToolbar />
-        </>
+        (() => {
+          const modePath = window.location.pathname.replace(/^\//, '').match(/^(telegram|ecommerce|guest)$/);
+          return (
+            <>
+              <Suspense fallback={<SuspenseFallback />}>
+                <PublicEcommerce viaDomain mode={modePath?.[1] || undefined} />
+              </Suspense>
+              <ToastContainer />
+              <SelectionToolbar />
+            </>
+          );
+        })()
       ) : (
         <>
           <BrowserRouter basename="/">

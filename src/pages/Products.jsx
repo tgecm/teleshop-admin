@@ -675,8 +675,8 @@ export default function Products() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-5 pt-4">
-                {coupons?.length === 0 ? (
+              <div className="flex-1 overflow-y-auto min-h-0 p-5 pt-4">
+                {!coupons || coupons.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Ticket className="w-8 h-8 text-gray-300" />
