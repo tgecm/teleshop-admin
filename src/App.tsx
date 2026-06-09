@@ -42,11 +42,12 @@ const SuperadminDashboard = React.lazy(() => import('./pages/SuperadminDashboard
 const SendMessage = React.lazy(() => import('./pages/SendMessage'));
 const FAQs = React.lazy(() => import('./pages/FAQs'));
 const StaffAccounts = React.lazy(() => import('./pages/StaffAccounts'));
+const Homepage = React.lazy(() => import('./pages/Homepage'));
 
 const ADMIN_PATHS = new Set([
   'login', 'dashboard', 'orders', 'products', 'customers',
   'broadcast', 'commands', 'payments', 'subscription', 'settings',
-  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts',
+  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts', 'homepage',
 ]);
 
 const PUBLIC_DOMAIN = 'telegramecommerce.shop';
@@ -349,6 +350,9 @@ export default function App() {
             <Routes>
               <Route path="/login" element={
                 <Suspense fallback={<SuspenseFallback />}><Login /></Suspense>
+              } />
+              <Route path="/homepage" element={
+                <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>
               } />
               <Route path="/manage-web-panel" element={
                 <Suspense fallback={<SuspenseFallback />}><WebPanel /></Suspense>
