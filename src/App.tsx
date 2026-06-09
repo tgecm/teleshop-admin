@@ -332,7 +332,7 @@ export default function App() {
         </>
       ) : isCustomDomain() ? (
         (() => {
-          const modePath = window.location.pathname.replace(/^\//, '').match(/^(telegram|ecommerce|guest)$/);
+          const modePath = window.location.pathname.replace(/\/+$/, '').replace(/^\//, '').match(/^(telegram|ecommerce|guest)$/);
           return (
             <>
               <Suspense fallback={<SuspenseFallback />}>
