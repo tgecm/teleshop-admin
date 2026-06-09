@@ -671,17 +671,27 @@ export default function Settings() {
                             { label: 'Telegram', suffix: '/telegram', icon: '💬' },
                             { label: 'Website', suffix: '/ecommerce', icon: '🛒' },
                             { label: 'Guest', suffix: '/guest', icon: '👤' },
-                          ].map(mode => (
-                            <a
-                              key={mode.suffix}
-                              href={`https://${domain.domain}${mode.suffix}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[9px] text-gray-500 hover:text-indigo-600 font-medium flex items-center gap-1 bg-gray-100 hover:bg-indigo-50 px-1.5 py-0.5 rounded-md transition-all"
-                            >
-                              {mode.icon} /{mode.label.toLowerCase()}
-                            </a>
-                          ))}
+                          ].map(m => (
+                            <div key={m.suffix} className="flex items-center gap-0.5">
+                              <a
+                                href={`https://${domain.domain}${m.suffix}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[9px] text-gray-500 hover:text-indigo-600 font-medium flex items-center gap-1 bg-gray-100 hover:bg-indigo-50 px-1.5 py-0.5 rounded-l-md transition-all"
+                              >
+                                {m.icon} /{m.label.toLowerCase()}
+                              </a>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(`https://${domain.domain}${m.suffix}`);
+                                  addToast(`${m.label} URL copied`);
+                                }}
+                                className="p-1 bg-gray-100 hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 rounded-r-md transition-all"
+                                title={`Copy ${m.label} URL`}
+                              >
+                                <Copy className="w-2.5 h-2.5" />
+                              </button>
+                            </div>))}
                         </div>
                       </div>
                     )}
