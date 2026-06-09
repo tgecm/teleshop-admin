@@ -29,9 +29,10 @@ export function useDisableDevTools() {
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
 
-      // Don't show global menu on pages that have their own context menus
-      const path = window.location.pathname;
-      if (path === '/chats' || path.startsWith('/chats/')) return;
+      // Only show custom menu inside admin dashboard
+      const path = window.location.pathname.replace(/^\//, '').split('/')[0];
+      const ADMIN_ROUTES = new Set(['dashboard', 'orders', 'products', 'customers', 'broadcast', 'commands', 'payments', 'subscription', 'settings', 'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts']);
+      if (!ADMIN_ROUTES.has(path)) return;
 
       clickSound();
       removeMenu(menu);

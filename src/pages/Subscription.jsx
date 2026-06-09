@@ -101,9 +101,9 @@ export default function Subscription() {
       bg: 'bg-emerald-50',
       border: 'border-emerald-200',
       yearlyPrice: '250,000 MMK/yr',
-      monthlyPrice: '20,000 MMK/month',
+      monthlyPrice: '23,000 MMK/month',
       yearlyRaw: 250000,
-      monthlyRaw: 20000,
+      monthlyRaw: 23000,
       inherited: 'Basic',
       features: [
         'Categories: up to 15', 'Products: up to 70', 'Admin: Up to 3',
@@ -123,9 +123,9 @@ export default function Subscription() {
       bg: 'bg-purple-50',
       border: 'border-purple-200',
       yearlyPrice: '350,000 MMK/yr',
-      monthlyPrice: '35,000 MMK/month',
+      monthlyPrice: '32,500 MMK/month',
       yearlyRaw: 350000,
-      monthlyRaw: 35000,
+      monthlyRaw: 32500,
       inherited: 'Standard',
       features: [
         'Categories: up to 35', 'Products: up to 150', 'Admin: Up to 10',

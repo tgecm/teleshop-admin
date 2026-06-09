@@ -47,7 +47,7 @@ const Homepage = React.lazy(() => import('./pages/Homepage'));
 const ADMIN_PATHS = new Set([
   'login', 'dashboard', 'orders', 'products', 'customers',
   'broadcast', 'commands', 'payments', 'subscription', 'settings',
-  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts', 'homepage',
+  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts',
 ]);
 
 const PUBLIC_DOMAIN = 'telegramecommerce.shop';
@@ -63,6 +63,10 @@ function isCustomDomain() {
 
 function PublicRoute() {
   const pathname = window.location.pathname.replace(/^\//, '');
+
+  if (pathname === 'homepage') {
+    return <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>;
+  }
 
   const addProductMatch = pathname.match(/^(.+)-add-product-(\d{5})-(\d+)-(\d+)$/);
   if (addProductMatch) {
@@ -305,6 +309,7 @@ export default function App() {
         <>
           <Suspense fallback={<SuspenseFallback />}>
             {(() => {
+              if (publicSlug === 'homepage') return <Homepage />;
               const m = publicSlug.match(/^(.+)-add-product-(\d{5})-(\d+)-(\d+)$/);
               if (m) return <PublicAddProduct username={m[1]} code={m[2]} secret1={m[3]} secret2={m[4]} />;
               const pm = publicSlug.match(/^(.+)-add-new-payment-(\d{5})-(\d+)-(\d+)$/);
@@ -350,9 +355,6 @@ export default function App() {
             <Routes>
               <Route path="/login" element={
                 <Suspense fallback={<SuspenseFallback />}><Login /></Suspense>
-              } />
-              <Route path="/homepage" element={
-                <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>
               } />
               <Route path="/manage-web-panel" element={
                 <Suspense fallback={<SuspenseFallback />}><WebPanel /></Suspense>
