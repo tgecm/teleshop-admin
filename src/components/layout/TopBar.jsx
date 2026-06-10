@@ -15,7 +15,7 @@ import { getAdminUnreadMessagesCount, getAdminMessages, markAdminMessagesRead, d
 import { linkifyText } from '../../utils/linkify';
 
 export default function TopBar() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, isStaff } = useAuthStore();
   const { bots, selectedBotId } = useBotStore();
   const queryClient = useQueryClient();
   const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
@@ -79,6 +79,7 @@ export default function TopBar() {
         )}
 
         <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">
+          {!isStaff && (
           <div className="relative">
             <button
               onClick={() => { setShowMessages(!showMessages); if (!showMessages) markAdminMessagesRead().then(() => queryClient.invalidateQueries({ queryKey: ['adminUnreadMessages'] })).catch(() => {}); }}
@@ -153,6 +154,7 @@ export default function TopBar() {
               )}
             </AnimatePresence>
           </div>
+          )}
           <button
             onClick={() => navigate('/chats')}
             className="relative text-white p-1.5 md:p-2.5 hover:bg-white/10 active:bg-white/15 rounded-xl transition-colors"

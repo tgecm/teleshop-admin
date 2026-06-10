@@ -60,7 +60,7 @@ import { requireFeature } from '../utils/plans';
 import Subscription from './Subscription';
 
 export default function Settings() {
-  const { isSuperadmin, user } = useAuthStore();
+  const { isSuperadmin, user, isStaff } = useAuthStore();
   const { selectedBotId, bots, setBots } = useBotStore();
   const { addToast } = useToastStore();
   const [activeTab, setActiveTab] = useState('shop');
@@ -275,6 +275,14 @@ export default function Settings() {
   const [fpConfirmPw, setFpConfirmPw] = useState('');
   const [fpStep, setFpStep] = useState('email'); // email | code
   const [fpLoading, setFpLoading] = useState(false);
+  const [staffPwToken, setStaffPwToken] = useState('');
+  const [staffPwCode, setStaffPwCode] = useState('');
+  const [staffPwStep, setStaffPwStep] = useState('form'); // form | code
+  const [staffPwLoading, setStaffPwLoading] = useState(false);
+  const [staffFpToken, setStaffFpToken] = useState('');
+  const [staffFpCode, setStaffFpCode] = useState('');
+  const [staffFpStep, setStaffFpStep] = useState('idle'); // idle | code
+  const [staffFpLoading, setStaffFpLoading] = useState(false);
 
   React.useEffect(() => {
     if (bot) setEmail(bot.admin_notification_email || '');
@@ -345,10 +353,78 @@ export default function Settings() {
     setFpLoading(false);
   };
 
+  const handleStaffSendCode = async () => {
+    setStaffPwLoading(true);
+    try {
+      const res = await client.post('/auth/staff-send-pw-code');
+      setStaffPwToken(res.data.token);
+      setStaffPwStep('code');
+      addToast('Verification code sent to your Telegram bot');
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Failed to send code', 'error');
+    }
+    setStaffPwLoading(false);
+  };
+
+  const handleStaffChangePw = async () => {
+    if (cpNewPw.length < 4) return addToast('New password must be at least 4 characters', 'error');
+    if (cpNewPw !== cpConfirmPw) return addToast('New passwords do not match', 'error');
+    if (!staffPwCode) return addToast('Enter the verification code', 'error');
+    setStaffPwLoading(true);
+    try {
+      await client.post('/auth/staff-change-password', {
+        code_token: staffPwToken,
+        code: staffPwCode,
+        old_password: cpOldPw,
+        new_password: cpNewPw,
+      });
+      addToast('Password changed successfully');
+      setCpOldPw(''); setCpNewPw(''); setCpConfirmPw('');
+      setStaffPwCode(''); setStaffPwToken(''); setStaffPwStep('form');
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Failed to change password', 'error');
+    }
+    setStaffPwLoading(false);
+  };
+
+  const handleStaffFpSendCode = async () => {
+    setStaffFpLoading(true);
+    try {
+      const res = await client.post('/auth/staff-forgot-password', { step: 'send' });
+      setStaffFpToken(res.data.token);
+      setStaffFpStep('code');
+      addToast('Reset code sent to your Telegram bot');
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Failed to send reset code', 'error');
+    }
+    setStaffFpLoading(false);
+  };
+
+  const handleStaffFpReset = async () => {
+    if (!staffFpCode) return addToast('Enter the verification code', 'error');
+    if (fpNewPw.length < 4) return addToast('New password must be at least 4 characters', 'error');
+    if (fpNewPw !== fpConfirmPw) return addToast('Passwords do not match', 'error');
+    setStaffFpLoading(true);
+    try {
+      await client.post('/auth/staff-forgot-password', {
+        step: 'reset',
+        code_token: staffFpToken,
+        code: staffFpCode,
+        new_password: fpNewPw,
+      });
+      addToast('Password reset successfully');
+      setFpNewPw(''); setFpConfirmPw('');
+      setStaffFpCode(''); setStaffFpToken(''); setStaffFpStep('idle');
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Failed to reset password', 'error');
+    }
+    setStaffFpLoading(false);
+  };
+
   const tabs = [
     { id: 'shop', label: 'Shop', icon: SettingsIcon },
     { id: 'account', label: 'Account', icon: User },
-    { id: 'subscription', label: 'Plan', icon: ShieldCheck },
+    ...(isStaff ? [] : [{ id: 'subscription', label: 'Plan', icon: ShieldCheck }]),
     ...(isSuperadmin ? [{ id: 'superadmin', label: 'Admin', icon: ShieldAlert }] : []),
     ...(isSuperadmin ? [{ id: 'bots', label: 'Bots', icon: Bot }] : []),
   ];
@@ -957,6 +1033,7 @@ export default function Settings() {
 
 
 
+            {!isStaff && (
             <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
@@ -1044,178 +1121,378 @@ export default function Settings() {
                 </div>
               </div>
             </section>
+            )}
 
           </div>
         )}
 
         {activeTab === 'account' && (
           <div className="max-w-lg">
-            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900">Change Password</h3>
-                  <p className="text-[10px] text-gray-500">Update your account password</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">Current Password</label>
-                  <div className="relative mt-1">
-                    <input
-                      type={cpShowOld ? 'text' : 'password'}
-                      value={cpOldPw}
-                      onChange={e => setCpOldPw(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm pr-10"
-                      placeholder="Enter current password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setCpShowOld(!cpShowOld)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      tabIndex={-1}
-                    >
-                      {cpShowOld ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+            {isStaff ? (
+              <>
+                {/* Staff: Change Password with code */}
+                <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">Change Password</h3>
+                      <p className="text-[10px] text-gray-500">A code will be sent to your Telegram bot</p>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">New Password</label>
-                  <div className="relative mt-1">
-                    <input
-                      type={cpShowNew ? 'text' : 'password'}
-                      value={cpNewPw}
-                      onChange={e => setCpNewPw(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm pr-10"
-                      placeholder="Min 8 chars, uppercase, number"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setCpShowNew(!cpShowNew)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      tabIndex={-1}
-                    >
-                      {cpShowNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">Confirm New Password</label>
-                  <div className="relative mt-1">
-                    <input
-                      type="password"
-                      value={cpConfirmPw}
-                      onChange={e => setCpConfirmPw(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                      placeholder="Repeat new password"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleChangePw}
-                  disabled={cpLoading || !cpOldPw || !cpNewPw || !cpConfirmPw}
-                  className="w-full px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {cpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-                  Update Password
-                </button>
-
-                <div className="pt-3 border-t border-gray-100">
-                  <button
-                    onClick={() => setFpOpen(!fpOpen)}
-                    className="w-full text-center text-xs text-gray-500 hover:text-indigo-600 font-medium transition-colors"
-                  >
-                    {fpOpen ? '▾ Forgot password?' : '▸ Forgot your password? Reset via Telegram'}
-                  </button>
-
-                  {fpOpen && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
-                      {fpStep === 'email' ? (
-                        <>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Registered Email</label>
-                            <input
-                              type="email"
-                              value={fpEmail}
-                              onChange={e => setFpEmail(e.target.value)}
-                              className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                              placeholder="Your registered email"
-                            />
-                          </div>
-                          <button
-                            onClick={fpSendCode}
-                            disabled={fpLoading || !fpEmail}
-                            className="w-full px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-                          >
-                            {fpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                            Send Reset Code to Telegram
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-xs text-gray-600">
-                            A reset code was sent to <strong>your Telegram bot</strong> for <strong>{fpEmail}</strong>.
-                            Check your bot's messages in Telegram.
+                  <div className="space-y-3">
+                    {staffPwStep === 'form' ? (
+                      <>
+                        <button
+                          onClick={handleStaffSendCode}
+                          disabled={staffPwLoading}
+                          className="w-full px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm flex items-center justify-center gap-2"
+                        >
+                          {staffPwLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                          Send Code to Telegram
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                          <p className="text-xs text-amber-700 font-medium">
+                            A verification code was sent to your Telegram bot. Enter it below to proceed.
                           </p>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Code from Telegram</label>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-700">Verification Code</label>
+                          <input
+                            type="text"
+                            value={staffPwCode}
+                            onChange={e => setStaffPwCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            className="w-full mt-1 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-center tracking-widest font-bold"
+                            placeholder="000000"
+                            maxLength={6}
+                            inputMode="numeric"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-700">Current Password</label>
+                          <div className="relative mt-1">
                             <input
-                              type="text"
-                              value={fpCode}
-                              onChange={e => setFpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                              className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-center tracking-widest font-bold"
-                              placeholder="000000"
-                              maxLength={6}
-                              inputMode="numeric"
+                              type={cpShowOld ? 'text' : 'password'}
+                              value={cpOldPw}
+                              onChange={e => setCpOldPw(e.target.value)}
+                              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm pr-10"
+                              placeholder="Enter current password"
                             />
+                            <button
+                              type="button"
+                              onClick={() => setCpShowOld(!cpShowOld)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                              tabIndex={-1}
+                            >
+                              {cpShowOld ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
                           </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">New Password</label>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-700">New Password</label>
+                          <div className="relative mt-1">
                             <input
-                              type="password"
-                              value={fpNewPw}
-                              onChange={e => setFpNewPw(e.target.value)}
-                              className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                              placeholder="Min 8 chars, uppercase, number"
+                              type={cpShowNew ? 'text' : 'password'}
+                              value={cpNewPw}
+                              onChange={e => setCpNewPw(e.target.value)}
+                              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm pr-10"
+                              placeholder="Min 4 characters"
                             />
+                            <button
+                              type="button"
+                              onClick={() => setCpShowNew(!cpShowNew)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                              tabIndex={-1}
+                            >
+                              {cpShowNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
                           </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Confirm New Password</label>
-                            <input
-                              type="password"
-                              value={fpConfirmPw}
-                              onChange={e => setFpConfirmPw(e.target.value)}
-                              className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                              placeholder="Repeat new password"
-                            />
-                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-700">Confirm New Password</label>
+                          <input
+                            type="password"
+                            value={cpConfirmPw}
+                            onChange={e => setCpConfirmPw(e.target.value)}
+                            className="w-full mt-1 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                            placeholder="Repeat new password"
+                          />
+                        </div>
+                        <div className="flex gap-2">
                           <button
-                            onClick={fpResetPw}
-                            disabled={fpLoading || fpCode.length !== 6 || !fpNewPw || !fpConfirmPw}
-                            className="w-full px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                            onClick={() => { setStaffPwStep('form'); setStaffPwCode(''); setStaffPwToken(''); }}
+                            className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
                           >
-                            {fpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                            Reset Password
+                            Back
                           </button>
                           <button
-                            onClick={() => { setFpStep('email'); setFpCode(''); setFpNewPw(''); setFpConfirmPw(''); }}
-                            className="w-full text-center text-[11px] text-gray-400 hover:text-gray-600 font-medium transition-colors"
+                            onClick={handleStaffChangePw}
+                            disabled={staffPwLoading || !staffPwCode || !cpOldPw || !cpNewPw || !cpConfirmPw}
+                            className="flex-[2] px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                           >
-                            ← Use different email
+                            {staffPwLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                            Update Password
                           </button>
-                        </>
-                      )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </section>
+
+                {/* Staff: Forgot Password (no email needed) */}
+                <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">Forgot Password</h3>
+                      <p className="text-[10px] text-gray-500">Reset without current password</p>
+                    </div>
+                  </div>
+
+                  {staffFpStep === 'idle' ? (
+                    <button
+                      onClick={handleStaffFpSendCode}
+                      disabled={staffFpLoading}
+                      className="w-full px-4 py-3 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 transition-all active:scale-[0.98] text-sm flex items-center justify-center gap-2"
+                    >
+                      {staffFpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                      Send Reset Code to Telegram
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                        <p className="text-xs text-amber-700 font-medium">
+                          A reset code was sent to your Telegram bot. Enter it below to set a new password.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-700">Code from Telegram</label>
+                        <input
+                          type="text"
+                          value={staffFpCode}
+                          onChange={e => setStaffFpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          className="w-full mt-1 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-center tracking-widest font-bold"
+                          placeholder="000000"
+                          maxLength={6}
+                          inputMode="numeric"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-700">New Password</label>
+                        <input
+                          type="password"
+                          value={fpNewPw}
+                          onChange={e => setFpNewPw(e.target.value)}
+                          className="w-full mt-1 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                          placeholder="Min 4 characters"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-700">Confirm New Password</label>
+                        <input
+                          type="password"
+                          value={fpConfirmPw}
+                          onChange={e => setFpConfirmPw(e.target.value)}
+                          className="w-full mt-1 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                          placeholder="Repeat new password"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setStaffFpStep('idle'); setStaffFpCode(''); setStaffFpToken(''); setFpNewPw(''); setFpConfirmPw(''); }}
+                          className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleStaffFpReset}
+                          disabled={staffFpLoading || !staffFpCode || !fpNewPw || !fpConfirmPw}
+                          className="flex-[2] px-4 py-2.5 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {staffFpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                          Reset Password
+                        </button>
+                      </div>
                     </div>
                   )}
+                </section>
+              </>
+            ) : (
+              /* Owner: existing change password + forgot password */
+              <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex items-center gap-2.5 mb-4">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">Change Password</h3>
+                    <p className="text-[10px] text-gray-500">Update your account password</p>
+                  </div>
                 </div>
-              </div>
-            </section>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700">Current Password</label>
+                    <div className="relative mt-1">
+                      <input
+                        type={cpShowOld ? 'text' : 'password'}
+                        value={cpOldPw}
+                        onChange={e => setCpOldPw(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm pr-10"
+                        placeholder="Enter current password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCpShowOld(!cpShowOld)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        tabIndex={-1}
+                      >
+                        {cpShowOld ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700">New Password</label>
+                    <div className="relative mt-1">
+                      <input
+                        type={cpShowNew ? 'text' : 'password'}
+                        value={cpNewPw}
+                        onChange={e => setCpNewPw(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm pr-10"
+                        placeholder="Min 8 chars, uppercase, number"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCpShowNew(!cpShowNew)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        tabIndex={-1}
+                      >
+                        {cpShowNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700">Confirm New Password</label>
+                    <div className="relative mt-1">
+                      <input
+                        type="password"
+                        value={cpConfirmPw}
+                        onChange={e => setCpConfirmPw(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                        placeholder="Repeat new password"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleChangePw}
+                    disabled={cpLoading || !cpOldPw || !cpNewPw || !cpConfirmPw}
+                    className="w-full px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {cpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                    Update Password
+                  </button>
+
+                  <div className="pt-3 border-t border-gray-100">
+                    <button
+                      onClick={() => setFpOpen(!fpOpen)}
+                      className="w-full text-center text-xs text-gray-500 hover:text-indigo-600 font-medium transition-colors"
+                    >
+                      {fpOpen ? '▾ Forgot password?' : '▸ Forgot your password? Reset via Telegram'}
+                    </button>
+
+                    {fpOpen && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
+                        {fpStep === 'email' ? (
+                          <>
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Registered Email</label>
+                              <input
+                                type="email"
+                                value={fpEmail}
+                                onChange={e => setFpEmail(e.target.value)}
+                                className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                placeholder="Your registered email"
+                              />
+                            </div>
+                            <button
+                              onClick={fpSendCode}
+                              disabled={fpLoading || !fpEmail}
+                              className="w-full px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                              {fpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                              Send Reset Code to Telegram
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs text-gray-600">
+                              A reset code was sent to <strong>your Telegram bot</strong> for <strong>{fpEmail}</strong>.
+                              Check your bot's messages in Telegram.
+                            </p>
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Code from Telegram</label>
+                              <input
+                                type="text"
+                                value={fpCode}
+                                onChange={e => setFpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-center tracking-widest font-bold"
+                                placeholder="000000"
+                                maxLength={6}
+                                inputMode="numeric"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">New Password</label>
+                              <input
+                                type="password"
+                                value={fpNewPw}
+                                onChange={e => setFpNewPw(e.target.value)}
+                                className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                placeholder="Min 8 chars, uppercase, number"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Confirm New Password</label>
+                              <input
+                                type="password"
+                                value={fpConfirmPw}
+                                onChange={e => setFpConfirmPw(e.target.value)}
+                                className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                placeholder="Repeat new password"
+                              />
+                            </div>
+                            <button
+                              onClick={fpResetPw}
+                              disabled={fpLoading || fpCode.length !== 6 || !fpNewPw || !fpConfirmPw}
+                              className="w-full px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                              {fpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                              Reset Password
+                            </button>
+                            <button
+                              onClick={() => { setFpStep('email'); setFpCode(''); setFpNewPw(''); setFpConfirmPw(''); }}
+                              className="w-full text-center text-[11px] text-gray-400 hover:text-gray-600 font-medium transition-colors"
+                            >
+                              ← Use different email
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
         )}
 
