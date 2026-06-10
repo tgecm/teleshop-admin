@@ -100,9 +100,12 @@ export function useDisableDevTools() {
 
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('contextmenu', handleContextMenu);
+    const preventCtx = (e: MouseEvent) => e.preventDefault();
+    window.addEventListener('contextmenu', preventCtx, { capture: true });
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('contextmenu', preventCtx, { capture: true });
       removeMenu(menu);
     };
   }, []);
