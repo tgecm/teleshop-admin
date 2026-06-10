@@ -40,7 +40,7 @@ export default function StaffAccounts() {
     if (!form.name.trim() || !form.username.trim() || !form.password.trim()) return;
     setSaving(true);
     try {
-      const res = await client.post('/staff/create', form);
+      const res = await client.post('/staff/create', { ...form, bot_id: selectedBotId });
       const loginTokenRes = res.data;
       // After creation, simulate 2FA - but for now just refresh
       queryClient.invalidateQueries({ queryKey: ['staff-list', selectedBotId] });

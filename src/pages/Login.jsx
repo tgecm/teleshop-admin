@@ -204,7 +204,13 @@ export default function Login() {
               </>
             ) : (
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-gray-700 ml-1">Verification Code</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-gray-700 ml-1">Verification Code</label>
+                  <button type="button" onClick={() => { setNeedsCode(false); setCode(['', '', '', '', '', '']); setLoginToken(''); setError(''); }}
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
+                    ← Back
+                  </button>
+                </div>
                 <div className="flex justify-center gap-2 sm:gap-3">
                   {code.map((digit, i) => (
                     <input
