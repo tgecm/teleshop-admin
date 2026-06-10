@@ -159,7 +159,9 @@ export default function WebPanel() {
 
   const suSetPassword = async () => {
     clearAlert('signup5');
-    if (suPw1.length < 6) return showAlert('signup5', 'Password must be at least 6 characters.', 'error');
+    if (suPw1.length < 8) return showAlert('signup5', 'Password must be at least 8 characters.', 'error');
+    if (!/[A-Z]/.test(suPw1)) return showAlert('signup5', 'Password must contain at least one uppercase letter.', 'error');
+    if (!/[0-9]/.test(suPw1)) return showAlert('signup5', 'Password must contain at least one number.', 'error');
     if (suPw1 !== suPw2) return showAlert('signup5', 'Passwords do not match.', 'error');
     try {
       const res = await apiPost('/signup', { email: suEmail, password: suPw1, bot_username: suBotUsername });
@@ -192,7 +194,9 @@ export default function WebPanel() {
     clearAlert('changepw');
     if (!cpEmail) return showAlert('changepw', 'Enter your email address.', 'error');
     if (!cpOld) return showAlert('changepw', 'Enter your current password.', 'error');
-    if (cpNew1.length < 6) return showAlert('changepw', 'New password must be at least 6 characters.', 'error');
+    if (cpNew1.length < 8) return showAlert('changepw', 'New password must be at least 8 characters.', 'error');
+    if (!/[A-Z]/.test(cpNew1)) return showAlert('changepw', 'New password must contain at least one uppercase letter.', 'error');
+    if (!/[0-9]/.test(cpNew1)) return showAlert('changepw', 'New password must contain at least one number.', 'error');
     if (cpNew1 !== cpNew2) return showAlert('changepw', 'New passwords do not match.', 'error');
     try {
       await apiPost('/change-password', { email: cpEmail, old_password: cpOld, new_password: cpNew1 });
@@ -227,7 +231,9 @@ export default function WebPanel() {
   const fpResetPw = async () => {
     clearAlert('forgot2');
     if (fpCode.length !== 6) return showAlert('forgot2', 'Enter the 6-digit code.', 'error');
-    if (fpPw1.length < 6) return showAlert('forgot2', 'Password must be at least 6 characters.', 'error');
+    if (fpPw1.length < 8) return showAlert('forgot2', 'Password must be at least 8 characters.', 'error');
+    if (!/[A-Z]/.test(fpPw1)) return showAlert('forgot2', 'Password must contain at least one uppercase letter.', 'error');
+    if (!/[0-9]/.test(fpPw1)) return showAlert('forgot2', 'Password must contain at least one number.', 'error');
     if (fpPw1 !== fpPw2) return showAlert('forgot2', 'Passwords do not match.', 'error');
     try {
       await apiPost('/reset-password', { email: fpEmail, code: fpCode, new_password: fpPw1 });
@@ -250,8 +256,8 @@ export default function WebPanel() {
 
   const pwScore = (val) => {
     let s = 0;
-    if (val.length >= 6) s++;
-    if (val.length >= 10) s++;
+    if (val.length >= 8) s++;
+    if (val.length >= 12) s++;
     if (/[A-Z]/.test(val) && /[0-9]/.test(val)) s++;
     if (/[^A-Za-z0-9]/.test(val)) s++;
     return s;
@@ -568,7 +574,7 @@ export default function WebPanel() {
                 <div className="wp-field">
                   <label>Password</label>
                   <div className="wp-input-wrap">
-                    <input id="su-pw1" type="password" value={suPw1} onChange={e => setSuPw1(e.target.value)} placeholder="At least 6 characters" />
+                    <input id="su-pw1" type="password" value={suPw1} onChange={e => setSuPw1(e.target.value)} placeholder="Min 8 chars, uppercase, number" />
                     {eyeBtn('su-pw1')}
                   </div>
                   <div className="wp-strength-bar">
@@ -576,7 +582,7 @@ export default function WebPanel() {
                       <div key={i} className="wp-strength-seg" style={suPw1.length > 0 && i < pwScore(suPw1) ? { background: pwColors[Math.min(pwScore(suPw1) - 1, 3)] } : {}} />
                     ))}
                   </div>
-                  <div className="wp-pw-hint">{suPw1.length === 0 ? 'Minimum 6 characters' : pwHints[pwScore(suPw1)]}</div>
+                  <div className="wp-pw-hint">{suPw1.length === 0 ? 'Min 8 chars, 1 uppercase, 1 number' : pwHints[pwScore(suPw1)]}</div>
                 </div>
                 <div className="wp-field">
                   <label>Confirm Password</label>
@@ -612,7 +618,7 @@ export default function WebPanel() {
             <div className="wp-field">
               <label>New Password</label>
               <div className="wp-input-wrap">
-                <input id="cp-new1" type="password" value={cpNew1} onChange={e => setCpNew1(e.target.value)} placeholder="At least 6 characters" />
+                <input id="cp-new1" type="password" value={cpNew1} onChange={e => setCpNew1(e.target.value)} placeholder="Min 8 chars, uppercase, number" />
                 {eyeBtn('cp-new1')}
               </div>
             </div>
@@ -640,7 +646,7 @@ export default function WebPanel() {
             {fpStep === steps.BOT && (
               <>
                 <div className="wp-card-title">Reset Password</div>
-                <div className="wp-card-sub">We'll send a confirmation code to your registered email.</div>
+                <div className="wp-card-sub">Enter your registered email. A reset code will be sent to your Telegram bot.</div>
                 {alertEl('forgot')}
                 <div className="wp-field">
                   <label>Registered Email</label>
@@ -648,7 +654,7 @@ export default function WebPanel() {
                     <input id="fp-email" type="email" defaultValue={email} placeholder="Your registered email" />
                   </div>
                 </div>
-                <button className="wp-btn-primary" onClick={fpSendCode}>Send Reset Code</button>
+                <button className="wp-btn-primary" onClick={fpSendCode}>Send Reset Code to Telegram</button>
                 <div style={{ textAlign: 'center', marginTop: 14 }}>
                   <button className="wp-link-btn" onClick={() => { setView(views.SIGNUP); resetSignup(); }}>← Back</button>
                 </div>
@@ -658,7 +664,10 @@ export default function WebPanel() {
             {fpStep === steps.BOT_CODE && (
               <>
                 <div className="wp-card-title">Enter Code & New Password</div>
-                <div className="wp-card-sub">Code sent to <strong>{fpEmail}</strong></div>
+                <div className="wp-card-sub">
+                  A reset code was sent to <strong>your Telegram bot</strong> for <strong>{fpEmail}</strong>.<br />
+                  Check your bot's messages in Telegram.
+                </div>
                 {alertEl('forgot2')}
                 <div className="wp-field">
                   <label>Confirmation Code</label>
@@ -675,7 +684,7 @@ export default function WebPanel() {
                 <div className="wp-field">
                   <label>New Password</label>
                   <div className="wp-input-wrap">
-                    <input id="fp-pw1" type="password" value={fpPw1} onChange={e => setFpPw1(e.target.value)} placeholder="At least 6 characters" />
+                <input id="fp-pw1" type="password" value={fpPw1} onChange={e => setFpPw1(e.target.value)} placeholder="Min 8 chars, uppercase, number" />
                     {eyeBtn('fp-pw1')}
                   </div>
                 </div>

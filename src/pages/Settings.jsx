@@ -18,6 +18,7 @@ import {
 import { getStats } from '../api/stats';
 import { getBotPublicSlug, generateBotSlug, listBotDomains, addBotDomain, verifyBotDomainItem, toggleBotDomainItem, deleteBotDomainItem } from '../api/public';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
+import client from '../api/client';
 import {
   Settings as SettingsIcon,
   ShieldCheck,
@@ -48,6 +49,10 @@ import {
   HelpCircle,
   Edit2,
   Volume2,
+  User,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -257,6 +262,19 @@ export default function Settings() {
   const [editingWebsiteUrl, setEditingWebsiteUrl] = useState(false);
 
   const [showDomainGuide, setShowDomainGuide] = useState(false);
+  const [cpOldPw, setCpOldPw] = useState('');
+  const [cpNewPw, setCpNewPw] = useState('');
+  const [cpConfirmPw, setCpConfirmPw] = useState('');
+  const [cpShowOld, setCpShowOld] = useState(false);
+  const [cpShowNew, setCpShowNew] = useState(false);
+  const [cpLoading, setCpLoading] = useState(false);
+  const [fpOpen, setFpOpen] = useState(false);
+  const [fpEmail, setFpEmail] = useState('');
+  const [fpCode, setFpCode] = useState('');
+  const [fpNewPw, setFpNewPw] = useState('');
+  const [fpConfirmPw, setFpConfirmPw] = useState('');
+  const [fpStep, setFpStep] = useState('email'); // email | code
+  const [fpLoading, setFpLoading] = useState(false);
 
   React.useEffect(() => {
     if (bot) setEmail(bot.admin_notification_email || '');
@@ -273,8 +291,63 @@ export default function Settings() {
     }
   }, [bot, contentBlocks]);
 
+  const handleChangePw = async () => {
+    if (!cpOldPw) return addToast('Enter your current password', 'error');
+    if (cpNewPw.length < 8) return addToast('New password must be at least 8 characters', 'error');
+    if (!/[A-Z]/.test(cpNewPw)) return addToast('New password must contain at least one uppercase letter', 'error');
+    if (!/[0-9]/.test(cpNewPw)) return addToast('New password must contain at least one number', 'error');
+    if (cpNewPw !== cpConfirmPw) return addToast('New passwords do not match', 'error');
+    setCpLoading(true);
+    try {
+      await client.post('/auth/change-password', { old_password: cpOldPw, new_password: cpNewPw });
+      addToast('Password changed successfully');
+      setCpOldPw('');
+      setCpNewPw('');
+      setCpConfirmPw('');
+    } catch (err) {
+      addToast(err.response?.data?.detail || err.response?.data?.message || 'Failed to change password', 'error');
+    }
+    setCpLoading(false);
+  };
+
+  const fpSendCode = async () => {
+    if (!fpEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fpEmail)) return addToast('Enter a valid email address', 'error');
+    setFpLoading(true);
+    try {
+      await client.post('/api/webpanel/send-code', { email: fpEmail, flow: 'forgot' });
+      addToast('Reset code sent to your Telegram bot');
+      setFpStep('code');
+    } catch (err) {
+      addToast(err.response?.data?.detail || err.response?.data?.message || 'Failed to send reset code', 'error');
+    }
+    setFpLoading(false);
+  };
+
+  const fpResetPw = async () => {
+    if (fpCode.length !== 6) return addToast('Enter the 6-digit code from Telegram', 'error');
+    if (fpNewPw.length < 8) return addToast('New password must be at least 8 characters', 'error');
+    if (!/[A-Z]/.test(fpNewPw)) return addToast('New password must contain at least one uppercase letter', 'error');
+    if (!/[0-9]/.test(fpNewPw)) return addToast('New password must contain at least one number', 'error');
+    if (fpNewPw !== fpConfirmPw) return addToast('Passwords do not match', 'error');
+    setFpLoading(true);
+    try {
+      await client.post('/api/webpanel/reset-password', { email: fpEmail, code: fpCode, new_password: fpNewPw });
+      addToast('Password reset successfully');
+      setFpOpen(false);
+      setFpEmail('');
+      setFpCode('');
+      setFpNewPw('');
+      setFpConfirmPw('');
+      setFpStep('email');
+    } catch (err) {
+      addToast(err.response?.data?.detail || err.response?.data?.message || 'Reset failed', 'error');
+    }
+    setFpLoading(false);
+  };
+
   const tabs = [
     { id: 'shop', label: 'Shop', icon: SettingsIcon },
+    { id: 'account', label: 'Account', icon: User },
     { id: 'subscription', label: 'Plan', icon: ShieldCheck },
     ...(isSuperadmin ? [{ id: 'superadmin', label: 'Admin', icon: ShieldAlert }] : []),
     ...(isSuperadmin ? [{ id: 'bots', label: 'Bots', icon: Bot }] : []),
@@ -469,7 +542,7 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div className={`${customDomainEnabled ? 'opacity-40 pointer-events-none select-none' : ''} transition-all duration-300`}>
+              <div className="transition-all duration-300">
                 {publicSlug?.slug ? (
                   <div className="space-y-2.5">
                     <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
@@ -972,6 +1045,177 @@ export default function Settings() {
               </div>
             </section>
 
+          </div>
+        )}
+
+        {activeTab === 'account' && (
+          <div className="max-w-lg">
+            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">Change Password</h3>
+                  <p className="text-[10px] text-gray-500">Update your account password</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700">Current Password</label>
+                  <div className="relative mt-1">
+                    <input
+                      type={cpShowOld ? 'text' : 'password'}
+                      value={cpOldPw}
+                      onChange={e => setCpOldPw(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm pr-10"
+                      placeholder="Enter current password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCpShowOld(!cpShowOld)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      tabIndex={-1}
+                    >
+                      {cpShowOld ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700">New Password</label>
+                  <div className="relative mt-1">
+                    <input
+                      type={cpShowNew ? 'text' : 'password'}
+                      value={cpNewPw}
+                      onChange={e => setCpNewPw(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm pr-10"
+                      placeholder="Min 8 chars, uppercase, number"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCpShowNew(!cpShowNew)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      tabIndex={-1}
+                    >
+                      {cpShowNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700">Confirm New Password</label>
+                  <div className="relative mt-1">
+                    <input
+                      type="password"
+                      value={cpConfirmPw}
+                      onChange={e => setCpConfirmPw(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                      placeholder="Repeat new password"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleChangePw}
+                  disabled={cpLoading || !cpOldPw || !cpNewPw || !cpConfirmPw}
+                  className="w-full px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {cpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                  Update Password
+                </button>
+
+                <div className="pt-3 border-t border-gray-100">
+                  <button
+                    onClick={() => setFpOpen(!fpOpen)}
+                    className="w-full text-center text-xs text-gray-500 hover:text-indigo-600 font-medium transition-colors"
+                  >
+                    {fpOpen ? '▾ Forgot password?' : '▸ Forgot your password? Reset via Telegram'}
+                  </button>
+
+                  {fpOpen && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
+                      {fpStep === 'email' ? (
+                        <>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Registered Email</label>
+                            <input
+                              type="email"
+                              value={fpEmail}
+                              onChange={e => setFpEmail(e.target.value)}
+                              className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                              placeholder="Your registered email"
+                            />
+                          </div>
+                          <button
+                            onClick={fpSendCode}
+                            disabled={fpLoading || !fpEmail}
+                            className="w-full px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {fpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                            Send Reset Code to Telegram
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-gray-600">
+                            A reset code was sent to <strong>your Telegram bot</strong> for <strong>{fpEmail}</strong>.
+                            Check your bot's messages in Telegram.
+                          </p>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Code from Telegram</label>
+                            <input
+                              type="text"
+                              value={fpCode}
+                              onChange={e => setFpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-center tracking-widest font-bold"
+                              placeholder="000000"
+                              maxLength={6}
+                              inputMode="numeric"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">New Password</label>
+                            <input
+                              type="password"
+                              value={fpNewPw}
+                              onChange={e => setFpNewPw(e.target.value)}
+                              className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                              placeholder="Min 8 chars, uppercase, number"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Confirm New Password</label>
+                            <input
+                              type="password"
+                              value={fpConfirmPw}
+                              onChange={e => setFpConfirmPw(e.target.value)}
+                              className="w-full mt-1 px-3 py-2 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                              placeholder="Repeat new password"
+                            />
+                          </div>
+                          <button
+                            onClick={fpResetPw}
+                            disabled={fpLoading || fpCode.length !== 6 || !fpNewPw || !fpConfirmPw}
+                            className="w-full px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {fpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                            Reset Password
+                          </button>
+                          <button
+                            onClick={() => { setFpStep('email'); setFpCode(''); setFpNewPw(''); setFpConfirmPw(''); }}
+                            className="w-full text-center text-[11px] text-gray-400 hover:text-gray-600 font-medium transition-colors"
+                          >
+                            ← Use different email
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
           </div>
         )}
 
