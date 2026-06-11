@@ -27,11 +27,11 @@ export function useDisableDevTools() {
     let menu: HTMLDivElement | null = null;
 
     const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-
-      // Completely disable right-click on textareas/inputs (no menu at all)
+      // Let native context menu work on inputs/textareas (copy/paste on mobile)
       const target = e.target as HTMLElement;
       if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT' || target?.closest('textarea') || target?.closest('input')) return;
+
+      e.preventDefault();
 
       // Only show custom menu inside admin dashboard
       const path = window.location.pathname.replace(/^\//, '').split('/')[0];
@@ -104,7 +104,11 @@ export function useDisableDevTools() {
 
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('contextmenu', handleContextMenu);
-    const preventCtx = (e: MouseEvent) => e.preventDefault();
+    const preventCtx = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT' || target?.closest('textarea') || target?.closest('input')) return;
+      e.preventDefault();
+    };
     window.addEventListener('contextmenu', preventCtx, { capture: true });
     return () => {
       document.removeEventListener('keydown', handleKeyDown);

@@ -83,7 +83,7 @@ export default function BottomNav() {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 z-50 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] pb-safe">
+      <nav className="bottomnav-panel md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 z-50 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] pb-safe">
         <div className="flex justify-around items-center h-[68px] px-1">
           {navItems.map(({ to, icon: Icon, label }) => (
             <NavLink

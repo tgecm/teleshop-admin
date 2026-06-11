@@ -66,7 +66,7 @@ export default function TopBar() {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-indigo-600 shadow-[0_2px_16px_rgba(99,102,241,0.3)]">
+    <header className="topbar-panel sticky top-0 z-40 w-full bg-indigo-600 shadow-[0_2px_16px_rgba(99,102,241,0.3)]">
       <div className="flex items-center justify-between h-10 md:h-16 px-2 md:px-6 lg:px-8 gap-1 md:gap-4">
         <div className="flex items-center gap-2.5">
           <span className="text-white text-base md:text-xl lg:text-2xl font-black tracking-widest uppercase truncate max-w-[130px] sm:max-w-[220px] md:max-w-[300px] lg:max-w-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>

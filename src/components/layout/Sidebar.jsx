@@ -72,7 +72,7 @@ export default function Sidebar() {
   const isTelegramActive = telegramItems.some(item => location.pathname.startsWith(item.to));
 
   return (
-    <aside className="hidden md:flex flex-col w-64 lg:w-72 bg-white border-r border-gray-100 h-full overflow-y-auto scrollbar-hide">
+    <aside className="sidebar-panel hidden md:flex flex-col w-64 lg:w-72 bg-white border-r border-gray-100 h-full overflow-y-auto scrollbar-hide">
       {/* Navigation */}
       <div className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto scrollbar-hide">
         {navItems.map(({ to, icon: Icon, label }) => (
