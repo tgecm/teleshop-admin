@@ -87,14 +87,14 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
 
   if (isLoading) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-12 flex justify-center">
+      <div className="px-4 md:px-8 xl:px-16 py-12 flex justify-center max-w-[1600px] mx-auto">
         <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6">
+    <div className="px-4 md:px-8 xl:px-16 py-6 max-w-[1600px] mx-auto">
       {/* Search + Sort */}
       <div className="flex items-center gap-2 mb-4">
         <button onClick={() => setShowSearch(!showSearch)}
@@ -149,7 +149,7 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
           <p className="text-sm text-gray-400 font-medium">No products found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 pb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 pb-8">
           {filteredProducts.map((product, i) => {
             const images = getPublicImageUrls(product.image_url, shop?.id);
             const qty = cartQty(product.id);
@@ -184,7 +184,12 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
                   {product.description && (
                     <p className="text-[10px] text-gray-400 line-clamp-2 mt-0.5">{product.description}</p>
                   )}
-                  <p className="text-sm font-black text-indigo-600 mt-1">{formatPrice(product.price)} MMK</p>
+                  <div className="flex items-baseline gap-1.5 mt-1">
+                    {product.original_price > 0 && (
+                      <p className="text-xs line-through text-red-400 font-medium">{formatPrice(product.original_price)} MMK</p>
+                    )}
+                    <p className="text-sm font-black text-indigo-600">{formatPrice(product.price)} MMK</p>
+                  </div>
 
                   {/* Add to Cart */}
                   {qty > 0 ? (

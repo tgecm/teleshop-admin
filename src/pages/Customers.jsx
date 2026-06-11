@@ -8,12 +8,15 @@ import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import PullToRefresh from '../components/shared/PullToRefresh';
 import {
-  Search, User, ShoppingBag, Ban, MessageSquare, Calendar, Clock,
+  Search, User, ShoppingBag, Ban, MessageSquare, Clock,
   ShieldAlert, ShieldCheck, Loader2, Phone, Mail, MapPin, X,
-  Package, Hash, DollarSign, ChevronDown, Globe, Smartphone
+  Package, Hash, DollarSign, ChevronDown, Globe, Smartphone,
+  AtSign, MessageCircle, FileText
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
+
+const API_BASE = 'https://api.telegramecommerce.shop';
 
 export default function Customers() {
   const { selectedBotId } = useBotStore();
@@ -64,6 +67,19 @@ export default function Customers() {
   const getCustomerOrderCount = (customerId) => {
     return orders?.filter(o => o.customer_id === customerId).length || 0;
   };
+
+  const profileUid = detailCustomer?.telegram_id
+    ? String(detailCustomer.telegram_id)
+    : detailCustomer?.firebase_uid || detailCustomer?.uid || '';
+
+  const { data: customerProfile } = useQuery({
+    queryKey: ['customer-profile', selectedBotId, profileUid],
+    queryFn: () =>
+      fetch(`${API_BASE}/api/customer-profile?bot_id=${selectedBotId}&uid=${encodeURIComponent(profileUid)}`)
+        .then(r => r.ok ? r.json() : null),
+    enabled: !!selectedBotId && !!profileUid && !!detailCustomer,
+    staleTime: 30000,
+  });
 
   const filteredCustomers = customers?.filter(c => {
     if (filterTab === 'blocked' && !c.is_blocked) return false;
@@ -345,37 +361,31 @@ export default function Customers() {
 
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
                 <div className="bg-gray-50 rounded-2xl p-4 space-y-4">
-                  {detailCustomer.telegram_id ? (
-                    <>
-                      {detailCustomer.created_at && (
-                        <DetailRow icon={Calendar} label="Joined" value={myanmarFormat(detailCustomer.created_at, 'MMM d, yyyy')} />
-                      )}
-                      {detailCustomer.phone_number && (
-                        <DetailRow icon={Phone} label="Phone" value={detailCustomer.phone_number} />
-                      )}
-                      {detailCustomer.email && (
-                        <DetailRow icon={Mail} label="Email" value={detailCustomer.email} />
-                      )}
-                      {detailCustomer.address && (
-                        <DetailRow icon={MapPin} label="Address" value={detailCustomer.address} />
-                      )}
-                      {detailCustomer.telegram_id && (
-                        <DetailRow icon={Hash} label="Telegram ID" value={detailCustomer.telegram_id.toString()} />
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {detailCustomer.created_at && (
-                        <DetailRow icon={Calendar} label="Joined" value={myanmarFormat(detailCustomer.created_at, 'MMM d, yyyy')} />
-                      )}
-                      {detailCustomer.email && (
-                        <DetailRow icon={Mail} label="Email" value={detailCustomer.email} />
-                      )}
-                      {detailCustomer.phone_number && (
-                        <DetailRow icon={Phone} label="Phone" value={detailCustomer.phone_number} />
-                      )}
-                    </>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Profile Details</p>
+                  {detailCustomer.telegram_id && (
+                    <DetailRow icon={Hash} label="Telegram ID" value={detailCustomer.telegram_id.toString()} />
                   )}
+                  <DetailRow icon={User} label="Full Name" value={
+                    customerProfile?.display_name || detailCustomer.display_name || detailCustomer.first_name || null
+                  } />
+                  <DetailRow icon={Phone} label="Phone" value={
+                    customerProfile?.phone || detailCustomer.phone || detailCustomer.phone_number || null
+                  } />
+                  <DetailRow icon={Mail} label="Email" value={
+                    customerProfile?.email || detailCustomer.email || null
+                  } />
+                  <DetailRow icon={AtSign} label="Telegram Username" value={
+                    customerProfile?.telegram_username || detailCustomer.telegram_username || detailCustomer.username || null
+                  } />
+                  <DetailRow icon={MessageCircle} label="Viber Number" value={
+                    customerProfile?.viber_number || detailCustomer.viber_number || null
+                  } />
+                  <DetailRow icon={MapPin} label="Address" value={
+                    customerProfile?.address || detailCustomer.address || null
+                  } />
+                  <DetailRow icon={FileText} label="Notes" value={
+                    customerProfile?.notes || detailCustomer.notes || null
+                  } />
                 </div>
 
                 <div>
@@ -460,7 +470,11 @@ function DetailRow({ icon: Icon, label, value }) {
       </div>
       <div className="min-w-0">
         <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{label}</p>
-        <p className="text-sm font-bold text-gray-900 truncate">{value}</p>
+        {value ? (
+          <p className="text-sm font-bold text-gray-900 truncate">{value}</p>
+        ) : (
+          <p className="text-sm text-gray-300 italic">Not Added Yet</p>
+        )}
       </div>
     </div>
   );
