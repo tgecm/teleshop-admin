@@ -3,6 +3,9 @@ import client from './client';
 export const getPublicShop = (slug) =>
   client.get(`/public/shop/${slug}`).then(res => res.data);
 
+export const getPublicTopProducts = (slug, limit = 10) =>
+  client.get(`/public/shop/${slug}/top-products`, { params: { limit } }).then(res => res.data);
+
 export const getBotPublicSlug = (botId) =>
   client.get(`/bots/${botId}/public-slug`).then(res => res.data);
 

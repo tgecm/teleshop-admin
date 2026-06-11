@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +8,7 @@ import { useTelegramAuth } from '../context/TelegramAuthContext';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { useCartState } from '../context/CartContext';
 import { myanmarFormat } from '../utils/date';
+import { getPublicTopProducts } from '../api/public';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
@@ -78,7 +80,8 @@ import {
   ShoppingBag, Package, Clock, CheckCircle2, XCircle, ChevronRight,
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
   ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
-  CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw
+  CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw,
+  TrendingUp, Star
 } from 'lucide-react';
 import Receipt from '../components/orders/Receipt';
 import CustomerShopTab from '../components/CustomerShopTab';
@@ -302,12 +305,12 @@ export default function CustomerDashboard({ shopSlug }) {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-gradient-to-r from-indigo-600 to-purple-600 shadow-md">
-        <div className="flex items-center justify-between px-4 h-12">
+        <div className="flex items-center justify-between px-4 md:px-8 xl:px-16 h-12">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-7 h-7 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
               <ShoppingBag className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-white text-sm font-bold truncate">{shopName}</h1>
+            <h1 className="text-white text-sm font-bold truncate">Hello, {savedName || displayName}!</h1>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => { setRefreshKey(k => k + 1); setRefreshing(true); }}
@@ -321,9 +324,6 @@ export default function CustomerDashboard({ shopSlug }) {
             {photoUrl && (
               <img src={photoUrl} alt="" className="w-6 h-6 rounded-full ring-2 ring-white/30" />
             )}
-            <span className="text-white text-xs font-medium ml-1.5 truncate max-w-[100px]">
-              {savedName || displayName}
-            </span>
           </div>
         </div>
       </header>
@@ -338,7 +338,7 @@ export default function CustomerDashboard({ shopSlug }) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.15 }}
           >
-            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} orderStats={orderStats} />}
+            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} orderStats={orderStats} banners={shopData?.banners || []} />}
             {activeTab === 'shop' && <CustomerShopTab shopSlug={shopSlug} shop={shopData?.shop} user={user} />}
             {activeTab === 'newsfeed' && (
               <div className="fixed inset-0 z-50">
@@ -361,7 +361,7 @@ export default function CustomerDashboard({ shopSlug }) {
 
       {/* Bottom Tab Nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-        <div className="max-w-lg mx-auto flex">
+        <div className="max-w-[1600px] mx-auto flex px-4 md:px-8 xl:px-16">
           {[
             { id: 'overview', label: 'Home', icon: Home },
             { id: 'shop', label: 'Shop', icon: ShoppingBag },
@@ -468,9 +468,10 @@ export default function CustomerDashboard({ shopSlug }) {
 }
 
 /* ─── OVERVIEW TAB ─── */
-function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate, shop, orderStats }) {
+function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate, shop, orderStats, banners }) {
   const { cartCount } = useCartState(shop?.id, shopSlug, user, 'ecommerce');
   const [shopBio, setShopBio] = useState('');
+  const [bannerIndex, setBannerIndex] = useState(0);
 
   useEffect(() => {
     if (shop?.shop_bio?.text) setShopBio(shop.shop_bio.text);
@@ -482,6 +483,12 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
     }
   }, [shop?.id, shop?.shop_bio?.text]);
 
+  useEffect(() => {
+    if (!banners || banners.length < 2) return;
+    const timer = setInterval(() => setBannerIndex(prev => (prev + 1) % banners.length), 5000);
+    return () => clearInterval(timer);
+  }, [banners]);
+
   const stats = [
     { label: 'Total Orders', value: orderStats?.total, icon: Package, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { label: 'Pending', value: orderStats?.pending, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -489,26 +496,69 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
     { label: 'Cart Items', value: cartCount, icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
   ];
 
+  const { data: topProducts, isLoading: topLoading } = useQuery({
+    queryKey: ['public-top-products', shopSlug],
+    queryFn: () => getPublicTopProducts(shopSlug, 10),
+    enabled: !!shopSlug,
+    staleTime: 60000,
+  });
+
+  const formatPrice = (price) => Number(price).toLocaleString();
+
+  const productImg = (product) => {
+    const url = product.image_url;
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    try {
+      const parsed = JSON.parse(url);
+      if (Array.isArray(parsed)) {
+        const fileId = parsed.find(m => m.type === 'photo' || m.file_id)?.file_id;
+        if (fileId) return `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(fileId)}?bot_id=${shop?.id}`;
+      }
+    } catch {}
+    return `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(url)}?bot_id=${shop?.id}`;
+  };
+
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-      {/* Welcome */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
-      >
-        <div className="flex items-center gap-3">
-          {photoUrl && (
-            <img src={photoUrl} alt="" className="w-12 h-12 rounded-full ring-2 ring-indigo-100" />
-          )}
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">
-              Hello, {displayName || 'there'}!
-            </h2>
-            <p className="text-sm text-gray-500">Welcome back to {shopName}</p>
-          </div>
-        </div>
-      </motion.div>
+    <div className="px-4 md:px-8 xl:px-16 py-6 max-w-[1600px] mx-auto">
+      <div className="lg:grid lg:grid-cols-3 lg:gap-6 space-y-6 lg:space-y-0">
+        <div className="lg:col-span-2 space-y-6">
+      {/* Banners */}
+      {banners?.length > 0 && (() => {
+        const banner = banners[bannerIndex];
+        const url = banner?.file_id
+          ? `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(banner.file_id)}?bot_id=${shop?.id}`
+          : banner?.image_url || '';
+        if (!url) return null;
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="overflow-hidden rounded-2xl relative"
+          >
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={bannerIndex}
+                src={url}
+                alt={`Banner ${bannerIndex + 1}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                className="w-full aspect-[2/1] object-cover rounded-xl"
+                onError={(e) => { e.target.style.display = 'none'; }} />
+            </AnimatePresence>
+            {banners.length > 1 && (
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {banners.map((_, i) => (
+                  <button key={i} onClick={() => setBannerIndex(i)}
+                    className={`w-1.5 h-1.5 rounded-full transition-all ${i === bannerIndex ? 'bg-white w-3' : 'bg-white/50'}`} />
+                ))}
+              </div>
+            )}
+          </motion.div>
+        );
+      })()}
 
       {/* Shop Bio */}
       {shopBio && (
@@ -522,7 +572,7 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
       )}
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (
@@ -544,7 +594,7 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <button
           onClick={() => onNavigate('orders')}
           className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left hover:shadow-md transition-all active:scale-[0.98]"
@@ -579,6 +629,71 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
         </a>
       </div>
     </div>
+
+    {/* Popular Products */}
+    <div className="lg:col-span-1 space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+      >
+        <div className="flex items-center gap-2 p-4 border-b border-gray-50">
+          <TrendingUp className="w-4 h-4 text-rose-500" strokeWidth={2.5} />
+          <h3 className="text-sm font-bold text-gray-900">Popular Products</h3>
+          {topProducts?.length > 0 && (
+            <span className="ml-auto text-[10px] font-bold text-gray-400">Top {topProducts.length}</span>
+          )}
+        </div>
+
+        {topLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-gray-300" />
+          </div>
+        ) : !topProducts || topProducts.length === 0 ? (
+          <div className="py-8 text-center">
+            <Package className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+            <p className="text-xs text-gray-400 font-medium">No sales data yet</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {topProducts.map((product, i) => {
+              return (
+                <div key={product.id} className="flex items-center gap-3 p-3 hover:bg-gray-50/50 transition-colors">
+                  {/* Rank badge */}
+                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                    i === 0 ? 'bg-amber-100 text-amber-700' :
+                    i === 1 ? 'bg-gray-100 text-gray-500' :
+                    i === 2 ? 'bg-orange-100 text-orange-700' :
+                    'bg-gray-50 text-gray-400'
+                  }`}>
+                    {i < 3 ? <Star className="w-3.5 h-3.5" fill="currentColor" /> : i + 1}
+                  </div>
+
+                  {/* Product image */}
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center shrink-0 overflow-hidden">
+                    <img src={productImg(product)} alt={product.name} className="w-full h-full object-cover"
+                      onError={(e) => { e.target.style.display = 'none'; }} />
+                  </div>
+
+                  {/* Product info */}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {product.original_price > 0 && (
+                        <span className="text-[10px] line-through text-red-300 font-medium">{formatPrice(product.original_price)}</span>
+                      )}
+                      <span className="text-xs font-black text-indigo-600">{formatPrice(product.price)} MMK</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+    </div>
+  </div>
+  </div>
   );
 }
 
@@ -590,7 +705,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
 
   if (loading) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-12 flex justify-center">
+      <div className="px-4 md:px-8 xl:px-16 py-12 flex justify-center max-w-[1600px] mx-auto">
         <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
       </div>
     );
@@ -598,7 +713,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
 
   if (orders.length === 0) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+      <div className="px-4 md:px-8 xl:px-16 py-16 text-center max-w-[1600px] mx-auto">
         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Package className="w-10 h-10 text-gray-300" />
         </div>
@@ -619,7 +734,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
 
   return (
     <>
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-3">
+      <div className="px-4 md:px-8 xl:px-16 py-6 space-y-3 max-w-[1600px] mx-auto">
       <h2 className="text-lg font-bold text-gray-900 mb-1">My Orders</h2>
       {orders.map(order => {
         const status = statusConfig[order.status] || statusConfig.pending;
@@ -826,7 +941,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
 
   if (loading) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-12 flex justify-center">
+      <div className="px-4 md:px-8 xl:px-16 py-12 flex justify-center max-w-[1600px] mx-auto">
         <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
       </div>
     );
@@ -845,7 +960,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
 
   if (cartItems.length === 0) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+      <div className="px-4 md:px-8 xl:px-16 py-16 text-center max-w-[1600px] mx-auto">
         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <ShoppingCart className="w-10 h-10 text-gray-300" />
         </div>
@@ -868,7 +983,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
 
   return (
     <>
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-3">
+      <div className="px-4 md:px-8 xl:px-16 py-6 space-y-3 max-w-[1600px] mx-auto">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-lg font-bold text-gray-900">My Cart</h2>
           <span className="text-xs font-medium text-gray-400">{cartItems.length} item{cartItems.length !== 1 ? 's' : ''}</span>
@@ -1108,14 +1223,14 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
 
   if (loading) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-12 flex justify-center">
+      <div className="px-4 md:px-8 xl:px-16 py-12 flex justify-center max-w-[1600px] mx-auto">
         <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
+    <div className="px-4 md:px-8 xl:px-16 py-6 space-y-5 max-w-[1600px] mx-auto">
       {/* User Card */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -1821,7 +1936,7 @@ function OrderConfirmationInline({ orderData, shop, onContinueShopping, shopSlug
     <>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        className="max-w-lg mx-auto px-4 py-16 text-center"
+        className="px-4 md:px-8 xl:px-16 py-16 text-center max-w-[1600px] mx-auto"
       >
         <motion.div
           initial={{ scale: 0 }} animate={{ scale: 1 }}
