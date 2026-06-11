@@ -1,19 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
-/* Allow text selection in form fields and all their descendants */
-input, textarea, select, [contenteditable],
-[contenteditable] * {
-  -webkit-user-select: text !important;
-  user-select: text !important;
+/* Block text selection globally via html/body (inheritance-based) */
+html, body, #root {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
 }
 
-/* Block text selection on everything else */
-*:not(input):not(textarea):not(select):not([contenteditable]) {
-  -webkit-user-select: none !important;
-  user-select: none !important;
-  -webkit-touch-callout: none !important;
-  -webkit-user-drag: none !important;
+/* Allow text selection in form fields and interactive areas */
+input, textarea, select, [contenteditable],
+[contenteditable] *,
+.login-form-container, .login-form-container * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
 }
 
 /* Custom selection color in form fields */
