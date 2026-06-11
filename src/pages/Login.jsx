@@ -23,31 +23,94 @@ export default function Login() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [staffMode, setStaffMode] = useState(false);
   const [username, setUsername] = useState('');
-  const [pastePopup, setPastePopup] = useState({ show: false, x: 0, y: 0, target: null });
+  const [menuPos, setMenuPos] = useState({ show: false, x: 0, y: 0, hasSel: false });
+  const menuTargetRef = useRef(null);
 
-  const showPasteMenu = useCallback((e, inputEl) => {
+  const showInputMenu = useCallback((e, inputEl) => {
     e.preventDefault();
-    setPastePopup({ show: true, x: e.clientX, y: e.clientY, target: inputEl });
+    e.stopPropagation();
+    menuTargetRef.current = inputEl;
+    const hasSel = inputEl.selectionStart !== inputEl.selectionEnd;
+    setMenuPos({ show: true, x: e.clientX, y: e.clientY, hasSel });
   }, []);
 
-  const hidePasteMenu = useCallback(() => {
-    setPastePopup(prev => ({ ...prev, show: false, target: null }));
+  const hideInputMenu = useCallback(() => {
+    menuTargetRef.current = null;
+    setMenuPos({ show: false, x: 0, y: 0, hasSel: false });
   }, []);
 
-  const handlePaste = useCallback(async () => {
-    const el = pastePopup.target;
-    if (!el) { hidePasteMenu(); return; }
+  const execCopy = useCallback(() => {
+    const el = menuTargetRef.current;
+    if (!el) return;
+    el.focus();
+    if (el.selectionStart !== el.selectionEnd) {
+      document.execCommand('copy');
+    }
+    hideInputMenu();
+  }, []);
+
+  const execCut = useCallback(() => {
+    const el = menuTargetRef.current;
+    if (!el) return;
+    el.focus();
+    if (el.selectionStart !== el.selectionEnd) {
+      document.execCommand('cut');
+    }
+    hideInputMenu();
+  }, []);
+
+  const execPaste = useCallback(async () => {
+    const el = menuTargetRef.current;
+    menuTargetRef.current = null;
+    setMenuPos({ show: false, x: 0, y: 0, hasSel: false });
+    if (!el) return;
+    let text = '';
     try {
-      const text = await navigator.clipboard.readText();
+      text = await navigator.clipboard.readText();
+    } catch {
+      try {
+        text = await new Promise((resolve) => {
+          const ta = document.createElement('textarea');
+          ta.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0';
+          document.body.appendChild(ta);
+          ta.focus();
+          const handler = (ev) => { resolve(ev.clipboardData?.getData('text') || ''); };
+          ta.addEventListener('paste', handler, { once: true });
+          document.execCommand('paste');
+          setTimeout(() => { document.body.removeChild(ta); resolve(''); }, 100);
+        });
+      } catch { text = ''; }
+    }
+    if (text && el) {
       const start = el.selectionStart ?? el.value.length;
       const end = el.selectionEnd ?? el.value.length;
-      el.value = el.value.slice(0, start) + text + el.value.slice(end);
+      const newVal = el.value.slice(0, start) + text + el.value.slice(end);
+      const field = el.dataset?.field;
+      const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      if (nativeSetter) {
+        nativeSetter.call(el, newVal);
+      } else {
+        el.value = newVal;
+      }
+      const ev = new Event('input', { bubbles: true });
+      el.dispatchEvent(ev);
       el.selectionStart = el.selectionEnd = start + text.length;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
       el.focus();
-    } catch {}
-    hidePasteMenu();
-  }, [pastePopup.target]);
+      if (field === 'password') setPassword(newVal);
+      else if (field === 'email') {
+        if (staffMode) setUsername(newVal);
+        else setEmail(newVal);
+      } else if (field === 'code') {
+        const digits = text.replace(/\D/g, '').split('').slice(0, 6);
+        const next = [...code];
+        const idx = codeRefs.current.indexOf(el);
+        if (idx >= 0) {
+          digits.forEach((d, i) => { if (idx + i < 6) next[idx + i] = d; });
+        }
+        setCode(next);
+      }
+    }
+  }, [staffMode, code]);
 
   useEffect(() => {
     if (needsCode && codeRefs.current[0]) codeRefs.current[0].focus();
@@ -173,7 +236,7 @@ export default function Login() {
           <div className="text-center mb-8 sm:mb-10">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome Back</h1>
             <p className="text-gray-500 mt-1 sm:mt-2 text-sm sm:text-base">
-              {needsCode ? (staffMode ? 'Ask your admin to check in Telegram for 2FA codes' : 'Enter the code sent to your Telegram') : (staffMode ? 'Sign in with your staff account' : 'Sign in to manage your Multi-Platform E-commerce')}
+              {needsCode ? (staffMode ? 'Ask your admin to check in Telegram for 2FA codes' : 'Enter the code sent to your Telegram') : (staffMode ? 'Sign in with your staff account' : "Myanmar's First Multi-Platform E-commerce")}
             </p>
             {!needsCode && (
               <button onClick={() => { setStaffMode(!staffMode); setError(''); }}
@@ -202,10 +265,11 @@ export default function Login() {
                   <div className="relative">
                     {staffMode ? <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" /> : <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />}
                     <input
+                      data-field="email"
                       type={staffMode ? 'text' : 'email'}
                       value={staffMode ? username : email}
                       onChange={(e) => staffMode ? setUsername(e.target.value) : setEmail(e.target.value)}
-                      onContextMenu={(e) => showPasteMenu(e, e.currentTarget)}
+                      onContextMenu={(e) => showInputMenu(e, e.currentTarget)}
                       required
                       className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base"
                       placeholder={staffMode ? 'staff_username' : 'example@gmail.com'}
@@ -218,10 +282,11 @@ export default function Login() {
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
+                      data-field="password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      onContextMenu={(e) => showPasteMenu(e, e.currentTarget)}
+                      onContextMenu={(e) => showInputMenu(e, e.currentTarget)}
                       required
                       className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base"
                       placeholder="••••••••"
@@ -250,12 +315,13 @@ export default function Login() {
                   {code.map((digit, i) => (
                     <input
                       key={i}
+                      data-field="code"
                       ref={(el) => { codeRefs.current[i] = el; }}
                       className="w-12 h-14 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                       type="text"
                       inputMode="numeric"
                       value={digit}
-                      onContextMenu={(e) => showPasteMenu(e, e.currentTarget)}
+                      onContextMenu={(e) => showInputMenu(e, e.currentTarget)}
                       onChange={(e) =>{
                         const raw = e.target.value.replace(/\D/g, '');
                         if (raw.length > 1) {
@@ -298,24 +364,36 @@ export default function Login() {
 
         <div className="bg-gray-50 p-6 text-center border-t border-gray-100">
           <p className="text-sm text-gray-500">
-            Don't have an account? <a href="https://t.me/ecommercemyanmarbot" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-semibold hover:underline">Contact Support</a>
+            Don't have an account? <a href="https://t.me/tg_ecommerce_official_bot?start=newbot" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-semibold hover:underline">Create Your Shop</a>
           </p>
         </div>
       </motion.div>
     </div>
 
-    {/* Custom Paste Popup */}
-    {pastePopup.show && (
+    {/* Custom Input Context Menu: Cut / Copy / Paste */}
+    {menuPos.show && (
       <>
-        <div className="fixed inset-0 z-50" onClick={hidePasteMenu} />
+        <div className="fixed inset-0 z-50" onClick={hideInputMenu} />
         <div
           className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden"
-          style={{ left: Math.min(pastePopup.x, window.innerWidth - 140), top: Math.min(pastePopup.y, window.innerHeight - 50) }}
+          style={{ left: Math.min(menuPos.x, window.innerWidth - 160), top: Math.min(menuPos.y, window.innerHeight - (menuPos.hasSel ? 140 : 56)) }}
         >
-          <button
-            onClick={handlePaste}
-            className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors w-full text-left"
-          >
+          {menuPos.hasSel && (
+            <>
+              <button onClick={execCut}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors w-full text-left border-b border-gray-100">
+                <span className="w-5 h-5 flex items-center justify-center text-xs font-bold border border-gray-300 rounded px-1">✂</span>
+                Cut
+              </button>
+              <button onClick={execCopy}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors w-full text-left border-b border-gray-100">
+                <span className="w-5 h-5 flex items-center justify-center text-xs font-bold border border-gray-300 rounded px-0.5">📄</span>
+                Copy
+              </button>
+            </>
+          )}
+          <button onClick={execPaste}
+            className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors w-full text-left">
             <Clipboard className="w-4 h-4 text-indigo-600" />
             Paste
           </button>
