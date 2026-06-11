@@ -1539,6 +1539,11 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [agreed1, setAgreed1] = useState(false);
   const [agreed2, setAgreed2] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(null);
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const effectiveTotal = couponApplied ? totalAmount - couponApplied.discount : totalAmount;
 
   const loadContactCache = () => {
     const cacheKey = 'checkout_contact_' + shopSlug;
@@ -1610,6 +1615,32 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
     const reader = new FileReader();
     reader.onload = () => setProofPreview(reader.result);
     reader.readAsDataURL(file);
+  };
+
+  const applyCoupon = async () => {
+    const code = couponCode.trim().toUpperCase();
+    if (!code || !shop?.id) return;
+    setCouponLoading(true);
+    setCouponError('');
+    setCouponApplied(null);
+    try {
+      const res = await fetch(API_BASE + '/public/coupon/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bot_id: shop.id, code, cart_total: totalAmount }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setCouponError(data.detail || data.message || 'Invalid coupon'); return; }
+      setCouponApplied(data);
+      setCouponCode('');
+    } catch { setCouponError('Failed to validate coupon'); }
+    finally { setCouponLoading(false); }
+  };
+
+  const removeCoupon = () => {
+    setCouponApplied(null);
+    setCouponError('');
+    setCouponCode('');
   };
 
   const handleSubmit = async () => {
@@ -1710,10 +1741,10 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
             variant_label: vp.join(', '),
           };
         }),
-        total_amount: totalAmount,
+        total_amount: effectiveTotal,
       };
       if (paymentProof) body.payment_proof = paymentProof;
-      if (selectedPayment?.name) body.payment_method = selectedPayment.name;
+      if (couponApplied?.code) body.coupon_code = couponApplied.code;
 
       const res = await fetch(API_BASE + '/public/create-order', {
         method: 'POST',
@@ -1768,10 +1799,44 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
               <span className="font-medium text-gray-900">{formatPrice(item.price * item.quantity)} MMK</span>
             </div>
           ))}
+          {couponApplied && (
+            <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between text-sm">
+              <span className="text-emerald-600 font-medium">Discount ({couponApplied.code})</span>
+              <span className="text-emerald-600 font-medium">-{formatPrice(couponApplied.discount)} MMK</span>
+            </div>
+          )}
           <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-bold text-gray-900">
             <span>Total</span>
-            <span>{formatPrice(totalAmount)} MMK</span>
+            <span>{formatPrice(effectiveTotal)} MMK</span>
           </div>
+        </div>
+
+        {/* Coupon Code */}
+        <div className="mb-6">
+          {couponApplied ? (
+            <div className="flex items-center justify-between bg-emerald-50 rounded-xl px-4 py-3 border border-emerald-200">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-bold text-emerald-700">{couponApplied.code}</span>
+                <span className="text-xs text-emerald-600">(-{formatPrice(couponApplied.discount)} MMK)</span>
+              </div>
+              <button onClick={removeCoupon} className="text-xs font-bold text-rose-500 hover:text-rose-700">Remove</button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex gap-2">
+                <input type="text" value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                  placeholder="Coupon code"
+                  className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm uppercase"
+                  onKeyDown={e => e.key === 'Enter' && applyCoupon()} />
+                <button onClick={applyCoupon} disabled={couponLoading || !couponCode.trim()}
+                  className="px-5 py-3 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50">
+                  {couponLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                </button>
+              </div>
+              {couponError && <p className="text-xs text-rose-500 mt-1.5">{couponError}</p>}
+            </div>
+          )}
         </div>
 
         {/* Form Fields */}
