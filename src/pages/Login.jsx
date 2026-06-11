@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { login as loginApi, verifyLoginCode } from '../api/auth';
 import client from '../api/client';
 import { useBotStore } from '../store/botStore';
 import { motion } from 'motion/react';
-import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff, User, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff, User, ShieldCheck, Clipboard } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -23,6 +23,31 @@ export default function Login() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [staffMode, setStaffMode] = useState(false);
   const [username, setUsername] = useState('');
+  const [pastePopup, setPastePopup] = useState({ show: false, x: 0, y: 0, target: null });
+
+  const showPasteMenu = useCallback((e, inputEl) => {
+    e.preventDefault();
+    setPastePopup({ show: true, x: e.clientX, y: e.clientY, target: inputEl });
+  }, []);
+
+  const hidePasteMenu = useCallback(() => {
+    setPastePopup(prev => ({ ...prev, show: false, target: null }));
+  }, []);
+
+  const handlePaste = useCallback(async () => {
+    const el = pastePopup.target;
+    if (!el) { hidePasteMenu(); return; }
+    try {
+      const text = await navigator.clipboard.readText();
+      const start = el.selectionStart ?? el.value.length;
+      const end = el.selectionEnd ?? el.value.length;
+      el.value = el.value.slice(0, start) + text + el.value.slice(end);
+      el.selectionStart = el.selectionEnd = start + text.length;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.focus();
+    } catch {}
+    hidePasteMenu();
+  }, [pastePopup.target]);
 
   useEffect(() => {
     if (needsCode && codeRefs.current[0]) codeRefs.current[0].focus();
@@ -180,9 +205,10 @@ export default function Login() {
                       type={staffMode ? 'text' : 'email'}
                       value={staffMode ? username : email}
                       onChange={(e) => staffMode ? setUsername(e.target.value) : setEmail(e.target.value)}
+                      onContextMenu={(e) => showPasteMenu(e, e.currentTarget)}
                       required
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base select-text"
-                      placeholder={staffMode ? 'staff_username' : 'name@example.com'}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base"
+                      placeholder={staffMode ? 'staff_username' : 'example@gmail.com'}
                     />
                   </div>
                 </div>
@@ -195,8 +221,9 @@ export default function Login() {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      onContextMenu={(e) => showPasteMenu(e, e.currentTarget)}
                       required
-                      className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base select-text"
+                      className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base"
                       placeholder="••••••••"
                     />
                     <button
@@ -224,10 +251,11 @@ export default function Login() {
                     <input
                       key={i}
                       ref={(el) => { codeRefs.current[i] = el; }}
-                      className="w-12 h-14 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all select-text"
+                      className="w-12 h-14 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                       type="text"
                       inputMode="numeric"
                       value={digit}
+                      onContextMenu={(e) => showPasteMenu(e, e.currentTarget)}
                       onChange={(e) =>{
                         const raw = e.target.value.replace(/\D/g, '');
                         if (raw.length > 1) {
@@ -275,6 +303,25 @@ export default function Login() {
         </div>
       </motion.div>
     </div>
+
+    {/* Custom Paste Popup */}
+    {pastePopup.show && (
+      <>
+        <div className="fixed inset-0 z-50" onClick={hidePasteMenu} />
+        <div
+          className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden"
+          style={{ left: Math.min(pastePopup.x, window.innerWidth - 140), top: Math.min(pastePopup.y, window.innerHeight - 50) }}
+        >
+          <button
+            onClick={handlePaste}
+            className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors w-full text-left"
+          >
+            <Clipboard className="w-4 h-4 text-indigo-600" />
+            Paste
+          </button>
+        </div>
+      </>
+    )}
     </>
   );
 }
