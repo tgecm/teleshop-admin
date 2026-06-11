@@ -173,7 +173,7 @@ export default function Login() {
                       value={staffMode ? username : email}
                       onChange={(e) => staffMode ? setUsername(e.target.value) : setEmail(e.target.value)}
                       required
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base"
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base select-text"
                       placeholder={staffMode ? 'staff_username' : 'name@example.com'}
                     />
                   </div>
@@ -188,7 +188,7 @@ export default function Login() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base"
+                      className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none text-base select-text"
                       placeholder="••••••••"
                     />
                     <button
@@ -216,10 +216,11 @@ export default function Login() {
                     <input
                       key={i}
                       ref={(el) => { codeRefs.current[i] = el; }}
+                      className="w-12 h-14 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all select-text"
                       type="text"
                       inputMode="numeric"
                       value={digit}
-                      onChange={(e) => {
+                      onChange={(e) =>{
                         const raw = e.target.value.replace(/\D/g, '');
                         if (raw.length > 1) {
                           const next = [...code];

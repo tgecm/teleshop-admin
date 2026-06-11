@@ -29,6 +29,10 @@ export function useDisableDevTools() {
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
 
+      // Completely disable right-click on textareas/inputs (no menu at all)
+      const target = e.target as HTMLElement;
+      if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT' || target?.closest('textarea') || target?.closest('input')) return;
+
       // Only show custom menu inside admin dashboard
       const path = window.location.pathname.replace(/^\//, '').split('/')[0];
       const ADMIN_ROUTES = new Set(['dashboard', 'orders', 'products', 'customers', 'broadcast', 'commands', 'payments', 'subscription', 'settings', 'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts']);
