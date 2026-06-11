@@ -22,6 +22,15 @@ import {
   UserCircle,
   Filter,
   Truck,
+  Copy,
+  Phone,
+  Mail,
+  MapPin,
+  AtSign,
+  MessageCircle,
+  FileText,
+  User,
+  Hash,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -271,9 +280,29 @@ export default function Orders() {
 
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900">Order Details</h2>
-                  <button onClick={() => setSelectedOrder(null)} className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform">
-                    <X className="w-5 h-5 text-gray-500" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => {
+                      const bs = selectedOrder.buyer_snapshot || {};
+                      const cust = selectedOrder.customer || {};
+                      const lines = [];
+                      if (cust.telegram_id) lines.push('Telegram ID: ' + cust.telegram_id);
+                      else if (bs.telegram_id) lines.push('Telegram ID: ' + bs.telegram_id);
+                      lines.push('Name: ' + (bs.name || bs.full_name || cust.first_name || 'Unknown'));
+                      lines.push('Phone: ' + (bs.phone || cust.phone_number || '—'));
+                      lines.push('Email: ' + (bs.email || cust.email || '—'));
+                      lines.push('Telegram: ' + (bs.telegram_username || cust.username || '—'));
+                      lines.push('Viber: ' + (bs.viber_number || '—'));
+                      lines.push('Address: ' + (bs.address && bs.address !== 'N/A' ? bs.address : '—'));
+                      lines.push('Notes: ' + (bs.notes || '—'));
+                      navigator.clipboard.writeText(lines.join('\n')).then(() => addToast('Profile copied to clipboard')).catch(() => {});
+                    }} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-indigo-100 transition-all active:scale-95">
+                      <Copy className="w-3.5 h-3.5" />
+                      Copy Info
+                    </button>
+                    <button onClick={() => setSelectedOrder(null)} className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform">
+                      <X className="w-5 h-5 text-gray-500" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-5">
@@ -289,64 +318,28 @@ export default function Orders() {
                       </span>
                       <StatusBadge status={selectedOrder.status} />
                     </div>
-                    {selectedOrder.payment_method === 'website' || selectedOrder.payment_method === 'guest' ? (
-                      <>
-                        {selectedOrder.buyer_snapshot?.phone && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-gray-500">Phone</span>
-                            <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot.phone}</span>
-                          </div>
-                        )}
-                        {selectedOrder.buyer_snapshot?.email && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-gray-500">Email</span>
-                            <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot.email}</span>
-                          </div>
-                        )}
-                        {selectedOrder.buyer_snapshot?.address && selectedOrder.buyer_snapshot.address !== 'N/A' && (
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-xs font-medium text-gray-500 flex-shrink-0 mt-0.5">Address</span>
-                            <span className="text-sm font-bold text-gray-900 text-right max-w-[200px]">{selectedOrder.buyer_snapshot.address}</span>
-                          </div>
-                        )}
-                        {selectedOrder.buyer_snapshot?.telegram_username && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-gray-500">Telegram</span>
-                            <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot.telegram_username}</span>
-                          </div>
-                        )}
-                        {selectedOrder.buyer_snapshot?.viber_number && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-gray-500">Viber</span>
-                            <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot.viber_number}</span>
-                          </div>
-                        )}
-                        {selectedOrder.buyer_snapshot?.notes && (
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-xs font-medium text-gray-500 flex-shrink-0 mt-0.5">Notes</span>
-                            <span className="text-sm font-bold text-gray-900 text-right max-w-[200px]">{selectedOrder.buyer_snapshot.notes}</span>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500">Phone</span>
-                          <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot?.phone || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500">Email</span>
-                          <span className="text-sm font-bold text-gray-900">{selectedOrder.buyer_snapshot?.email || 'N/A'}</span>
-                        </div>
-                        {selectedOrder.buyer_snapshot?.address && selectedOrder.buyer_snapshot.address !== 'N/A' && (
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-xs font-medium text-gray-500 flex-shrink-0 mt-0.5">Address</span>
-                            <span className="text-sm font-bold text-gray-900 text-right max-w-[200px]">{selectedOrder.buyer_snapshot.address}</span>
-                          </div>
-                        )}
-                      </>
-                    )}
                   </div>
+
+                  {/* Customer Profile - unified display for all order types */}
+                  {(() => {
+                    const bs = selectedOrder.buyer_snapshot || {};
+                    const cust = selectedOrder.customer || {};
+                    const label = selectedOrder.payment_method === 'guest' ? 'Guest Info' : selectedOrder.payment_method === 'website' ? 'Customer Profile' : 'Telegram Customer Info';
+                    return (
+                      <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 space-y-3">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
+                        {cust.telegram_id && <DetailRow icon={Hash} label="Telegram ID" value={String(cust.telegram_id)} />}
+                        {!cust.telegram_id && bs.telegram_id && <DetailRow icon={Hash} label="Telegram ID" value={String(bs.telegram_id)} />}
+                        <DetailRow icon={User} label="Name" value={bs.name || bs.full_name || cust.first_name || 'Unknown'} />
+                        <DetailRow icon={Phone} label="Phone" value={bs.phone || cust.phone_number || '—'} />
+                        <DetailRow icon={Mail} label="Email" value={bs.email || cust.email || '—'} />
+                        <DetailRow icon={AtSign} label="Telegram" value={bs.telegram_username || cust.username || '—'} />
+                        <DetailRow icon={MessageCircle} label="Viber" value={bs.viber_number || '—'} />
+                        <DetailRow icon={MapPin} label="Address" value={bs.address && bs.address !== 'N/A' ? bs.address : '—'} />
+                        <DetailRow icon={FileText} label="Notes" value={bs.notes || '—'} />
+                      </div>
+                    );
+                  })()}
 
 
                   <div className="space-y-2.5">
@@ -623,6 +616,20 @@ export default function Orders() {
         onClose={() => setShowReceipt(false)}
         receiptType={receiptType}
       />
+    </div>
+  );
+}
+
+function DetailRow({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+        <Icon className="w-3.5 h-3.5 text-indigo-600" />
+      </div>
+      <div className="min-w-0 flex-1 flex items-center justify-between gap-2">
+        <p className="text-xs text-gray-500 font-medium">{label}</p>
+        <p className="text-sm font-bold text-gray-900 text-right max-w-[200px] break-words">{value}</p>
+      </div>
     </div>
   );
 }
