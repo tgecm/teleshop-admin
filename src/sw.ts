@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {precacheAndRoute} from 'workbox-precaching';
 import {registerRoute} from 'workbox-routing';
-import {CacheFirst, NetworkFirst} from 'workbox-strategies';
+import {CacheFirst, NetworkFirst, StaleWhileRevalidate} from 'workbox-strategies';
 
 precacheAndRoute(self.__WB_MANIFEST);
 
@@ -21,7 +21,7 @@ registerRoute(
     request.destination === 'script' ||
     request.destination === 'font' ||
     request.destination === 'worker',
-  new CacheFirst({cacheName: 'static-cache'}),
+  new StaleWhileRevalidate({cacheName: 'static-cache'}),
 );
 
 registerRoute(
