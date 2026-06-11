@@ -124,6 +124,14 @@ export default function Login() {
   };
 
   return (
+    <>
+    <style>{`
+      .login-form-container,
+      .login-form-container * {
+        -webkit-user-select: text !important;
+        user-select: text !important;
+      }
+    `}</style>
     <div className="min-h-[100dvh] bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 flex items-center justify-center p-4 pt-safe pb-safe">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -161,7 +169,7 @@ export default function Login() {
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6 login-form-container">
             {!needsCode ? (
               <>
                 <div className="space-y-2">
@@ -267,5 +275,6 @@ export default function Login() {
         </div>
       </motion.div>
     </div>
+    </>
   );
 }
