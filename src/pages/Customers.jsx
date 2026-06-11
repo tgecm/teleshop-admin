@@ -11,7 +11,7 @@ import {
   Search, User, ShoppingBag, Ban, MessageSquare, Clock,
   ShieldAlert, ShieldCheck, Loader2, Phone, Mail, MapPin, X,
   Package, Hash, DollarSign, ChevronDown, Globe, Smartphone,
-  AtSign, MessageCircle, FileText
+  AtSign, MessageCircle, FileText, Copy
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -52,7 +52,7 @@ export default function Customers() {
   const { data: orders } = useQuery({
     queryKey: ['orders', selectedBotId],
     queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
-    enabled: !!selectedBotId && section === 'telegram',
+    enabled: !!selectedBotId,
   });
 
   const toggleBlockMutation = useMutation({
@@ -64,9 +64,19 @@ export default function Customers() {
     onError: () => addToast('Failed to update customer status', 'error'),
   });
 
-  const getCustomerOrderCount = (customerId) => {
-    return orders?.filter(o => o.customer_id === customerId).length || 0;
+  const getCustomerOrders = (customer) => {
+    if (!orders || !customer) return [];
+    return orders.filter(o => {
+      const bs = o.buyer_snapshot;
+      if (!bs) return false;
+      if (customer.telegram_id && String(bs.telegram_id) === String(customer.telegram_id)) return true;
+      if (customer.firebase_uid && bs.firebase_uid === customer.firebase_uid) return true;
+      if (customer.email && bs.email === customer.email) return true;
+      return false;
+    });
   };
+
+  const getCustomerOrderCount = (customer) => getCustomerOrders(customer).length;
 
   const profileUid = detailCustomer?.telegram_id
     ? String(detailCustomer.telegram_id)
@@ -80,6 +90,27 @@ export default function Customers() {
     enabled: !!selectedBotId && !!profileUid && !!detailCustomer,
     staleTime: 30000,
   });
+
+  const handleCopyProfile = () => {
+    if (!detailCustomer) return;
+    const c = detailCustomer;
+    const p = customerProfile;
+    const lines = [
+      `Name: ${p?.display_name || c.display_name || c.first_name || '—'}`,
+      `Phone: ${p?.phone || c.phone || c.phone_number || '—'}`,
+      `Email: ${p?.email || c.email || '—'}`,
+      `Telegram: ${p?.telegram_username || c.telegram_username || c.username || '—'}`,
+      `Viber: ${p?.viber_number || c.viber_number || '—'}`,
+      `Address: ${p?.address || c.address || '—'}`,
+      `Notes: ${p?.notes || c.notes || '—'}`,
+    ];
+    if (c.telegram_id) lines.unshift(`Telegram ID: ${c.telegram_id}`);
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      addToast('Profile copied to clipboard');
+    }).catch(() => {
+      addToast('Failed to copy', 'error');
+    });
+  };
 
   const filteredCustomers = customers?.filter(c => {
     if (filterTab === 'blocked' && !c.is_blocked) return false;
@@ -216,7 +247,7 @@ export default function Customers() {
                         <span className="text-gray-300">·</span>
                         <span className="flex items-center gap-1 whitespace-nowrap">
                           <ShoppingBag className="w-3 h-3 text-indigo-600" />
-                          {getCustomerOrderCount(customer.id)} orders
+                          {getCustomerOrderCount(customer)} orders
                         </span>
                       </div>
                     </div>
@@ -351,12 +382,18 @@ export default function Customers() {
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setDetailCustomer(null)}
-                  className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform"
-                >
-                  <X className="w-4 h-4 text-gray-500" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={handleCopyProfile}
+                    className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-indigo-100 transition-all active:scale-95">
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy Info
+                  </button>
+                  <button onClick={() => setDetailCustomer(null)}
+                    className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
@@ -392,42 +429,53 @@ export default function Customers() {
                   <div className="flex items-center gap-2 mb-3">
                     <Package className="w-4 h-4 text-indigo-600" />
                     <h4 className="text-sm font-bold text-gray-900">
-                      Orders ({getCustomerOrderCount(detailCustomer.id)})
+                      Orders ({getCustomerOrderCount(detailCustomer)})
                     </h4>
                   </div>
-                  {orders?.filter(o => o.customer_id === detailCustomer.id).length === 0 ? (
+                  {getCustomerOrders(detailCustomer).length === 0 ? (
                     <div className="bg-gray-50 rounded-2xl p-6 text-center">
                       <ShoppingBag className="w-6 h-6 text-gray-300 mx-auto mb-2" />
                       <p className="text-xs text-gray-400">No orders yet</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {orders?.filter(o => o.customer_id === detailCustomer.id).slice(0, 10).map(order => (
-                        <div key={order.id} className="bg-gray-50 rounded-2xl p-3.5 flex items-center justify-between border border-gray-100">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-gray-900 truncate">
-                              #{order.id} {order.product_name && `· ${order.product_name}`}
-                            </p>
-                            <p className="text-[10px] text-gray-500 mt-0.5">
-                              {order.created_at ? myanmarFormat(order.created_at, 'MMM d, HH:mm') : ''}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                            <span className="text-xs font-bold text-gray-900">
-                              {order.currency || ''} {order.total || order.amount || ''}
-                            </span>
+                      {getCustomerOrders(detailCustomer).slice(0, 3).map(order => {
+                        const items = Array.isArray(order.items) ? order.items : [];
+                        return (
+                        <div key={order.id} className="bg-gray-50 rounded-2xl p-3.5 border border-gray-100">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-bold text-gray-900">#{order.order_number || order.id}</span>
                             <span className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded-lg ${
-                              order.status === 'completed' || order.status === 'paid'
+                              order.status === 'completed' || order.status === 'paid' || order.status === 'delivered'
                                 ? 'bg-emerald-100 text-emerald-700'
-                                : order.status === 'cancelled'
+                                : order.status === 'cancelled' || order.status === 'rejected'
                                 ? 'bg-rose-100 text-rose-700'
                                 : 'bg-amber-100 text-amber-700'
                             }`}>
                               {order.status || 'pending'}
                             </span>
                           </div>
+                          <div className="space-y-1">
+                            {items.slice(0, 3).map((item, idx) => (
+                              <div key={idx} className="flex items-center justify-between text-[11px]">
+                                <span className="text-gray-700 truncate mr-2">{item.name || 'Product'}</span>
+                                <span className="text-gray-900 font-bold shrink-0">
+                                  {item.quantity ? `x${item.quantity}` : ''} {item.price ? `${Number(item.price).toLocaleString()} MMK` : ''}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-gray-200/50">
+                            <span className="text-[10px] text-gray-400">
+                              {order.created_at ? myanmarFormat(order.created_at, 'MMM d, HH:mm') : ''}
+                            </span>
+                            <span className="text-xs font-black text-gray-900">
+                              {order.final_amount || order.total || order.amount ? `${Number(order.final_amount || order.total || order.amount).toLocaleString()} MMK` : ''}
+                            </span>
+                          </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
