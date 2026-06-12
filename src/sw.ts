@@ -34,12 +34,9 @@ self.addEventListener('install', () => {
 });
 
 self.addEventListener('activate', (event) => {
-  const keepCaches = new Set(['api-cache', 'image-cache']);
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.map(key =>
-        keepCaches.has(key) ? Promise.resolve() : caches.delete(key)
-      ))
+      Promise.all(keys.map(key => caches.delete(key)))
     ).then(() => self.clients.claim())
   );
 });

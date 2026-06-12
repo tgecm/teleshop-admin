@@ -1733,15 +1733,35 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     } catch {}
   }, [sendAction, shop?.id]);
 
+  const getProductUrl = useCallback((productId) => {
+    const product = products.find(p => p.id === Number(productId));
+    if (!product?.link_code) return null;
+    const base = slug
+      ? window.location.origin + '/?p=/' + slug
+      : window.location.href.split('?')[0];
+    return base + '?product=' + product.link_code;
+  }, [products, slug]);
+
+  function stripComponents(t) { return t.replace(/<!--C[\s\S]*?<!--C-->/g, '').trim(); }
+
   const copyMsg = useCallback((i) => {
-    const txt = chatMessagesRef.current[i]?.content;
+    let txt = chatMessagesRef.current[i]?.content;
     if (txt) {
-      navigator.clipboard.writeText(txt).then(() => {
-        setCopiedIndex(i);
-        setTimeout(() => setCopiedIndex(null), 1500);
-      }).catch(() => {});
+      txt = stripComponents(txt);
+      if (txt) {
+        navigator.clipboard.writeText(txt).then(() => {
+          setCopiedIndex(i);
+          setTimeout(() => setCopiedIndex(null), 1500);
+        }).catch(() => {});
+      }
     }
   }, []);
+
+  const handleContextMenu = useCallback((e, i) => {
+    e.preventDefault();
+    e.stopPropagation();
+    copyMsg(i);
+  }, [copyMsg]);
 
   const chatBubbles = useMemo(() =>
     chatMessages.map((msg, i) => (
@@ -1750,6 +1770,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
           msg.role === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'
         }`} style={msg.role === 'user' ? { background: theme.css['--theme-btn'] } : {}}
           onClick={() => copyMsg(i)}
+          onContextMenu={(e) => handleContextMenu(e, i)}
           onTouchStart={() => { copyTimerRef.current = setTimeout(() => copyMsg(i), 500); }}
           onTouchEnd={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}
           onTouchMove={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}>
@@ -1761,7 +1782,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               alt="Photo" className="max-w-full rounded-lg mb-1 max-h-48 object-cover" loading="lazy" />
           )}
           {msg.content && msg.role === 'assistant' ? (
-            <RichMessage content={msg.content} isAssistant={true} botId={shop?.id}
+            <RichMessage content={msg.content} isAssistant={true} botId={shop?.id} getProductUrl={getProductUrl}
               onAction={handleAction} onFormSubmit={handleFormSubmit}
               onFileUpload={handleFileUpload} theme={theme} />
           ) : msg.content ? (
@@ -1773,7 +1794,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         </div>
       </div>
     )),
-    [chatMessages, handleAction, handleFormSubmit, handleFileUpload, theme, shop?.id, copyMsg, copiedIndex]
+    [chatMessages, handleAction, handleFormSubmit, handleFileUpload, handleContextMenu, theme, shop?.id, copyMsg, copiedIndex]
   );
 
   async function handleVisitorSave(name, phone, email) {

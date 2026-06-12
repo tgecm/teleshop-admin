@@ -26,32 +26,43 @@ function getImageUrl(fileId, botId) {
 function parseRichMessage(text) {
   if (!text) return [{ type: 'text', content: '' }];
   const segments = [];
-  const regex = /<!--C\s+(\w+)-->([\s\S]*?)<!--C-->/g;
-  let lastIndex = 0;
-  let match;
+  let remaining = text;
 
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      const t = text.slice(lastIndex, match.index);
-      if (t.trim()) segments.push({ type: 'text', content: t });
+  while (remaining.length > 0) {
+    const startIdx = remaining.indexOf('<!--C ');
+    if (startIdx === -1) break;
+
+    const before = remaining.slice(0, startIdx);
+    if (before.trim()) segments.push({ type: 'text', content: before });
+
+    const afterStart = remaining.slice(startIdx + 6);
+    const typeEnd = afterStart.indexOf('-->');
+    if (typeEnd === -1) break;
+
+    const type = afterStart.slice(0, typeEnd).trim();
+    const afterType = afterStart.slice(typeEnd + 3);
+    const blockEnd = afterType.indexOf('<!--C-->');
+    if (blockEnd === -1) break;
+
+    const jsonStr = afterType.slice(0, blockEnd).trim();
+    if (jsonStr) {
+      try {
+        const data = JSON.parse(jsonStr);
+        segments.push({ type, data });
+      } catch {
+        segments.push({ type: 'text', content: '<!--C ' + type + '-->' + jsonStr + '<!--C-->' });
+      }
     }
-    try {
-      const data = JSON.parse(match[2].trim());
-      segments.push({ type: match[1], data });
-    } catch {
-      segments.push({ type: 'text', content: match[0] });
-    }
-    lastIndex = match.index + match[0].length;
+    remaining = afterType.slice(blockEnd + 7);
   }
-  if (lastIndex < text.length) {
-    const t = text.slice(lastIndex);
-    if (t.trim()) segments.push({ type: 'text', content: t });
-  }
-  return segments;
+
+  if (remaining.trim()) segments.push({ type: 'text', content: remaining });
+  return segments.length > 0 ? segments : [{ type: 'text', content: text }];
 }
 
-function ProductCard({ data, onAction, theme, botId }) {
+function ProductCard({ data, onAction, theme, botId, getProductUrl }) {
   const imgUrl = getImageUrl(data.image, botId);
+  const productUrl = getProductUrl?.(data.id);
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden bg-white my-2 shadow-sm">
       {imgUrl && (
@@ -64,11 +75,19 @@ function ProductCard({ data, onAction, theme, botId }) {
         <p className="text-lg font-bold mt-1" style={{ color: theme?.css?.['--theme-price'] || '#059669' }}>
           {Number(data.price).toLocaleString()} MMK
         </p>
-        <button onClick={() => onAction('buy', String(data.id))}
-          className="w-full mt-2 py-2 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
-          style={{ background: theme?.css?.['--theme-btn'] || '#6366f1' }}>
-          <ShoppingBag className="w-3.5 h-3.5 inline mr-1 -mt-0.5" /> Buy Now
-        </button>
+        {productUrl ? (
+          <a href={productUrl}
+            className="block w-full mt-2 py-2 rounded-xl text-sm font-bold text-white text-center transition-all active:scale-95"
+            style={{ background: theme?.css?.['--theme-btn'] || '#6366f1' }}>
+            <ShoppingBag className="w-3.5 h-3.5 inline mr-1 -mt-0.5" /> View Product
+          </a>
+        ) : (
+          <button onClick={() => onAction('view_product', String(data.id))}
+            className="w-full mt-2 py-2 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+            style={{ background: theme?.css?.['--theme-btn'] || '#6366f1' }}>
+            <ShoppingBag className="w-3.5 h-3.5 inline mr-1 -mt-0.5" /> View Product
+          </button>
+        )}
       </div>
     </div>
   );
@@ -146,7 +165,7 @@ const ChatForm = React.memo(function ChatForm({ data, onSubmit }) {
       {data.require_photo && (
         <div>
           <label className="text-xs font-medium text-gray-500 mb-1 block">Payment Screenshot {data.photo_required !== false && <span className="text-rose-500">*</span>}</label>
-          <input type="file" accept="image/*" capture="environment"
+          <input type="file" accept="image/*"
             onChange={e => setFiles(e.target.files[0])}
             className="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100" />
         </div>
@@ -180,6 +199,75 @@ function OrderSummary({ data }) {
       )}
     </div>
   );
+}
+
+function CreateOrder({ data, botId }) {
+  const [state, setState] = React.useState('creating');
+  const [result, setResult] = React.useState(null);
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => {
+    if (!botId || state !== 'creating') return;
+    setState('loading');
+    const item = data.product || {};
+    fetch('https://api.telegramecommerce.shop/public/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bot_id: botId,
+        customer_name: data.customer?.name || '',
+        phone: data.customer?.phone || '',
+        address: data.customer?.address || '',
+        items: [{ name: item.name || 'Product', price: Number(item.price) || 0, quantity: 1 }],
+        total_amount: Number(item.price) || 0,
+        payment_method: data.payment_method || '',
+        payment_proof: data.payment_screenshot || '',
+      }),
+    }).then(r => r.json()).then(d => {
+      setResult(d);
+      setState('done');
+    }).catch(() => {
+      setError('Failed to create order. Please try again.');
+      setState('error');
+    });
+  }, [botId, state, data]);
+
+  if (state === 'loading') {
+    return (
+      <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 my-2">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-500">Creating your order...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === 'done' && result) {
+    return (
+      <div className="border border-gray-200 rounded-xl p-3 bg-green-50 my-2">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center">
+            <Check className="w-4 h-4 text-white" />
+          </div>
+          <p className="font-bold text-green-800 text-sm">Order Placed!</p>
+        </div>
+        <p className="text-xs text-green-700 font-mono font-bold">#{result.order_number || result.order_id || 'N/A'}</p>
+        {data.product?.name && <p className="text-sm text-green-800 mt-1">{data.product.name}</p>}
+        <p className="font-bold text-green-800 mt-1">{Number(data.product?.price || 0).toLocaleString()} MMK</p>
+        <div className="mt-2 pt-2 border-t border-green-200 flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          <span className="text-xs text-green-700 font-medium">Pending Review</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === 'error') {
+    return <p className="text-sm text-rose-600 my-2">{error}</p>;
+  }
+
+  return null;
 }
 
 const FileUploadButton = React.memo(function FileUploadButton({ data, onUpload }) {
@@ -231,14 +319,14 @@ function MarkdownBlock({ content }) {
   );
 }
 
-export const RichMessage = React.memo(function RichMessage({ content, onAction, onFormSubmit, onFileUpload, theme, isAssistant, botId }) {
+export const RichMessage = React.memo(function RichMessage({ content, onAction, onFormSubmit, onFileUpload, theme, isAssistant, botId, getProductUrl }) {
   const segments = parseRichMessage(content);
   return segments.map((seg, i) => {
     switch (seg.type) {
       case 'text':
         return <MarkdownBlock key={i} content={seg.content} />;
       case 'product_card':
-        return isAssistant ? <ProductCard key={i} data={seg.data} onAction={onAction} theme={theme} botId={botId} /> : null;
+        return isAssistant ? <ProductCard key={i} data={seg.data} onAction={onAction} theme={theme} botId={botId} getProductUrl={getProductUrl} /> : null;
       case 'buttons':
         return isAssistant ? <RichButtons key={i} data={seg.data} onAction={onAction} theme={theme} /> : null;
       case 'payment_info':
@@ -249,6 +337,8 @@ export const RichMessage = React.memo(function RichMessage({ content, onAction, 
         return isAssistant ? <FileUploadButton key={i} data={seg.data} onUpload={(f) => onFileUpload?.(seg.data.id || 'upload', f)} /> : null;
       case 'order_summary':
         return isAssistant ? <OrderSummary key={i} data={seg.data} /> : null;
+      case 'create_order':
+        return isAssistant ? <CreateOrder key={i} data={seg.data} botId={botId} /> : null;
       default:
         return null;
     }
