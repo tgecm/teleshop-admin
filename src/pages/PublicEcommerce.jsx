@@ -22,6 +22,7 @@ import { auth } from '../lib/firebase';
 import { signInWithGoogle } from '../lib/googleSignIn';
 import { isMainDomain } from '../utils/authProxy';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
+import { MarkdownRenderer } from '../utils/linkify';
 import NewsfeedFeed from '../components/NewsfeedFeed';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
@@ -1326,6 +1327,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   ]);
   const [chatLoading, setChatLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const chatQueueRef = useRef([]);
+  const chatSendingRef = useRef(false);
   const [showVisitorForm, setShowVisitorForm] = useState(false);
   const [visitorForm, setVisitorForm] = useState({ name: '', phone: '', email: '' });
   const chatRef = useRef(null);
@@ -1621,12 +1624,19 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     }
   }, [shop?.id, chatMessages]);
 
-  const handleChatSend = useCallback(async () => {
-    if (!chatInput.trim() || chatLoading) return;
-    const msg = chatInput.trim();
+  const handleChatSend = useCallback(async (overrideMsg) => {
+    const msg = overrideMsg || chatInput.trim();
+    if (!msg || !shop?.id) return;
     setChatInput('');
-    setChatMessages(prev => [...prev, { role: 'user', content: msg, file_id: null, file_type: null }]);
+
+    if (chatSendingRef.current) {
+      chatQueueRef.current = [...chatQueueRef.current, msg];
+      return;
+    }
+
+    chatSendingRef.current = true;
     setChatLoading(true);
+    setChatMessages(prev => [...prev, { role: 'user', content: msg, file_id: null, file_type: null }]);
     try {
       const history = chatMessages.slice(-100).map(m => ({ role: m.role, content: m.content }));
       const res = await fetch(API_BASE + '/public/chat/' + shop?.id, {
@@ -1640,10 +1650,15 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
     } finally {
+      chatSendingRef.current = false;
       setChatLoading(false);
       setTimeout(() => chatInputRef.current?.focus(), 100);
+      if (chatQueueRef.current.length > 0) {
+        const nextMsg = chatQueueRef.current.shift();
+        setTimeout(() => handleChatSend(nextMsg), 50);
+      }
     }
-  }, [chatInput, chatLoading, shop?.id, chatMessages]);
+  }, [chatInput, shop?.id, chatMessages]);
 
   async function handleVisitorSave(name, phone, email) {
     if (!shop?.id) return;
@@ -2751,7 +2766,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                           <img src={API_BASE + '/telegram/file/' + msg.file_id + '?bot_id=' + shop?.id}
                             alt="Photo" className="max-w-full rounded-lg mb-1 max-h-48 object-cover" loading="lazy" />
                         )}
-                        {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
+                        {msg.content && <MarkdownRenderer>{msg.content}</MarkdownRenderer>}
                       </div>
                     </div>
                   ))}
@@ -2787,11 +2802,10 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
                     placeholder="Type a message..."
                     className="flex-1 min-w-0 px-3.5 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                    disabled={chatLoading}
                   />
                   <button
                     onClick={handleChatSend}
-                    disabled={chatLoading || !chatInput.trim()}
+                    disabled={!chatInput.trim()}
                     className="w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-50 transition-all active:scale-90 flex-shrink-0"
                     style={{ background: theme.css['--theme-btn'] }}
                   >
