@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
@@ -378,15 +378,26 @@ export default function CustomerDashboard({ shopSlug }) {
     } catch {}
   }, [sendAction, shopData?.shop?.id]);
 
+  function stripComponents(t) { return t.replace(/<!--C[\s\S]*?<!--C-->/g, '').trim(); }
+
   const copyMsg = useCallback((i) => {
-    const txt = chatMessagesRef.current[i]?.content;
+    let txt = chatMessagesRef.current[i]?.content;
     if (txt) {
-      navigator.clipboard.writeText(txt).then(() => {
-        setCopiedIndex(i);
-        setTimeout(() => setCopiedIndex(null), 1500);
-      }).catch(() => {});
+      txt = stripComponents(txt);
+      if (txt) {
+        navigator.clipboard.writeText(txt).then(() => {
+          setCopiedIndex(i);
+          setTimeout(() => setCopiedIndex(null), 1500);
+        }).catch(() => {});
+      }
     }
   }, []);
+
+  const handleContextMenu = useCallback((e, i) => {
+    e.preventDefault();
+    e.stopPropagation();
+    copyMsg(i);
+  }, [copyMsg]);
 
   const chatBubbles = useMemo(() =>
     chatMessages.map((msg, i) => (
@@ -397,6 +408,7 @@ export default function CustomerDashboard({ shopSlug }) {
             : 'bg-gray-100 text-gray-800 rounded-bl-md'
         }`}
           onClick={() => copyMsg(i)}
+          onContextMenu={(e) => handleContextMenu(e, i)}
           onTouchStart={() => { copyTimerRef.current = setTimeout(() => copyMsg(i), 500); }}
           onTouchEnd={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}
           onTouchMove={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}>
@@ -419,7 +431,7 @@ export default function CustomerDashboard({ shopSlug }) {
         </div>
       </div>
     )),
-    [chatMessages, handleAction, handleFormSubmit, handleFileUpload, shopData?.shop?.id, copyMsg, copiedIndex]
+    [chatMessages, handleAction, handleFormSubmit, handleFileUpload, handleContextMenu, shopData?.shop?.id, copyMsg, copiedIndex]
   );
 
   if (authLoading || !isAuthenticated) {

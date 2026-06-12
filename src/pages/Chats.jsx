@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { MarkdownRenderer } from '../utils/linkify';
+import { RichMessage } from '../components/chat/RichMessage';
 import { motion, AnimatePresence } from 'motion/react';
 import client from '../api/client';
 import { useAuthStore } from '../store/authStore';
@@ -115,6 +116,12 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
   const copyTimerRef = useRef(null);
   const touchCopiedRef = useRef(false);
   const msgRef = useRef(null);
+
+  const txt = message.message_text || '';
+  const isAction = txt.startsWith('__action__') || txt.startsWith('__form__') || txt.startsWith('__file__');
+  const hasComponents = txt.includes('<!--C');
+  const stripComponents = (t) => typeof t === 'string' ? t.replace(/<!--C[\s\S]*?<!--C-->/g, '').trim() : t;
+  if (isAction) return null;
 
   const renderMedia = () => {
     if (!message.file_id) return null;
@@ -216,19 +223,44 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
         {isAdmin && message.sender_name && isOwner && (
           <p className="text-[10px] font-bold text-indigo-200 mb-0.5">{message.sender_name}</p>
         )}
-        {message.message_text && (
-          <p ref={msgRef} className="text-sm leading-relaxed whitespace-pre-wrap break-words select-all cursor-text"
+        {message.message_text && (hasComponents ? (
+          <div ref={msgRef} className="text-sm leading-relaxed break-words select-all cursor-text"
             onContextMenu={(e) => {
               if (touchCopiedRef.current) { touchCopiedRef.current = false; return; }
               e.preventDefault();
               e.stopPropagation();
-              navigator.clipboard.writeText(message.message_text.length > 0 ? message.message_text : '');
+              navigator.clipboard.writeText(stripComponents(message.message_text));
               useToastStore.getState().addToast('Copied', 'success');
             }}
             onTouchStart={() => {
               copyTimerRef.current = setTimeout(() => {
                 touchCopiedRef.current = true;
-                navigator.clipboard.writeText(message.message_text);
+                navigator.clipboard.writeText(stripComponents(message.message_text));
+                useToastStore.getState().addToast('Copied', 'success');
+                setTimeout(() => { touchCopiedRef.current = false; }, 200);
+              }, 500);
+            }}
+            onTouchEnd={() => {
+              if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+            }}
+            onTouchMove={() => {
+              if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+            }}>
+            <RichMessage content={message.message_text} isAssistant={true} botId={botId} />
+          </div>
+        ) : (
+          <p ref={msgRef} className="text-sm leading-relaxed whitespace-pre-wrap break-words select-all cursor-text"
+            onContextMenu={(e) => {
+              if (touchCopiedRef.current) { touchCopiedRef.current = false; return; }
+              e.preventDefault();
+              e.stopPropagation();
+              navigator.clipboard.writeText(stripComponents(message.message_text));
+              useToastStore.getState().addToast('Copied', 'success');
+            }}
+            onTouchStart={() => {
+              copyTimerRef.current = setTimeout(() => {
+                touchCopiedRef.current = true;
+                navigator.clipboard.writeText(stripComponents(message.message_text));
                 useToastStore.getState().addToast('Copied', 'success');
                 setTimeout(() => { touchCopiedRef.current = false; }, 200);
               }, 500);
@@ -241,7 +273,7 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
             }}>
             <MarkdownRenderer>{message.message_text}</MarkdownRenderer>
           </p>
-        )}
+        ))}
         <p
           className={`text-[10px] mt-1 ${
             isAdmin ? 'text-indigo-200' : 'text-gray-400'
