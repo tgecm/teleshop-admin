@@ -8,6 +8,7 @@ import { useTelegramAuth } from '../context/TelegramAuthContext';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { useCartState } from '../context/CartContext';
 import { myanmarFormat } from '../utils/date';
+import { MarkdownRenderer } from '../utils/linkify';
 import { getPublicTopProducts } from '../api/public';
 
 function authHeaders() {
@@ -135,6 +136,8 @@ export default function CustomerDashboard({ shopSlug }) {
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([{ role: 'assistant', content: 'Hi! How can I help you today?' }]);
   const [chatLoading, setChatLoading] = useState(false);
+  const chatQueueRef = useRef([]);
+  const chatSendingRef = useRef(false);
   const chatRef = useRef(null);
   const chatInputRef = useRef(null);
 
@@ -264,10 +267,17 @@ export default function CustomerDashboard({ shopSlug }) {
     }
   }, [chatMessages]);
 
-  const handleChatSend = async () => {
-    if (!chatInput.trim() || chatLoading || !shopData?.shop?.id) return;
-    const msg = chatInput.trim();
+  const handleChatSend = async (overrideMsg) => {
+    const msg = overrideMsg || chatInput.trim();
+    if (!msg || !shopData?.shop?.id) return;
     setChatInput('');
+
+    if (chatSendingRef.current) {
+      chatQueueRef.current = [...chatQueueRef.current, msg];
+      return;
+    }
+
+    chatSendingRef.current = true;
     setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
     setChatLoading(true);
     try {
@@ -283,8 +293,13 @@ export default function CustomerDashboard({ shopSlug }) {
     } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
     } finally {
+      chatSendingRef.current = false;
       setChatLoading(false);
       chatInputRef.current?.focus();
+      if (chatQueueRef.current.length > 0) {
+        const nextMsg = chatQueueRef.current.shift();
+        setTimeout(() => handleChatSend(nextMsg), 50);
+      }
     }
   };
 
@@ -424,7 +439,7 @@ export default function CustomerDashboard({ shopSlug }) {
                     <img src={`${API_BASE}/telegram/file/${encodeURIComponent(msg.file_id)}?bot_id=${shopData.shop.id}`}
                       alt="" className="max-w-full rounded-lg" />
                   ) : (
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    <MarkdownRenderer>{msg.content}</MarkdownRenderer>
                   )}
                 </div>
               </div>
@@ -453,9 +468,8 @@ export default function CustomerDashboard({ shopSlug }) {
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
                 placeholder="Type a message..."
                 className="flex-1 px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl outline-none text-sm focus:ring-2 focus:ring-indigo-500"
-                disabled={chatLoading}
               />
-              <button onClick={handleChatSend} disabled={chatLoading || !chatInput.trim()}
+              <button onClick={handleChatSend} disabled={!chatInput.trim()}
                 className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-all disabled:opacity-50 shrink-0">
                 <Send className="w-4 h-4" />
               </button>

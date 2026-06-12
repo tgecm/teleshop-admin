@@ -7,6 +7,7 @@ import {
   Mail, Search, X, ChevronRight, Loader2, CheckCircle2, Send, MessageCircle, ArrowLeft
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { MarkdownRenderer } from '../utils/linkify';
 
 export default function SendMessage() {
   const { user } = useAuthStore();
@@ -256,7 +257,7 @@ export default function SendMessage() {
                       ? 'bg-amber-500 text-white rounded-br-md'
                       : 'bg-gray-100 text-gray-800 rounded-bl-md'
                   }`}>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.message_text}</p>
+                    <MarkdownRenderer>{msg.message_text}</MarkdownRenderer>
                     <p className={`text-[9px] mt-1 ${msg.sender_type === 'superadmin' ? 'text-amber-200' : 'text-gray-400'}`}>
                       {msg.sender_type === 'superadmin' ? 'Support' : selectedBot.bot_full_name || selectedBot.bot_username}
                       · {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}

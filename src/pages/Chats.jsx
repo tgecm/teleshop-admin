@@ -26,7 +26,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
-import { linkifyText } from '../utils/linkify';
+import { MarkdownRenderer } from '../utils/linkify';
 import { motion, AnimatePresence } from 'motion/react';
 import client from '../api/client';
 import { useAuthStore } from '../store/authStore';
@@ -239,7 +239,7 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
             onTouchMove={() => {
               if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
             }}>
-            {linkifyText(message.message_text)}
+            <MarkdownRenderer>{message.message_text}</MarkdownRenderer>
           </p>
         )}
         <p

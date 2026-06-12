@@ -157,3 +157,13 @@ input::selection, textarea::selection, select::selection, [contenteditable]::sel
   border-radius: 10px;
 }
 
+.markdown-content > *:first-child {
+  margin-top: 0;
+}
+.markdown-content > *:last-child {
+  margin-bottom: 0;
+}
+.markdown-content p {
+  white-space: pre-wrap;
+}
+
