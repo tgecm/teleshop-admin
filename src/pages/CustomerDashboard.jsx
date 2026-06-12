@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
@@ -8,7 +8,7 @@ import { useTelegramAuth } from '../context/TelegramAuthContext';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { useCartState } from '../context/CartContext';
 import { myanmarFormat } from '../utils/date';
-import { MarkdownRenderer } from '../utils/linkify';
+import { RichMessage } from '../components/chat/RichMessage';
 import { getPublicTopProducts } from '../api/public';
 
 function authHeaders() {
@@ -136,9 +136,13 @@ export default function CustomerDashboard({ shopSlug }) {
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([{ role: 'assistant', content: 'Hi! How can I help you today?' }]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState(null);
   const chatQueueRef = useRef([]);
   const chatSendingRef = useRef(false);
+  const chatMessagesRef = useRef(chatMessages);
+  useEffect(() => { chatMessagesRef.current = chatMessages; }, [chatMessages]);
   const chatRef = useRef(null);
+  const copyTimerRef = useRef(null);
   const chatInputRef = useRef(null);
 
   const telegramToken = typeof window !== 'undefined' ? localStorage.getItem('telegram_token') : null;
@@ -267,24 +271,22 @@ export default function CustomerDashboard({ shopSlug }) {
     }
   }, [chatMessages]);
 
-  const handleChatSend = async (overrideMsg) => {
-    const msg = overrideMsg || chatInput.trim();
+  const sendMessage = useCallback(async (msg) => {
     if (!msg || !shopData?.shop?.id) return;
-    setChatInput('');
-
     if (chatSendingRef.current) {
       chatQueueRef.current = [...chatQueueRef.current, msg];
+      setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
       return;
     }
-
     chatSendingRef.current = true;
     setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
     setChatLoading(true);
     try {
+      const history = chatMessagesRef.current.slice(-100).map(m => ({ role: m.role, content: m.content }));
       const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history: chatMessages.slice(-100), visitor_id: uid }),
+        body: JSON.stringify({ message: msg, history, visitor_id: uid }),
       });
       const d = await res.json();
       if (d.reply) {
@@ -298,10 +300,95 @@ export default function CustomerDashboard({ shopSlug }) {
       chatInputRef.current?.focus();
       if (chatQueueRef.current.length > 0) {
         const nextMsg = chatQueueRef.current.shift();
-        setTimeout(() => handleChatSend(nextMsg), 50);
+        setTimeout(() => sendMessage(nextMsg), 50);
       }
     }
-  };
+  }, [shopData?.shop?.id, uid]);
+
+  const handleChatSend = useCallback(() => {
+    const msg = chatInput.trim();
+    if (!msg) return;
+    setChatInput('');
+    sendMessage(msg);
+  }, [chatInput, sendMessage]);
+
+  const handleAction = useCallback((actionId, value) => {
+    sendMessage(`__action__${actionId}:${value}`);
+  }, [sendMessage]);
+
+  const handleFormSubmit = useCallback(async (formId, values, file) => {
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bot_id', shopData?.shop?.id);
+      try {
+        const res = await fetch(API_BASE + '/public/upload/photo', { method: 'POST', body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          sendMessage(`__form__${formId}:${JSON.stringify({ ...values, file_id: data.file_id })}`);
+          return;
+        }
+      } catch {}
+    }
+    sendMessage(`__form__${formId}:${JSON.stringify(values)}`);
+  }, [sendMessage, shopData?.shop?.id]);
+
+  const handleFileUpload = useCallback(async (uploadId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('bot_id', shopData?.shop?.id);
+    try {
+      const res = await fetch(API_BASE + '/public/upload/photo', { method: 'POST', body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        sendMessage(`__file__${uploadId}:${data.file_id}`);
+      }
+    } catch {}
+  }, [sendMessage, shopData?.shop?.id]);
+
+  const copyMsg = useCallback((i) => {
+    const txt = chatMessagesRef.current[i]?.content;
+    if (txt) {
+      navigator.clipboard.writeText(txt).then(() => {
+        setCopiedIndex(i);
+        setTimeout(() => setCopiedIndex(null), 1500);
+      }).catch(() => {});
+    }
+  }, []);
+
+  const chatBubbles = useMemo(() =>
+    chatMessages.map((msg, i) => (
+      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+        <div className={`relative max-w-[80%] rounded-2xl px-4 py-2.5 group ${
+          msg.role === 'user'
+            ? 'bg-indigo-600 text-white rounded-br-md'
+            : 'bg-gray-100 text-gray-800 rounded-bl-md'
+        }`}
+          onClick={() => copyMsg(i)}
+          onTouchStart={() => { copyTimerRef.current = setTimeout(() => copyMsg(i), 500); }}
+          onTouchEnd={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}
+          onTouchMove={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}>
+          {copiedIndex === i && (
+            <span className="absolute -top-2 right-2 text-[9px] font-bold bg-gray-800 text-white px-1.5 py-0.5 rounded-full z-10">Copied!</span>
+          )}
+          {msg.file_type === 'photo' && msg.file_id ? (
+            <img src={`${API_BASE}/telegram/file/${encodeURIComponent(msg.file_id)}?bot_id=${shopData.shop.id}`}
+              alt="" className="max-w-full rounded-lg" />
+          ) : msg.role === 'assistant' ? (
+            <RichMessage content={msg.content} isAssistant={true}
+              onAction={handleAction} onFormSubmit={handleFormSubmit}
+              onFileUpload={handleFileUpload} />
+          ) : msg.content ? (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+          ) : null}
+          <span className={`absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-40 transition-opacity select-none ${msg.role === 'user' ? 'text-white/50' : 'text-gray-400'}`}>
+            copy
+          </span>
+        </div>
+      </div>
+    )),
+    [chatMessages, handleAction, handleFormSubmit, handleFileUpload, shopData?.shop?.id, copyMsg, copiedIndex]
+  );
 
   if (authLoading || !isAuthenticated) {
     return (
@@ -428,22 +515,7 @@ export default function CustomerDashboard({ shopSlug }) {
 
           {/* Messages */}
           <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            {chatMessages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
-                  msg.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-br-md'
-                    : 'bg-gray-100 text-gray-800 rounded-bl-md'
-                }`}>
-                  {msg.file_type === 'photo' && msg.file_id ? (
-                    <img src={`${API_BASE}/telegram/file/${encodeURIComponent(msg.file_id)}?bot_id=${shopData.shop.id}`}
-                      alt="" className="max-w-full rounded-lg" />
-                  ) : (
-                    <MarkdownRenderer>{msg.content}</MarkdownRenderer>
-                  )}
-                </div>
-              </div>
-            ))}
+            {chatBubbles}
             {chatLoading && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
