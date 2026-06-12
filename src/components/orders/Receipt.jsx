@@ -438,11 +438,12 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     </g>`;
   }
 
+  const deliveryFeeLine = order?.delivery_fee > 0 ? { l: 'Delivery Fee', v: `+ ${Number(order.delivery_fee).toFixed(2)} MMK` } : null;
   const totalLines = [
     { l: 'Subtotal', v: sub },
     { l: 'Discount', v: `- ${sub}` },
     { l: 'Tax', v: `+ 0.00 MMK` },
-    { l: 'Shipping', v: `+ 0.00 MMK` },
+    ...(deliveryFeeLine ? [deliveryFeeLine] : []),
   ];
   let totalsSvg = '';
   totalLines.forEach((t, i) => {
@@ -681,7 +682,8 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
   const botName = bot ? normalizeText(bot.bot_full_name || bot.bot_username || 'Shop') : 'Shop';
   const items = order.items || [];
   const subtotal = items.reduce((s, it) => s + ((it.price || 0) * (it.quantity || 0)), 0);
-  const total = subtotal;
+  const deliveryFee = Number(order.delivery_fee) || 0;
+  const total = subtotal + deliveryFee;
   const orderDate = order.created_at ? new Date(order.created_at) : new Date();
   const paymentMethod = order.payment_method || 'Cash';
 
@@ -987,9 +989,11 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                         <div style={s.totalsRow}>
                           <span style={s.totalLabel}>Tax</span><span style={s.totalColon}>:</span><span style={s.totalValue}>+ 0.00 MMK</span>
                         </div>
-                        <div style={s.totalsRow}>
-                          <span style={s.totalLabel}>Shipping</span><span style={s.totalColon}>:</span><span style={s.totalValue}>+ 0.00 MMK</span>
-                        </div>
+                        {deliveryFee > 0 && (
+                          <div style={s.totalsRow}>
+                            <span style={s.totalLabel}>Delivery Fee</span><span style={s.totalColon}>:</span><span style={s.totalValue}>+ {deliveryFee.toFixed(2)} MMK</span>
+                          </div>
+                        )}
                         <div style={s.grandTotal}>
                           <span style={{ fontWeight: 700, color: '#fff', fontFamily: "'Roboto', system-ui, sans-serif" }}>TOTAL</span>
                           <span style={{ color: '#fff' }}>:</span>
