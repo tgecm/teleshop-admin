@@ -515,7 +515,7 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   );
 }
 
-function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment }) {
+function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products }) {
   const [form, setForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', address: '', notes: '' });
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
@@ -530,7 +530,45 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
 
+  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState(0);
+  const [deliveryFeeAmount, setDeliveryFeeAmount] = useState(0);
+
   const effectiveTotal = couponApplied ? totalAmount - couponApplied.discount : totalAmount;
+
+  useEffect(() => {
+    if (shop?.id) {
+      const token = localStorage.getItem('auth-storage')
+        ? JSON.parse(localStorage.getItem('auth-storage'))?.state?.token
+        : null;
+      fetch(API_BASE + '/bots/' + shop.id + '/delivery-settings', {
+        headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+      })
+        .then(r => r.ok ? r.json() : { delivery_fee: 0, free_delivery_threshold: 0 })
+        .then(d => {
+          setDeliveryFee(Number(d.delivery_fee) || 0);
+          setFreeDeliveryThreshold(Number(d.free_delivery_threshold) || 0);
+        })
+        .catch(() => {});
+    }
+  }, [shop?.id]);
+
+  useEffect(() => {
+    const anyProductHasFee = cartItems.some(item => {
+      const p = (products || []).find(pp => pp.id === item.product_id);
+      return p?.apply_delivery_fee;
+    });
+    if (anyProductHasFee && deliveryFee > 0) {
+      const total = couponApplied ? effectiveTotal : totalAmount;
+      if (freeDeliveryThreshold > 0 && total >= freeDeliveryThreshold) {
+        setDeliveryFeeAmount(0);
+      } else {
+        setDeliveryFeeAmount(deliveryFee);
+      }
+    } else {
+      setDeliveryFeeAmount(0);
+    }
+  }, [deliveryFee, freeDeliveryThreshold, cartItems, products, totalAmount, couponApplied, effectiveTotal]);
 
   useEffect(() => {
     const tgToken = localStorage.getItem('telegram_token');
@@ -723,6 +761,7 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
           };
         }),
         total_amount: couponApplied ? effectiveTotal : totalAmount,
+        delivery_fee: deliveryFeeAmount,
         coupon_code: couponApplied?.code || '',
       };
       if (paymentProof) body.payment_proof = paymentProof;
@@ -781,27 +820,25 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
             </div>
           ))}
           {couponApplied && (
-            <>
-              <div className="flex justify-between text-sm py-1 text-emerald-600">
-                <span>Discount ({couponApplied.code})</span>
-                <span className="font-semibold">-{formatPrice(couponApplied.discount)} MMK</span>
-              </div>
-              <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-900">
-                <span>Total</span>
-                <span>{formatPrice(effectiveTotal)} MMK</span>
-              </div>
-              {couponApplied.discount > 0 && (
-                <p className="text-[10px] text-emerald-500 font-medium text-center mt-1">
-                  🎉 You saved {formatPrice(couponApplied.discount)} MMK!
-                </p>
-              )}
-            </>
-          )}
-          {!couponApplied && (
-            <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-bold text-gray-900">
-              <span>Total</span>
-              <span>{formatPrice(totalAmount)} MMK</span>
+            <div className="flex justify-between text-sm py-1 text-emerald-600">
+              <span>Discount ({couponApplied.code})</span>
+              <span className="font-semibold">-{formatPrice(couponApplied.discount)} MMK</span>
             </div>
+          )}
+          {deliveryFeeAmount > 0 && (
+            <div className="flex justify-between text-sm py-1 text-gray-600">
+              <span>Delivery Fee</span>
+              <span>{formatPrice(deliveryFeeAmount)} MMK</span>
+            </div>
+          )}
+          <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-bold text-gray-900">
+            <span>Total</span>
+            <span>{formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount)} MMK</span>
+          </div>
+          {couponApplied?.discount > 0 && (
+            <p className="text-[10px] text-emerald-500 font-medium text-center mt-1">
+              🎉 You saved {formatPrice(couponApplied.discount)} MMK!
+            </p>
           )}
         </div>
 
@@ -1015,7 +1052,7 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
           className="w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-base text-white transition-all active:scale-[0.98] disabled:opacity-60"
           style={{ background: THEMES[DEFAULT_THEME].css['--theme-btn'] }}
         >
-          {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Placing Order...</> : `Place Order — ${formatPrice(totalAmount)} MMK`}
+          {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Placing Order...</> : `Place Order — ${formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount)} MMK`}
         </button>
       </motion.div>
     </motion.div>
@@ -2790,6 +2827,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             viewMode={viewMode}
             shopSlug={slug || shop?.public_slug || shop?.bot_username || ''}
             selectedPayment={selectedPaymentMethod}
+            products={products}
             onClose={() => { setCheckoutOpen(false); setSelectedPaymentMethod(null); }}
             onOrderPlaced={handleOrderPlaced}
           />

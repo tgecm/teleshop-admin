@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, getImageUrl, uploadImage } from '../api/products';
+import client from '../api/client';
 import { createCoupon, getCoupons, deleteCoupon } from '../api/coupons';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
@@ -11,7 +12,7 @@ import {
   Plus, Search, Edit2, Trash2, Package, Tag, MoreVertical, X,
   Image as ImageIcon, ChevronRight, AlertCircle, CheckCircle2,
   Loader2, FolderPlus, ImageUp, Palette, Copy, ArrowUpDown,
-  Ticket, Percent, CalendarDays, Coins, Users
+  Ticket, Percent, CalendarDays, Coins, Users, Truck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -52,6 +53,10 @@ export default function Products() {
   const [deletingCoupon, setDeletingCoupon] = useState(null);
   const [showCouponMenu, setShowCouponMenu] = useState(false);
   const [showCouponManager, setShowCouponManager] = useState(false);
+  const [showDeliveryFeeModal, setShowDeliveryFeeModal] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState('');
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('');
+  const [deliveryFeeLoading, setDeliveryFeeLoading] = useState(false);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', selectedBotId],
@@ -130,6 +135,39 @@ export default function Products() {
     },
     onError: () => addToast('Failed to delete coupon', 'error'),
   });
+
+  const fetchDeliverySettings = useCallback(async () => {
+    if (!selectedBotId) return;
+    try {
+      const res = await client.get(`/bots/${selectedBotId}/delivery-settings`);
+      setDeliveryFee(String(res.data.delivery_fee || ''));
+      setFreeDeliveryThreshold(String(res.data.free_delivery_threshold || ''));
+    } catch (e) {
+      console.error('Failed to load delivery settings:', e);
+    }
+  }, [selectedBotId]);
+
+  useEffect(() => {
+    if (showDeliveryFeeModal) fetchDeliverySettings();
+  }, [showDeliveryFeeModal, fetchDeliverySettings]);
+
+  const saveDeliverySettings = async () => {
+    if (!selectedBotId) return;
+    setDeliveryFeeLoading(true);
+    try {
+      await client.put(`/bots/${selectedBotId}/delivery-settings`, {
+        delivery_fee: Number(deliveryFee) || 0,
+        free_delivery_threshold: Number(freeDeliveryThreshold) || 0,
+      });
+      addToast('Delivery settings saved');
+      setShowDeliveryFeeModal(false);
+    } catch (e) {
+      console.error('Save delivery settings error:', e.response?.data || e.message);
+      addToast(e.response?.data?.detail || 'Failed to save delivery settings', 'error');
+    } finally {
+      setDeliveryFeeLoading(false);
+    }
+  };
 
   const generateCouponCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -225,6 +263,13 @@ export default function Products() {
           >
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline font-bold">New Product</span>
+          </button>
+          <button
+            onClick={() => setShowDeliveryFeeModal(true)}
+            className="p-2.5 bg-emerald-600 text-white rounded-2xl shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-2 active:scale-95"
+          >
+            <Truck className="w-5 h-5" />
+            <span className="hidden sm:inline font-bold">Delivery Fees</span>
           </button>
         </div>
       </div>
@@ -371,6 +416,68 @@ export default function Products() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Delivery Fee Settings Modal */}
+      {showDeliveryFeeModal && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowDeliveryFeeModal(false)} />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <Truck className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-900">Delivery Fee Settings</h2>
+                </div>
+                <button onClick={() => setShowDeliveryFeeModal(false)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1.5">Delivery Fee (MMK)</label>
+                  <input
+                    type="number"
+                    value={deliveryFee}
+                    onChange={(e) => setDeliveryFee(e.target.value)}
+                    placeholder="e.g. 5000"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Flat fee added at checkout if any product has delivery fee enabled</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1.5">Free Delivery if spent this amount (MMK)</label>
+                  <input
+                    type="number"
+                    value={freeDeliveryThreshold}
+                    onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
+                    placeholder="e.g. 50000"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Delivery fee is waived when cart total reaches or exceeds this amount</p>
+                  <p className="text-[10px] text-emerald-600/60 mt-0.5 italic font-semibold">We're working on improving the Shipping Fees feature.</p>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-8">
+                <button
+                  onClick={() => setShowDeliveryFeeModal(false)}
+                  className="flex-1 py-3 bg-gray-100 rounded-xl font-medium text-sm text-gray-700 hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveDeliverySettings}
+                  disabled={deliveryFeeLoading}
+                  className="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50"
+                >
+                  {deliveryFeeLoading ? 'Saving...' : 'Save Settings'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       <ConfirmDialog
         open={!!isDeleting}
@@ -851,6 +958,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     price: product?.price || '',
     original_price: product?.original_price || '',
     category_id: product?.category_id || '',
+    apply_delivery_fee: product?.apply_delivery_fee || false,
   });
   const [promotion, setPromotion] = useState(() => !!product?.original_price);
   const [stockOption, setStockOption] = useState(() => {
@@ -1197,6 +1305,26 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             placeholder="Describe your product..."
             className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium resize-none"
           />
+        </div>
+
+        {/* Delivery fee toggle */}
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+          <div className="flex items-center gap-3">
+            <Truck className="w-4 h-4 text-gray-500" />
+            <div>
+              <p className="text-sm font-semibold text-gray-700">Apply delivery fees</p>
+              <p className="text-xs text-gray-400">Delivery fee will be charged at checkout</p>
+            </div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.apply_delivery_fee}
+              onChange={(e) => setFormData({ ...formData, apply_delivery_fee: e.target.checked })}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
+          </label>
         </div>
 
         <div className="space-y-3">
