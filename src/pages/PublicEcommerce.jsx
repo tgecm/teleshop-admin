@@ -22,7 +22,7 @@ import { auth } from '../lib/firebase';
 import { signInWithGoogle } from '../lib/googleSignIn';
 import { isMainDomain } from '../utils/authProxy';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
-import { MarkdownRenderer } from '../utils/linkify';
+import { RichMessage } from '../components/chat/RichMessage';
 import NewsfeedFeed from '../components/NewsfeedFeed';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
@@ -1329,6 +1329,10 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const chatQueueRef = useRef([]);
   const chatSendingRef = useRef(false);
+  const chatMessagesRef = useRef(chatMessages);
+  useEffect(() => { chatMessagesRef.current = chatMessages; }, [chatMessages]);
+  const copyTimerRef = useRef(null);
+  const [copiedIndex, setCopiedIndex] = useState(null);
   const [showVisitorForm, setShowVisitorForm] = useState(false);
   const [visitorForm, setVisitorForm] = useState({ name: '', phone: '', email: '' });
   const chatRef = useRef(null);
@@ -1624,21 +1628,18 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     }
   }, [shop?.id, chatMessages]);
 
-  const handleChatSend = useCallback(async (overrideMsg) => {
-    const msg = overrideMsg || chatInput.trim();
+  const sendMessage = useCallback(async (msg) => {
     if (!msg || !shop?.id) return;
-    setChatInput('');
-
     if (chatSendingRef.current) {
       chatQueueRef.current = [...chatQueueRef.current, msg];
+      setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
       return;
     }
-
     chatSendingRef.current = true;
     setChatLoading(true);
-    setChatMessages(prev => [...prev, { role: 'user', content: msg, file_id: null, file_type: null }]);
+    setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
     try {
-      const history = chatMessages.slice(-100).map(m => ({ role: m.role, content: m.content }));
+      const history = chatMessagesRef.current.slice(-100).map(m => ({ role: m.role, content: m.content }));
       const res = await fetch(API_BASE + '/public/chat/' + shop?.id, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1646,7 +1647,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.detail || 'Chat failed');
-      setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply, file_id: null, file_type: null }]);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
     } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
     } finally {
@@ -1655,10 +1656,94 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       setTimeout(() => chatInputRef.current?.focus(), 100);
       if (chatQueueRef.current.length > 0) {
         const nextMsg = chatQueueRef.current.shift();
-        setTimeout(() => handleChatSend(nextMsg), 50);
+        setTimeout(() => sendMessage(nextMsg), 50);
       }
     }
-  }, [chatInput, shop?.id, chatMessages]);
+  }, [shop?.id]);
+
+  const handleChatSend = useCallback(() => {
+    const msg = chatInput.trim();
+    if (!msg) return;
+    setChatInput('');
+    sendMessage(msg);
+  }, [chatInput, sendMessage]);
+
+  const handleAction = useCallback((actionId, value) => {
+    sendMessage(`__action__${actionId}:${value}`);
+  }, [sendMessage]);
+
+  const handleFormSubmit = useCallback(async (formId, values, file) => {
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bot_id', shop?.id);
+      try {
+        const res = await fetch(API_BASE + '/public/upload/photo', { method: 'POST', body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          sendMessage(`__form__${formId}:${JSON.stringify({ ...values, file_id: data.file_id })}`);
+          return;
+        }
+      } catch {}
+    }
+    sendMessage(`__form__${formId}:${JSON.stringify(values)}`);
+  }, [sendMessage, shop?.id]);
+
+  const handleFileUpload = useCallback(async (uploadId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('bot_id', shop?.id);
+    try {
+      const res = await fetch(API_BASE + '/public/upload/photo', { method: 'POST', body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        sendMessage(`__file__${uploadId}:${data.file_id}`);
+      }
+    } catch {}
+  }, [sendMessage, shop?.id]);
+
+  const copyMsg = useCallback((i) => {
+    const txt = chatMessagesRef.current[i]?.content;
+    if (txt) {
+      navigator.clipboard.writeText(txt).then(() => {
+        setCopiedIndex(i);
+        setTimeout(() => setCopiedIndex(null), 1500);
+      }).catch(() => {});
+    }
+  }, []);
+
+  const chatBubbles = useMemo(() =>
+    chatMessages.map((msg, i) => (
+      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+        <div className={`relative max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed group ${
+          msg.role === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'
+        }`} style={msg.role === 'user' ? { background: theme.css['--theme-btn'] } : {}}
+          onClick={() => copyMsg(i)}
+          onTouchStart={() => { copyTimerRef.current = setTimeout(() => copyMsg(i), 500); }}
+          onTouchEnd={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}
+          onTouchMove={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}>
+          {copiedIndex === i && (
+            <span className="absolute -top-2 right-2 text-[9px] font-bold bg-gray-800 text-white px-1.5 py-0.5 rounded-full z-10">Copied!</span>
+          )}
+          {msg.file_id && msg.file_type === 'photo' && (
+            <img src={API_BASE + '/telegram/file/' + msg.file_id + '?bot_id=' + shop?.id}
+              alt="Photo" className="max-w-full rounded-lg mb-1 max-h-48 object-cover" loading="lazy" />
+          )}
+          {msg.content && msg.role === 'assistant' ? (
+            <RichMessage content={msg.content} isAssistant={true}
+              onAction={handleAction} onFormSubmit={handleFormSubmit}
+              onFileUpload={handleFileUpload} theme={theme} />
+          ) : msg.content ? (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+          ) : null}
+          <span className={`absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-40 transition-opacity select-none ${msg.role === 'user' ? 'text-white/50' : 'text-gray-400'}`}>
+            copy
+          </span>
+        </div>
+      </div>
+    )),
+    [chatMessages, handleAction, handleFormSubmit, handleFileUpload, theme, shop?.id, copyMsg, copiedIndex]
+  );
 
   async function handleVisitorSave(name, phone, email) {
     if (!shop?.id) return;
@@ -2757,19 +2842,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                 </div>
               ) : (
                 <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {chatMessages.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                        msg.role === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'
-                      }`} style={msg.role === 'user' ? { background: theme.css['--theme-btn'] } : {}}>
-                        {msg.file_id && msg.file_type === 'photo' && (
-                          <img src={API_BASE + '/telegram/file/' + msg.file_id + '?bot_id=' + shop?.id}
-                            alt="Photo" className="max-w-full rounded-lg mb-1 max-h-48 object-cover" loading="lazy" />
-                        )}
-                        {msg.content && <MarkdownRenderer>{msg.content}</MarkdownRenderer>}
-                      </div>
-                    </div>
-                  ))}
+                  {chatBubbles}
                   {chatLoading && (
                     <div className="flex justify-start">
                       <div className="bg-gray-100 rounded-2xl px-4 py-3">
