@@ -274,7 +274,7 @@ export default function CustomerDashboard({ shopSlug }) {
   const sendMessage = useCallback(async (msg) => {
     if (!msg || !shopData?.shop?.id) return;
     if (chatSendingRef.current) {
-      chatQueueRef.current = [...chatQueueRef.current, msg];
+      chatQueueRef.current = [...chatQueueRef.current, { type: 'msg', msg }];
       setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
       return;
     }
@@ -299,8 +299,40 @@ export default function CustomerDashboard({ shopSlug }) {
       setChatLoading(false);
       chatInputRef.current?.focus();
       if (chatQueueRef.current.length > 0) {
-        const nextMsg = chatQueueRef.current.shift();
-        setTimeout(() => sendMessage(nextMsg), 50);
+        const next = chatQueueRef.current.shift();
+        setTimeout(() => next.type === 'action' ? sendAction(next.msg) : sendMessage(next.msg), 50);
+      }
+    }
+  }, [shopData?.shop?.id, uid]);
+
+  const sendAction = useCallback(async (actionMsg) => {
+    if (!shopData?.shop?.id) return;
+    if (chatSendingRef.current) {
+      chatQueueRef.current = [...chatQueueRef.current, { type: 'action', msg: actionMsg }];
+      return;
+    }
+    chatSendingRef.current = true;
+    setChatLoading(true);
+    try {
+      const history = chatMessagesRef.current.slice(-100).map(m => ({ role: m.role, content: m.content }));
+      const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: actionMsg, history, visitor_id: uid }),
+      });
+      const d = await res.json();
+      if (d.reply) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
+      }
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
+    } finally {
+      chatSendingRef.current = false;
+      setChatLoading(false);
+      chatInputRef.current?.focus();
+      if (chatQueueRef.current.length > 0) {
+        const next = chatQueueRef.current.shift();
+        setTimeout(() => next.type === 'action' ? sendAction(next.msg) : sendMessage(next.msg), 50);
       }
     }
   }, [shopData?.shop?.id, uid]);
@@ -313,8 +345,8 @@ export default function CustomerDashboard({ shopSlug }) {
   }, [chatInput, sendMessage]);
 
   const handleAction = useCallback((actionId, value) => {
-    sendMessage(`__action__${actionId}:${value}`);
-  }, [sendMessage]);
+    sendAction(`__action__${actionId}:${value}`);
+  }, [sendAction]);
 
   const handleFormSubmit = useCallback(async (formId, values, file) => {
     if (file) {
@@ -325,13 +357,13 @@ export default function CustomerDashboard({ shopSlug }) {
         const res = await fetch(API_BASE + '/public/upload/photo', { method: 'POST', body: formData });
         if (res.ok) {
           const data = await res.json();
-          sendMessage(`__form__${formId}:${JSON.stringify({ ...values, file_id: data.file_id })}`);
+          sendAction(`__form__${formId}:${JSON.stringify({ ...values, file_id: data.file_id })}`);
           return;
         }
       } catch {}
     }
-    sendMessage(`__form__${formId}:${JSON.stringify(values)}`);
-  }, [sendMessage, shopData?.shop?.id]);
+    sendAction(`__form__${formId}:${JSON.stringify(values)}`);
+  }, [sendAction, shopData?.shop?.id]);
 
   const handleFileUpload = useCallback(async (uploadId, file) => {
     const formData = new FormData();
@@ -341,10 +373,10 @@ export default function CustomerDashboard({ shopSlug }) {
       const res = await fetch(API_BASE + '/public/upload/photo', { method: 'POST', body: formData });
       if (res.ok) {
         const data = await res.json();
-        sendMessage(`__file__${uploadId}:${data.file_id}`);
+        sendAction(`__file__${uploadId}:${data.file_id}`);
       }
     } catch {}
-  }, [sendMessage, shopData?.shop?.id]);
+  }, [sendAction, shopData?.shop?.id]);
 
   const copyMsg = useCallback((i) => {
     const txt = chatMessagesRef.current[i]?.content;
@@ -375,7 +407,7 @@ export default function CustomerDashboard({ shopSlug }) {
             <img src={`${API_BASE}/telegram/file/${encodeURIComponent(msg.file_id)}?bot_id=${shopData.shop.id}`}
               alt="" className="max-w-full rounded-lg" />
           ) : msg.role === 'assistant' ? (
-            <RichMessage content={msg.content} isAssistant={true}
+            <RichMessage content={msg.content} isAssistant={true} botId={shopData?.shop?.id}
               onAction={handleAction} onFormSubmit={handleFormSubmit}
               onFileUpload={handleFileUpload} />
           ) : msg.content ? (
