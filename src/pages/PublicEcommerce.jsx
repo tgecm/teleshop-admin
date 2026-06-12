@@ -1631,7 +1631,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const sendMessage = useCallback(async (msg) => {
     if (!msg || !shop?.id) return;
     if (chatSendingRef.current) {
-      chatQueueRef.current = [...chatQueueRef.current, msg];
+      chatQueueRef.current = [...chatQueueRef.current, { type: 'msg', msg }];
       setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
       return;
     }
@@ -1655,8 +1655,39 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       setChatLoading(false);
       setTimeout(() => chatInputRef.current?.focus(), 100);
       if (chatQueueRef.current.length > 0) {
-        const nextMsg = chatQueueRef.current.shift();
-        setTimeout(() => sendMessage(nextMsg), 50);
+        const next = chatQueueRef.current.shift();
+        setTimeout(() => next.type === 'action' ? sendAction(next.msg) : sendMessage(next.msg), 50);
+      }
+    }
+  }, [shop?.id]);
+
+  const sendAction = useCallback(async (actionMsg) => {
+    if (!shop?.id) return;
+    if (chatSendingRef.current) {
+      chatQueueRef.current = [...chatQueueRef.current, { type: 'action', msg: actionMsg }];
+      return;
+    }
+    chatSendingRef.current = true;
+    setChatLoading(true);
+    try {
+      const history = chatMessagesRef.current.slice(-100).map(m => ({ role: m.role, content: m.content }));
+      const res = await fetch(API_BASE + '/public/chat/' + shop?.id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: actionMsg, history, visitor_id: visitorIdRef.current }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.detail || 'Chat failed');
+      setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
+    } finally {
+      chatSendingRef.current = false;
+      setChatLoading(false);
+      setTimeout(() => chatInputRef.current?.focus(), 100);
+      if (chatQueueRef.current.length > 0) {
+        const next = chatQueueRef.current.shift();
+        setTimeout(() => next.type === 'action' ? sendAction(next.msg) : sendMessage(next.msg), 50);
       }
     }
   }, [shop?.id]);
@@ -1669,8 +1700,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   }, [chatInput, sendMessage]);
 
   const handleAction = useCallback((actionId, value) => {
-    sendMessage(`__action__${actionId}:${value}`);
-  }, [sendMessage]);
+    sendAction(`__action__${actionId}:${value}`);
+  }, [sendAction]);
 
   const handleFormSubmit = useCallback(async (formId, values, file) => {
     if (file) {
@@ -1681,13 +1712,13 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         const res = await fetch(API_BASE + '/public/upload/photo', { method: 'POST', body: formData });
         if (res.ok) {
           const data = await res.json();
-          sendMessage(`__form__${formId}:${JSON.stringify({ ...values, file_id: data.file_id })}`);
+          sendAction(`__form__${formId}:${JSON.stringify({ ...values, file_id: data.file_id })}`);
           return;
         }
       } catch {}
     }
-    sendMessage(`__form__${formId}:${JSON.stringify(values)}`);
-  }, [sendMessage, shop?.id]);
+    sendAction(`__form__${formId}:${JSON.stringify(values)}`);
+  }, [sendAction, shop?.id]);
 
   const handleFileUpload = useCallback(async (uploadId, file) => {
     const formData = new FormData();
@@ -1697,10 +1728,10 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       const res = await fetch(API_BASE + '/public/upload/photo', { method: 'POST', body: formData });
       if (res.ok) {
         const data = await res.json();
-        sendMessage(`__file__${uploadId}:${data.file_id}`);
+        sendAction(`__file__${uploadId}:${data.file_id}`);
       }
     } catch {}
-  }, [sendMessage, shop?.id]);
+  }, [sendAction, shop?.id]);
 
   const copyMsg = useCallback((i) => {
     const txt = chatMessagesRef.current[i]?.content;
@@ -1730,7 +1761,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               alt="Photo" className="max-w-full rounded-lg mb-1 max-h-48 object-cover" loading="lazy" />
           )}
           {msg.content && msg.role === 'assistant' ? (
-            <RichMessage content={msg.content} isAssistant={true}
+            <RichMessage content={msg.content} isAssistant={true} botId={shop?.id}
               onAction={handleAction} onFormSubmit={handleFormSubmit}
               onFileUpload={handleFileUpload} theme={theme} />
           ) : msg.content ? (

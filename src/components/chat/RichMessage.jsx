@@ -1,14 +1,26 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ShoppingBag, Upload, Check, X, Camera } from 'lucide-react';
+import { ShoppingBag, Check, Camera } from 'lucide-react';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
 
+function extractFileId(img) {
+  if (!img) return '';
+  if (typeof img === 'string') return img;
+  if (Array.isArray(img)) {
+    const photo = img.find(m => m.type === 'photo' || m.file_id);
+    return photo?.file_id || photo || '';
+  }
+  return img.file_id || '';
+}
+
 function getImageUrl(fileId, botId) {
-  if (!fileId) return '';
-  if (fileId.startsWith('http')) return fileId;
-  return `${API_BASE}/telegram/file/${encodeURIComponent(fileId)}?bot_id=${botId}`;
+  const id = extractFileId(fileId);
+  if (!id) return '';
+  if (id.startsWith('http') || id.startsWith('data:')) return id;
+  if (!botId || botId === 'the_bot_id') return '';
+  return `${API_BASE}/telegram/file/${encodeURIComponent(id)}?bot_id=${botId}`;
 }
 
 function parseRichMessage(text) {
@@ -20,7 +32,8 @@ function parseRichMessage(text) {
 
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) {
-      segments.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+      const t = text.slice(lastIndex, match.index);
+      if (t.trim()) segments.push({ type: 'text', content: t });
     }
     try {
       const data = JSON.parse(match[2].trim());
@@ -31,13 +44,14 @@ function parseRichMessage(text) {
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < text.length) {
-    segments.push({ type: 'text', content: text.slice(lastIndex) });
+    const t = text.slice(lastIndex);
+    if (t.trim()) segments.push({ type: 'text', content: t });
   }
   return segments;
 }
 
-function ProductCard({ data, onAction, theme }) {
-  const imgUrl = getImageUrl(data.image, data.bot_id);
+function ProductCard({ data, onAction, theme, botId }) {
+  const imgUrl = getImageUrl(data.image, botId);
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden bg-white my-2 shadow-sm">
       {imgUrl && (
@@ -48,20 +62,9 @@ function ProductCard({ data, onAction, theme }) {
       <div className="p-3">
         <h4 className="font-bold text-gray-900 text-sm">{data.name}</h4>
         <p className="text-lg font-bold mt-1" style={{ color: theme?.css?.['--theme-price'] || '#059669' }}>
-          {data.price?.toLocaleString()} MMK
+          {Number(data.price).toLocaleString()} MMK
         </p>
-        {data.options?.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {data.options.map(opt => (
-              <button key={opt.value || opt}
-                onClick={() => onAction('select_option', { product_id: data.id, option: opt.value || opt })}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-95 transition-all">
-                {opt.label || opt}
-              </button>
-            ))}
-          </div>
-        )}
-        <button onClick={() => onAction('buy', { product_id: data.id })}
+        <button onClick={() => onAction('buy', String(data.id))}
           className="w-full mt-2 py-2 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
           style={{ background: theme?.css?.['--theme-btn'] || '#6366f1' }}>
           <ShoppingBag className="w-3.5 h-3.5 inline mr-1 -mt-0.5" /> Buy Now
@@ -76,7 +79,7 @@ const RichButtons = React.memo(function RichButtons({ data, onAction, theme }) {
     <div className="flex flex-wrap gap-2 my-2">
       {(data.options || []).map((opt, i) => (
         <button key={i}
-          onClick={() => onAction(data.id || 'action', opt.value !== undefined ? opt.value : opt)}
+          onClick={() => onAction(data.id || 'action', opt.value !== undefined ? String(opt.value) : String(opt))}
           className="px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95"
           style={opt.primary !== false
             ? { background: theme?.css?.['--theme-btn'] || '#6366f1', color: '#fff' }
@@ -89,8 +92,8 @@ const RichButtons = React.memo(function RichButtons({ data, onAction, theme }) {
   );
 });
 
-function PaymentInfo({ data, theme }) {
-  const qrUrl = getImageUrl(data.qr_code, data.bot_id);
+function PaymentInfo({ data, botId }) {
+  const qrUrl = getImageUrl(data.qr_code, botId);
   return (
     <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 my-2">
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Payment</p>
@@ -150,7 +153,7 @@ const ChatForm = React.memo(function ChatForm({ data, onSubmit }) {
       )}
       <button type="submit"
         className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
-        style={{ background: data.theme_btn || '#6366f1' }}>
+        style={{ background: '#6366f1' }}>
         <Check className="w-4 h-4 inline mr-1 -mt-0.5" /> {data.submit_label || 'Confirm'}
       </button>
     </form>
@@ -168,7 +171,7 @@ function OrderSummary({ data }) {
       </div>
       {data.order_id && <p className="text-xs text-green-700 font-mono font-bold">#{data.order_id}</p>}
       {data.product && <p className="text-sm text-green-800 mt-1">{data.product}</p>}
-      {data.total && <p className="font-bold text-green-800 mt-1">{data.total.toLocaleString()} MMK</p>}
+      {data.total && <p className="font-bold text-green-800 mt-1">{Number(data.total).toLocaleString()} MMK</p>}
       {data.status && (
         <div className="mt-2 pt-2 border-t border-green-200 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
@@ -228,18 +231,18 @@ function MarkdownBlock({ content }) {
   );
 }
 
-export const RichMessage = React.memo(function RichMessage({ content, onAction, onFormSubmit, onFileUpload, theme, isAssistant }) {
+export const RichMessage = React.memo(function RichMessage({ content, onAction, onFormSubmit, onFileUpload, theme, isAssistant, botId }) {
   const segments = parseRichMessage(content);
   return segments.map((seg, i) => {
     switch (seg.type) {
       case 'text':
         return <MarkdownBlock key={i} content={seg.content} />;
       case 'product_card':
-        return isAssistant ? <ProductCard key={i} data={seg.data} onAction={onAction} theme={theme} /> : null;
+        return isAssistant ? <ProductCard key={i} data={seg.data} onAction={onAction} theme={theme} botId={botId} /> : null;
       case 'buttons':
         return isAssistant ? <RichButtons key={i} data={seg.data} onAction={onAction} theme={theme} /> : null;
       case 'payment_info':
-        return isAssistant ? <PaymentInfo key={i} data={seg.data} theme={theme} /> : null;
+        return isAssistant ? <PaymentInfo key={i} data={seg.data} botId={botId} /> : null;
       case 'form':
         return isAssistant ? <ChatForm key={i} data={seg.data} onSubmit={(vals, file) => onFormSubmit?.(seg.data.id || 'form', vals, file)} /> : null;
       case 'file_upload':
