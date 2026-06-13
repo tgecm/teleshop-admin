@@ -7,6 +7,7 @@ import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import SearchableSelect from '../components/shared/SearchableSelect';
 import ProductSorting from '../components/ProductSorting';
 import {
   Plus, Search, Edit2, Trash2, Package, Tag, MoreVertical, X,
@@ -15,6 +16,7 @@ import {
   Ticket, Percent, CalendarDays, Coins, Users, Truck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import townshipsData, { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
 
 const PREDEFINED_COLORS = [
   { name: 'Red', hex: '#FF0000' },
@@ -57,6 +59,14 @@ export default function Products() {
   const [deliveryFee, setDeliveryFee] = useState('');
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('');
   const [deliveryFeeLoading, setDeliveryFeeLoading] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedTownship, setSelectedTownship] = useState('');
+  const [townshipFeeInput, setTownshipFeeInput] = useState('');
+  const [townshipFees, setTownshipFees] = useState([]);
+  const [townshipFeesLoading, setTownshipFeesLoading] = useState(false);
+  const [savingTownshipFee, setSavingTownshipFee] = useState(false);
+  const [deletingTownshipFeeId, setDeletingTownshipFeeId] = useState(null);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', selectedBotId],
@@ -167,6 +177,71 @@ export default function Products() {
     } finally {
       setDeliveryFeeLoading(false);
     }
+  };
+
+  const fetchTownshipFees = useCallback(async () => {
+    if (!selectedBotId) return;
+    setTownshipFeesLoading(true);
+    try {
+      const res = await client.get(`/bots/${selectedBotId}/delivery-fees`);
+      setTownshipFees(res.data || []);
+    } catch (e) {
+      console.error('Failed to load township fees:', e);
+    } finally {
+      setTownshipFeesLoading(false);
+    }
+  }, [selectedBotId]);
+
+  useEffect(() => {
+    if (showDeliveryFeeModal) fetchTownshipFees();
+  }, [showDeliveryFeeModal, fetchTownshipFees]);
+
+  const saveTownshipFee = async () => {
+    if (!selectedBotId || !selectedTownship || !townshipFeeInput) return;
+    setSavingTownshipFee(true);
+    try {
+      await client.put(`/bots/${selectedBotId}/delivery-fees`, {
+        region: selectedRegion,
+        district: selectedDistrict,
+        township: selectedTownship,
+        fee: Number(townshipFeeInput) || 0,
+      });
+      addToast('Township fee saved');
+      setTownshipFeeInput('');
+      setSelectedTownship('');
+      setSelectedDistrict('');
+      setSelectedRegion('');
+      fetchTownshipFees();
+    } catch (e) {
+      addToast(e.response?.data?.detail || 'Failed to save township fee', 'error');
+    } finally {
+      setSavingTownshipFee(false);
+    }
+  };
+
+  const deleteTownshipFee = async (id) => {
+    if (!selectedBotId) return;
+    setDeletingTownshipFeeId(id);
+    try {
+      await client.delete(`/bots/${selectedBotId}/delivery-fees/${id}`);
+      addToast('Township fee deleted');
+      fetchTownshipFees();
+    } catch (e) {
+      addToast(e.response?.data?.detail || 'Failed to delete township fee', 'error');
+    } finally {
+      setDeletingTownshipFeeId(null);
+    }
+  };
+
+  const handleRegionChange = (region) => {
+    setSelectedRegion(region);
+    setSelectedDistrict('');
+    setSelectedTownship('');
+  };
+
+  const handleDistrictChange = (district) => {
+    setSelectedDistrict(district);
+    setSelectedTownship('');
   };
 
   const generateCouponCode = () => {
@@ -422,7 +497,7 @@ export default function Products() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowDeliveryFeeModal(false)} />
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl">
+            <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
@@ -434,7 +509,8 @@ export default function Products() {
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
-              <div className="space-y-4">
+
+              <div className="space-y-4 pb-4 border-b border-gray-100">
                 <div>
                   <label className="text-sm font-medium text-gray-700 block mb-1.5">Delivery Fee (MMK)</label>
                   <input
@@ -456,23 +532,110 @@ export default function Products() {
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
                   />
                   <p className="text-xs text-gray-400 mt-1">Delivery fee is waived when cart total reaches or exceeds this amount</p>
-                  <p className="text-[10px] text-emerald-600/60 mt-0.5 italic font-semibold">We're working on improving the Shipping Fees feature.</p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeliveryFeeModal(false)}
+                    className="flex-1 py-3 bg-gray-100 rounded-xl font-medium text-sm text-gray-700 hover:bg-gray-200 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveDeliverySettings}
+                    disabled={deliveryFeeLoading}
+                    className="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50"
+                  >
+                    {deliveryFeeLoading ? 'Saving...' : 'Save Settings'}
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-3 mt-8">
-                <button
-                  onClick={() => setShowDeliveryFeeModal(false)}
-                  className="flex-1 py-3 bg-gray-100 rounded-xl font-medium text-sm text-gray-700 hover:bg-gray-200 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveDeliverySettings}
-                  disabled={deliveryFeeLoading}
-                  className="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50"
-                >
-                  {deliveryFeeLoading ? 'Saving...' : 'Save Settings'}
-                </button>
+
+              {/* Zone-based Delivery Fees */}
+              <div className="mt-5">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">Zone-based Delivery Fees</h3>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 block mb-1">Region (တိုင်း/ပြည်နယ်)</label>
+                    <SearchableSelect
+                      value={selectedRegion}
+                      onChange={handleRegionChange}
+                      options={REGION_NAMES}
+                      placeholder="Select Region"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 block mb-1">District (ခရိုင်)</label>
+                    <SearchableSelect
+                      value={selectedDistrict}
+                      onChange={handleDistrictChange}
+                      options={getDistricts(selectedRegion)}
+                      placeholder="Select District"
+                      disabled={!selectedRegion}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 block mb-1">Township (မြို့နယ်)</label>
+                    <SearchableSelect
+                      value={selectedTownship}
+                      onChange={setSelectedTownship}
+                      options={getTownships(selectedRegion, selectedDistrict)}
+                      placeholder="Select Township"
+                      disabled={!selectedDistrict}
+                    />
+                  </div>
+
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <label className="text-xs font-medium text-gray-600 block mb-1">Delivery Fee (MMK)</label>
+                      <input
+                        type="number"
+                        value={townshipFeeInput}
+                        onChange={(e) => setTownshipFeeInput(e.target.value)}
+                        placeholder="e.g. 3000"
+                        disabled={!selectedTownship}
+                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm disabled:opacity-50"
+                      />
+                    </div>
+                    <button
+                      onClick={saveTownshipFee}
+                      disabled={!selectedTownship || !townshipFeeInput || savingTownshipFee}
+                      className="px-4 py-2.5 bg-emerald-600 rounded-xl font-bold text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50 h-[42px]"
+                    >
+                      {savingTownshipFee ? 'Saving...' : 'Add'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Saved township fees list */}
+                {townshipFeesLoading ? (
+                  <div className="text-center py-4 text-sm text-gray-400">Loading...</div>
+                ) : townshipFees.length > 0 ? (
+                  <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
+                    {townshipFees.map((tf) => (
+                      <div key={tf.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2.5">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{tf.township}</p>
+                          <p className="text-xs text-gray-500 truncate">{tf.region} &gt; {tf.district}</p>
+                        </div>
+                        <div className="flex items-center gap-2 ml-2 shrink-0">
+                          <span className="text-sm font-bold text-emerald-600">{Number(tf.fee).toLocaleString()} MMK</span>
+                          <button
+                            onClick={() => deleteTownshipFee(tf.id)}
+                            disabled={deletingTownshipFeeId === tf.id}
+                            className="p-1.5 bg-white rounded-lg border border-gray-200 text-red-400 hover:text-red-600 hover:border-red-200 transition-all disabled:opacity-50"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center py-4 text-sm text-gray-400">No township fees set yet</p>
+                )}
               </div>
             </div>
           </div>
@@ -958,7 +1121,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     price: product?.price || '',
     original_price: product?.original_price || '',
     category_id: product?.category_id || '',
-    apply_delivery_fee: product?.apply_delivery_fee || false,
+    delivery_type: product?.delivery_type || '',
   });
   const [promotion, setPromotion] = useState(() => !!product?.original_price);
   const [stockOption, setStockOption] = useState(() => {
@@ -1053,7 +1216,14 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
   };
 
   const removeOptionValue = (optionId, valueId) => {
-    setOptions(prev => prev.map(o => o.id === optionId ? { ...o, values: o.values.filter(v => v.id !== valueId) } : o));
+    setOptions(prev => {
+      const updated = prev.map(o => o.id === optionId ? { ...o, values: o.values.filter(v => v.id !== valueId) } : o);
+      const target = updated.find(o => o.id === optionId);
+      if (target && target.values.length === 0) {
+        return updated.filter(o => o.id !== optionId);
+      }
+      return updated;
+    });
   };
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showPhotoConfirm, setShowPhotoConfirm] = useState(false);
@@ -1130,8 +1300,11 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
       if (colors.length > 0) specs.colors = colors;
       if (options.length > 0) specs.options = options;
     }
+    const { delivery_type, ...rest } = formData;
     onSubmit({
-      ...formData,
+      ...rest,
+      apply_delivery_fee: delivery_type === 'flat' || delivery_type === 'zone',
+      delivery_type,
       price: Number(formData.price),
       original_price: promotion && formData.original_price ? Number(formData.original_price) : null,
       stock_quantity: stockOption === 'unlimited' ? null : stockOption === 'out' ? 0 : Number(customStock),
@@ -1307,24 +1480,36 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
           />
         </div>
 
-        {/* Delivery fee toggle */}
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-          <div className="flex items-center gap-3">
+        {/* Delivery fee type */}
+        <div className="p-3 bg-gray-50 rounded-xl space-y-3">
+          <div className="flex items-center gap-2">
             <Truck className="w-4 h-4 text-gray-500" />
-            <div>
-              <p className="text-sm font-semibold text-gray-700">Apply delivery fees</p>
-              <p className="text-xs text-gray-400">Delivery fee will be charged at checkout</p>
-            </div>
+            <p className="text-sm font-semibold text-gray-700">Delivery fee type</p>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={formData.apply_delivery_fee}
-              onChange={(e) => setFormData({ ...formData, apply_delivery_fee: e.target.checked })}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
-          </label>
+          <div className="flex items-center justify-between pl-1">
+            <p className="text-sm text-gray-600">Flat Fees</p>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.delivery_type === 'flat'}
+                onChange={() => setFormData({ ...formData, delivery_type: formData.delivery_type === 'flat' ? '' : 'flat' })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
+            </label>
+          </div>
+          <div className="flex items-center justify-between pl-1">
+            <p className="text-sm text-gray-600">Zone-based Fees</p>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.delivery_type === 'zone'}
+                onChange={() => setFormData({ ...formData, delivery_type: formData.delivery_type === 'zone' ? '' : 'zone' })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
+            </label>
+          </div>
         </div>
 
         <div className="space-y-3">
