@@ -530,14 +530,14 @@ export default function PublicShop({ slug, viaDomain }) {
   }
 
   useEffect(() => {
-    document.title = shop?.bot_full_name || 'TeleShop';
+    document.title = shop?.bot_full_name || 'E-commerce Myanmar';
     const icon = document.querySelector('link[rel="icon"]');
     if (icon && shop?.profile_picture) {
       icon.setAttribute('href', shop.profile_picture);
     } else if (icon) {
       icon.setAttribute('href', '/vite.svg');
     }
-    return () => { document.title = 'TeleShop'; };
+    return () => { document.title = 'E-commerce Myanmar'; };
   }, [shop?.bot_full_name, shop?.profile_picture]);
 
   useEffect(() => {

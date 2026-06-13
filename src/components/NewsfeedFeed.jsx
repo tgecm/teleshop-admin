@@ -45,13 +45,14 @@ function isPostLiked(postId) {
   return getLikedPosts().includes(postId);
 }
 
-export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug, initialPostCode, shop }) {
+export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug, initialPostCode, shop, inline }) {
   const visitorId = getVisitorId();
 
   useEffect(() => {
+    if (inline) return;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
-  }, []);
+  }, [inline]);
 
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(0);
@@ -159,7 +160,7 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
   }, [initialPostCode, posts]);
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col">
+    <div className={inline ? "flex flex-col" : "fixed inset-0 bg-white z-50 flex flex-col"}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
         <button onClick={onClose} className="p-2 -ml-2 hover:bg-gray-50 rounded-xl transition-all">

@@ -489,7 +489,7 @@ export default function CustomerDashboard({ shopSlug }) {
             {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} orderStats={orderStats} banners={shopData?.banners || []} />}
             {activeTab === 'shop' && <CustomerShopTab shopSlug={shopSlug} shop={shopData?.shop} user={user} />}
             {activeTab === 'newsfeed' && (
-              <div className="fixed inset-0 z-50">
+              <div className="pb-20">
                 <NewsfeedFeed
                   botId={shopData?.shop?.id}
                   botName={shopName}
@@ -497,6 +497,7 @@ export default function CustomerDashboard({ shopSlug }) {
                   viaDomain={false}
                   slug={shopSlug}
                   shop={shopData?.shop}
+                  inline
                 />
               </div>
             )}

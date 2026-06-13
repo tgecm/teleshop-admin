@@ -1437,11 +1437,36 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [selectedColors, setSelectedColors] = useState({});
   const [linkSelectedOptions, setLinkSelectedOptions] = useState({});
   const [oosMap, setOosMap] = useState({});
-  const [viewMode, rawSetViewMode] = useState(mode || 'telegram');
+  const [userMode, setUserMode] = useState(null);
   const setViewMode = useCallback((v) => {
     if (mode) return; // locked — cannot switch mode on dedicated pages
-    rawSetViewMode(v);
+    setUserMode(v);
   }, [mode]);
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: viaDomain ? ['public-ecommerce-by-domain'] : ['public-ecommerce', slug],
+    queryFn: viaDomain ? getPublicShopByDomain : () => getPublicShop(slug),
+    enabled: viaDomain || !!slug,
+    retry: 2,
+    retryDelay: 1000,
+  });
+
+  let viewMode;
+  if (mode) {
+    viewMode = mode;
+  } else if (userMode) {
+    viewMode = userMode;
+  } else if (data?.mode_order) {
+    const modeData = data.mode_order;
+    const order = Array.isArray(modeData) ? modeData : (modeData.order || ['telegram', 'ecommerce', 'guest']);
+    const enabled = !Array.isArray(modeData) ? (modeData.enabled || {}) : {};
+    let filtered = order.filter(k => enabled[k] !== false);
+    if (filtered.length === 0) filtered = order;
+    viewMode = filtered[0];
+  } else {
+    viewMode = 'telegram';
+  }
+
   const [sentProducts, setSentProducts] = useState(new Set());
   // Product link mode — show single product instead of full shop
   const [initialProductCode] = useState(() => new URLSearchParams(window.location.search).get('product'));
@@ -1483,19 +1508,12 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     updateCatScroll();
   }, [updateCatScroll]);
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: viaDomain ? ['public-ecommerce-by-domain'] : ['public-ecommerce', slug],
-    queryFn: viaDomain ? getPublicShopByDomain : () => getPublicShop(slug),
-    enabled: viaDomain || !!slug,
-    retry: 2,
-    retryDelay: 1000,
-  });
-
   // Auto-open newsfeed when post param is present (from permalink)
   // Wait for shop data so NewsfeedFeed mounts with the correct botId
   useEffect(() => {
     if (initialPostCode && data?.shop?.id) setShowNewsfeed(true);
   }, [initialPostCode, data?.shop?.id]);
+
 
   const shop = data?.shop;
   const products = data?.products || [];
@@ -2062,7 +2080,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     const icon = document.querySelector('link[rel="icon"]');
     if (icon && shop?.profile_picture) icon.setAttribute('href', shop.profile_picture);
     else if (icon) icon.setAttribute('href', '/vite.svg');
-    return () => { document.title = 'TeleShop'; };
+    return () => { document.title = 'E-commerce Myanmar'; };
   }, [shop?.bot_full_name, shop?.profile_picture]);
 
   // Check stock for cart items when the cart opens
