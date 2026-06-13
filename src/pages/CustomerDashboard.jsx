@@ -10,6 +10,8 @@ import { useCartState } from '../context/CartContext';
 import { myanmarFormat } from '../utils/date';
 import { RichMessage } from '../components/chat/RichMessage';
 import { getPublicTopProducts } from '../api/public';
+import SearchableSelect from '../components/shared/SearchableSelect';
+import { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
@@ -1219,6 +1221,9 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
   const [emails, setEmails] = useState(['']);
   const [telegram, setTelegram] = useState('');
   const [viber, setViber] = useState('');
+  const [profileRegion, setProfileRegion] = useState('');
+  const [profileDistrict, setProfileDistrict] = useState('');
+  const [profileTownship, setProfileTownship] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -1245,6 +1250,9 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
             setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [email || '']);
             setTelegram(data.telegram_username || '');
             setViber(data.viber_number || '');
+            setProfileRegion(data.region || '');
+            setProfileDistrict(data.district || '');
+            setProfileTownship(data.township || '');
             setAddress(data.address || '');
             setNotes(data.notes || '');
           } else {
@@ -1273,6 +1281,9 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
             setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [email || '']);
             setTelegram(data.telegram_username || '');
             setViber(data.viber_number || '');
+            setProfileRegion(data.region || '');
+            setProfileDistrict(data.district || '');
+            setProfileTownship(data.township || '');
             setAddress(data.address || '');
             setNotes(data.notes || '');
           } else {
@@ -1319,6 +1330,9 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
           viber_number: viber.trim(),
           address: address.trim(),
           notes: notes.trim(),
+          region: profileRegion,
+          district: profileDistrict,
+          township: profileTownship,
         }),
       });
       if (res.ok) {
@@ -1468,6 +1482,37 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
             <input type="tel" value={viber} onChange={e => setViber(e.target.value)}
               placeholder="09xxxxxxxxx"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          </div>
+
+          {/* Region / District / Township */}
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Region (တိုင်း/ပြည်နယ်)</label>
+            <SearchableSelect
+              value={profileRegion}
+              onChange={v => { setProfileRegion(v); setProfileDistrict(''); setProfileTownship(''); }}
+              options={REGION_NAMES}
+              placeholder="Select Region"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">District (ခရိုင်)</label>
+            <SearchableSelect
+              value={profileDistrict}
+              onChange={v => { setProfileDistrict(v); setProfileTownship(''); }}
+              options={getDistricts(profileRegion)}
+              placeholder="Select District"
+              disabled={!profileRegion}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Township (မြို့နယ်)</label>
+            <SearchableSelect
+              value={profileTownship}
+              onChange={setProfileTownship}
+              options={getTownships(profileRegion, profileDistrict)}
+              placeholder="Select Township"
+              disabled={!profileDistrict}
+            />
           </div>
 
           {/* Address */}
@@ -1660,7 +1705,7 @@ function PaymentSelectInline({ paymentMethods, onBack, onNext }) {
 
 /* ─── CHECKOUT FORM INLINE ─── */
 function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, shopSlug, selectedPayment, onClose, onOrderPlaced }) {
-  const [form, setForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', address: '', notes: '' });
+  const [form, setForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' });
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -1835,6 +1880,9 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
             viber_number: form.viber.trim(),
             address: form.address.trim(),
             notes: form.notes.trim(),
+            region: form.region,
+            district: form.district,
+            township: form.township,
           }),
         }).catch(() => {});
       }
@@ -1848,6 +1896,9 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
         email: emailStr,
         address: form.address.trim(),
         notes: form.notes.trim(),
+        region: form.region,
+        district: form.district,
+        township: form.township,
         telegram_username: form.telegram.trim(),
         viber_number: form.viber.trim(),
         items: cartItems.map(i => {
@@ -2033,6 +2084,36 @@ function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, 
             <input type="tel" value={form.viber} onChange={e => setForm(p => ({ ...p, viber: e.target.value }))}
               placeholder="09xxxxxxxxx"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Region (တိုင်း/ပြည်နယ်)</label>
+            <SearchableSelect
+              value={form.region}
+              onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
+              options={REGION_NAMES}
+              placeholder="Select Region"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">District (ခရိုင်)</label>
+            <SearchableSelect
+              value={form.district}
+              onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
+              options={getDistricts(form.region)}
+              placeholder="Select District"
+              disabled={!form.region}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Township (မြို့နယ်)</label>
+            <SearchableSelect
+              value={form.township}
+              onChange={v => setForm(p => ({ ...p, township: v }))}
+              options={getTownships(form.region, form.district)}
+              placeholder="Select Township"
+              disabled={!form.district}
+            />
           </div>
 
           <div>

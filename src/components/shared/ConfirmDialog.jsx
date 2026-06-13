@@ -49,12 +49,14 @@ export default function ConfirmDialog({
               <p className="text-sm text-gray-500 mb-6 leading-relaxed">{message}</p>
               <div className="flex gap-3 w-full">
                 <button
+                  type="button"
                   onClick={onClose}
                   className="flex-1 px-4 py-3 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-2xl transition-all active:scale-[0.97] text-sm"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={onConfirm}
                   disabled={loading}
                   className={`flex-1 px-4 py-3 text-white font-bold rounded-2xl transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed text-sm ${

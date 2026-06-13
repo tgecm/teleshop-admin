@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
+import SearchableSelect from '../components/shared/SearchableSelect';
+import { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
 import { useToastStore } from '../store/toastStore';
 import ShopBanner from '../components/shared/ShopBanner';
 import { useAuth } from '../context/AuthContext';
@@ -515,8 +517,8 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   );
 }
 
-function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products }) {
-  const [form, setForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', address: '', notes: '' });
+function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees }) {
+  const [form, setForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' });
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -533,42 +535,52 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState(0);
   const [deliveryFeeAmount, setDeliveryFeeAmount] = useState(0);
+  const [zoneFees, setZoneFees] = useState([]);
 
   const effectiveTotal = couponApplied ? totalAmount - couponApplied.discount : totalAmount;
 
   useEffect(() => {
-    if (shop?.id) {
-      const token = localStorage.getItem('auth-storage')
-        ? JSON.parse(localStorage.getItem('auth-storage'))?.state?.token
-        : null;
-      fetch(API_BASE + '/bots/' + shop.id + '/delivery-settings', {
-        headers: token ? { 'Authorization': 'Bearer ' + token } : {},
-      })
-        .then(r => r.ok ? r.json() : { delivery_fee: 0, free_delivery_threshold: 0 })
-        .then(d => {
-          setDeliveryFee(Number(d.delivery_fee) || 0);
-          setFreeDeliveryThreshold(Number(d.free_delivery_threshold) || 0);
-        })
-        .catch(() => {});
+    if (deliverySettings?.delivery_fee != null) {
+      setDeliveryFee(Number(deliverySettings.delivery_fee) || 0);
+      setFreeDeliveryThreshold(Number(deliverySettings.free_delivery_threshold) || 0);
     }
-  }, [shop?.id]);
+    if (deliveryFees) {
+      setZoneFees(deliveryFees);
+    }
+  }, [deliverySettings, deliveryFees]);
 
   useEffect(() => {
-    const anyProductHasFee = cartItems.some(item => {
+    const total = couponApplied ? effectiveTotal : totalAmount;
+    const anyFlatFeeProduct = cartItems.some(item => {
       const p = (products || []).find(pp => pp.id === item.product_id);
-      return p?.apply_delivery_fee;
+      return p?.apply_delivery_fee && p?.delivery_type !== 'zone';
     });
-    if (anyProductHasFee && deliveryFee > 0) {
-      const total = couponApplied ? effectiveTotal : totalAmount;
-      if (freeDeliveryThreshold > 0 && total >= freeDeliveryThreshold) {
-        setDeliveryFeeAmount(0);
-      } else {
-        setDeliveryFeeAmount(deliveryFee);
+    const anyZoneFeeProduct = cartItems.some(item => {
+      const p = (products || []).find(pp => pp.id === item.product_id);
+      return p?.delivery_type === 'zone';
+    });
+
+    let fee = 0;
+
+    if (anyZoneFeeProduct && form.township) {
+      const match = zoneFees.find(zf =>
+        zf.township.toLowerCase() === form.township.toLowerCase()
+      );
+      if (match && Number(match.fee) > 0) {
+        fee = Number(match.fee);
+      } else if (anyFlatFeeProduct && deliveryFee > 0) {
+        fee = deliveryFee;
       }
-    } else {
-      setDeliveryFeeAmount(0);
+    } else if (anyFlatFeeProduct && deliveryFee > 0) {
+      fee = deliveryFee;
     }
-  }, [deliveryFee, freeDeliveryThreshold, cartItems, products, totalAmount, couponApplied, effectiveTotal]);
+
+    if (fee > 0 && freeDeliveryThreshold > 0 && total >= freeDeliveryThreshold) {
+      fee = 0;
+    }
+
+    setDeliveryFeeAmount(fee);
+  }, [deliveryFee, freeDeliveryThreshold, cartItems, products, totalAmount, couponApplied, effectiveTotal, zoneFees, form.township]);
 
   useEffect(() => {
     const tgToken = localStorage.getItem('telegram_token');
@@ -587,6 +599,9 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
             emails: el.length > 0 ? el : [user?.email || ''],
             telegram: data.telegram_username || '',
             viber: data.viber_number || '',
+            region: data.region || '',
+            district: data.district || '',
+            township: data.township || '',
             address: data.address || '',
             notes: data.notes || '',
           });
@@ -613,6 +628,9 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
             emails: data.email ? [data.email] : [''],
             telegram: data.telegram || '',
             viber: data.viber || '',
+            region: data.region || '',
+            district: data.district || '',
+            township: data.township || '',
             address: data.address || '',
             notes: data.notes || '',
           });
@@ -724,6 +742,9 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
             viber_number: form.viber.trim(),
             address: form.address.trim(),
             notes: form.notes.trim(),
+            region: form.region,
+            district: form.district,
+            township: form.township,
           }),
         }).catch(() => {});
       }
@@ -739,6 +760,9 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
         notes: form.notes.trim(),
         telegram_username: form.telegram.trim(),
         viber_number: form.viber.trim(),
+        region: form.region,
+        district: form.district,
+        township: form.township,
         items: cartItems.map(i => {
           const variantParts = [];
           if (i.selected_color) variantParts.push(COLOR_NAMES[i.selected_color] || i.selected_color);
@@ -783,6 +807,9 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
             email: emailStr,
             telegram: form.telegram.trim(),
             viber: form.viber.trim(),
+            region: form.region,
+            district: form.district,
+            township: form.township,
             address: form.address.trim(),
             notes: form.notes.trim(),
           }));
@@ -968,6 +995,36 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
             <input type="tel" value={form.viber} onChange={e => setForm(p => ({...p, viber: e.target.value}))}
               placeholder="09xxxxxxxxx"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်)</label>
+            <SearchableSelect
+              value={form.region}
+              onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
+              options={REGION_NAMES}
+              placeholder="Select Region"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">District (ခရိုင်)</label>
+            <SearchableSelect
+              value={form.district}
+              onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
+              options={getDistricts(form.region)}
+              placeholder="Select District"
+              disabled={!form.region}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်)</label>
+            <SearchableSelect
+              value={form.township}
+              onChange={v => setForm(p => ({ ...p, township: v }))}
+              options={getTownships(form.region, form.district)}
+              placeholder="Select Township"
+              disabled={!form.district}
+            />
           </div>
 
           <div>
@@ -2828,6 +2885,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             shopSlug={slug || shop?.public_slug || shop?.bot_username || ''}
             selectedPayment={selectedPaymentMethod}
             products={products}
+            deliverySettings={data?.delivery_settings || {}}
+            deliveryFees={data?.delivery_fees || []}
             onClose={() => { setCheckoutOpen(false); setSelectedPaymentMethod(null); }}
             onOrderPlaced={handleOrderPlaced}
           />
