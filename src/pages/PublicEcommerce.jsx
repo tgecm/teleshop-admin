@@ -2461,7 +2461,11 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               ecommerce: { key: 'ecommerce', label: 'Buy on Website' },
               guest: { key: 'guest', label: 'Buy as a Guest' },
             };
-            const ordered = data?.mode_order?.length ? data.mode_order : ['telegram', 'ecommerce', 'guest'];
+            const modeData = data?.mode_order || {};
+            const order = Array.isArray(modeData) ? modeData : (modeData.order || ['telegram', 'ecommerce', 'guest']);
+            const enabled = !Array.isArray(modeData) ? (modeData.enabled || {}) : {};
+            let ordered = order.filter(k => enabled[k] !== false);
+            if (ordered.length === 0) ordered = order;
             return ordered.map(key => modeMap[key]).filter(Boolean);
           })().map(opt => (
             <button key={opt.key} onClick={() => setViewMode(opt.key)}
