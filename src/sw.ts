@@ -46,7 +46,7 @@ self.addEventListener('push', (event) => {
   try {
     const data = event.data.json();
     const notification = data.notification || {};
-    const title = notification.title || 'TeleShop Admin';
+    const title = notification.title || 'E-commerce Myanmar';
     const opts = {
       body: notification.body || '',
       icon: notification.icon || '/icon-192.svg',

@@ -710,7 +710,7 @@ export default function WebPanel() {
           </div>
         )}
 
-        <div className="wp-footer">TeleShop Web Panel</div>
+        <div className="wp-footer">Multi-Platform E-commerce</div>
       </div>
     </div>
   );

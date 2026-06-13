@@ -19,7 +19,7 @@ export default defineConfig(({mode}) => {
           minify: false,
         },
         manifest: {
-          name: 'TeleShop Admin',
+          name: 'E-commerce Myanmar',
           short_name: 'TeleShop',
           description: 'Manage your Telegram e-commerce bot',
           theme_color: '#6366f1',
