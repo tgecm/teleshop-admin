@@ -2469,35 +2469,36 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
           </motion.p>
         )}
 
-        {/* View mode toggle */}
-        {!mode && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="flex gap-1.5 mb-4">
-          {(() => {
-            const modeMap = {
-              telegram: { key: 'telegram', label: 'Buy on Telegram' },
-              ecommerce: { key: 'ecommerce', label: 'Buy on Website' },
-              guest: { key: 'guest', label: 'Buy as a Guest' },
-            };
-            const modeData = data?.mode_order || {};
-            const order = Array.isArray(modeData) ? modeData : (modeData.order || ['telegram', 'ecommerce', 'guest']);
-            const enabled = !Array.isArray(modeData) ? (modeData.enabled || {}) : {};
-            let ordered = order.filter(k => enabled[k] !== false);
-            if (ordered.length === 0) ordered = order;
-            return ordered.map(key => modeMap[key]).filter(Boolean);
-          })().map(opt => (
-            <button key={opt.key} onClick={() => setViewMode(opt.key)}
-              className={`flex-1 px-1.5 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold leading-tight text-center transition-all active:scale-95 ${
-                viewMode === opt.key
-                  ? 'theme-filter-active'
-                  : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'
-              }`}>
-              <ShoppingBag className="w-3 h-3 inline mr-1 -mt-0.5" />
-              {opt.label}
-            </button>
-          ))}
-        </motion.div>
-        )}
+        {/* View mode toggle — hide when only 1 mode enabled */}
+        {!mode && (() => {
+          const modeMap = {
+            telegram: { key: 'telegram', label: 'Buy on Telegram' },
+            ecommerce: { key: 'ecommerce', label: 'Buy on Website' },
+            guest: { key: 'guest', label: 'Buy as a Guest' },
+          };
+          const modeData = data?.mode_order || {};
+          const order = Array.isArray(modeData) ? modeData : (modeData.order || ['telegram', 'ecommerce', 'guest']);
+          const enabled = !Array.isArray(modeData) ? (modeData.enabled || {}) : {};
+          let ordered = order.filter(k => enabled[k] !== false);
+          if (ordered.length === 0) ordered = order;
+          if (ordered.length <= 1) return null;
+          return (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="flex gap-1.5 mb-4">
+              {ordered.map(key => modeMap[key]).filter(Boolean).map(opt => (
+                <button key={opt.key} onClick={() => setViewMode(opt.key)}
+                  className={`flex-1 px-1.5 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold leading-tight text-center transition-all active:scale-95 ${
+                    viewMode === opt.key
+                      ? 'theme-filter-active'
+                      : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'
+                  }`}>
+                  <ShoppingBag className="w-3 h-3 inline mr-1 -mt-0.5" />
+                  {opt.label}
+                </button>
+              ))}
+            </motion.div>
+          );
+        })()}
 
         {/* Search */}
         <AnimatePresence>
