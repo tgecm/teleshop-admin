@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
@@ -53,6 +53,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  GripVertical,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -262,6 +263,8 @@ export default function Settings() {
   const [editingWebsiteUrl, setEditingWebsiteUrl] = useState(false);
 
   const [showDomainGuide, setShowDomainGuide] = useState(false);
+  const [modeOrder, setModeOrder] = useState([]);
+  const dragRef = useRef(null);
   const [cpOldPw, setCpOldPw] = useState('');
   const [cpNewPw, setCpNewPw] = useState('');
   const [cpConfirmPw, setCpConfirmPw] = useState('');
@@ -295,6 +298,12 @@ export default function Settings() {
       const shop = contentBlocks.find(b => b.key === 'shop_settings');
       if (shop) {
         setShopOpen(shop.content_data?.is_open !== false);
+      }
+      const mo = contentBlocks.find(b => b.key === 'mode_order');
+      if (mo?.content_data?.order?.length) {
+        setModeOrder(mo.content_data.order);
+      } else {
+        setModeOrder(['telegram', 'ecommerce', 'guest']);
       }
     }
   }, [bot, contentBlocks]);
@@ -618,6 +627,51 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* Mode Order Drag-to-Reorder */}
+              <div className="mb-3 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-[10px] text-gray-500 font-medium mb-2">Drag to reorder mode buttons</p>
+                <div
+                  className="flex gap-1"
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const fromKey = dragRef.current;
+                    if (!fromKey) return;
+                    const children = [...e.currentTarget.children];
+                    let dropIdx = children.length;
+                    for (let i = 0; i < children.length; i++) {
+                      const r = children[i].getBoundingClientRect();
+                      if (e.clientX < r.left + r.width / 2) { dropIdx = i; break; }
+                    }
+                    const newOrder = [...modeOrder];
+                    const fromIdx = newOrder.indexOf(fromKey);
+                    if (fromIdx === -1) return;
+                    newOrder.splice(fromIdx, 1);
+                    newOrder.splice(dropIdx > fromIdx ? dropIdx - 1 : dropIdx, 0, fromKey);
+                    setModeOrder(newOrder);
+                    updateContentMutation.mutate({ key: 'mode_order', data: { order: newOrder } });
+                    dragRef.current = null;
+                  }}
+                >
+                  {modeOrder.map((key, idx) => {
+                    const labels = { telegram: { label: 'Buy on Telegram', icon: '💬' }, ecommerce: { label: 'Buy on Website', icon: '🛒' }, guest: { label: 'Buy as a Guest', icon: '👤' } };
+                    const info = labels[key] || { label: key, icon: '🔘' };
+                    return (
+                      <div
+                        key={key}
+                        draggable
+                        onDragStart={() => { dragRef.current = key; }}
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white border border-gray-200 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-all text-[11px]"
+                      >
+                        <GripVertical className="w-3 h-3 text-gray-300 flex-shrink-0" />
+                        <span className="text-[10px]">{info.icon}</span>
+                        <span className="font-medium text-gray-600 whitespace-nowrap">{info.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="transition-all duration-300">
                 {publicSlug?.slug ? (
                   <div className="space-y-2.5">
@@ -723,6 +777,51 @@ export default function Settings() {
                     <HelpCircle className="w-5 h-5" />
                   </button>
                 )}
+              </div>
+
+              {/* Mode Order Drag-to-Reorder */}
+              <div className="mb-3 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-[10px] text-gray-500 font-medium mb-2">Drag to reorder mode buttons</p>
+                <div
+                  className="flex gap-1"
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const fromKey = dragRef.current;
+                    if (!fromKey) return;
+                    const children = [...e.currentTarget.children];
+                    let dropIdx = children.length;
+                    for (let i = 0; i < children.length; i++) {
+                      const r = children[i].getBoundingClientRect();
+                      if (e.clientX < r.left + r.width / 2) { dropIdx = i; break; }
+                    }
+                    const newOrder = [...modeOrder];
+                    const fromIdx = newOrder.indexOf(fromKey);
+                    if (fromIdx === -1) return;
+                    newOrder.splice(fromIdx, 1);
+                    newOrder.splice(dropIdx > fromIdx ? dropIdx - 1 : dropIdx, 0, fromKey);
+                    setModeOrder(newOrder);
+                    updateContentMutation.mutate({ key: 'mode_order', data: { order: newOrder } });
+                    dragRef.current = null;
+                  }}
+                >
+                  {modeOrder.map((key, idx) => {
+                    const labels = { telegram: { label: 'Buy on Telegram', icon: '💬' }, ecommerce: { label: 'Buy on Website', icon: '🛒' }, guest: { label: 'Buy as a Guest', icon: '👤' } };
+                    const info = labels[key] || { label: key, icon: '🔘' };
+                    return (
+                      <div
+                        key={key}
+                        draggable
+                        onDragStart={() => { dragRef.current = key; }}
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white border border-gray-200 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-all text-[11px]"
+                      >
+                        <GripVertical className="w-3 h-3 text-gray-300 flex-shrink-0" />
+                        <span className="text-[10px]">{info.icon}</span>
+                        <span className="font-medium text-gray-600 whitespace-nowrap">{info.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="space-y-2.5">

@@ -2455,11 +2455,15 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         {!mode && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="flex gap-1.5 mb-4">
-          {[
-            { key: 'telegram', label: 'Buy on Telegram' },
-            { key: 'ecommerce', label: 'Buy on Website' },
-            { key: 'guest', label: 'Buy as a Guest' },
-          ].map(opt => (
+          {(() => {
+            const modeMap = {
+              telegram: { key: 'telegram', label: 'Buy on Telegram' },
+              ecommerce: { key: 'ecommerce', label: 'Buy on Website' },
+              guest: { key: 'guest', label: 'Buy as a Guest' },
+            };
+            const ordered = data?.mode_order?.length ? data.mode_order : ['telegram', 'ecommerce', 'guest'];
+            return ordered.map(key => modeMap[key]).filter(Boolean);
+          })().map(opt => (
             <button key={opt.key} onClick={() => setViewMode(opt.key)}
               className={`flex-1 px-1.5 sm:px-2.5 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold leading-tight text-center transition-all active:scale-95 ${
                 viewMode === opt.key

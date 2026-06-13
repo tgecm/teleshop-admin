@@ -13,7 +13,7 @@ import {
   Plus, Search, Edit2, Trash2, Package, Tag, MoreVertical, X,
   Image as ImageIcon, ChevronRight, AlertCircle, CheckCircle2,
   Loader2, FolderPlus, ImageUp, Palette, Copy, ArrowUpDown,
-  Ticket, Percent, CalendarDays, Coins, Users, Truck
+  Ticket, Percent, CalendarDays, Coins, Users, Truck, Download, Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import townshipsData, { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
@@ -67,6 +67,8 @@ export default function Products() {
   const [townshipFeesLoading, setTownshipFeesLoading] = useState(false);
   const [savingTownshipFee, setSavingTownshipFee] = useState(false);
   const [deletingTownshipFeeId, setDeletingTownshipFeeId] = useState(null);
+  const [importingCsv, setImportingCsv] = useState(false);
+  const fileInputRef = useRef(null);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', selectedBotId],
@@ -230,6 +232,49 @@ export default function Products() {
       addToast(e.response?.data?.detail || 'Failed to delete township fee', 'error');
     } finally {
       setDeletingTownshipFeeId(null);
+    }
+  };
+
+  const downloadCsvTemplate = async () => {
+    try {
+      const res = await client.get(`/bots/${selectedBotId}/delivery-fees/template`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'delivery-fees-template.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      addToast('Failed to download template', 'error');
+    }
+  };
+
+  const handleCsvImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.csv') && !file.name.endsWith('.xlsx')) {
+      addToast('Please select a .csv or .xlsx file', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    setImportingCsv(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await client.post(`/bots/${selectedBotId}/delivery-fees/import`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      addToast('Delivery fees imported successfully');
+      fetchTownshipFees();
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Failed to import CSV', 'error');
+    } finally {
+      setImportingCsv(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -533,21 +578,35 @@ export default function Products() {
                   />
                   <p className="text-xs text-gray-400 mt-1">Delivery fee is waived when cart total reaches or exceeds this amount</p>
                 </div>
-                <div className="flex gap-3">
+              </div>
+
+              {/* CSV Import Section */}
+              <div className="mt-5 pt-4 border-t border-gray-100">
+                <div className="flex gap-2">
                   <button
-                    onClick={() => setShowDeliveryFeeModal(false)}
-                    className="flex-1 py-3 bg-gray-100 rounded-xl font-medium text-sm text-gray-700 hover:bg-gray-200 transition-all"
+                    onClick={downloadCsvTemplate}
+                    className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium text-sm text-gray-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
                   >
-                    Cancel
+                    <Download className="w-4 h-4" />
+                    Download Template
                   </button>
                   <button
-                    onClick={saveDeliverySettings}
-                    disabled={deliveryFeeLoading}
-                    className="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={importingCsv}
+                    className="flex-1 py-2.5 bg-emerald-100 rounded-xl font-medium text-sm text-emerald-700 hover:bg-emerald-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {deliveryFeeLoading ? 'Saving...' : 'Save Settings'}
+                    <Upload className="w-4 h-4" />
+                    {importingCsv ? 'Importing...' : 'Import CSV'}
                   </button>
                 </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx"
+                  onChange={handleCsvImport}
+                  className="hidden"
+                />
+                <p className="text-xs text-gray-400 italic mt-2 text-center">Delivery Fees ဟာ ဒေသပေါ်မူတည်ပြီး မတူညီကြတာကြောင့် ကိုယ်နေတဲ့မြို့ပေါ်မူတည်ပြီး ကိုယ်တိုင် သတ်မှတ်ပေးပါနော်။ Excel Template ကို Download ရယူကာ သက်ဆိုင်ရာမြို့များရဲ့ Delivery Fees များကို ဖြည့်သွင်းပြီး Import CSV မှ တစ်ဆင့် ပြန်လည်ထည့်သွင်းပေးပါ။</p>
               </div>
 
               {/* Zone-based Delivery Fees */}
@@ -636,6 +695,22 @@ export default function Products() {
                 ) : (
                   <p className="text-center py-4 text-sm text-gray-400">No township fees set yet</p>
                 )}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-gray-100 flex gap-3">
+                <button
+                  onClick={() => setShowDeliveryFeeModal(false)}
+                  className="flex-1 py-3 bg-gray-100 rounded-xl font-medium text-sm text-gray-700 hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveDeliverySettings}
+                  disabled={deliveryFeeLoading}
+                  className="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50"
+                >
+                  {deliveryFeeLoading ? 'Saving...' : 'Save Settings'}
+                </button>
               </div>
             </div>
           </div>
@@ -1192,7 +1267,6 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     }
     return [];
   });
-  const [confirmDeleteOptionId, setConfirmDeleteOptionId] = useState(null);
   const uid = () => Math.random().toString(36).substring(2, 9);
 
   const addOption = () => {
@@ -1690,7 +1764,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
                   </div>
                   <button
                     type="button"
-                    onClick={() => setConfirmDeleteOptionId(opt.id)}
+                    onClick={() => removeOption(opt.id)}
                     className="p-1.5 bg-white rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all active:scale-90 flex-shrink-0 ml-2"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -1738,15 +1812,6 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             {options.length >= 10 ? 'Max 10 options' : 'Add Option'}
           </button>
         </div>
-
-        <ConfirmDialog
-          open={!!confirmDeleteOptionId}
-          onClose={() => setConfirmDeleteOptionId(null)}
-          onConfirm={() => { removeOption(confirmDeleteOptionId); setConfirmDeleteOptionId(null); }}
-          title="Delete Option"
-          message="Delete this entire option?"
-          confirmText="Delete"
-        />
 
         <div className="pt-4 flex gap-3">
           <button
