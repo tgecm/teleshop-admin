@@ -19,7 +19,8 @@ import {
   Newspaper,
   Mail,
   HelpCircle,
-  UserCog
+  UserCog,
+  Utensils
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useBotStore } from '../../store/botStore';
@@ -32,6 +33,7 @@ export default function Sidebar() {
   const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
 
   const [telegramExpanded, setTelegramExpanded] = useState(false);
+
   const location = useLocation();
 
   const { data: unread } = useQuery({
@@ -60,6 +62,7 @@ export default function Sidebar() {
     ...(isStaff ? [] : [{ to: '/subscription', icon: ShieldCheck, label: 'Subscription' }]),
     { to: '/customization', icon: Palette, label: 'Customize' },
     ...(isStaff ? [] : [{ to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' }]),
+    { to: '/qr-menu', icon: Utensils, label: 'QR Menu System' },
     ...(isStaff ? [] : [{ to: '/faqs', icon: HelpCircle, label: 'FAQs' }]),
   ];
 
@@ -100,58 +103,45 @@ export default function Sidebar() {
         ))}
 
         {/* Telegram E-commerce Section */}
-        <div className="pt-3">
-          {telegramExpanded && (
-            <div className="ml-2 mb-1 space-y-0.5 border-l-2 border-indigo-100 pl-2">
-              {telegramItems.map(({ to, icon: Icon, label }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  data-haptic
-                  className={({ isActive }) => `
-                    flex items-center gap-3 px-4 py-2 lg:py-2.5 rounded-xl text-sm font-medium transition-all
-                    ${isActive
-                      ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
-                  `}
-                >
-                  <Icon className="w-4 h-4 lg:w-[18px] lg:h-[18px] flex-shrink-0" />
-                  <span>{label}</span>
-                </NavLink>
-              ))}
-            </div>
-          )}
-          <button
-            onClick={() => setTelegramExpanded(!telegramExpanded)}
-            data-haptic
-            className={`flex items-center gap-3 w-full px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all border border-transparent ${
-              isTelegramActive
-                ? 'bg-indigo-50 text-indigo-600 border-indigo-100'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <Send className="w-[18px] h-[18px] lg:w-5 lg:h-5 flex-shrink-0" />
-            <span className="flex-1 text-left">Telegram</span>
-            <ChevronDown className={`w-4 h-4 transition-transform ${telegramExpanded ? 'rotate-0' : '-rotate-90'}`} />
-          </button>
-        </div>
-      </div>
+          <div className="pt-3">
+            {telegramExpanded && (
+              <div className="ml-2 mb-1 space-y-0.5 border-l-2 border-indigo-100 pl-2">
+                {telegramItems.map(({ to, icon: Icon, label }) => (
+                  <NavLink key={to} to={to} data-haptic
+                    className={({ isActive }) => `
+                      flex items-center gap-3 px-4 py-2 lg:py-2.5 rounded-xl text-sm font-medium transition-all
+                      ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
+                    `}
+                  >
+                    <Icon className="w-4 h-4 lg:w-[18px] lg:h-[18px] flex-shrink-0" />
+                    <span>{label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setTelegramExpanded(!telegramExpanded)} data-haptic
+              className={`flex items-center gap-3 w-full px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all border border-transparent ${
+                isTelegramActive ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <Send className="w-[18px] h-[18px] lg:w-5 lg:h-5 flex-shrink-0" />
+              <span className="flex-1 text-left">Telegram</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${telegramExpanded ? 'rotate-0' : '-rotate-90'}`} />
+            </button>
+          </div>
 
-      {/* Settings (always at bottom) */}
-      <div className="px-3 py-1">
-        <NavLink
-          to="/settings"
-          data-haptic
-          className={({ isActive }) => `
-            flex items-center gap-3 px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all
-            ${isActive
-              ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'
-              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
-          `}
-        >
-          <Settings className="w-[18px] h-[18px] lg:w-5 lg:h-5 flex-shrink-0" />
-          <span>Settings</span>
-        </NavLink>
+        {/* Settings */}
+          <div className="px-3 py-1">
+            <NavLink to="/settings" data-haptic
+              className={({ isActive }) => `
+                flex items-center gap-3 px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all
+                ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
+              `}
+            >
+              <Settings className="w-[18px] h-[18px] lg:w-5 lg:h-5 flex-shrink-0" />
+              <span>Settings</span>
+            </NavLink>
+          </div>
       </div>
 
       {/* Logout */}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
@@ -29,6 +29,34 @@ export default function StaffAccounts() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState(null);
+  const [showPerms, setShowPerms] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [staffPerms, setStaffPerms] = useState({});
+  const [savingPerms, setSavingPerms] = useState(false);
+
+  const PERM_GROUPS = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'orders', label: 'Orders' },
+    { id: 'products', label: 'Products' },
+    { id: 'customers', label: 'Customers' },
+    { id: 'chats', label: 'Chats' },
+    { id: 'newsfeed', label: 'Newsfeed' },
+    { id: 'payments', label: 'Payments' },
+    { id: 'subscription', label: 'Subscription' },
+    { id: 'customize', label: 'Customize' },
+    { id: 'qr_menu', label: 'QR Menu System' },
+    { id: 'faqs', label: 'FAQs' },
+    { id: 'telegram', label: 'Telegram', subs: [
+      { id: 'telegram_broadcast', label: 'Broadcast' },
+      { id: 'telegram_command', label: 'Telegram Command' },
+      { id: 'telegram_bot', label: 'Bot Customization' },
+    ]},
+    { id: 'settings', label: 'Settings', subs: [
+      { id: 'settings_general', label: 'General Settings' },
+      { id: 'settings_payment', label: 'Payment Methods' },
+      { id: 'settings_notification', label: 'Notifications' },
+    ]},
+  ];
 
   const { data: staffList, isLoading } = useQuery({
     queryKey: ['staff-list', selectedBotId],
@@ -69,6 +97,27 @@ export default function StaffAccounts() {
     queryFn: () => getStaffActivityLogs(selectedBotId, selectedStaffId),
     enabled: !!selectedBotId && !!selectedStaffId && showLogs,
   });
+
+  useEffect(() => {
+    if (showPerms && selectedStaff) {
+      client.get(`/staff/${selectedStaff.id}/permissions`).then(r => {
+        const perms = r.data?.permissions || {};
+        const defaults = {};
+        PERM_GROUPS.forEach(g => {
+          if (!(g.id in perms)) defaults[g.id] = true;
+          if (g.subs) g.subs.forEach(s => { if (!(s.id in perms)) defaults[s.id] = true; });
+        });
+        setStaffPerms({ ...defaults, ...perms });
+      }).catch(() => {
+        const defaults = {};
+        PERM_GROUPS.forEach(g => {
+          defaults[g.id] = true;
+          if (g.subs) g.subs.forEach(s => { defaults[s.id] = true; });
+        });
+        setStaffPerms(defaults);
+      });
+    }
+  }, [showPerms, selectedStaff]);
 
   const downloadLogs = async () => {
     if (!selectedBotId || !selectedStaffId) return;
@@ -146,6 +195,10 @@ export default function StaffAccounts() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button onClick={() => { setSelectedStaff(s); setShowPerms(true); }}
+                    className="p-2 rounded-lg text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 transition-all">
+                    <ShieldCheck className="w-4 h-4" />
+                  </button>
                   <button onClick={() => setChangePw({ id: s.id, name: s.name, newPassword: '' })}
                     className="p-2 rounded-lg text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all">
                     <Key className="w-4 h-4" />
@@ -265,6 +318,102 @@ export default function StaffAccounts() {
                 <button onClick={() => { deleteStaff(deleteConfirm); setDeleteConfirm(null); }}
                   className="flex-1 py-2.5 bg-rose-500 text-white font-bold rounded-2xl hover:bg-rose-600 transition-all text-sm flex items-center justify-center gap-1.5">
                   <Trash2 className="w-4 h-4" /> Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Permissions Modal */}
+      <AnimatePresence>
+        {showPerms && selectedStaff && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowPerms(false)} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="relative bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm max-h-[80vh] flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                  Permissions
+                </h2>
+                <button onClick={() => setShowPerms(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">Set permissions for <span className="font-bold text-gray-900">{selectedStaff.name}</span></p>
+              <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
+                <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-gray-100 transition-all">
+                  <input type="checkbox" checked={PERM_GROUPS.every(g => staffPerms[g.id] === true) && PERM_GROUPS.filter(g => g.subs).every(g => g.subs.every(s => staffPerms[s.id] === true))}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      const p = {};
+                      PERM_GROUPS.forEach(g => {
+                        p[g.id] = v;
+                        if (g.subs) g.subs.forEach(s => { p[s.id] = v; });
+                      });
+                      setStaffPerms({ ...staffPerms, ...p });
+                    }}
+                    className="w-4 h-4 accent-emerald-600" />
+                  <span className="text-sm font-bold text-gray-900">ALL</span>
+                </label>
+                <div className="border-t border-gray-100 pt-2" />
+                {PERM_GROUPS.map(group => (
+                  <div key={group.id}>
+                    <label className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-all">
+                      <input type="checkbox"
+                        checked={staffPerms[group.id] === true}
+                        onChange={(e) => {
+                          const v = e.target.checked;
+                          const p = { [group.id]: v };
+                          if (group.subs) group.subs.forEach(s => { p[s.id] = v; });
+                          setStaffPerms({ ...staffPerms, ...p });
+                        }}
+                        className="w-4 h-4 accent-emerald-600" />
+                      <span className="text-sm font-medium text-gray-700">{group.label}</span>
+                    </label>
+                    {group.subs && (
+                      <div className="ml-7 space-y-1 mb-1">
+                        {group.subs.map(sub => (
+                          <label key={sub.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-all">
+                            <input type="checkbox"
+                              checked={staffPerms[sub.id] === true}
+                              onChange={(e) => setStaffPerms(p => ({ ...p, [sub.id]: e.target.checked }))}
+                              className="w-3.5 h-3.5 accent-emerald-600" />
+                            <span className="text-xs text-gray-500">{sub.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 mt-4 pt-3 border-t border-gray-100">
+                <button onClick={() => setShowPerms(false)}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm">
+                  Cancel
+                </button>
+                <button onClick={async () => {
+                  setSavingPerms(true);
+                  try {
+                    // Build complete permissions — fill any missing with false
+                    const fullPerms = {};
+                    PERM_GROUPS.forEach(g => {
+                      fullPerms[g.id] = staffPerms[g.id] ?? true;
+                      if (g.subs) g.subs.forEach(s => { fullPerms[s.id] = staffPerms[s.id] ?? true; });
+                    });
+                    await client.put(`/staff/${selectedStaff.id}/permissions`, { permissions: fullPerms });
+                    queryClient.invalidateQueries({ queryKey: ['staff-permissions'] });
+                    addToast('Permissions saved');
+                    setShowPerms(false);
+                  } catch (err) {
+                    addToast(err.response?.data?.detail || 'Failed to save permissions', 'error');
+                  } finally { setSavingPerms(false); }
+                }} disabled={savingPerms}
+                  className="flex-1 py-2.5 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                  {savingPerms ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Save
                 </button>
               </div>
             </motion.div>

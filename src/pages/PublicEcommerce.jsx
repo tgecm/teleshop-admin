@@ -419,6 +419,7 @@ function TelegramIcon({ className }) {
 
 function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlug }) {
   const [signingIn, setSigningIn] = useState(false);
+  const [error, setError] = useState('');
   const { status, timeLeft, loginUrl, botUsername, initLogin, reset } = useTelegramLogin();
   const telegramLoginInitiated = useRef(false);
 
@@ -443,6 +444,7 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
       return;
     }
     setSigningIn(true);
+    setError('');
     try {
       await signInWithGoogle(shopSlug || propBotUsername || '');
       onSuccess?.();
@@ -470,6 +472,12 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
           Sign in to proceed with checkout and track your orders.
         </p>
         <div className="space-y-3">
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-2xl">
+              <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+              <p className="text-xs font-medium text-red-700 text-left">{error}</p>
+            </div>
+          )}
           <button
             onClick={handleSignIn}
             disabled={signingIn}
