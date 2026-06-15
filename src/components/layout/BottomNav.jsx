@@ -21,7 +21,8 @@ import {
   Newspaper,
   Mail,
   HelpCircle,
-  UserCog
+  UserCog,
+  Utensils
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useBotStore } from '../../store/botStore';
@@ -32,7 +33,7 @@ import { motion, AnimatePresence } from 'motion/react';
 export default function BottomNav() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [telegramMoreExpanded, setTelegramMoreExpanded] = useState(false);
-  const { logout } = useAuthStore();
+  const { user, logout, isStaff } = useAuthStore();
   const { selectedBotId } = useBotStore();
   const location = useLocation();
 
@@ -58,8 +59,6 @@ export default function BottomNav() {
     { to: '/chats', icon: MessageCircle, label: 'Chats' },
   ];
 
-  const { user, isStaff } = useAuthStore();
-
   const moreItems = [
     ...(user?.is_superadmin ? [{ to: '/send-message', icon: Mail, label: 'Send Message' }] : []),
     { to: '/newsfeed', icon: Newspaper, label: 'Newsfeed' },
@@ -67,6 +66,7 @@ export default function BottomNav() {
     ...(isStaff ? [] : [{ to: '/subscription', icon: ShieldCheck, label: 'Subscription' }]),
     { to: '/customization', icon: Palette, label: 'Customize' },
     ...(isStaff ? [] : [{ to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' }]),
+    { to: '/qr-menu', icon: Utensils, label: 'QR Menu' },
     ...(isStaff ? [] : [{ to: '/faqs', icon: HelpCircle, label: 'FAQs' }]),
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];

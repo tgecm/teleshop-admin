@@ -12,6 +12,7 @@ import ToastContainer from './components/shared/ToastContainer';
 import SelectionToolbar from './components/shared/SelectionToolbar';
 import HapticProvider from './components/shared/HapticProvider';
 import NetworkStatus from './components/shared/NetworkStatus';
+import PermissionGuard from './components/shared/PermissionGuard';
 import AppVersionCheck from './components/AppVersionCheck';
 import { useDisableDevTools } from './hooks/useDisableDevTools';
 
@@ -43,11 +44,13 @@ const SendMessage = React.lazy(() => import('./pages/SendMessage'));
 const FAQs = React.lazy(() => import('./pages/FAQs'));
 const StaffAccounts = React.lazy(() => import('./pages/StaffAccounts'));
 const Homepage = React.lazy(() => import('./pages/Homepage'));
+const QRMenuAdmin = React.lazy(() => import('./pages/QRMenuAdmin'));
+const PublicQRMenu = React.lazy(() => import('./pages/PublicQRMenu'));
 
 const ADMIN_PATHS = new Set([
   'login', 'dashboard', 'orders', 'products', 'customers',
   'broadcast', 'commands', 'payments', 'subscription', 'settings',
-  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts',
+  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts', 'qr-menu',
 ]);
 
 const PUBLIC_DOMAIN = 'telegramecommerce.shop';
@@ -119,6 +122,10 @@ function PublicRoute() {
   const modeMatch = pathname.match(/^(.+)\/(telegram|ecommerce|guest)$/);
   if (modeMatch) {
     return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={modeMatch[1]} mode={modeMatch[2]} /></Suspense>;
+  }
+  const qrMenu = pathname.match(/^(.+)-qr-menu$/);
+  if (qrMenu) {
+    return <Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={qrMenu[1]} /></Suspense>;
   }
   return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={pathname} /></Suspense>;
 }
@@ -224,7 +231,10 @@ export default function App() {
       const init = async () => {
         try {
           const me = await getMe();
-          setUser(me);
+          const { isStaff: staffUser } = useAuthStore.getState();
+          if (!staffUser) {
+            setUser(me);
+          }
 
           const botsData = me.is_superadmin ? await getAllBots() : await getBots();
           setBots(botsData);
@@ -322,6 +332,8 @@ export default function App() {
               if (ec) return <PublicEcommerce slug={ec[1]} />;
               const modeSlug = publicSlug.match(/^(.+)\/(telegram|ecommerce|guest)$/);
               if (modeSlug) return <PublicEcommerce slug={modeSlug[1]} mode={modeSlug[2]} />;
+              const qrMenu = publicSlug.match(/^(.+)-qr-menu$/);
+              if (qrMenu) return <PublicQRMenu slug={qrMenu[1]} />;
               return <PublicEcommerce slug={publicSlug} />;
             })()}
           </Suspense>
@@ -363,24 +375,25 @@ export default function App() {
                 <Suspense fallback={<SuspenseFallback />}><Layout /></Suspense>
               }>
                 <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="orders" element={<Orders />} />
-                <Route path="products" element={<Products />} />
-                <Route path="customers" element={<Customers />} />
-                <Route path="broadcast" element={<Broadcast />} />
-                <Route path="commands" element={<Commands />} />
-                <Route path="payments" element={<Payments />} />
-                <Route path="subscription" element={<Subscription />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="chats" element={<Chats />} />
-                <Route path="customization" element={<Customization />} />
-                <Route path="bot-customization" element={<BotCustomization />} />
+                <Route path="dashboard" element={<PermissionGuard><Dashboard /></PermissionGuard>} />
+                <Route path="orders" element={<PermissionGuard><Orders /></PermissionGuard>} />
+                <Route path="products" element={<PermissionGuard><Products /></PermissionGuard>} />
+                <Route path="customers" element={<PermissionGuard><Customers /></PermissionGuard>} />
+                <Route path="broadcast" element={<PermissionGuard><Broadcast /></PermissionGuard>} />
+                <Route path="commands" element={<PermissionGuard><Commands /></PermissionGuard>} />
+                <Route path="payments" element={<PermissionGuard><Payments /></PermissionGuard>} />
+                <Route path="subscription" element={<PermissionGuard><Subscription /></PermissionGuard>} />
+                <Route path="settings" element={<PermissionGuard><Settings /></PermissionGuard>} />
+                <Route path="chats" element={<PermissionGuard><Chats /></PermissionGuard>} />
+                <Route path="customization" element={<PermissionGuard><Customization /></PermissionGuard>} />
+                <Route path="bot-customization" element={<PermissionGuard><BotCustomization /></PermissionGuard>} />
                 <Route path="superadmin" element={<SuperadminDashboard />} />
                 <Route path="send-message" element={<SendMessage />} />
-                <Route path="faqs" element={<FAQs />} />
+                <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
+                <Route path="qr-menu" element={<PermissionGuard><QRMenuAdmin /></PermissionGuard>} />
                 <Route path="staff-accounts" element={<StaffAccounts />} />
                 <Route path="more" element={<Navigate to="/broadcast" replace />} />
-                <Route path="newsfeed" element={<NewsfeedAdmin />} />
+                <Route path="newsfeed" element={<PermissionGuard><NewsfeedAdmin /></PermissionGuard>} />
               </Route>
               <Route path="*" element={<PublicRoute />} />
             </Routes>

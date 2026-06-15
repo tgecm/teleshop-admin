@@ -7,6 +7,7 @@ import { useTelegramLogin } from '../hooks/useTelegramLogin';
 import { useTelegramAuth } from '../context/TelegramAuthContext';
 import TelegramLoginModal from '../components/TelegramLoginModal';
 import { isMainDomain } from '../utils/authProxy';
+import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
 
@@ -62,7 +63,13 @@ export default function CustomerLogin({ shopSlug }) {
   const [shopLoading, setShopLoading] = useState(true);
   const [shopError, setShopError] = useState('');
   const [signingIn, setSigningIn] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    return params.get('auth_error') || '';
+  });
+
+  useAuthTokenFromUrl();
 
   useEffect(() => {
     fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`)

@@ -55,8 +55,6 @@ export async function signInWithGoogle(
   const accessToken = await requestGoogleIdToken();
   const credential = GoogleAuthProvider.credential(null, accessToken);
   const userCred = await signInWithCredential(auth, credential);
-  // Exchange the Google access token for a backend JWT so subsequent
-  // API calls carry an Authorization header (needed on main domain too).
   if (shopSlug) {
     const result = await exchangeGoogleToken(accessToken, shopSlug, userCred.user.uid);
     localStorage.setItem('telegram_token', result.token);
