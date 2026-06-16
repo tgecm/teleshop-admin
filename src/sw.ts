@@ -12,7 +12,7 @@ registerRoute(
 
 registerRoute(
   ({request}) => request.mode === 'navigate',
-  new NetworkFirst({cacheName: 'pages-cache'}),
+  new StaleWhileRevalidate({cacheName: 'pages-cache'}),
 );
 
 registerRoute(
