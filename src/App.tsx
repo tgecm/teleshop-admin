@@ -45,12 +45,16 @@ const FAQs = React.lazy(() => import('./pages/FAQs'));
 const StaffAccounts = React.lazy(() => import('./pages/StaffAccounts'));
 const Homepage = React.lazy(() => import('./pages/Homepage'));
 const QRMenuAdmin = React.lazy(() => import('./pages/QRMenuAdmin'));
+const QRMenuOrders = React.lazy(() => import('./pages/QRMenuOrders'));
+const QRMenuTables = React.lazy(() => import('./pages/QRMenuTables'));
 const PublicQRMenu = React.lazy(() => import('./pages/PublicQRMenu'));
 
 const ADMIN_PATHS = new Set([
   'login', 'dashboard', 'orders', 'products', 'customers',
   'broadcast', 'commands', 'payments', 'subscription', 'settings',
-  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts', 'qr-menu',
+  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts', 'qr-menu', 'qr-menu-orders',
+  'qr-menu/orders',
+  'qr-menu/tables',
 ]);
 
 const PUBLIC_DOMAIN = 'telegramecommerce.shop';
@@ -391,6 +395,8 @@ export default function App() {
                 <Route path="send-message" element={<SendMessage />} />
                 <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
                 <Route path="qr-menu" element={<PermissionGuard><QRMenuAdmin /></PermissionGuard>} />
+                <Route path="qr-menu/orders" element={<PermissionGuard><QRMenuOrders /></PermissionGuard>} />
+                <Route path="qr-menu/tables" element={<PermissionGuard><QRMenuTables /></PermissionGuard>} />
                 <Route path="staff-accounts" element={<StaffAccounts />} />
                 <Route path="more" element={<Navigate to="/broadcast" replace />} />
                 <Route path="newsfeed" element={<PermissionGuard><NewsfeedAdmin /></PermissionGuard>} />
