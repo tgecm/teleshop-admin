@@ -45,7 +45,7 @@ function isPostLiked(postId) {
   return getLikedPosts().includes(postId);
 }
 
-export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug, initialPostCode, shop, inline }) {
+export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug, initialPostCode, shop, inline, userName }) {
   const visitorId = getVisitorId();
 
   useEffect(() => {
@@ -194,7 +194,7 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
                 onLike={() => likeMutation.mutate(post.id)} slug={slug}
                 shopLogo={shop?.profile_picture} shopName={shop?.bot_full_name}
                 photoViewerState={photoViewerState}
-                onPhotoViewerChange={setPhotoViewerState} />
+                onPhotoViewerChange={setPhotoViewerState} userName={userName} />
             ))}
             <div ref={sentinelRef} />
             {loadingMore && (
@@ -220,7 +220,7 @@ function linkifyText(text) {
   });
 }
 
-function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, photoViewerState, onPhotoViewerChange }) {
+function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, photoViewerState, onPhotoViewerChange, userName }) {
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -329,7 +329,7 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
       {/* Comments section */}
       {showComments && (
         <CommentSection postId={post.id} comments={comments} loading={loadingComments}
-          visitorId={visitorId} botId={botId} />
+          visitorId={visitorId} botId={botId} userName={userName} />
       )}
 
       {/* Share sheet */}
@@ -341,8 +341,9 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
   );
 }
 
-function CommentSection({ postId, comments, loading, visitorId, botId }) {
-  const [name] = useState(getVisitorName);
+function CommentSection({ postId, comments, loading, visitorId, botId, userName }) {
+  const guestName = useRef(getVisitorName());
+  const name = userName || guestName.current;
   const [content, setContent] = useState('');
   const [localComments, setLocalComments] = useState(comments || []);
   const [sending, setSending] = useState(false);
