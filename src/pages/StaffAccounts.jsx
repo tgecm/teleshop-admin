@@ -4,8 +4,12 @@ import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import { getStaffActivityLogs, downloadStaffActivityLogs } from '../api/superadmin';
+import { format } from 'date-fns';
+import { tz } from '@date-fns/tz';
 import { myanmarFormat } from '../utils/date';
 import client from '../api/client';
+
+const myTZ = tz('Asia/Yangon');
 import {
   Users, Plus, X, Loader2, Trash2, ShieldCheck, Key, User, Eye, EyeOff,
   FileText, Clock
@@ -31,6 +35,7 @@ export default function StaffAccounts() {
   const [selectedStaffId, setSelectedStaffId] = useState(null);
   const [showPerms, setShowPerms] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
+  const [dateFilter, setDateFilter] = useState('all');
   const [staffPerms, setStaffPerms] = useState({});
   const [savingPerms, setSavingPerms] = useState(false);
 
@@ -92,9 +97,34 @@ export default function StaffAccounts() {
     }
   };
 
+  const getDateRange = (filter) => {
+    const now = new Date();
+    const y = now.getUTCFullYear();
+    const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(now.getUTCDate()).padStart(2, '0');
+    switch (filter) {
+      case 'today': return { startDate: `${y}-${m}-${d}` };
+      case 'week': {
+        const day = now.getUTCDay();
+        const diff = day === 0 ? 6 : day - 1;
+        const mon = new Date(now);
+        mon.setUTCDate(now.getUTCDate() - diff);
+        const my = mon.getUTCFullYear();
+        const mm = String(mon.getUTCMonth() + 1).padStart(2, '0');
+        const md = String(mon.getUTCDate()).padStart(2, '0');
+        return { startDate: `${my}-${mm}-${md}` };
+      }
+      case 'month': return { startDate: `${y}-${m}-01` };
+      default: return {};
+    }
+  };
+
   const { data: activityLogs, isLoading: logsLoading } = useQuery({
-    queryKey: ['staff-activity-logs', selectedBotId, selectedStaffId],
-    queryFn: () => getStaffActivityLogs(selectedBotId, selectedStaffId),
+    queryKey: ['staff-activity-logs', selectedBotId, selectedStaffId, dateFilter],
+    queryFn: () => {
+      const range = getDateRange(dateFilter);
+      return getStaffActivityLogs(selectedBotId, selectedStaffId, range.startDate, range.endDate);
+    },
     enabled: !!selectedBotId && !!selectedStaffId && showLogs,
   });
 
@@ -472,6 +502,23 @@ export default function StaffAccounts() {
                       </button>
                     </div>
                   )}
+                  <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1">
+                    {[
+                      { key: 'all', label: 'All Time' },
+                      { key: 'today', label: 'Today' },
+                      { key: 'week', label: 'This Week' },
+                      { key: 'month', label: 'This Month' },
+                    ].map(f => (
+                      <button key={f.key} onClick={() => setDateFilter(f.key)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${
+                          dateFilter === f.key
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}>
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
                   {logsLoading ? (
                     <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-300" /></div>
                   ) : !activityLogs || activityLogs.length === 0 ? (
