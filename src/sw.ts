@@ -49,8 +49,8 @@ self.addEventListener('push', (event) => {
     const title = notification.title || 'E-commerce Myanmar';
     const opts = {
       body: notification.body || '',
-      icon: notification.icon || '/icon-192.svg',
-      badge: '/icon-192.svg',
+      icon: notification.icon || '/icon-192.png',
+      badge: '/icon-192.png',
       data: data.data || {},
       vibrate: [200, 100, 200],
     };
