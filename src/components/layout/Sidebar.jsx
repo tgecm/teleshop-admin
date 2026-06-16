@@ -20,12 +20,15 @@ import {
   Mail,
   HelpCircle,
   UserCog,
-  Utensils
+  Utensils,
+  ClipboardList,
+  QrCode
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useBotStore } from '../../store/botStore';
 import { getUnreadCount } from '../../api/chats';
 import { getPendingOrderCount } from '../../api/orders';
+import { getQRMenuPendingCount } from '../../api/orders';
 
 export default function Sidebar() {
   const { user, logout, isStaff } = useAuthStore();
@@ -33,6 +36,7 @@ export default function Sidebar() {
   const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
 
   const [telegramExpanded, setTelegramExpanded] = useState(false);
+  const [qrMenuExpanded, setQrMenuExpanded] = useState(false);
 
   const location = useLocation();
 
@@ -50,6 +54,13 @@ export default function Sidebar() {
     refetchInterval: 3000,
   });
 
+  const { data: qrPendingOrders } = useQuery({
+    queryKey: ['qr-pending-orders-count', selectedBotId],
+    queryFn: () => getQRMenuPendingCount(selectedBotId),
+    enabled: !!selectedBotId,
+    refetchInterval: 15000,
+  });
+
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     ...(user?.is_superadmin ? [{ to: '/send-message', icon: Mail, label: 'Send Message' }] : []),
@@ -62,9 +73,16 @@ export default function Sidebar() {
     ...(isStaff ? [] : [{ to: '/subscription', icon: ShieldCheck, label: 'Subscription' }]),
     { to: '/customization', icon: Palette, label: 'Customize' },
     ...(isStaff ? [] : [{ to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' }]),
-    { to: '/qr-menu', icon: Utensils, label: 'QR Menu System' },
     ...(isStaff ? [] : [{ to: '/faqs', icon: HelpCircle, label: 'FAQs' }]),
   ];
+
+  const qrMenuItems = [
+    { to: '/qr-menu', icon: Utensils, label: 'Menu' },
+    { to: '/qr-menu/tables', icon: QrCode, label: 'Tables' },
+    { to: '/qr-menu/orders', icon: ClipboardList, label: 'Orders' },
+  ];
+
+  const isQrMenuActive = qrMenuItems.some(item => location.pathname.startsWith(item.to));
 
   const telegramItems = [
     { to: '/broadcast', icon: Radio, label: 'Broadcast' },
@@ -101,6 +119,39 @@ export default function Sidebar() {
             ) : null}
           </NavLink>
         ))}
+
+        {/* QR Menu Section */}
+          <div className="pt-3">
+            {qrMenuExpanded && (
+              <div className="ml-2 mb-1 space-y-0.5 border-l-2 border-indigo-100 pl-2">
+                {qrMenuItems.map(({ to, icon: Icon, label }) => (
+                  <NavLink key={to} to={to} data-haptic
+                    className={({ isActive }) => `
+                      flex items-center gap-3 px-4 py-2 lg:py-2.5 rounded-xl text-sm font-medium transition-all
+                      ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
+                    `}
+                  >
+                    <Icon className="w-4 h-4 lg:w-[18px] lg:h-[18px] flex-shrink-0" />
+                    <span>{label}</span>
+                    {to === '/qr-menu/orders' && qrPendingOrders?.pending > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                        {qrPendingOrders.pending > 99 ? '99+' : qrPendingOrders.pending}
+                      </span>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setQrMenuExpanded(!qrMenuExpanded)} data-haptic
+              className={`flex items-center gap-3 w-full px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all border border-transparent ${
+                isQrMenuActive ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <Utensils className="w-[18px] h-[18px] lg:w-5 lg:h-5 flex-shrink-0" />
+              <span className="flex-1 text-left">QR Menu System</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${qrMenuExpanded ? 'rotate-0' : '-rotate-90'}`} />
+            </button>
+          </div>
 
         {/* Telegram E-commerce Section */}
           <div className="pt-3">

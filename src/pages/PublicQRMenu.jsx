@@ -421,6 +421,7 @@ export default function PublicQRMenu({ slug }) {
   const [showCheckout, setShowCheckout] = useState(false);
   const [orderItems, setOrderItems] = useState([]);
   const [bannerSlide, setBannerSlide] = useState(0);
+  const [wasEverOpen, setWasEverOpen] = useState(false);
   const bannerTouchRef = useRef(null);
   const searchRef = useRef(null);
   const catScrollRef = useRef(null);
@@ -449,7 +450,7 @@ export default function PublicQRMenu({ slug }) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['public-qr-menu', slug],
     queryFn: () => fetch(API_BASE + '/public/qr-menu/' + slug).then(res => { if (!res.ok) throw new Error('Not found'); return res.json(); }),
-    enabled: !!slug, retry: 2, staleTime: 30000,
+    enabled: !!slug, retry: 2, staleTime: 30000, refetchInterval: 60000,
   });
 
   const shop = data?.shop;
@@ -459,6 +460,8 @@ export default function PublicQRMenu({ slug }) {
   const paymentMode = data?.payment_mode || 'postpaid';
   const themeName = data?.theme || DEFAULT_THEME;
   const theme = THEMES[themeName] || THEMES[DEFAULT_THEME];
+  const isOpen = data?.is_open !== false;
+  const closedWhileBrowsing = wasEverOpen && !isOpen;
 
   useEffect(() => {
     document.title = shop?.bot_full_name || 'Menu';
@@ -466,6 +469,10 @@ export default function PublicQRMenu({ slug }) {
     if (icon && shop?.profile_picture) icon.setAttribute('href', shop.profile_picture);
     return () => { document.title = 'E-commerce Myanmar'; };
   }, [shop]);
+
+  useEffect(() => {
+    if (data && isOpen) setWasEverOpen(true);
+  }, [data, isOpen]);
 
   // Banner slideshow
   const banners = data?.banners || [];
@@ -505,13 +512,14 @@ export default function PublicQRMenu({ slug }) {
   const orderTotal = useMemo(() => orderItems.reduce((s, oi) => s + oi.qty * Number(oi.item.price), 0), [orderItems]);
 
   const addToOrder = useCallback((item, qty) => {
+    if (closedWhileBrowsing) return;
     setOrderItems(prev => {
       const ex = prev.find(oi => oi.item.id === item.id);
       if (ex) return prev.map(oi => oi.item.id === item.id ? { ...oi, qty: oi.qty + qty } : oi);
       return [...prev, { item, qty }];
     });
     setSelectedItem(null);
-  }, []);
+  }, [closedWhileBrowsing]);
 
   const updateQty = useCallback((id, qty) => {
     if (qty <= 0) { setOrderItems(prev => prev.filter(oi => oi.item.id !== id)); return; }
@@ -542,17 +550,81 @@ export default function PublicQRMenu({ slug }) {
     );
   }
 
-  if (data?.is_open === false) {
+  if (!isOpen && !wasEverOpen) {
     return (
-      <div className="qr-page">
-        <div className="qr-empty" style={{background:'#f7f5f0'}}>
-          <div className="qr-empty-inner">
-            <div style={{fontSize:56,marginBottom:12}}>🕐</div>
-            <p className="qr-closed-label">{shop.bot_full_name}</p>
-            <h2>Currently Closed</h2>
-            <p>The restaurant is currently closed. Please check back later.</p>
+      <div className="qr-page-closed">
+        <div className="qr-closed-bg-pattern" />
+        <div className="qr-closed-card">
+          <div className="qr-closed-icon-wrap">
+            <div className="qr-closed-icon-ring">
+              <svg className="qr-closed-icon-svg" viewBox="0 0 100 100" fill="none">
+                <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.3" />
+              </svg>
+              <span className="qr-closed-icon-emoji">🕐</span>
+            </div>
+          </div>
+
+          <div className="qr-closed-brand">
+            {shop?.profile_picture ? (
+              <img src={shop.profile_picture} alt="" className="qr-closed-avatar" />
+            ) : (
+              <div className="qr-closed-avatar qr-closed-avatar-fallback">🍽️</div>
+            )}
+            <p className="qr-closed-name">{shop.bot_full_name}</p>
+          </div>
+
+          <div className="qr-closed-divider" />
+
+          <h2 className="qr-closed-heading">We're Currently Closed</h2>
+          <p className="qr-closed-desc">The restaurant is currently closed. Please check back later during operating hours.</p>
+
+          <div className="qr-closed-info">
+            <div className="qr-closed-info-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span>Opens again soon</span>
+            </div>
+            {shop?.location && (
+              <div className="qr-closed-info-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>{shop.location}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="qr-closed-ripple">
+            <div className="qr-closed-ripple-dot" />
+            <div className="qr-closed-ripple-dot" />
+            <div className="qr-closed-ripple-dot" />
           </div>
         </div>
+        <style>{`
+          *, *::before, *::after { box-sizing: border-box; }
+          body { margin: 0; }
+          .qr-page-closed { min-height: 100vh; background: linear-gradient(160deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%); display: flex; align-items: center; justify-content: center; padding: 24px; position: relative; overflow: hidden; font-family: system-ui,-apple-system,sans-serif; }
+          .qr-closed-bg-pattern { position: absolute; inset: 0; background-image: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.03) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(255,255,255,0.03) 0%, transparent 50%); }
+          .qr-closed-card { position: relative; background: rgba(255,255,255,0.06); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 32px; padding: 48px 36px 40px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
+          .qr-closed-icon-wrap { margin-bottom: 20px; }
+          .qr-closed-icon-ring { position: relative; width: 80px; height: 80px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
+          .qr-closed-icon-svg { position: absolute; inset: 0; width: 100%; height: 100%; color: rgba(255,255,255,0.25); animation: qrSpin 12s linear infinite; }
+          .qr-closed-icon-emoji { font-size: 42px; line-height: 1; animation: qrPulse 2.5s ease-in-out infinite; }
+          @keyframes qrSpin { to { transform: rotate(360deg); } }
+          @keyframes qrPulse { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
+          .qr-closed-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 16px; }
+          .qr-closed-avatar { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; }
+          .qr-closed-avatar-fallback { background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+          .qr-closed-name { color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin: 0; }
+          .qr-closed-divider { width: 40px; height: 2px; background: rgba(255,255,255,0.15); border-radius: 1px; margin: 0 auto 20px; }
+          .qr-closed-heading { font-size: 22px; font-weight: 800; color: #fff; margin: 0 0 10px; letter-spacing: -0.3px; }
+          .qr-closed-desc { font-size: 14px; color: rgba(255,255,255,0.5); line-height: 1.6; margin: 0 0 24px; }
+          .qr-closed-info { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+          .qr-closed-info-item { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.4); }
+          .qr-closed-info-item svg { opacity: 0.5; flex-shrink: 0; }
+          .qr-closed-ripple { display: flex; gap: 8px; justify-content: center; }
+          .qr-closed-ripple-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.3); animation: qrRippleDot 1.8s ease-in-out infinite; }
+          .qr-closed-ripple-dot:nth-child(2) { animation-delay: 0.3s; }
+          .qr-closed-ripple-dot:nth-child(3) { animation-delay: 0.6s; }
+          @keyframes qrRippleDot { 0%, 60%, 100% { transform: scale(1); opacity: 0.3; } 30% { transform: scale(1.6); opacity: 0.8; } }
+        `}</style>
       </div>
     );
   }
@@ -561,6 +633,15 @@ export default function PublicQRMenu({ slug }) {
     <div className="qr-page" style={theme.css}>
       <div className="qr-container">
         {/* Hero */}
+        {closedWhileBrowsing && (
+          <div className="qr-closed-banner">
+            <div className="qr-closed-banner-icon">🕐</div>
+            <div className="qr-closed-banner-text">
+              <span className="qr-closed-banner-title">Shop is now closed</span>
+              <span className="qr-closed-banner-desc">Menu viewing only — ordering is disabled</span>
+            </div>
+          </div>
+        )}
         <div className="qr-hero">
           {banners.length > 0 && (
             <div className="qr-hero-slides"
@@ -835,6 +916,11 @@ export default function PublicQRMenu({ slug }) {
         .qr-retry-btn { padding: 12px 36px; background: var(--theme-primary, #1a1a2e); border: none; border-radius: 14px; color: var(--theme-btn-text, #fff); font-size: 15px; font-weight: 700; cursor: pointer; }
 
         /* Hero */
+        .qr-closed-banner { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #fef2f2; border-bottom: 1px solid #fecaca; position: sticky; top: 0; z-index: 50; }
+        .qr-closed-banner-icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+        .qr-closed-banner-text { display: flex; flex-direction: column; }
+        .qr-closed-banner-title { font-size: 13px; font-weight: 700; color: #991b1b; }
+        .qr-closed-banner-desc { font-size: 11px; color: #b91c1c; }
         .qr-hero { position: relative; height: 200px; overflow: hidden; background: var(--theme-header, linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)); }
         .qr-hero-slides { position: absolute; inset: 0; }
         .qr-hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.7s ease; }
@@ -1115,6 +1201,32 @@ export default function PublicQRMenu({ slug }) {
         .checkout-order-btn { flex: 2; padding: 14px; border: none; border-radius: 14px; background: var(--theme-btn, var(--theme-primary, #1a1a2e)); color: var(--theme-btn-text, #fff); font-size: 14px; font-weight: 700; cursor: pointer; }
         .checkout-order-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .checkout-done-icon { font-size: 56px; margin-bottom: 8px; }
+
+        /* Closed page */
+        .qr-page-closed { min-height: 100vh; background: linear-gradient(160deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%); display: flex; align-items: center; justify-content: center; padding: 24px; position: relative; overflow: hidden; font-family: system-ui,-apple-system,sans-serif; }
+        .qr-closed-bg-pattern { position: absolute; inset: 0; background-image: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.03) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(255,255,255,0.03) 0%, transparent 50%); }
+        .qr-closed-card { position: relative; background: rgba(255,255,255,0.06); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 32px; padding: 48px 36px 40px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
+        .qr-closed-icon-wrap { margin-bottom: 20px; }
+        .qr-closed-icon-ring { position: relative; width: 80px; height: 80px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
+        .qr-closed-icon-svg { position: absolute; inset: 0; width: 100%; height: 100%; color: rgba(255,255,255,0.25); animation: qrSpin 12s linear infinite; }
+        .qr-closed-icon-emoji { font-size: 42px; line-height: 1; animation: qrPulse 2.5s ease-in-out infinite; }
+        @keyframes qrSpin { to { transform: rotate(360deg); } }
+        @keyframes qrPulse { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 1; } }
+        .qr-closed-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 16px; }
+        .qr-closed-avatar { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; }
+        .qr-closed-avatar-fallback { background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .qr-closed-name { color: rgba(255,255,255,0.5); font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin: 0; }
+        .qr-closed-divider { width: 40px; height: 2px; background: rgba(255,255,255,0.15); border-radius: 1px; margin: 0 auto 20px; }
+        .qr-closed-heading { font-size: 22px; font-weight: 800; color: #fff; margin: 0 0 10px; letter-spacing: -0.3px; }
+        .qr-closed-desc { font-size: 14px; color: rgba(255,255,255,0.5); line-height: 1.6; margin: 0 0 24px; }
+        .qr-closed-info { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+        .qr-closed-info-item { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.4); }
+        .qr-closed-info-item svg { opacity: 0.5; flex-shrink: 0; }
+        .qr-closed-ripple { display: flex; gap: 8px; justify-content: center; }
+        .qr-closed-ripple-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.3); animation: qrRippleDot 1.8s ease-in-out infinite; }
+        .qr-closed-ripple-dot:nth-child(2) { animation-delay: 0.3s; }
+        .qr-closed-ripple-dot:nth-child(3) { animation-delay: 0.6s; }
+        @keyframes qrRippleDot { 0%, 60%, 100% { transform: scale(1); opacity: 0.3; } 30% { transform: scale(1.6); opacity: 0.8; } }
       `}</style>
     </div>
   );

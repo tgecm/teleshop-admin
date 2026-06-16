@@ -22,7 +22,9 @@ import {
   Mail,
   HelpCircle,
   UserCog,
-  Utensils
+  Utensils,
+  ClipboardList,
+  QrCode
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useBotStore } from '../../store/botStore';
@@ -33,6 +35,7 @@ import { motion, AnimatePresence } from 'motion/react';
 export default function BottomNav() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [telegramMoreExpanded, setTelegramMoreExpanded] = useState(false);
+  const [qrMenuMoreExpanded, setQrMenuMoreExpanded] = useState(false);
   const { user, logout, isStaff } = useAuthStore();
   const { selectedBotId } = useBotStore();
   const location = useLocation();
@@ -66,7 +69,6 @@ export default function BottomNav() {
     ...(isStaff ? [] : [{ to: '/subscription', icon: ShieldCheck, label: 'Subscription' }]),
     { to: '/customization', icon: Palette, label: 'Customize' },
     ...(isStaff ? [] : [{ to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' }]),
-    { to: '/qr-menu', icon: Utensils, label: 'QR Menu' },
     ...(isStaff ? [] : [{ to: '/faqs', icon: HelpCircle, label: 'FAQs' }]),
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
@@ -77,9 +79,19 @@ export default function BottomNav() {
     { to: '/bot-customization', icon: Bot, label: 'Bot Customization' },
   ];
 
+  const qrMenuMoreItems = [
+    { to: '/qr-menu', icon: Utensils, label: 'Menu' },
+    { to: '/qr-menu/tables', icon: QrCode, label: 'Tables' },
+    { to: '/qr-menu/orders', icon: ClipboardList, label: 'Orders' },
+  ];
+
   const isTelegramMoreActive = telegramMoreItems.some(item => location.pathname.startsWith(item.to));
+  const isQrMenuMoreActive = qrMenuMoreItems.some(item => location.pathname.startsWith(item.to));
 
   const isMoreActive = moreItems.some(item => location.pathname.startsWith(item.to));
+  const faqIndex = moreItems.findIndex(i => i.to === '/faqs');
+  const beforeFaqs = faqIndex === -1 ? moreItems : moreItems.slice(0, faqIndex);
+  const afterFaqs = faqIndex === -1 ? [] : moreItems.slice(faqIndex);
 
   return (
     <>
@@ -176,7 +188,11 @@ export default function BottomNav() {
                           : 'bg-gray-50 border-transparent text-gray-600'
                       }`}
                     >
-                      <ShoppingBag className="w-5 h-5" />
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
+                        isTelegramMoreActive ? 'bg-white text-indigo-600' : 'bg-white text-gray-500'
+                      }`}>
+                        <Send className="w-5 h-5" />
+                      </div>
                       <span className="font-bold text-[15px] flex-1 text-left">Telegram</span>
                       <ChevronDown className={`w-4 h-4 transition-transform ${telegramMoreExpanded ? 'rotate-0' : '-rotate-90'}`} />
                     </button>
@@ -234,7 +250,103 @@ export default function BottomNav() {
                     </AnimatePresence>
                   </div>
 
-                  {moreItems.map(({ to, icon: Icon, label }) => {
+                  {beforeFaqs.map(({ to, icon: Icon, label }) => {
+                    const isActive = location.pathname.startsWith(to);
+                    return (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        onClick={() => setIsMoreOpen(false)}
+                        data-haptic
+                        className={`flex items-center gap-4 p-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
+                          isActive
+                            ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                            : 'bg-gray-50 border-transparent text-gray-600 active:bg-gray-100'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
+                          isActive ? 'bg-white text-indigo-600' : 'bg-white text-gray-500'
+                        }`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <span className="font-bold text-[15px]">{label}</span>
+                      </NavLink>
+                    );
+                  })}
+
+                  {/* QR Menu group */}
+                  <div>
+                    <button
+                      onClick={() => setQrMenuMoreExpanded(!qrMenuMoreExpanded)}
+                      className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
+                        isQrMenuMoreActive
+                          ? 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                          : 'bg-gray-50 border-transparent text-gray-600'
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
+                        isQrMenuMoreActive ? 'bg-white text-indigo-600' : 'bg-white text-gray-500'
+                      }`}>
+                        <Utensils className="w-5 h-5" />
+                      </div>
+                      <span className="font-bold text-[15px] flex-1 text-left">QR Menu</span>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${qrMenuMoreExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                    </button>
+                    <AnimatePresence>
+                      {qrMenuMoreExpanded && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="fixed inset-0 z-[70] flex items-center justify-center p-6"
+                          onClick={() => setQrMenuMoreExpanded(false)}
+                        >
+                          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                          <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            onClick={e => e.stopPropagation()}
+                            className="relative bg-white rounded-3xl shadow-2xl p-5 w-full max-w-[300px]"
+                          >
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-base font-bold text-gray-900">QR Menu System</h3>
+                              <button
+                                onClick={() => setQrMenuMoreExpanded(false)}
+                                className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                              >
+                                <X className="w-3.5 h-3.5 text-gray-500" />
+                              </button>
+                            </div>
+                            <div className="space-y-2">
+                              {qrMenuMoreItems.map(({ to: subTo, icon: SubIcon, label: subLabel }) => {
+                                const isSubActive = location.pathname.startsWith(subTo);
+                                return (
+                                  <NavLink
+                                    key={subTo}
+                                    to={subTo}
+                                    onClick={() => { setIsMoreOpen(false); setQrMenuMoreExpanded(false); }}
+                                    data-haptic
+                                    className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
+                                      isSubActive
+                                        ? 'bg-indigo-50 border-indigo-100 text-indigo-600 shadow-sm'
+                                        : 'bg-gray-50 border-transparent text-gray-700 hover:bg-gray-100'
+                                    }`}
+                                  >
+                                    <SubIcon className="w-[22px] h-[22px]" />
+                                    <span className="font-semibold text-[15px]">{subLabel}</span>
+                                  </NavLink>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {afterFaqs.map(({ to, icon: Icon, label }) => {
                     const isActive = location.pathname.startsWith(to);
                     return (
                       <NavLink

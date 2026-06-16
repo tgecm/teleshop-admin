@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getQRMenuItems, createQRMenuItem, updateQRMenuItem, deleteQRMenuItem, getQRMenuCategories, createQRMenuCategory, updateQRMenuCategory, deleteQRMenuCategory } from '../api/qrMenu';
-import { getQRMenuOrders, getQRMenuPendingCount, updateOrder } from '../api/orders';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { uploadImage } from '../api/products';
 import { getBotPublicSlug } from '../api/public';
@@ -13,7 +12,7 @@ import ConfirmDialog from '../components/shared/ConfirmDialog';
 import {
   Plus, Search, Edit2, Trash2, Utensils, ImageUp, X, Copy,
   ExternalLink, Loader2, FolderPlus, Tag, Package, QrCode,
-  ToggleLeft, ToggleRight
+  ClipboardList
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -491,10 +490,6 @@ export default function QRMenuAdmin() {
   const [togglingShop, setTogglingShop] = useState(false);
   const [showBannerSection, setShowBannerSection] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
-  const [showOrdersPanel, setShowOrdersPanel] = useState(false);
-  const [ordersFullscreen, setOrdersFullscreen] = useState(false);
-  const [orderTab, setOrderTab] = useState('pending');
-  const [expandedOrder, setExpandedOrder] = useState(null);
   const bannerFileRef = useRef(null);
 
   const { data: items, isLoading } = useQuery({
@@ -519,27 +514,6 @@ export default function QRMenuAdmin() {
     queryKey: ['content-blocks', selectedBotId],
     queryFn: () => getContentBlocks({ bot_id: selectedBotId }),
     enabled: !!selectedBotId,
-  });
-
-  const { data: pendingOrderCount, refetch: refetchPendingCount } = useQuery({
-    queryKey: ['qr-pending-orders-count', selectedBotId],
-    queryFn: () => getQRMenuPendingCount(selectedBotId),
-    enabled: !!selectedBotId,
-    refetchInterval: 15000,
-  });
-
-  const { data: qrOrders, isLoading: loadingOrders } = useQuery({
-    queryKey: ['qr-orders', selectedBotId],
-    queryFn: () => getQRMenuOrders(selectedBotId, { limit: 100 }),
-    enabled: !!selectedBotId,
-  });
-
-  const updateOrderMutation = useMutation({
-    mutationFn: ({ id, status }) => updateOrder(id, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['qr-orders'] });
-      queryClient.invalidateQueries({ queryKey: ['qr-pending-orders-count'] });
-    },
   });
 
   const menuBannerBlock = contentBlocks?.find(b => b.key === 'menu_banners');
@@ -696,93 +670,86 @@ export default function QRMenuAdmin() {
         <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">QR Menu System</h1>
       </div>
 
-      {/* Toolbar: search+category | Orders | QR Menu | New Item */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex flex-1 min-w-0 gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search menu items..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none shadow-sm transition-all text-sm"
-            />
-          </div>
-          <div className="relative flex-1">
+      {/* Toolbar: combined search+category | Orders | QR Menu | New Item */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div className="relative flex-1 min-w-0">
+          <div className="flex items-center bg-white border border-gray-200 rounded-2xl shadow-sm focus-within:ring-2 focus-within:ring-orange-500 transition-all overflow-hidden">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search menu items..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-transparent outline-none text-sm"
+              />
+            </div>
             <button
               onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-              className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-orange-500 outline-none shadow-sm flex items-center gap-2"
+              className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-50 border-l border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-all flex-shrink-0"
             >
-              <span className={selectedCategoryFilter ? 'text-gray-900' : 'text-gray-400'}>
-                {selectedCategoryFilter
-                  ? (categories?.find(c => c.id === Number(selectedCategoryFilter))?.name || 'All Categories')
-                  : 'All Categories'}
-              </span>
-              <svg className="w-4 h-4 text-gray-400 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+              {selectedCategoryFilter
+                ? <><span>{categories?.find(c => c.id === Number(selectedCategoryFilter))?.icon || ''}</span><span className="max-w-[80px] truncate">{categories?.find(c => c.id === Number(selectedCategoryFilter))?.name}</span></>
+                : <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg><span className="hidden sm:inline">All</span></>
+              }
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
             </button>
-            {showCategoryDropdown && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowCategoryDropdown(false)} />
-                <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-2xl shadow-xl z-20 overflow-hidden min-w-[200px]">
-                  <button
-                    onClick={() => { setSelectedCategoryFilter(''); setShowCategoryDropdown(false); }}
-                    className={`w-full text-left px-4 py-3 text-sm hover:bg-orange-50 transition-all flex items-center gap-2 ${!selectedCategoryFilter ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-500'}`}
-                  >
-                    All Categories
-                  </button>
-                  {(categories || []).map(cat => (
-                    <div key={cat.id} className="flex items-center group">
-                      <button
-                        onClick={() => { setSelectedCategoryFilter(String(cat.id)); setShowCategoryDropdown(false); }}
-                        className={`flex-1 text-left px-4 py-3 text-sm hover:bg-orange-50 transition-all ${Number(selectedCategoryFilter) === cat.id ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-700'}`}
-                      >
-                        {cat.icon && <span className="mr-1.5">{cat.icon}</span>}
-                        {cat.name}
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setShowCategoryDropdown(false); setDeletingCategory(cat); }}
-                        className="p-2 mr-1 text-gray-400 hover:text-rose-500 transition-all hover:bg-rose-50 rounded-lg"
-                        title="Delete category"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
-        </div>
-        <button
-          onClick={() => { setShowOrdersPanel(true); refetchPendingCount(); }}
-          className="relative px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-2xl shadow-sm hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-all flex items-center gap-2 active:scale-95 font-bold text-sm"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-            <path d="M9 14l2 2 4-4"/>
-          </svg>
-          <span className="hidden sm:inline">Orders</span>
-          {pendingOrderCount?.pending || 0 > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1.5 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-lg shadow-rose-200 animate-pulse">
-              {pendingOrderCount.pending}
-            </span>
+          {showCategoryDropdown && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowCategoryDropdown(false)} />
+              <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-2xl shadow-xl z-20 overflow-hidden min-w-[200px]">
+                <button
+                  onClick={() => { setSelectedCategoryFilter(''); setShowCategoryDropdown(false); }}
+                  className={`w-full text-left px-4 py-3 text-sm hover:bg-orange-50 transition-all flex items-center gap-2 ${!selectedCategoryFilter ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-500'}`}
+                >
+                  All Categories
+                </button>
+                {(categories || []).map(cat => (
+                  <div key={cat.id} className="flex items-center group">
+                    <button
+                      onClick={() => { setSelectedCategoryFilter(String(cat.id)); setShowCategoryDropdown(false); }}
+                      className={`flex-1 text-left px-4 py-3 text-sm hover:bg-orange-50 transition-all ${Number(selectedCategoryFilter) === cat.id ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-700'}`}
+                    >
+                      {cat.icon && <span className="mr-1.5">{cat.icon}</span>}
+                      {cat.name}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowCategoryDropdown(false); setDeletingCategory(cat); }}
+                      className="p-2 mr-1 text-gray-400 hover:text-rose-500 transition-all hover:bg-rose-50 rounded-lg"
+                      title="Delete category"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
-        </button>
-        <button
-          onClick={() => setShowQrSettings(true)}
-          className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-2xl shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95 font-bold text-sm"
-        >
-          <QrCode className="w-5 h-5" />
-          <span className="hidden sm:inline">QR Menu</span>
-        </button>
-        <button
-          onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
-          className="px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl shadow-lg hover:from-orange-600 hover:to-amber-600 transition-all flex items-center gap-2 active:scale-95 font-bold text-sm"
-        >
-          <Plus className="w-5 h-5" />
-          <span className="hidden sm:inline">New Item</span>
-        </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.location.href = '/qr-menu/orders'}
+            className="flex-1 sm:flex-none px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-2xl shadow-sm hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-all flex items-center justify-center gap-2 active:scale-95 font-bold text-sm"
+          >
+            <ClipboardList className="w-5 h-5" />
+            <span className="hidden sm:inline">Orders</span>
+          </button>
+          <button
+            onClick={() => setShowQrSettings(true)}
+            className="flex-1 sm:flex-none px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-2xl shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2 active:scale-95 font-bold text-sm"
+          >
+            <QrCode className="w-5 h-5" />
+            <span className="hidden sm:inline">QR Menu</span>
+          </button>
+          <button
+            onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
+            className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl shadow-lg hover:from-orange-600 hover:to-amber-600 transition-all flex items-center justify-center gap-2 active:scale-95 font-bold text-sm"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">New Item</span>
+          </button>
+        </div>
       </div>
 
       {/* Menu Banner */}
@@ -1139,193 +1106,6 @@ export default function QRMenuAdmin() {
                       <p className="text-sm text-gray-400">Generate a public shop URL in Settings first.</p>
                     )}
                   </div>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Orders Panel */}
-      <AnimatePresence>
-        {showOrdersPanel && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowOrdersPanel(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
-            />
-            <motion.div
-              initial={{ y: '100%', opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: '100%', opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] overflow-y-auto ${
-                ordersFullscreen
-                  ? 'inset-0 !rounded-none !max-h-none'
-                  : 'max-h-[85svh] md:max-w-lg md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px] md:shadow-2xl'
-              }`}
-            >
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                        <path d="M9 14l2 2 4-4"/>
-                      </svg>
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-900">
-                      Orders ({pendingOrderCount?.pending || 0 || 0})
-                    </h2>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => { setOrdersFullscreen(!ordersFullscreen); }}
-                      className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-all"
-                      title={ordersFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-                    >
-                      <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        {ordersFullscreen ? (
-                          <><path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/></>
-                        ) : (
-                          <><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></>
-                        )}
-                      </svg>
-                    </button>
-                    <button onClick={() => setShowOrdersPanel(false)} className="p-2 bg-gray-100 rounded-full">
-                      <X className="w-5 h-5 text-gray-500" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex gap-1 mb-4 bg-gray-100 rounded-xl p-1">
-                  {['pending', 'confirmed', 'cancelled'].map(tab => {
-                    const counts = {
-                      pending: qrOrders?.filter(o => o.status === 'pending_review' || o.status === 'pending').length || 0,
-                      confirmed: qrOrders?.filter(o => o.status === 'confirmed').length || 0,
-                      cancelled: qrOrders?.filter(o => o.status === 'cancelled').length || 0,
-                    };
-                    return (
-                      <button key={tab}
-                        onClick={() => setOrderTab(tab)}
-                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                          orderTab === tab
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        {tab === 'pending' ? 'Pending' : tab === 'confirmed' ? 'Confirmed' : 'Rejected'}
-                        <span className={`ml-1.5 text-[10px] ${
-                          tab === 'pending' ? 'text-amber-600' :
-                          tab === 'confirmed' ? 'text-emerald-600' : 'text-rose-600'
-                        }`}>({counts[tab]})</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="space-y-1">
-                  {loadingOrders ? (
-                    <div className="text-center py-12 text-gray-400 text-sm">Loading orders...</div>
-                  ) : !qrOrders || qrOrders.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400">
-                      <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                      </svg>
-                      <p className="text-sm font-medium">No orders yet</p>
-                      <p className="text-xs mt-1">Orders from prepaid customers will appear here</p>
-                    </div>
-                  ) : (
-                    qrOrders
-                      .filter(o => {
-                        if (orderTab === 'pending') return o.status === 'pending_review' || o.status === 'pending';
-                        if (orderTab === 'confirmed') return o.status === 'confirmed';
-                        if (orderTab === 'cancelled') return o.status === 'cancelled';
-                        return true;
-                      })
-                      .map(order => {
-                        const orderItems = (() => {
-                          try { return typeof order.items === 'string' ? JSON.parse(order.items) : order.items || []; }
-                          catch { return []; }
-                        })();
-                        const isExpanded = expandedOrder === order.id;
-                        return (
-                          <div key={order.id}>
-                            <div
-                              onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
-                              className="flex items-center gap-3 px-3 py-2.5 bg-white rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.99]"
-                            >
-                              <span className="text-xs font-bold text-gray-500 min-w-[60px]">#{order.order_number ? order.order_number.slice(-6) : `ORD-${order.id}`}</span>
-                              <span className="flex-1 text-xs text-gray-700 truncate">
-                                {orderItems.map(i => i.name).join(', ')}
-                              </span>
-                              <span className="text-xs font-bold text-gray-900 whitespace-nowrap">{Number(order.total_amount).toLocaleString()} K</span>
-                              {order.status === 'pending_review' || order.status === 'pending' ? (
-                                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                              ) : null}
-                              <svg className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
-                            </div>
-                            {isExpanded && (
-                              <div className="mx-3 mb-2 p-3 bg-gray-50 rounded-xl border border-gray-100 text-xs space-y-2">
-                                <div className="space-y-1">
-                                  {orderItems.map((item, i) => (
-                                    <div key={i} className="flex justify-between text-gray-600">
-                                      <span><span className="font-bold text-gray-800">{item.quantity || item.qty}x</span> {item.name}</span>
-                                      <span className="font-bold text-gray-700">{Number(item.price).toLocaleString()} K</span>
-                                    </div>
-                                  ))}
-                                </div>
-                                <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2">
-                                  <span>Total</span>
-                                  <span>{Number(order.total_amount).toLocaleString()} K</span>
-                                </div>
-                                {order.payment_method && order.payment_method !== 'prepaid' && (
-                                  <p className="text-gray-500">💳 {order.payment_method}</p>
-                                )}
-                                {order.payment_proof_messages && order.payment_proof_messages.length > 0 && (
-                                  <div className="flex gap-2 overflow-x-auto pb-1">
-                                    {(() => {
-                                      const proofs = typeof order.payment_proof_messages === 'string'
-                                        ? JSON.parse(order.payment_proof_messages)
-                                        : order.payment_proof_messages;
-                                      return proofs.map((proof, i) => {
-                                        const fileId = proof.file_id || proof;
-                                        if (!fileId) return null;
-                                        return (
-                                          <img key={i}
-                                            src={`https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(fileId)}?bot_id=${selectedBotId}`}
-                                            alt="Payment proof"
-                                            className="h-24 w-auto rounded-lg border border-gray-200 bg-white object-contain"
-                                          />
-                                        );
-                                      });
-                                    })()}
-                                  </div>
-                                )}
-                                {(order.status === 'pending_review' || order.status === 'pending') && (
-                                  <div className="flex gap-2 pt-1">
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); updateOrderMutation.mutate({ id: order.id, status: 'confirmed' }); }}
-                                      disabled={updateOrderMutation.isPending}
-                                      className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-all active:scale-[0.97] disabled:opacity-50 text-xs"
-                                    >Confirm</button>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); updateOrderMutation.mutate({ id: order.id, status: 'cancelled' }); }}
-                                      disabled={updateOrderMutation.isPending}
-                                      className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition-all active:scale-[0.97] disabled:opacity-50 text-xs"
-                                    >Decline</button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                  )}
                 </div>
               </div>
             </motion.div>
