@@ -228,18 +228,20 @@ const PLANS = [
 ];
 
 const FAQS = [
-  { q: 'Do I need coding skills to use this?',
-    a: 'Absolutely not! The platform is designed so anyone can use it — even if you\'ve never built a website before. Just sign up, add your products, and start selling. No coding needed.' },
-  { q: 'Will my Telegram bot and website sync automatically?',
-    a: 'Yes! Everything is synced in real-time. When you add a product, update stock, or confirm an order — it reflects instantly on both your Telegram bot and your website. One dashboard controls everything.' },
-  { q: 'Which payment methods are supported?',
-    a: 'We support all major Myanmar payment wallets including KBZPay, AYAPay, Wave Money, and any bank that supports MMQR. Add your QR codes and customers pay instantly.' },
-  { q: 'Can I use my own domain name?',
-    a: 'Yes! Pro and Business plans support custom domains. Connect your own domain (e.g. myshop.com) and customers see your brand. Setup takes just a few minutes with our step-by-step guide.' },
-  { q: 'Is there a free plan? What\'s included?',
-    a: 'Yes! The Free plan lets you list up to 5 products, manage orders, and run a full Telegram bot shop — forever, no time limit. Upgrade anytime to unlock web store, AI agent, and advanced features.' },
-  { q: 'How does the AI assistant work?',
-    a: 'The AI agent answers customer questions automatically — about products, prices, availability, order status, and more. It works 24/7 so you never miss a customer. Available on Standard plan and above.' },
+  { q: 'အသုံးပြုရလွယ်လား?',
+    a: 'အရိုးရှင်းဆုံးက အဆန်းပြားပဲဆိုသလိုပဲ UI တစ်ခုလုံးက Clean and Simple Interface ဖြစ်ပြီး E-commerce နှင့် အကျွမ်းတဝင်မရှိတဲ့သူတောင် ကျွမ်းကျင်စွာ အသုံးပြုနိုင်မှာဖြစ်ပါတယ်။' },
+  { q: 'Telegam Shop နဲ့ E-commerce Website က real-time sync ဖြစ်လား?',
+    a: ' Real-Time Sync, Instant Update ဖြစ်ပါတယ်။ Delay အနည်းငယ်တောင်မရှိပါဘူး။' },
+  { q: 'ဆိုင်အတွက် ဘယ် Payment တွေကိုသုံးလို့ရလဲ?',
+    a: 'ဘာမှ မသက်မှက်ထားပါဘူး။ စိတ်ကြိုက် Payment ထည့်နိုင်ပါတယ်။' },
+  { q: 'Telegam မသုံးတဲ့ Customer တွေက ဘယ်လိုဝယ်ရမလဲ?',
+    a: 'ကျနော်တို့ရဲ့ Myanmar\s First First Multi-Platform Ecommerce မှာဆိုရင် Customer အနေနဲ့ Telegram Mode, Website Mode, Guest Mode ဆိုပြီး အဆင်ပြေရာကနေတစ်ဆင့် ဝယ်ယူနိုင်မှာဖြစ်ပါတယ်။ .' },
+  { q: 'Free သုံးလို့ရလား?',
+    a: 'ရပါတယ်။ Free Plan က Expire မရှိပါဘူး။ ရက်အကန့်အသက်လဲ မရှိပါဘူး။ ဒါပေမယ့် Web Panel နဲ့ E-commerce Website ကိုတော့ အသုံးပြုနိုင်မှာ မဟုတ်ပါဘူး။ Free Plan ကတော့ Telegram E-commerce တစ်မျိုးတည်းရရှိမှာဖြစ်ပါတယ်။' },
+  { q: 'AI Agent ကဘာတွေလုပ်ပေးမှာလဲ?',
+    a: 'AI Agent က Customer Service role အနေနဲ့ သင့်ဆိုင်ကိုကူညီပေးမှာဖြစ်ပါတယ်။ ဥပမာ မေးခွန်းဖြေကြားပေးတာ၊ စျေးရောင်း​​ပေးတာတွေလုပ်ပေးနိုင်ပါတယ်။' },
+  { q: 'QR MENU System ဆိုတာဘာလဲ?',
+    a: 'QR Ordering System ဆိုတာ စားသောက်ဆိုင်တွေနဲ့ ကော်ဖီဆိုင်တွေမှာ စားသုံးသူတွေက စားပွဲပေါ်မှာကပ်ထားတဲ့ QR Code ကို မိမိရဲ့စမတ်ဖုန်းနဲ့ Scan ဖတ်ပြီး၊ Digital Menu ကိုကြည့်ကာ မိမိကိုယ်တိုင် Order တင်နိုင်တဲ့ ခေတ်မီနည်းစနစ်တစ်ခု ဖြစ်ပါတယ်။ စားသောက်ဆိုင်တွေမှာ စားပွဲထိုး၊ဝန်ထမ်း‌တွေကို စောင့်ဆိုင်းနေစရာမလိုဘဲ မိမိဖုန်းထဲမှတစ်ဆင့် အစအဆုံး လုပ်ဆောင်နိုင်မှာ ဖြစ်ပါတယ်။ အစားအသောက်ရောင်းတဲ့ ဘယ်ဆိုင်မဆို Menu စာရွက်မှာ QR Code ထည့်ထားလိုက်ရုံပါပဲ။' },  
 ];
 
 export default function Homepage() {
@@ -357,9 +359,9 @@ export default function Homepage() {
       <main className="hp-main">
         {/* HERO */}
         <section className="hero">
-          <div className="hero-badge"><span className="badge-dot"></span> Myanmar's First Multi-Platform E-commerce</div>
+          <div className="hero-badge"><span className="badge-dot"></span> Myanmar's First Multi-Platform E-commercez</div>
           <h1>Sell on Telegram + Web<br /><span className="line2">With Your Own Domain</span></h1>
-          <p className="hero-sub">Open your online store in minutes. No coding. No headaches. Just sell — on Telegram and your own beautiful website at the same time.</p>
+          <p className="hero-sub">ဆိုင်ရှင်ကိုရော ဈေးဝယ်သူကိုပါ စိတ်ကျေနပ်မှုအပြည့်အဝပေးနိုင်မယ့် <br /> Myanmar's First Multi-Platform E-commerce ကို အခုပဲစတင် စမ်းသုံးနိုင်ပါပြီ။</p>
           <div className="hero-cta">
             <a href="https://t.me/ecommercemyanmarbot" className="btn-hero">🚀 Start for Free</a>
             <a href="#features" className="btn-hero-outline">✨ See Features</a>
@@ -377,8 +379,8 @@ export default function Homepage() {
           <div className="stats-bar reveal">
             <div className="stat-item"><div className="stat-val" data-count="2">0</div><div className="stat-desc">Platforms in 1</div></div>
             <div className="stat-item"><div className="stat-val" data-count="5">0</div><div className="stat-desc">Plan Tiers</div></div>
-            <div className="stat-item"><div className="stat-val" data-count="5">0</div><div className="stat-desc">Min to Launch</div></div>
-            <div className="stat-item"><div className="stat-val" data-count="5">0</div><div className="stat-desc">Super Easy to Use</div></div>
+            <div className="stat-item"><div className="stat-val" data-count="1">0</div><div className="stat-desc">Min to Launch</div></div>
+            <div className="stat-item"><div className="stat-val" data-count="9">0</div><div className="stat-desc">Super Easy to Use</div></div>
           </div>
         </section>
 
@@ -386,33 +388,37 @@ export default function Homepage() {
         <section id="features" className="hp-section">
           <div className="reveal">
             <p className="hp-section-label">Everything You Need</p>
-            <h2 className="hp-section-title">Rich Features,<br />Easy to Use</h2>
-            <p className="hp-section-sub">Everything a real online business needs — beautifully packed into one simple dashboard.</p>
+            <h2 className="hp-section-title"> Features ပေါင်းများစွာပါဝင်ပြီး<br /> အသုံးပြုရ အလွန်လွယ်ကူသော Interface!</h2>
+            <p className="hp-section-sub"> စိတ်ကျေနပ်မှုအပြည့်အဝ ရရှိစေမယ့် မြန်မာ့ပထမဆုံးသော <br />  Multi-Platform E-commerce with one click set up.......</p>
           </div>
           <div className="features-grid">
             {[
-              { icon: '🌐', title: 'Multi-Platform Shop', desc: 'Sell on Telegram, web, and your own custom domain — all synced in real-time from one dashboard.', bg: 'rgba(56,189,248,.1)',
-                items: ['Telegram bot with inline ordering', 'Full web storefront with cart', 'Custom domain', 'Real-time multi-platform sync'] },
-              { icon: '📦', title: 'Product Management', desc: 'Powerful product catalog with images, categories, variants, colors, and stock tracking.', bg: 'rgba(255,182,39,.1)',
-                items: ['Unlimited products with images', 'Categories & subcategories', 'Color swatches & size options', 'Stock alerts & sale pricing'] },
+              { icon: '🌐', title: 'Multi-Platform Shop', desc: 'Telegram Bot မှာတင်မကဘဲ သီးသန့် E-commerce Website အပြင် <br /> Admin Panel ပါ ရရှိဦးမယ့် ပြီးပြည့်စုံတဲ့ Multi-Platform E-commerce စနစ်ပဲ ဖြစ်ပါတယ်', bg: 'rgba(56,189,248,.1)',
+                items: ['Telegram Bot မှာတင် E-commerce Feature တွေ အစုံအလင် ရရှိမှာဖြစ်ပြီး <br /> ဝယ်သူတွေအတွက် E-commerce Website ပါ ထပ်မံရရှိပါမယ်။', 'Telegram E-commerce နဲ့ E-commerce Website ကြား <br /> Data တွေအားလုံးက အပြန်အလှန် Real-time Sync ဖြစ်ပါတယ်။', 'မိမိ ကိုယ်ပိုင် Custom domain ဖြင့် အသုံးပြုနိုင်မယ်။', 'Customer တွေအနေနဲ့လည်း Telegram ကနေဖြစ်စေ၊ Website ကနေဖြစ်စေ ဈေးဝယ်ယူနိုင်ပါတယ်။'] },
+              { icon: '📦', title: 'Product Management', desc: 'Telegram ကဖြစ်‌စေ Web Panel ကဖြစ်စေ Product တွေကို <br /> Category အလိုက် စိတ်ကြိုက်စီမံခန့်ခွဲပြီး တင်လိုရနိုင်မယ်။', bg: 'rgba(255,182,39,.1)',
+                items: ['Shop Owners တိုအကြိုက် Coupon တွေဖန်တီးလိုရမယ်။', 'Delivery Fees တွေ သက်မှက်နိုင်မယ်။', 'Color, Size, Option ပါဝင်မယ်။', 'Stock ကုန်ခါနီး သတိပေးမယ်။'] },
               { icon: '💳', title: 'Orders & Payments', desc: 'Complete order workflow with payment proof verification and invoice generation.', bg: 'rgba(255,107,43,.12)',
-                items: ['Order status tracking', 'Payment proof upload & verify', 'PDF invoice generation', 'Multiple bank/QR methods'] },
+                items: ['ငွေဝင်မဝင်စစ်လို့ရမယ်။ Invoice ‌ရော Receipt ပါထုတ်လို့ရမယ်။', 'Confirm, Reject, Processing, Ship, Delivered, Cancelled Status ပါဝင်မယ်။ <br /> Order record တွေအလွယ်တကူ ပြန်ရှာလို့ရမယ်။', 'Payment တွေစိတ်ကြိုက် ထည့်လို့ရမယ်။', 'Cash on Delivery စနစ်ပါဝင်မယ်။'] },
               { icon: '👥', title: 'Customer System', desc: 'Built-in customer accounts with Google & Telegram login, order history, and saved info.', bg: 'rgba(56,189,248,.1)',
                 items: ['Customer profiles & history', 'Google + Telegram sign-in', 'Saved addresses & contacts', 'Customer order dashboard'] },
               { icon: '📢', title: 'Broadcast & Newsfeed', desc: 'Send promotions and updates to all customers. Built-in social-style newsfeed.', bg: 'rgba(255,61,127,.1)',
-                items: ['Mass broadcasts', 'Rich media newsfeed', 'Customer likes & comments', 'Auto-publish product updates'] },
+                items: ['Customer တွေကို Update သတင်းပေးပိုနိုင်မယ်။', 'Promotion Message ပေးပိုလိုရမယ်။', 'Facebook ကဲ့သိုသော Newsfeed ပါဝင်မယ်။', 'Like, Comment & Share ပါဝင်မယ်။'] },
               { icon: '🤖', title: 'AI Chat Assistant', desc: '24/7 AI-powered customer support that answers questions and qualifies leads automatically.', bg: 'rgba(255,107,43,.12)',
                 items: ['Automated customer support', 'Product recommendations', 'Photo sharing in chat', 'Multi-language support'] },
               { icon: '🎨', title: 'Customization', desc: 'Brand your shop with custom themes, colors, banners, and personalized button labels.', bg: 'rgba(255,182,39,.1)',
-                items: ['20+ color themes', 'Custom banners & logos', 'Brand colors everywhere', 'Custom button labels'] },
+                items: ['Shop color themes', 'Custom banners & logos', 'Brand colors everywhere', 'Custom button labels'] },
               { icon: '📊', title: 'Analytics & Insights', desc: 'Visual dashboards showing sales trends, top products, and revenue with exportable reports.', bg: 'rgba(255,61,127,.1)',
                 items: ['Sales charts & trends', 'Top products report', 'Revenue analytics', 'Export to CSV/PDF'] },
               { icon: '🛒', title: 'Cart & Checkout', desc: 'Smooth shopping experience with guest checkout, contact forms, and payment proof upload.', bg: 'rgba(56,189,248,.1)',
                 items: ['Web cart with quantity', 'Guest checkout — no signup', 'Contact info collection', 'Payment proof upload'] },
               { icon: '✈️', title: 'Telegram Deep Integration', desc: 'Seamless Telegram bot with order notifications, chat commands, and real-time admin alerts.', bg: 'rgba(255,107,43,.12)',
-                items: ['Order notifications in chat', 'Telegram admin alerts', 'Share products to Telegram', 'Telegram login for users'] },
+                items: ['Order notifications in chat', 'Telegram admin alerts', 'Share products to Telegram', 'ဘယ်မှာမှ မရှိသေးတဲ့ Telegram E-commerce စစ်စစ်။'] },
               { icon: '🔗', title: 'Custom Domain', desc: 'Professional storefront on your own domain. Free SSL, no branding, simple DNS setup.', bg: 'rgba(255,182,39,.1)',
-                items: ['Your own domain name', 'Free SSL certificate', 'No platform branding', 'Simple DNS guide'] },
+                items: ['ကိုယ်ပိုင် Domain အသုံးပြုနိုင်မယ်','Very Easy to Set Up'] },
+              { icon: '⚡', title: 'Fast & Lightweight', desc: 'Optimized for speed with minimal load times, even on mobile. Built with React and Node.js.', bg: 'rgba(255,61,127,.1)',
+                items: ['Optimized for speed', 'Fast load times on mobile', 'Built with React & Node.js', 'Efficient database queries'] },  
+              { icon: '🍽️', title: 'QR Ordering System', desc: 'Let customers scan QR codes to browse menu, place orders, and pay directly from their phone.', bg: 'rgba(56,189,248,.1)',
+                items: ['Scan QR to view full menu', 'Self-service ordering', 'Direct payment integration', 'Order management in admin panel'] },
             ].map((f, i) => (
               <div key={i} className="feat-card reveal" style={{ animationDelay: `${i * 0.05}s` }}>
                 <div className="feat-content">
@@ -420,9 +426,9 @@ export default function Homepage() {
                     <div className="feat-title">{f.title}</div>
                     <div className="feat-icon" style={{ background: f.bg }}>{f.icon}</div>
                   </div>
-                  <div className="feat-desc">{f.desc}</div>
+                  <div className="feat-desc" dangerouslySetInnerHTML={{__html: f.desc}} />
                   <ul className="feat-sublist">
-                    {f.items.map((item, j) => <li key={j}>{item}</li>)}
+                    {f.items.map((item, j) => <li key={j} dangerouslySetInnerHTML={{__html: item}} />)}
                   </ul>
                 </div>
               </div>
@@ -448,16 +454,16 @@ export default function Homepage() {
         {/* HOW IT WORKS */}
         <section id="how" className="hp-section">
           <div className="reveal">
-            <p className="hp-section-label">How To Get Started</p>
+            <p className="hp-section-label">How To Get Started <br /> ၁မိနစ်အတွင်း E-commerce Website တစ်ခုကို <br /> အလွယ်ကူဆုံး ဘယ်လိုဖန်တီးမလဲ?  </p>
             <h2 className="hp-section-title">Open your store<br />in just 4 steps</h2>
             <p className="hp-section-sub">So simple, anyone can do it. <br /> Even if you've never sold online before.</p>
           </div>
           <div className="steps">
             {[
-              { num: '1', title: 'Sign Up Free', desc: 'Create Your Own shop with one Click.' },
-              { num: '2', title: 'Set Up Payments', desc: 'Add your KBZPay, AYA, or WavePay QR. Your customers pay and you get notified instantly.' },
-              { num: '3', title: 'Add Your Products', desc: 'Upload photos, set prices, add info. It\'s like posting on Facebook Marketplace — that easy.' },
-              { num: '4', title: 'Share & Start Selling', desc: 'Share your Telegram bot link or website URL anywhere. Orders start coming in automatically.' },
+              { num: '1', title: 'Sign Up Free', desc: 'Sign Up ကိုနှိပ်ပြီး Create My Bot Now ကိုနှိပ်ကာ E-commerce Store ရယူပါ။ Just One-Click Setup' },
+              { num: '2', title: 'Set Up Payments', desc: 'Online ဈေးဆိုင်အတွက် Payment ထည့်ပါ။ ဥပမာ- KBZPAY, WavePay.' },
+              { num: '3', title: 'Add Your Products', desc: 'Product တွေကို စထည့်နိုင်ပါပြီ။' },
+              { num: '4', title: 'Share & Start Selling', desc: 'သင့်ရဲ့ Telegram bot link သို့မဟုတ် website Link ကို Social Media မှာ ဝေမျှနိုင်ပါပြီ။' },
             ].map((s, i) => (
               <div key={i} className="step" style={{ transitionDelay: `${i * 0.12}s` }}>
                 <div className="step-num">{s.num}</div>
@@ -470,7 +476,7 @@ export default function Homepage() {
         {/* PRICING */}
         <section id="pricing" className="hp-section">
           <div className="reveal">
-            <p className="hp-section-label">Pricing</p>
+            <p className="hp-section-label">Plans & Pricing</p>
             <h2 className="hp-section-title">Start free,<br />grow when ready</h2>
             <p className="hp-section-sub">No surprise fees. Change or cancel anytime.</p>
           </div>
@@ -505,7 +511,7 @@ export default function Homepage() {
         {/* CTA */}
         <div className="cta-section reveal" style={{ marginBottom: 60 }}>
           <h2 className="cta-title">Ready to open your store? 🚀</h2>
-          <p className="cta-sub">Join hundreds of Myanmar sellers who run their business on our platform. Start free, no card needed.</p>
+          <p className="cta-sub"> ဆိုင်ရှင်ကိုရော ဈေးဝယ်သူကိုပါ စိတ်ကျေနပ်မှုအပြည့်အဝပေးနိုင်မယ့် <br /> Multi-Platform E-commerce ကို အခုပဲစတင် စမ်းသုံးနိုင်ပါပြီ။</p>
           <a href="https://t.me/tg_ecommerce_official_bot?start=newbot" className="btn-hero" style={{ margin: '0 auto', maxWidth: 240, display: 'flex' }}>
             🛍️ Open My Store Now
           </a>
