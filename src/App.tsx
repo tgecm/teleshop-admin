@@ -72,7 +72,7 @@ function PublicRoute() {
   const pathname = window.location.pathname.replace(/^\//, '');
 
   if (pathname === 'homepage') {
-    return <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>;
+    return <Navigate to="/" replace />;
   }
 
   const addProductMatch = pathname.match(/^(.+)-add-product-(\d{5})-(\d+)-(\d+)$/);
@@ -376,9 +376,11 @@ export default function App() {
                 <Suspense fallback={<SuspenseFallback />}><WebPanel /></Suspense>
               } />
               <Route path="/" element={
+                <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>
+              } />
+              <Route path="/" element={
                 <Suspense fallback={<SuspenseFallback />}><Layout /></Suspense>
               }>
-                <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<PermissionGuard><Dashboard /></PermissionGuard>} />
                 <Route path="orders" element={<PermissionGuard><Orders /></PermissionGuard>} />
                 <Route path="products" element={<PermissionGuard><Products /></PermissionGuard>} />

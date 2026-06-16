@@ -368,9 +368,9 @@ export default function Homepage() {
           </div>
           <p className="hero-note">No credit card needed · <span>Free plan forever</span></p>
           <div className="platforms">
-            <span className="plat-chip">✈️ Telegram Bot</span>
-            <span className="plat-chip">🌐 Web Store</span>
-            <span className="plat-chip">📱 Mobile First</span>
+            <span className="plat-chip">🤖 Telegram Mode</span>
+            <span className="plat-chip">🌐 Website Mode</span>
+            <span className="plat-chip">👤 Guest Mode</span>
           </div>
         </section>
 

@@ -3085,6 +3085,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
           slug={slug || shop?.public_slug}
           shop={shop}
           initialPostCode={initialPostCode}
+          userName={user?.displayName || telegramUser?.name || null}
         />
       )}
 
