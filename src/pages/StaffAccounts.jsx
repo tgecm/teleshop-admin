@@ -152,7 +152,8 @@ export default function StaffAccounts() {
   const downloadLogs = async () => {
     if (!selectedBotId || !selectedStaffId) return;
     try {
-      const blob = await downloadStaffActivityLogs(selectedBotId, selectedStaffId);
+      const range = getDateRange(dateFilter);
+      const blob = await downloadStaffActivityLogs(selectedBotId, selectedStaffId, range.startDate, range.endDate);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

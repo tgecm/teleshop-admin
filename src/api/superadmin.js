@@ -60,5 +60,5 @@ export const deleteFaq = (id) =>
 export const getStaffActivityLogs = (botId, staffId, startDate, endDate) =>
   client.get('/staff/activity-logs', { params: { bot_id: botId, staff_id: staffId, start_date: startDate, end_date: endDate } }).then(res => res.data);
 
-export const downloadStaffActivityLogs = (botId, staffId) =>
-  client.get('/staff/activity-logs/download', { params: { bot_id: botId, staff_id: staffId }, responseType: 'blob' }).then(res => res.data);
+export const downloadStaffActivityLogs = (botId, staffId, startDate, endDate) =>
+  client.get('/staff/activity-logs/download', { params: { bot_id: botId, staff_id: staffId, start_date: startDate, end_date: endDate }, responseType: 'blob' }).then(res => res.data);
