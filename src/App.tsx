@@ -127,9 +127,9 @@ function PublicRoute() {
   if (modeMatch) {
     return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={modeMatch[1]} mode={modeMatch[2]} /></Suspense>;
   }
-  const qrMenu = pathname.match(/^(.+)-qr-menu$/);
+  const qrMenu = pathname.match(/^(.+)-qr-menu(?:\/t(\d+))?$/);
   if (qrMenu) {
-    return <Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={qrMenu[1]} /></Suspense>;
+    return <Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} /></Suspense>;
   }
   return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={pathname} /></Suspense>;
 }
@@ -336,8 +336,8 @@ export default function App() {
               if (ec) return <PublicEcommerce slug={ec[1]} />;
               const modeSlug = publicSlug.match(/^(.+)\/(telegram|ecommerce|guest)$/);
               if (modeSlug) return <PublicEcommerce slug={modeSlug[1]} mode={modeSlug[2]} />;
-              const qrMenu = publicSlug.match(/^(.+)-qr-menu$/);
-              if (qrMenu) return <PublicQRMenu slug={qrMenu[1]} />;
+              const qrMenu = publicSlug.match(/^(.+)-qr-menu(?:\/t(\d+))?$/);
+              if (qrMenu) return <PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} />;
               return <PublicEcommerce slug={publicSlug} />;
             })()}
           </Suspense>

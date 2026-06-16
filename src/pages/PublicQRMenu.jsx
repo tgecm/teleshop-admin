@@ -170,7 +170,7 @@ function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRe
   );
 }
 
-function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, onSubmitOrder }) {
+function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, onSubmitOrder, tableProp }) {
   const [step, setStep] = useState('form');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -262,7 +262,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
           total_amount: orderTotal,
           payment_proof: paymentProof,
           payment_method: selectedPayment.name || 'prepaid',
-          notes: 'QR Menu - Prepaid',
+          notes: tableProp ? `Table ${tableProp}` : 'QR Menu - Prepaid',
         }),
       });
       const data = await res.json();
@@ -412,7 +412,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
   );
 }
 
-export default function PublicQRMenu({ slug }) {
+export default function PublicQRMenu({ slug, table: tableProp }) {
   const [activeCat, setActiveCat] = useState('all');
   const [searchQ, setSearchQ] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
@@ -898,6 +898,7 @@ export default function PublicQRMenu({ slug }) {
         {showCheckout && (
           <CheckoutFlow orderItems={orderItems} orderTotal={orderTotal} shop={shop}
             paymentMethods={paymentMethods}
+            tableProp={tableProp}
             onBack={() => { setShowCheckout(false); setShowCart(true); }}
             onSubmitOrder={() => { setShowCheckout(false); setOrderItems([]); }} />
         )}
