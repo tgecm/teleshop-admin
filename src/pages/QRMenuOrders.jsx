@@ -96,6 +96,12 @@ export default function QRMenuOrders() {
                   try { return typeof order.items === 'string' ? JSON.parse(order.items) : order.items || []; }
                   catch { return []; }
                 })();
+                const orderNotes = (() => {
+                  try {
+                    const sa = typeof order.shipping_address === 'string' ? JSON.parse(order.shipping_address) : order.shipping_address;
+                    return sa?.notes || '';
+                  } catch { return ''; }
+                })();
                 const isExpanded = expandedOrder === order.id;
                 return (
                   <div key={order.id}>
@@ -104,6 +110,7 @@ export default function QRMenuOrders() {
                       className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.99]"
                     >
                       <span className="text-xs font-bold text-gray-500 min-w-[70px]">#{order.order_number ? order.order_number.slice(-6) : `ORD-${order.id}`}</span>
+                      {orderNotes && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-1.5 py-0.5 whitespace-nowrap">{orderNotes}</span>}
                       <span className="flex-1 text-sm text-gray-700 truncate">
                         {orderItems.map(i => i.name).join(', ')}
                       </span>
@@ -127,6 +134,11 @@ export default function QRMenuOrders() {
                           <span>Total</span>
                           <span>{Number(order.total_amount).toLocaleString()} K</span>
                         </div>
+                        {orderNotes && (
+                          <p className="flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                            <span>📍</span> {orderNotes}
+                          </p>
+                        )}
                         {order.payment_method && order.payment_method !== 'prepaid' && (
                           <p className="text-gray-500 text-xs">💳 {order.payment_method}</p>
                         )}

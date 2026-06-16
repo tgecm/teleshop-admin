@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
@@ -62,7 +62,7 @@ export default function QRMenuTables() {
 
   const getTableUrl = useCallback((number) => {
     if (!publicSlug?.slug) return '';
-    return `https://telegramecommerce.shop/${publicSlug.slug}-qr-menu?table=${number}`;
+    return `https://telegramecommerce.shop/${publicSlug.slug}-qr-menu/t${number}`;
   }, [publicSlug]);
 
   const setQrRef = (number, node) => {
@@ -99,7 +99,7 @@ export default function QRMenuTables() {
     ctx.stroke();
 
     ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 18px sans-serif';
+    ctx.font = 'bold 20px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(number), cx, cy);
@@ -210,7 +210,7 @@ export default function QRMenuTables() {
                         ref={(node) => setQrRef(table.number, node)}
                         value={url}
                         size={180}
-                        level="M"
+                        level="L"
                         includeMargin
                       />
                     )}
