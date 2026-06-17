@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Palette,
   LogOut,
-  ChevronDown,
   Bot,
   Newspaper,
   Mail,
@@ -32,6 +31,7 @@ import { getUnreadCount } from '../../api/chats';
 import { getPendingOrderCount } from '../../api/orders';
 import { getQRMenuPendingCount } from '../../api/orders';
 import BotSwitcher from '../shared/BotSwitcher';
+import ConfirmDialog from '../shared/ConfirmDialog';
 
 export default function Sidebar({ mobileOpen, onMobileClose }) {
   const { user, logout, isStaff } = useAuthStore();
@@ -40,6 +40,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
   const [telegramExpanded, setTelegramExpanded] = useState(false);
   const [qrMenuExpanded, setQrMenuExpanded] = useState(false);
+  const [sectionPopup, setSectionPopup] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const location = useLocation();
 
@@ -100,7 +102,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
   const navContent = (isMobile) => (
     <>
-      <div className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto scrollbar-hide">
+      <div className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto scrollbar-hide">
         {(isMobile ? mobileNavItems : navItems).map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -108,13 +110,13 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             data-haptic
             onClick={onMobileClose}
             className={({ isActive }) => `
-              flex items-center gap-3 px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all
+              flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
               ${isActive
                 ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'
                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
             `}
           >
-            <Icon className="w-[18px] h-[18px] lg:w-5 lg:h-5 flex-shrink-0" />
+            <Icon className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
             <span>{label}</span>
             {(to === '/chats' && unread?.total > 0) || (to === '/orders' && pendingOrders?.pending > 0) ? (
               <span className="ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
@@ -128,16 +130,16 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
         {/* QR Menu Section */}
           <div className="pt-3">
-            {qrMenuExpanded && (
+            {!isMobile && qrMenuExpanded && (
               <div className="ml-2 mb-1 space-y-0.5 border-l-2 border-indigo-100 pl-2">
                 {qrMenuItems.map(({ to, icon: Icon, label }) => (
                   <NavLink key={to} to={to} data-haptic onClick={onMobileClose}
                     className={({ isActive }) => `
-                      flex items-center gap-3 px-4 py-2 lg:py-2.5 rounded-xl text-sm font-medium transition-all
+                      flex items-center gap-2 px-2.5 py-1 lg:py-2.5 rounded-xl text-xs lg:text-sm font-medium transition-all
                       ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
                     `}
                   >
-                    <Icon className="w-4 h-4 lg:w-[18px] lg:h-[18px] flex-shrink-0" />
+                    <Icon className="w-3.5 h-3.5 lg:w-[18px] lg:h-[18px] flex-shrink-0" />
                     <span>{label}</span>
                     {to === '/qr-menu/orders' && qrPendingOrders?.pending > 0 && (
                       <span className="ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
@@ -148,70 +150,76 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                 ))}
               </div>
             )}
-            <button onClick={() => setQrMenuExpanded(!qrMenuExpanded)} data-haptic
-              className={`flex items-center gap-3 w-full px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all border border-transparent ${
+            <button onClick={() => isMobile ? setSectionPopup('qr') : setQrMenuExpanded(!qrMenuExpanded)} data-haptic
+              className={`flex items-center gap-2 w-full px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all border border-transparent ${
                 isQrMenuActive ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <Utensils className="w-[18px] h-[18px] lg:w-5 lg:h-5 flex-shrink-0" />
-              <span className="flex-1 text-left">QR Menu System</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${qrMenuExpanded ? 'rotate-0' : '-rotate-90'}`} />
+              <Utensils className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
+              <span className="flex-1 text-left">QR Menu</span>
             </button>
           </div>
 
         {/* Telegram E-commerce Section */}
           <div className="pt-3">
-            {telegramExpanded && (
+            {!isMobile && telegramExpanded && (
               <div className="ml-2 mb-1 space-y-0.5 border-l-2 border-indigo-100 pl-2">
                 {telegramItems.map(({ to, icon: Icon, label }) => (
                   <NavLink key={to} to={to} data-haptic onClick={onMobileClose}
                     className={({ isActive }) => `
-                      flex items-center gap-3 px-4 py-2 lg:py-2.5 rounded-xl text-sm font-medium transition-all
+                      flex items-center gap-2 px-2.5 py-1 lg:py-2.5 rounded-xl text-xs lg:text-sm font-medium transition-all
                       ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
                     `}
                   >
-                    <Icon className="w-4 h-4 lg:w-[18px] lg:h-[18px] flex-shrink-0" />
+                    <Icon className="w-3.5 h-3.5 lg:w-[18px] lg:h-[18px] flex-shrink-0" />
                     <span>{label}</span>
                   </NavLink>
                 ))}
               </div>
             )}
-            <button onClick={() => setTelegramExpanded(!telegramExpanded)} data-haptic
-              className={`flex items-center gap-3 w-full px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all border border-transparent ${
+            <button onClick={() => isMobile ? setSectionPopup('telegram') : setTelegramExpanded(!telegramExpanded)} data-haptic
+              className={`flex items-center gap-2 w-full px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all border border-transparent ${
                 isTelegramActive ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <Send className="w-[18px] h-[18px] lg:w-5 lg:h-5 flex-shrink-0" />
+              <Send className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
               <span className="flex-1 text-left">Telegram</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${telegramExpanded ? 'rotate-0' : '-rotate-90'}`} />
             </button>
           </div>
 
         {/* Settings */}
-          <div className="px-3 py-1">
-            <NavLink to="/settings" data-haptic onClick={onMobileClose}
-              className={({ isActive }) => `
-                flex items-center gap-3 px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all
-                ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
-              `}
-            >
-              <Settings className="w-[18px] h-[18px] lg:w-5 lg:h-5 flex-shrink-0" />
-              <span>Settings</span>
-            </NavLink>
-          </div>
+          <NavLink to="/settings" data-haptic onClick={onMobileClose}
+            className={({ isActive }) => `
+              flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
+              ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
+            `}
+          >
+            <Settings className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
+            <span>Settings</span>
+          </NavLink>
       </div>
 
       {/* Logout */}
-      <div className="p-3 border-t border-indigo-100">
+      <div className="p-2 border-t border-indigo-100">
         <button
-          onClick={logout}
+          onClick={() => setShowLogoutConfirm(true)}
           data-haptic
-          className="flex items-center gap-3 w-full px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium text-rose-600 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
+          className="flex items-center gap-2 w-full px-2.5 py-1.5 lg:py-3 rounded-xl text-sm font-medium text-rose-600 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
         >
-          <LogOut className="w-[18px] h-[18px] lg:w-5 lg:h-5" />
+          <LogOut className="w-4 h-4 lg:w-5 lg:h-5" />
           <span>Logout</span>
         </button>
       </div>
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={() => { setShowLogoutConfirm(false); logout(); }}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
+        variant="danger"
+      />
     </>
   );
 
@@ -224,7 +232,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 md:hidden"
+            className="fixed inset-0 z-[60] md:hidden"
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onMobileClose} />
             <motion.aside
@@ -232,11 +240,11 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="absolute left-0 top-0 bottom-0 w-72 bg-gradient-to-b from-indigo-50 to-white shadow-2xl flex flex-col overflow-y-auto"
+              className="absolute left-0 top-0 bottom-0 w-56 bg-gradient-to-b from-indigo-50 to-white shadow-2xl flex flex-col overflow-y-auto"
             >
-              <div className="flex items-center justify-between px-4 py-4 border-b border-indigo-100 shrink-0">
-                <span className="text-base font-black text-indigo-600">Menu</span>
-                <button onClick={onMobileClose} className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center active:scale-90 transition-transform hover:bg-rose-200">
+              <div className="flex items-center justify-between px-2.5 py-2 border-b border-indigo-100 shrink-0">
+                <span className="text-sm font-black text-indigo-600">Menu</span>
+                <button onClick={onMobileClose} className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center active:scale-90 transition-transform hover:bg-rose-200">
                   <X className="w-4 h-4 text-rose-500" />
                 </button>
               </div>
@@ -255,6 +263,55 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
       <aside className="sidebar-panel hidden md:flex flex-col w-64 lg:w-72 bg-white border-r border-gray-100 h-full overflow-y-auto scrollbar-hide">
         {navContent(false)}
       </aside>
+
+      {/* Section popup modal (mobile only) */}
+      <AnimatePresence>
+        {sectionPopup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-6 md:hidden"
+          >
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSectionPopup(null)} />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-3xl shadow-2xl p-5 w-full max-w-xs"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-bold text-gray-900">
+                  {sectionPopup === 'qr' ? 'QR Menu' : 'Telegram'}
+                </h3>
+                <button onClick={() => setSectionPopup(null)} className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform">
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+              <div className="space-y-1">
+                {(sectionPopup === 'qr' ? qrMenuItems : telegramItems).map(({ to, icon: Icon, label }) => (
+                  <NavLink
+                    key={to} to={to} data-haptic
+                    onClick={() => { setSectionPopup(null); onMobileClose(); }}
+                    className={({ isActive }) => `
+                      flex items-center gap-2 px-4 py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
+                      ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
+                    `}
+                  >
+                    <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                    <span>{label}</span>
+                    {to === '/qr-menu/orders' && qrPendingOrders?.pending > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                        {qrPendingOrders.pending > 99 ? '99+' : qrPendingOrders.pending}
+                      </span>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

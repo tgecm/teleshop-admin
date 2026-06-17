@@ -47,19 +47,6 @@ export default function TopBar({ onToggleSidebar }) {
         </button>
         <span className="text-center text-white text-sm font-black tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
         <div className="flex items-center justify-end gap-1">
-          {!isStaff && (
-            <button
-              onClick={() => { setShowMessages(!showMessages); if (!showMessages) markAdminMessagesRead().then(() => queryClient.invalidateQueries({ queryKey: ['adminUnreadMessages'] })).catch(() => {}); }}
-              className="relative text-white p-1.5 rounded-xl transition-colors"
-            >
-              <Mail className="w-[20px] h-[20px]" strokeWidth={1.8} />
-              {(unreadAdminMsgs?.count || 0) > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-amber-400 text-white text-[8px] font-bold min-w-[15px] h-[15px] flex items-center justify-center rounded-full px-0.5 leading-none shadow-sm">
-                  {unreadAdminMsgs.count > 99 ? '99+' : unreadAdminMsgs.count}
-                </span>
-              )}
-            </button>
-          )}
           <RefreshButton />
           <button
             onClick={() => setMenuOpen(prev => !prev)}
@@ -87,19 +74,6 @@ export default function TopBar({ onToggleSidebar }) {
         )}
 
         <div className="flex items-center gap-3 flex-shrink-0">
-          {!isStaff && (
-            <button
-              onClick={() => { setShowMessages(!showMessages); if (!showMessages) markAdminMessagesRead().then(() => queryClient.invalidateQueries({ queryKey: ['adminUnreadMessages'] })).catch(() => {}); }}
-              className="relative text-white p-2.5 hover:bg-white/10 active:bg-white/15 rounded-xl transition-colors"
-            >
-              <Mail className="w-[22px] h-[22px]" strokeWidth={1.8} />
-              {(unreadAdminMsgs?.count || 0) > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-amber-400 text-white text-[8px] font-bold min-w-[15px] h-[15px] flex items-center justify-center rounded-full px-0.5 leading-none shadow-sm">
-                  {unreadAdminMsgs.count > 99 ? '99+' : unreadAdminMsgs.count}
-                </span>
-              )}
-            </button>
-          )}
           <RefreshButton />
           <div className="hidden md:flex flex-col items-end">
             <span className="text-white text-sm font-medium leading-none">{user?.email?.split('@')[0]}</span>

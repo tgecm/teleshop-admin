@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { useBotStore } from '../../store/botStore';
-import { useAuthStore } from '../../store/authStore';
 import { getUnreadCount } from '../../api/chats';
 import { getPendingOrderCount } from '../../api/orders';
 import { getAdminUnreadMessagesCount } from '../../api/superadmin';
@@ -12,7 +11,6 @@ import { notificationSound } from '../../utils/sound';
 export default function NotificationPopup() {
   const navigate = useNavigate();
   const { selectedBotId } = useBotStore();
-  const { user } = useAuthStore();
   const [notice, setNotice] = useState(null);
   const timerRef = useRef(null);
   const prevUnread = useRef(null);
@@ -39,7 +37,6 @@ export default function NotificationPopup() {
   const { data: unreadAdminMsgs } = useQuery({
     queryKey: ['adminUnreadMessages'],
     queryFn: getAdminUnreadMessagesCount,
-    enabled: user?.is_superadmin,
     refetchInterval: 3000,
   });
 
@@ -71,7 +68,7 @@ export default function NotificationPopup() {
   useEffect(() => {
     const curr = unreadAdminMsgs?.count ?? 0;
     if (initAdmin.current && curr > prevAdmin.current) {
-      pop('admin', 'New message from Superadmin', '/send-message');
+      pop('admin', 'E-commerce Support', '/chats');
     }
     if (unreadAdminMsgs !== undefined) initAdmin.current = true;
     prevAdmin.current = curr;
