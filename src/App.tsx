@@ -14,6 +14,7 @@ import SelectionToolbar from './components/shared/SelectionToolbar';
 import HapticProvider from './components/shared/HapticProvider';
 import NetworkStatus from './components/shared/NetworkStatus';
 import PermissionGuard from './components/shared/PermissionGuard';
+import PlanGate from './components/shared/PlanGate';
 import AppVersionCheck from './components/AppVersionCheck';
 import { useDisableDevTools } from './hooks/useDisableDevTools';
 
@@ -393,27 +394,27 @@ export default function App() {
                 <Route path="/" element={
                   <Suspense fallback={<SuspenseFallback />}><Layout /></Suspense>
                 }>
-                  <Route path="dashboard" element={<PermissionGuard><Dashboard /></PermissionGuard>} />
-                  <Route path="orders" element={<PermissionGuard><Orders /></PermissionGuard>} />
-                  <Route path="products" element={<PermissionGuard><Products /></PermissionGuard>} />
-                  <Route path="customers" element={<PermissionGuard><Customers /></PermissionGuard>} />
-                  <Route path="broadcast" element={<PermissionGuard><Broadcast /></PermissionGuard>} />
-                  <Route path="commands" element={<PermissionGuard><Commands /></PermissionGuard>} />
-                  <Route path="payments" element={<PermissionGuard><Payments /></PermissionGuard>} />
+                  <Route path="dashboard" element={<PermissionGuard><PlanGate><Dashboard /></PlanGate></PermissionGuard>} />
+                  <Route path="orders" element={<PermissionGuard><PlanGate><Orders /></PlanGate></PermissionGuard>} />
+                  <Route path="products" element={<PermissionGuard><PlanGate><Products /></PlanGate></PermissionGuard>} />
+                  <Route path="customers" element={<PermissionGuard><PlanGate><Customers /></PlanGate></PermissionGuard>} />
+                  <Route path="broadcast" element={<PermissionGuard><PlanGate><Broadcast /></PlanGate></PermissionGuard>} />
+                  <Route path="commands" element={<PermissionGuard><PlanGate><Commands /></PlanGate></PermissionGuard>} />
+                  <Route path="payments" element={<PermissionGuard><PlanGate><Payments /></PlanGate></PermissionGuard>} />
                   <Route path="subscription" element={<PermissionGuard><Subscription /></PermissionGuard>} />
-                  <Route path="settings" element={<PermissionGuard><Settings /></PermissionGuard>} />
-                  <Route path="chats" element={<PermissionGuard><Chats /></PermissionGuard>} />
-                  <Route path="customization" element={<PermissionGuard><Customization /></PermissionGuard>} />
-                  <Route path="bot-customization" element={<PermissionGuard><BotCustomization /></PermissionGuard>} />
+                  <Route path="settings" element={<PermissionGuard><PlanGate><Settings /></PlanGate></PermissionGuard>} />
+                  <Route path="chats" element={<PermissionGuard><PlanGate><Chats /></PlanGate></PermissionGuard>} />
+                  <Route path="customization" element={<PermissionGuard><PlanGate><Customization /></PlanGate></PermissionGuard>} />
+                  <Route path="bot-customization" element={<PermissionGuard><PlanGate><BotCustomization /></PlanGate></PermissionGuard>} />
                   <Route path="superadmin" element={<SuperadminDashboard />} />
                   <Route path="send-message" element={<SendMessage />} />
                   <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
-                  <Route path="qr-menu" element={<PermissionGuard><QRMenuAdmin /></PermissionGuard>} />
-                  <Route path="qr-menu/orders" element={<PermissionGuard><QRMenuOrders /></PermissionGuard>} />
-                  <Route path="qr-menu/tables" element={<PermissionGuard><QRMenuTables /></PermissionGuard>} />
-                  <Route path="staff-accounts" element={<StaffAccounts />} />
+                  <Route path="qr-menu" element={<PermissionGuard><PlanGate><QRMenuAdmin /></PlanGate></PermissionGuard>} />
+                  <Route path="qr-menu/orders" element={<PermissionGuard><PlanGate><QRMenuOrders /></PlanGate></PermissionGuard>} />
+                  <Route path="qr-menu/tables" element={<PermissionGuard><PlanGate><QRMenuTables /></PlanGate></PermissionGuard>} />
+                  <Route path="staff-accounts" element={<PlanGate><StaffAccounts /></PlanGate>} />
                   <Route path="more" element={<Navigate to="/broadcast" replace />} />
-                  <Route path="newsfeed" element={<PermissionGuard><NewsfeedAdmin /></PermissionGuard>} />
+                  <Route path="newsfeed" element={<PermissionGuard><PlanGate><NewsfeedAdmin /></PlanGate></PermissionGuard>} />
                 </Route>
                 <Route path="*" element={<PublicRoute />} />
               </Routes>

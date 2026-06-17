@@ -66,7 +66,7 @@ export default function Subscription() {
         'Custom Commands: 5', 'Payment Methods: 1', 'Broadcasts: 4/mo', 'Total Bots: 2',
         'AI Agent: No', 'E-commerce Website: No', 'Admin Panel: Telegram Panel',
         'Change Order Button Name: No', 'Shop Banner: No', 'New Order Email Notification: No',
-        'Watermark: Powered by @ecommercemyanmar'
+        'Watermark: Powered by @ecommercemyanmar', 'QR Menu System: ❌', 'Staff Accounts: ❌'
       ],
       extras: [],
     },
@@ -90,7 +90,7 @@ export default function Subscription() {
         'Broadcast to Users: 10/mo', 'Total Bots: 3',
         'AI Agent: ❌', 'E-commerce Website: ❌', 'Custom Domain: ❌',
         'Change Order Button Name: ❌', 'New Order Email Notification: ❌',
-        'Watermark: ❌'
+        'Watermark: ❌', 'QR Menu System: ❌', 'Staff Accounts: ❌'
       ],
     },
     {
@@ -112,7 +112,8 @@ export default function Subscription() {
         'Broadcasts: 25/mo', 'Ads Removed: Yes', 'Total Bots: 7',
         'AI Agent: Yes (with own API)', 'E-commerce Website: Yes',
         'Admin Panel: Website Dashboard + Telegram',
-        'Change Order Button Name: Yes', 'Watermark: Removed ✅'
+        'Change Order Button Name: Yes', 'Watermark: Removed ✅',
+        'QR Menu System: ❌', 'Staff Accounts: ✅'
       ],
     },
     {
@@ -134,7 +135,7 @@ export default function Subscription() {
         'Free DeepSeek API: ✅', 'Help Setting Up Product: ✅',
         'AI Agent: Yes (API Provided)',
         'E-commerce Website: Yes (Multi-Platform)',
-        'Custom Domain: Yes (1)', 'E-commerce Shop Banner: Yes'
+        'Custom Domain: Yes (1)', 'E-commerce Shop Banner: Yes', 'QR Menu System: ✅', 'Staff Accounts: ✅'
       ],
     },
     {
@@ -153,7 +154,8 @@ export default function Subscription() {
         'Categories: Unlimited', 'Products: Unlimited', 'Admin: Unlimited',
         'Automation: Unlimited', 'Custom Commands: Unlimited',
         'Payment Methods: Unlimited', 'Broadcasts: Unlimited', 'Total Bots: 50',
-        'Custom Domain: Yes (up to 3)', 'New Order Email Notification: Yes'
+        'Custom Domain: Yes (up to 3)', 'New Order Email Notification: Yes',
+        'QR Menu System: ✅', 'Staff Accounts: ✅'
       ],
     }
   ];

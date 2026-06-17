@@ -174,55 +174,74 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 const PLANS = [
   { key: 'free', name: 'Free', monthly: '0', yearly: '0', period: 'Forever free', popular: false,
     feat: [
-      { ok: true, text: '5 Products' },
-      { ok: true, text: '1 Category' },
-      { ok: true, text: '1 Payment Method' },
-      { ok: true, text: 'Telegram Bot Shop' },
+      { ok: true, text: 'Products: 5' },
+      { ok: true, text: 'Categories: 1' },
+      { ok: true, text: 'Payment Methods: 1' },
+      { ok: true, text: 'Custom Commands: 5' },
+      { ok: true, text: 'Broadcasts: 4/mo' },
+      { ok: true, text: 'Total Bots: 2' },
       { ok: false, text: 'Web Storefront' },
       { ok: false, text: 'AI Agent' },
+      { ok: false, text: 'Staff Accounts' },
     ]
   },
   { key: 'basic', name: 'Basic', monthly: '14,000', yearly: '150,000', period: 'per month', popular: false,
     feat: [
-      { ok: true, text: '30 Products' },
-      { ok: true, text: '7 Categories' },
-      { ok: true, text: '3 Payment Methods' },
-      { ok: true, text: '10 Broadcasts/mo' },
-      { ok: true, text: 'Web Dashboard' },
+      { ok: true, text: 'Products: 30' },
+      { ok: true, text: 'Categories: 7' },
+      { ok: true, text: 'Payment Methods: 3' },
+      { ok: true, text: 'Broadcasts: 10/mo' },
+      { ok: true, text: 'Total Bots: 3' },
+      { ok: true, text: 'Custom Commands: 25' },
+      { ok: true, text: 'Admin: up to 2' },
       { ok: false, text: 'Web Storefront' },
       { ok: false, text: 'AI Agent' },
+      { ok: false, text: 'Custom Domain' },
+      { ok: false, text: 'Staff Accounts' },
     ]
   },
-  { key: 'standard', name: 'Standard', monthly: '23,000', yearly: '250,000', period: 'per month', popular: false,
+  { key: 'standard', name: 'Standard', monthly: '23,000', yearly: '250,000', period: 'per month', popular: false, inherited: 'Basic',
     feat: [
-      { ok: true, text: '70 Products' },
-      { ok: true, text: '15 Categories' },
-      { ok: true, text: '5 Payment Methods' },
-      { ok: true, text: '25 Broadcasts/mo' },
+      { ok: true, text: 'Products: up to 70' },
+      { ok: true, text: 'Categories: up to 15' },
+      { ok: true, text: 'Payment Methods: 5' },
+      { ok: true, text: 'Broadcasts: 25/mo' },
+      { ok: true, text: 'Total Bots: 7' },
+      { ok: true, text: 'Admin: Up to 3' },
       { ok: true, text: 'Web Store Included' },
-      { ok: true, text: 'AI Agent (own key)' },
+      { ok: true, text: 'AI Agent (own API)' },
       { ok: true, text: 'No Watermark' },
+      { ok: true, text: 'Change Order Button Name' },
+      { ok: true, text: 'Staff Accounts' },
     ]
   },
-  { key: 'pro', name: 'Pro', monthly: '32,500', yearly: '350,000', period: 'per month', popular: true,
+  { key: 'pro', name: 'Pro', monthly: '32,500', yearly: '350,000', period: 'per month', popular: true, inherited: 'Standard',
     feat: [
-      { ok: true, text: '150 Products' },
-      { ok: true, text: '35 Categories' },
+      { ok: true, text: 'Products: up to 150' },
+      { ok: true, text: 'Categories: up to 35' },
+      { ok: true, text: 'Payment Methods: 10' },
+      { ok: true, text: 'Broadcasts: 75/mo' },
+      { ok: true, text: 'Total Bots: 25' },
+      { ok: true, text: 'Admin: Up to 10' },
       { ok: true, text: 'Custom Domain' },
-      { ok: true, text: 'AI Agent (API provided)' },
-      { ok: true, text: '75 Broadcasts/mo' },
+      { ok: true, text: 'AI Agent (API Provided)' },
+      { ok: true, text: 'Free DeepSeek API' },
       { ok: true, text: 'Shop Banners' },
-      { ok: true, text: 'Multi-Platform' },
+      { ok: true, text: 'Multi-Platform Website' },
+      { ok: true, text: 'QR Menu System' },
+      { ok: true, text: 'Staff Accounts' },
     ]
   },
-  { key: 'business', name: 'Business', monthly: '55,000', yearly: '600,000', period: 'per month', popular: false,
+  { key: 'business', name: 'Business', monthly: '55,000', yearly: '600,000', period: 'per month', popular: false, inherited: 'Pro',
     feat: [
       { ok: true, text: 'Unlimited Products' },
       { ok: true, text: 'Unlimited Categories' },
-      { ok: true, text: 'Custom Domains (up to 3)' },
       { ok: true, text: 'Unlimited Broadcasts' },
+      { ok: true, text: 'Payment Methods: Unlimited' },
+      { ok: true, text: 'Admin: Unlimited' },
+      { ok: true, text: 'Total Bots: 50' },
+      { ok: true, text: 'Custom Domains (up to 3)' },
       { ok: true, text: 'Email Notifications' },
-      { ok: true, text: 'Priority Support' },
     ]
   },
 ];
@@ -324,6 +343,7 @@ export default function Homepage() {
         <div className="plan-price">{price} <span style={{ fontSize: '1rem', color: 'var(--muted)' }}>MMK</span></div>
         <div className="plan-period">{plan.key === 'free' ? plan.period : periodLabel}</div>
         <ul className="plan-feat">
+          {plan.inherited && <li style={{ color: 'var(--accent3)', fontWeight: 500, fontSize: '.78rem' }}>✦ Everything in {plan.inherited}, plus:</li>}
           {plan.feat.map((f, i) => (
             <li key={i}><span className={f.ok ? 'check' : 'cross'}>{f.ok ? '✓' : '✗'}</span> {f.text}</li>
           ))}
