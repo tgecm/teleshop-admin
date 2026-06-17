@@ -141,7 +141,9 @@ export default function Login() {
     };
     poll();
     const interval = setInterval(poll, 1000);
-    return () => { cancelled = true; clearInterval(interval); };
+    const onFocus = () => { if (!cancelled) poll(); };
+    window.addEventListener('visibilitychange', onFocus);
+    return () => { cancelled = true; clearInterval(interval); window.removeEventListener('visibilitychange', onFocus); };
   }, [needsCode, loginToken]);
 
   useEffect(() => {

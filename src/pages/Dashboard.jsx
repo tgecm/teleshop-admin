@@ -19,6 +19,7 @@ import { motion } from 'motion/react';
 import { parseISO, differenceInDays, subDays, addDays } from 'date-fns';
 import { myanmarFormat } from '../utils/date';
 import { useToastStore } from '../store/toastStore';
+import InstallPrompt from '../components/InstallPrompt';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -827,6 +828,8 @@ export default function Dashboard() {
           </div>
         </>
       )}
+
+      <InstallPrompt />
     </motion.div>
   );
 }
