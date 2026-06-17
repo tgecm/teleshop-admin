@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
-import { login as loginApi, verifyLoginCode } from '../api/auth';
+import { login as loginApi, verifyLoginCode, pollLoginApproval } from '../api/auth';
 import client from '../api/client';
 import { useBotStore } from '../store/botStore';
 import { motion } from 'motion/react';
@@ -115,6 +115,34 @@ export default function Login() {
   useEffect(() => {
     if (needsCode && codeRefs.current[0]) codeRefs.current[0].focus();
   }, [needsCode]);
+
+  // Poll for Telegram approve button approval
+  useEffect(() => {
+    if (!needsCode || !loginToken) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const data = await pollLoginApproval(loginToken);
+        if (cancelled) return;
+        if (data.status === 'approved') {
+          if (data.staff) {
+            setAuth(data.token, { ...data.staff, email: data.staff.username }, true);
+            if (data.staff.bot_id) setSelectedBot(data.staff.bot_id);
+          } else {
+            setAuth(data.token, data);
+          }
+          navigate('/dashboard');
+        } else if (data.status === 'expired') {
+          if (!cancelled) setError('Login code expired. Please login again.');
+        }
+      } catch {
+        // poll error, retry
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [needsCode, loginToken]);
 
   useEffect(() => {
     const token = useAuthStore.getState().token || localStorage.getItem('telegram_token');
