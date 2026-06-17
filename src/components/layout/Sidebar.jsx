@@ -40,7 +40,6 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
   const [telegramExpanded, setTelegramExpanded] = useState(false);
   const [qrMenuExpanded, setQrMenuExpanded] = useState(false);
-  const [sectionPopup, setSectionPopup] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const location = useLocation();
@@ -130,7 +129,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
         {/* QR Menu Section */}
           <div className="pt-3">
-            {!isMobile && qrMenuExpanded && (
+            {qrMenuExpanded && (
               <div className="ml-2 mb-1 space-y-0.5 border-l-2 border-indigo-100 pl-2">
                 {qrMenuItems.map(({ to, icon: Icon, label }) => (
                   <NavLink key={to} to={to} data-haptic onClick={onMobileClose}
@@ -150,7 +149,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                 ))}
               </div>
             )}
-            <button onClick={() => isMobile ? setSectionPopup('qr') : setQrMenuExpanded(!qrMenuExpanded)} data-haptic
+            <button onClick={() => setQrMenuExpanded(!qrMenuExpanded)} data-haptic
               className={`flex items-center gap-2 w-full px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all border border-transparent ${
                 isQrMenuActive ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
               }`}
@@ -162,7 +161,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
         {/* Telegram E-commerce Section */}
           <div className="pt-3">
-            {!isMobile && telegramExpanded && (
+            {telegramExpanded && (
               <div className="ml-2 mb-1 space-y-0.5 border-l-2 border-indigo-100 pl-2">
                 {telegramItems.map(({ to, icon: Icon, label }) => (
                   <NavLink key={to} to={to} data-haptic onClick={onMobileClose}
@@ -177,7 +176,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                 ))}
               </div>
             )}
-            <button onClick={() => isMobile ? setSectionPopup('telegram') : setTelegramExpanded(!telegramExpanded)} data-haptic
+            <button onClick={() => setTelegramExpanded(!telegramExpanded)} data-haptic
               className={`flex items-center gap-2 w-full px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all border border-transparent ${
                 isTelegramActive ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
               }`}
@@ -263,55 +262,6 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
       <aside className="sidebar-panel hidden md:flex flex-col w-64 lg:w-72 bg-white border-r border-gray-100 h-full overflow-y-auto scrollbar-hide">
         {navContent(false)}
       </aside>
-
-      {/* Section popup modal (mobile only) */}
-      <AnimatePresence>
-        {sectionPopup && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center p-6 md:hidden"
-          >
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSectionPopup(null)} />
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative bg-white rounded-3xl shadow-2xl p-5 w-full max-w-xs"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold text-gray-900">
-                  {sectionPopup === 'qr' ? 'QR Menu' : 'Telegram'}
-                </h3>
-                <button onClick={() => setSectionPopup(null)} className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform">
-                  <X className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-              <div className="space-y-1">
-                {(sectionPopup === 'qr' ? qrMenuItems : telegramItems).map(({ to, icon: Icon, label }) => (
-                  <NavLink
-                    key={to} to={to} data-haptic
-                    onClick={() => { setSectionPopup(null); onMobileClose(); }}
-                    className={({ isActive }) => `
-                      flex items-center gap-2 px-4 py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
-                      ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
-                    `}
-                  >
-                    <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-                    <span>{label}</span>
-                    {to === '/qr-menu/orders' && qrPendingOrders?.pending > 0 && (
-                      <span className="ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
-                        {qrPendingOrders.pending > 99 ? '99+' : qrPendingOrders.pending}
-                      </span>
-                    )}
-                  </NavLink>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </>
   );
 }
