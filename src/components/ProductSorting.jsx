@@ -121,14 +121,15 @@ export default function ProductSorting({ products, categories, botId, onClose })
   const [editingCategory, setEditingCategory] = useState(null);
   const [editValue, setEditValue] = useState('');
 
-  // Build full product list (for All tab) sorted globally
+  // Build full product list (for All tab) sorted globally by sort_order
   const allProductsOrdered = useMemo(() => {
-    const all = [];
-    categoryKeys.forEach(key => {
-      (groupedByCategory[key] || []).forEach(p => all.push(p));
+    return [...products].sort((a, b) => {
+      if (a.sort_order != null && b.sort_order != null) return a.sort_order - b.sort_order;
+      if (a.sort_order != null) return -1;
+      if (b.sort_order != null) return 1;
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
     });
-    return all;
-  }, [groupedByCategory, categoryKeys]);
+  }, [products]);
 
   // Flat product lookup by id (for All tab)
   const productMap = useMemo(() => {

@@ -244,9 +244,9 @@ export default function App() {
           }
 
           const botsData = me.is_superadmin ? await getAllBots() : await getBots();
-          setBots(botsData);
+          setBots(botsData || []);
 
-          if (botsData.length > 0) {
+          if (botsData?.length > 0) {
             const currentBotExists = botsData.some(b => b.id === Number(selectedBotId));
             if (!currentBotExists) {
               setSelectedBot(botsData[0].id);
@@ -264,8 +264,8 @@ export default function App() {
   }, [token]);
 
   useEffect(() => {
-    if (selectedBotId && bots.length > 0) {
-      const bot = bots.find(b => b.id.toString() === selectedBotId?.toString());
+    if (selectedBotId && (bots || []).length > 0) {
+      const bot = (bots || []).find(b => b.id.toString() === selectedBotId?.toString());
       if (bot) {
         const name = normalizeText(bot.bot_full_name || bot.bot_username || 'Admin');
         document.title = name;

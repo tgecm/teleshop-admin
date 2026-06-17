@@ -36,7 +36,7 @@ import ConfirmDialog from '../shared/ConfirmDialog';
 export default function Sidebar({ mobileOpen, onMobileClose }) {
   const { user, logout, isStaff } = useAuthStore();
   const { bots, selectedBotId } = useBotStore();
-  const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
+  const selectedBot = (bots || []).find(b => b.id.toString() === selectedBotId?.toString());
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const location = useLocation();
