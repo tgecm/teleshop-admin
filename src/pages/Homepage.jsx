@@ -351,7 +351,7 @@ export default function Homepage() {
           <img src="/logo.png" alt="E-commerce Myanmar" />
         </a>
         <div className="hp-nav-actions">
-          <a href="https://telegramecommerce.shop/login" className="btn-ghost">Sign In</a>
+          <a href="/login" className="btn-ghost">Sign In</a>
           <a href="https://t.me/tg_ecommerce_official_bot?start=newbot" className="btn-primary">Sign Up</a>
         </div>
       </nav>
@@ -525,7 +525,7 @@ export default function Homepage() {
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
-          <a href="https://telegramecommerce.shop/login">Sign In</a>
+          <a href="/login">Sign In</a>
           <a href="https://t.me/tg_ecommerce_official_bot?start=newbot">Sign Up</a>
         </div>
         <div className="hp-footer-copy">© 2025 E-commerce Myanmar · telegramecommerce.shop · Made with ❤️ in Myanmar</div>
