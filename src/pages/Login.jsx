@@ -25,6 +25,7 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [menuPos, setMenuPos] = useState({ show: false, x: 0, y: 0, hasSel: false });
   const menuTargetRef = useRef(null);
+  const verifyingRef = useRef(false);
 
   const showInputMenu = useCallback((e, inputEl) => {
     e.preventDefault();
@@ -124,6 +125,7 @@ export default function Login() {
       try {
         const data = await pollLoginApproval(loginToken);
         if (cancelled) return;
+        if (verifyingRef.current) return;
         if (data.status === 'approved') {
           if (data.staff) {
             setAuth(data.token, { ...data.staff, email: data.staff.username }, true);
@@ -165,6 +167,7 @@ export default function Login() {
     try {
       if (needsCode) {
         const codeStr = code.join('');
+        verifyingRef.current = true;
         if (staffMode) {
           const data = await client.post('/auth/staff-login/verify', { login_token: loginToken, code: codeStr }).then(r => r.data);
           if (data.success) {
@@ -213,6 +216,7 @@ export default function Login() {
       }
     } catch (err) {
       setError(err.response?.data?.detail || err.response?.data?.message || 'Login failed. Please try again.');
+      verifyingRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -224,6 +228,7 @@ export default function Login() {
     setError('');
     try {
       const codeStr = codeArr.join('');
+      verifyingRef.current = true;
       const data = staffMode
         ? await client.post('/auth/staff-login/verify', { login_token: loginToken, code: codeStr }).then(r => r.data)
         : await verifyLoginCode(loginToken, codeStr);
@@ -236,6 +241,7 @@ export default function Login() {
       }
     } catch (err) {
       setError(err.response?.data?.detail || err.response?.data?.message || 'Verification failed. Please try again.');
+      verifyingRef.current = false;
     } finally {
       setLoading(false);
     }

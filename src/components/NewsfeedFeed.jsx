@@ -308,15 +308,15 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
           <p className="text-sm font-bold text-gray-900 truncate">{shopName || post.bot_name || 'Shop Newsfeed'}</p>
           <div className="flex items-center gap-1.5">
             <p className="text-[11px] text-gray-400">{myanmarFormat(post.created_at, 'MMM d, yyyy · h:mm a')}</p>
-            {post.topic && (
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                post.topic === 'Promotion' ? 'bg-rose-100 text-rose-600'
-                : post.topic === 'Updates' ? 'bg-blue-100 text-blue-600'
-                : post.topic === 'Events' ? 'bg-amber-100 text-amber-600'
-                : post.topic === 'Offers' ? 'bg-emerald-100 text-emerald-600'
+            {post.topic && post.topic.split(',').filter(Boolean).map(t => (
+              <span key={t} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                t === 'Promotion' ? 'bg-rose-100 text-rose-600'
+                : t === 'Updates' ? 'bg-blue-100 text-blue-600'
+                : t === 'Events' ? 'bg-amber-100 text-amber-600'
+                : t === 'Offers' ? 'bg-emerald-100 text-emerald-600'
                 : 'bg-gray-100 text-gray-600'
-              }`}>{post.topic}</span>
-            )}
+              }`}>{t}</span>
+            ))}
           </div>
         </div>
       </div>
