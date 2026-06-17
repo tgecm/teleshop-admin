@@ -16,6 +16,7 @@ export default function NewsfeedPanel({ botId }) {
   const [comments, setComments] = useState(null);
   const [loadingComments, setLoadingComments] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState(null);
+  const [deleteConfirmPost, setDeleteConfirmPost] = useState(null);
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ['newsfeed', botId],
@@ -111,13 +112,21 @@ export default function NewsfeedPanel({ botId }) {
                       <Calendar className="w-3 h-3" /> {myanmarFormat(post.created_at, 'MMM d, yyyy')}
                     </p>
                   </div>
+                  {post.topic && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      post.topic === 'Promotion' ? 'bg-rose-100 text-rose-600'
+                      : post.topic === 'Updates' ? 'bg-blue-100 text-blue-600'
+                      : post.topic === 'Events' ? 'bg-amber-100 text-amber-600'
+                      : 'bg-gray-100 text-gray-600'
+                    }`}>{post.topic}</span>
+                  )}
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   <button onClick={() => setEditingPost(post)}
                     className="p-1.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
                     <Edit2 className="w-3.5 h-3.5 text-gray-500" />
                   </button>
-                  <button onClick={() => { if (confirm('Delete this post?')) deleteMutation.mutate(post.id); }}
+                  <button onClick={() => setDeleteConfirmPost(post)}
                     className="p-1.5 bg-gray-50 rounded-lg hover:bg-rose-50 transition-all">
                     <Trash2 className="w-3.5 h-3.5 text-rose-400" />
                   </button>
@@ -212,12 +221,40 @@ export default function NewsfeedPanel({ botId }) {
           </div>
         </>
       )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirmPost && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setDeleteConfirmPost(null)} />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full mx-auto text-center">
+              <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-rose-500" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Delete this post?</h3>
+              <p className="text-sm text-gray-500 mb-6">This action cannot be undone.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteConfirmPost(null)}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm">
+                  Cancel
+                </button>
+                <button onClick={() => { deleteMutation.mutate(deleteConfirmPost.id); setDeleteConfirmPost(null); }}
+                  className="flex-1 py-2.5 bg-rose-500 text-white font-bold rounded-2xl hover:bg-rose-600 transition-all text-sm flex items-center justify-center gap-1.5">
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 function PostFormModal({ post, botId, onClose, onSave, isPending }) {
   const [content, setContent] = useState(post?.content || '');
+  const [topic, setTopic] = useState(post?.topic || '');
   const [images, setImages] = useState(post?.images || []);
   const [uploading, setUploading] = useState(false);
   const { addToast } = useToastStore();
@@ -276,6 +313,26 @@ function PostFormModal({ post, botId, onClose, onSave, isPending }) {
               className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium resize-none"
             />
 
+            {/* Topic selector */}
+            <div>
+              <p className="text-xs font-bold text-gray-500 mb-2">Topic</p>
+              <div className="flex gap-2">
+                {['', 'Promotion', 'Updates', 'Events'].map(t => (
+                  <button key={t} onClick={() => setTopic(t)}
+                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                      topic === t
+                        ? t === '' ? 'bg-gray-800 text-white'
+                          : t === 'Promotion' ? 'bg-rose-500 text-white'
+                          : t === 'Updates' ? 'bg-blue-500 text-white'
+                          : 'bg-amber-500 text-white'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}>
+                    {t || 'General'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Image previews */}
             {images.length > 0 && (
               <div className={`grid gap-2 ${images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
@@ -306,7 +363,7 @@ function PostFormModal({ post, botId, onClose, onSave, isPending }) {
             )}
 
             <button
-              onClick={() => onSave({ content, images })}
+              onClick={() => onSave({ content, images, topic })}
               disabled={!content.trim() || isPending || uploading}
               className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
             >

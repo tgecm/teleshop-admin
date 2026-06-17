@@ -59,6 +59,7 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
   const [hasMore, setHasMore] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState('');
   const sentinelRef = useRef(null);
   const [photoViewerState, setPhotoViewerState] = useState(null); // { postId, index } | null
   const pvStateRef = useRef(null);
@@ -85,14 +86,28 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
     };
   }, [onClose]);
 
-  const fetchPosts = useCallback(async (pageNum) => {
+  const handleTopicChange = (topic) => {
+    if (topic === selectedTopic) return;
+    setSelectedTopic(topic);
+    setInitialLoading(true);
+    setPosts([]);
+    setPage(0);
+    setHasMore(true);
+    getPublicNewsfeed(botId, visitorId, 10, 0, topic).then(data => {
+      setPosts(data);
+      setHasMore(data.length === 10);
+      setInitialLoading(false);
+    });
+  };
+
+  const fetchPosts = useCallback(async (pageNum, topic = selectedTopic) => {
     if (!botId) return [];
     try {
-      return await getPublicNewsfeed(botId, visitorId, 10, pageNum * 10);
+      return await getPublicNewsfeed(botId, visitorId, 10, pageNum * 10, topic);
     } catch {
       return [];
     }
-  }, [botId, visitorId]);
+  }, [botId, visitorId, selectedTopic]);
 
   useEffect(() => {
     setInitialLoading(true);
@@ -171,6 +186,28 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
           <h1 className="text-base font-bold text-gray-900">Newsfeed</h1>
         </div>
         <div className="w-9" />
+      </div>
+
+      {/* Topic filter bar */}
+      <div className="flex gap-1.5 px-4 py-2.5 border-b border-gray-100 overflow-x-auto flex-shrink-0 scrollbar-hide">
+        {[
+          { label: 'All', value: '' },
+          { label: 'Promotion', value: 'Promotion' },
+          { label: 'Updates', value: 'Updates' },
+          { label: 'Events', value: 'Events' },
+        ].map(t => (
+          <button key={t.value} onClick={() => handleTopicChange(t.value)}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              selectedTopic === t.value
+                ? t.value === '' ? 'bg-gray-800 text-white'
+                  : t.value === 'Promotion' ? 'bg-rose-500 text-white'
+                  : t.value === 'Updates' ? 'bg-blue-500 text-white'
+                  : 'bg-amber-500 text-white'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* Posts */}
@@ -267,7 +304,17 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-gray-900 truncate">{shopName || post.bot_name || 'Shop Newsfeed'}</p>
-          <p className="text-[11px] text-gray-400">{myanmarFormat(post.created_at, 'MMM d, yyyy · h:mm a')}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-[11px] text-gray-400">{myanmarFormat(post.created_at, 'MMM d, yyyy · h:mm a')}</p>
+            {post.topic && (
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                post.topic === 'Promotion' ? 'bg-rose-100 text-rose-600'
+                : post.topic === 'Updates' ? 'bg-blue-100 text-blue-600'
+                : post.topic === 'Events' ? 'bg-amber-100 text-amber-600'
+                : 'bg-gray-100 text-gray-600'
+              }`}>{post.topic}</span>
+            )}
+          </div>
         </div>
       </div>
 

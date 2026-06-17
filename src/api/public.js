@@ -81,8 +81,8 @@ export const createPublicProduct = (data) => {
   });
 };
 
-export const getPublicNewsfeed = (botId, visitorId, limit = 10, offset = 0) =>
-  client.get(`/public/newsfeed/${botId}`, { params: { visitor_id: visitorId, limit, offset } }).then(res => res.data);
+export const getPublicNewsfeed = (botId, visitorId, limit = 10, offset = 0, topic = '') =>
+  client.get(`/public/newsfeed/${botId}`, { params: { visitor_id: visitorId, limit, offset, topic } }).then(res => res.data);
 
 export const getPublicNewsfeedComments = (postId) =>
   client.get(`/public/newsfeed/${postId}/comments`).then(res => res.data);
