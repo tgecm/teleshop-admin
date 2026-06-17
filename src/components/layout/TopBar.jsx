@@ -16,7 +16,7 @@ export default function TopBar({ onToggleSidebar }) {
   const { user, logout, isStaff } = useAuthStore();
   const { bots, selectedBotId } = useBotStore();
   const queryClient = useQueryClient();
-  const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
+  const selectedBot = (bots || []).find(b => b.id.toString() === selectedBotId?.toString());
   const botName = selectedBot ? normalizeText(selectedBot.bot_full_name || selectedBot.bot_username || 'Admin') : 'Admin';
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);

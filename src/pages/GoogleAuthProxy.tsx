@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import { requestGoogleIdToken, exchangeGoogleToken } from '../lib/googleSignIn';
 import { restoreProxyParamsFromQ, getProxyParamsFromHash } from '../utils/authProxy';
 
@@ -65,9 +67,21 @@ export default function GoogleAuthProxy() {
       return;
     }
 
+    // Sign into Firebase so the Firebase UID is used as the customer identifier,
+    // matching what the main-domain flow uses. This ensures customer profiles and
+    // orders are shared between custom domain and default domain for the same Google account.
+    let firebaseUid: string | undefined;
+    try {
+      const credential = GoogleAuthProvider.credential(null, accessToken);
+      const userCred = await signInWithCredential(auth, credential);
+      firebaseUid = userCred.user.uid;
+    } catch {
+      // If Firebase sign-in fails, proceed without — the backend will fall back to google_uid
+    }
+
     let result: AuthResult;
     try {
-      result = await exchangeGoogleToken(accessToken, shopSlug);
+      result = await exchangeGoogleToken(accessToken, shopSlug, firebaseUid);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
       window.location.href = `${redirectUri}${qs}auth_status=failed&auth_error=${encodeURIComponent(msg)}`;

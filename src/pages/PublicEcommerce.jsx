@@ -1603,8 +1603,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   // Auto-open product from ?product= URL param on page load — handled inline
 
   const dashboardUrl = viaDomain
-    ? `/?p=/${(shop?.public_slug || slug || shop?.bot_username || 'shop')}-user-dashboard-login`
-    : `/${(slug || shop?.public_slug || shop?.bot_username || 'shop')}-user-dashboard-login`;
+    ? `/?p=/${(shop?.public_slug || slug || shop?.bot_username || 'shop')}-user-dashboard`
+    : `/${(slug || shop?.public_slug || shop?.bot_username || 'shop')}-user-dashboard`;
 
   const getProductColors = useCallback((product) => {
     if (product.specifications?.colors && Array.isArray(product.specifications.colors)) {
@@ -2086,8 +2086,27 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   useEffect(() => {
     document.title = shop?.bot_full_name || 'E-Commerce Shop';
     const icon = document.querySelector('link[rel="icon"]');
-    if (icon && shop?.profile_picture) icon.setAttribute('href', shop.profile_picture);
-    else if (icon) icon.setAttribute('href', '/vite.svg');
+    if (icon && shop?.profile_picture) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const size = Math.min(img.width, img.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.arc(32, 32, 32, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, (img.width - size) / 2, (img.height - size) / 2, size, size, 0, 0, 64, 64);
+        icon.setAttribute('href', canvas.toDataURL());
+      };
+      img.onerror = () => icon.setAttribute('href', shop.profile_picture);
+      img.src = shop.profile_picture;
+    } else if (icon) {
+      icon.setAttribute('href', '/vite.svg');
+    }
     return () => { document.title = 'E-commerce Myanmar'; };
   }, [shop?.bot_full_name, shop?.profile_picture]);
 
@@ -2447,10 +2466,16 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                             <p className="text-sm font-bold text-gray-900 truncate">{user?.displayName || user?.email?.split('@')[0] || telegramUser?.name || telegramUser?.username || 'Account'}</p>
                             {user?.email && <p className="text-[11px] text-gray-400 truncate">{user.email}</p>}
                           </div>
-                          <a href={dashboardUrl}
-                            className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                            <User className="w-4 h-4" /> My Dashboard
-                          </a>
+                          {shop?.public_slug ? (
+                            <a href={dashboardUrl}
+                              className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                              <User className="w-4 h-4" /> My Dashboard
+                            </a>
+                          ) : (
+                            <div className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-400">
+                              <User className="w-4 h-4" /> Loading...
+                            </div>
+                          )}
                           <button onClick={() => { setShowProfileMenu(false); handleSignOut(); }}
                             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
                             <LogOut className="w-4 h-4" /> Sign Out
