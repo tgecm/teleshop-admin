@@ -1,6 +1,7 @@
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useCallback} from 'react';
 import {useInstallPrompt} from '../hooks/useInstallPrompt';
 import {useBotStore} from '../store/botStore';
+import {updatePwaManifest} from '../utils/dynamicManifest';
 
 export default function InstallPrompt() {
   const {canInstall, promptInstall, dismiss} = useInstallPrompt();
@@ -18,7 +19,13 @@ export default function InstallPrompt() {
     return () => window.removeEventListener('resize', handler);
   }, []);
 
+  const handleInstall = useCallback(async () => {
+    await updatePwaManifest(shopName, shopLogo);
+    promptInstall();
+  }, [shopName, shopLogo, promptInstall]);
+
   if (!canInstall || !isMobile) return null;
+  if (!shopLogo) return null;
 
   return (
     <div className="fixed bottom-[72px] left-0 right-0 z-50 px-4 pb-2">
@@ -48,7 +55,7 @@ export default function InstallPrompt() {
           ✕
         </button>
         <button
-          onClick={promptInstall}
+          onClick={handleInstall}
           className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap active:scale-95 transition-transform"
         >
           Install

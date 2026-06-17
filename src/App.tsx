@@ -7,6 +7,7 @@ import { getMe } from './api/auth';
 import { getBots } from './api/bots';
 import { getAllBots } from './api/superadmin';
 import { normalizeText } from './utils/normalizeText';
+import { updatePwaManifest } from './utils/dynamicManifest';
 
 import ToastContainer from './components/shared/ToastContainer';
 import SelectionToolbar from './components/shared/SelectionToolbar';
@@ -275,6 +276,7 @@ export default function App() {
         } else if (icon) {
           icon.setAttribute('href', '/vite.svg');
         }
+        updatePwaManifest(name, bot.profile_picture);
       } else {
         document.title = 'E-commerce Myanmar';
       }
