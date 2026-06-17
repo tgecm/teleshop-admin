@@ -29,9 +29,8 @@ registerRoute(
   new CacheFirst({cacheName: 'image-cache'}),
 );
 
-self.addEventListener('install', () => {
-  self.skipWaiting();
-});
+// Note: skipWaiting intentionally omitted so that onNeedRefresh fires properly
+// via workbox-window. The page reloads automatically when a new SW is detected.
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(

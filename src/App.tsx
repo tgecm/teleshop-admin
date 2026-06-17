@@ -72,7 +72,7 @@ function PublicRoute() {
   const pathname = window.location.pathname.replace(/^\//, '');
 
   if (pathname === 'homepage') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   const addProductMatch = pathname.match(/^(.+)-add-product-(\d{5})-(\d+)-(\d+)$/);
@@ -222,8 +222,9 @@ export default function App() {
     const p = new URLSearchParams(window.location.search).get('p');
     if (!p) return null;
     const slug = p.replace(/^\//, '');
-    if (!slug || ADMIN_PATHS.has(slug.split('/')[0]) || slug.startsWith('_')) return null;
-    if (slug === 'manage-web-panel') {
+    if (!slug) return null;
+    const baseSlug = slug.split('/')[0];
+    if (ADMIN_PATHS.has(baseSlug) || slug.startsWith('_')) {
       window.history.replaceState(null, '', '/' + slug);
       return null;
     }
@@ -365,51 +366,61 @@ export default function App() {
             </>
           );
         })()
-      ) : (
-        <>
-          <BrowserRouter basename="/">
-            <Routes>
-              <Route path="/login" element={
-                <Suspense fallback={<SuspenseFallback />}><Login /></Suspense>
-              } />
-              <Route path="/manage-web-panel" element={
-                <Suspense fallback={<SuspenseFallback />}><WebPanel /></Suspense>
-              } />
-              <Route path="/" element={
-                <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>
-              } />
-              <Route path="/" element={
-                <Suspense fallback={<SuspenseFallback />}><Layout /></Suspense>
-              }>
-                <Route path="dashboard" element={<PermissionGuard><Dashboard /></PermissionGuard>} />
-                <Route path="orders" element={<PermissionGuard><Orders /></PermissionGuard>} />
-                <Route path="products" element={<PermissionGuard><Products /></PermissionGuard>} />
-                <Route path="customers" element={<PermissionGuard><Customers /></PermissionGuard>} />
-                <Route path="broadcast" element={<PermissionGuard><Broadcast /></PermissionGuard>} />
-                <Route path="commands" element={<PermissionGuard><Commands /></PermissionGuard>} />
-                <Route path="payments" element={<PermissionGuard><Payments /></PermissionGuard>} />
-                <Route path="subscription" element={<PermissionGuard><Subscription /></PermissionGuard>} />
-                <Route path="settings" element={<PermissionGuard><Settings /></PermissionGuard>} />
-                <Route path="chats" element={<PermissionGuard><Chats /></PermissionGuard>} />
-                <Route path="customization" element={<PermissionGuard><Customization /></PermissionGuard>} />
-                <Route path="bot-customization" element={<PermissionGuard><BotCustomization /></PermissionGuard>} />
-                <Route path="superadmin" element={<SuperadminDashboard />} />
-                <Route path="send-message" element={<SendMessage />} />
-                <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
-                <Route path="qr-menu" element={<PermissionGuard><QRMenuAdmin /></PermissionGuard>} />
-                <Route path="qr-menu/orders" element={<PermissionGuard><QRMenuOrders /></PermissionGuard>} />
-                <Route path="qr-menu/tables" element={<PermissionGuard><QRMenuTables /></PermissionGuard>} />
-                <Route path="staff-accounts" element={<StaffAccounts />} />
-                <Route path="more" element={<Navigate to="/broadcast" replace />} />
-                <Route path="newsfeed" element={<PermissionGuard><NewsfeedAdmin /></PermissionGuard>} />
-              </Route>
-              <Route path="*" element={<PublicRoute />} />
-            </Routes>
-          </BrowserRouter>
-          <ToastContainer />
-          <SelectionToolbar />
-        </>
-      )}
+      ) : (() => {
+        // Render landing page at root outside BrowserRouter to avoid routing conflicts
+        const pn = window.location.pathname.replace(/^\//, '');
+        if (!pn) {
+          return (
+            <>
+              <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>
+              <ToastContainer />
+              <SelectionToolbar />
+            </>
+          );
+        }
+        return (
+          <>
+            <BrowserRouter basename="/">
+              <Routes>
+                <Route path="/login" element={
+                  <Suspense fallback={<SuspenseFallback />}><Login /></Suspense>
+                } />
+                <Route path="/manage-web-panel" element={
+                  <Suspense fallback={<SuspenseFallback />}><WebPanel /></Suspense>
+                } />
+                <Route path="/" element={
+                  <Suspense fallback={<SuspenseFallback />}><Layout /></Suspense>
+                }>
+                  <Route path="dashboard" element={<PermissionGuard><Dashboard /></PermissionGuard>} />
+                  <Route path="orders" element={<PermissionGuard><Orders /></PermissionGuard>} />
+                  <Route path="products" element={<PermissionGuard><Products /></PermissionGuard>} />
+                  <Route path="customers" element={<PermissionGuard><Customers /></PermissionGuard>} />
+                  <Route path="broadcast" element={<PermissionGuard><Broadcast /></PermissionGuard>} />
+                  <Route path="commands" element={<PermissionGuard><Commands /></PermissionGuard>} />
+                  <Route path="payments" element={<PermissionGuard><Payments /></PermissionGuard>} />
+                  <Route path="subscription" element={<PermissionGuard><Subscription /></PermissionGuard>} />
+                  <Route path="settings" element={<PermissionGuard><Settings /></PermissionGuard>} />
+                  <Route path="chats" element={<PermissionGuard><Chats /></PermissionGuard>} />
+                  <Route path="customization" element={<PermissionGuard><Customization /></PermissionGuard>} />
+                  <Route path="bot-customization" element={<PermissionGuard><BotCustomization /></PermissionGuard>} />
+                  <Route path="superadmin" element={<SuperadminDashboard />} />
+                  <Route path="send-message" element={<SendMessage />} />
+                  <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
+                  <Route path="qr-menu" element={<PermissionGuard><QRMenuAdmin /></PermissionGuard>} />
+                  <Route path="qr-menu/orders" element={<PermissionGuard><QRMenuOrders /></PermissionGuard>} />
+                  <Route path="qr-menu/tables" element={<PermissionGuard><QRMenuTables /></PermissionGuard>} />
+                  <Route path="staff-accounts" element={<StaffAccounts />} />
+                  <Route path="more" element={<Navigate to="/broadcast" replace />} />
+                  <Route path="newsfeed" element={<PermissionGuard><NewsfeedAdmin /></PermissionGuard>} />
+                </Route>
+                <Route path="*" element={<PublicRoute />} />
+              </Routes>
+            </BrowserRouter>
+            <ToastContainer />
+            <SelectionToolbar />
+          </>
+        );
+      })()}
     </HapticProvider>
     </QueryClientProvider>
   );
