@@ -39,7 +39,6 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
   const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-
   const location = useLocation();
 
   const { data: unread } = useQuery({
@@ -176,18 +175,16 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             <Settings className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
             <span>Settings</span>
           </NavLink>
-      </div>
 
-      {/* Logout */}
-      <div className="p-2 border-t border-indigo-100">
-        <button
-          onClick={() => setShowLogoutConfirm(true)}
-          data-haptic
-          className="flex items-center gap-2 w-full px-2.5 py-1.5 lg:py-3 rounded-xl text-sm font-medium text-rose-600 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
-        >
-          <LogOut className="w-4 h-4 lg:w-5 lg:h-5" />
-          <span>Logout</span>
-        </button>
+        {/* Logout */}
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            data-haptic
+            className="flex items-center gap-2 w-full px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium text-rose-600 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
+          >
+            <LogOut className="w-4 h-4 lg:w-5 lg:h-5" />
+            <span>Logout</span>
+          </button>
       </div>
 
       <ConfirmDialog

@@ -7,6 +7,8 @@ const PLAN_FEATURES = {
     new_order_email_notification: false,
     shop_banner: false,
     watermark_removed: false,
+    qr_menu: false,
+    staff_accounts: false,
   },
   standard: {
     ai_agent: 'own_api',
@@ -16,6 +18,8 @@ const PLAN_FEATURES = {
     new_order_email_notification: false,
     shop_banner: false,
     watermark_removed: true,
+    qr_menu: false,
+    staff_accounts: true,
   },
   pro: {
     ai_agent: 'api_provided',
@@ -25,6 +29,8 @@ const PLAN_FEATURES = {
     new_order_email_notification: false,
     shop_banner: true,
     watermark_removed: true,
+    qr_menu: true,
+    staff_accounts: true,
   },
   business: {
     ai_agent: 'api_provided',
@@ -34,6 +40,8 @@ const PLAN_FEATURES = {
     new_order_email_notification: true,
     shop_banner: true,
     watermark_removed: true,
+    qr_menu: true,
+    staff_accounts: true,
   },
 };
 
