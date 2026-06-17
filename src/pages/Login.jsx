@@ -140,7 +140,7 @@ export default function Login() {
       }
     };
     poll();
-    const interval = setInterval(poll, 3000);
+    const interval = setInterval(poll, 1000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [needsCode, loginToken]);
 
