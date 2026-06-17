@@ -117,6 +117,7 @@ export default function NewsfeedPanel({ botId }) {
                       post.topic === 'Promotion' ? 'bg-rose-100 text-rose-600'
                       : post.topic === 'Updates' ? 'bg-blue-100 text-blue-600'
                       : post.topic === 'Events' ? 'bg-amber-100 text-amber-600'
+                      : post.topic === 'Offers' ? 'bg-emerald-100 text-emerald-600'
                       : 'bg-gray-100 text-gray-600'
                     }`}>{post.topic}</span>
                   )}
@@ -317,14 +318,15 @@ function PostFormModal({ post, botId, onClose, onSave, isPending }) {
             <div>
               <p className="text-xs font-bold text-gray-500 mb-2">Topic</p>
               <div className="flex gap-2">
-                {['', 'Promotion', 'Updates', 'Events'].map(t => (
+                {['', 'Promotion', 'Updates', 'Events', 'Offers'].map(t => (
                   <button key={t} onClick={() => setTopic(t)}
                     className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
                       topic === t
                         ? t === '' ? 'bg-gray-800 text-white'
                           : t === 'Promotion' ? 'bg-rose-500 text-white'
                           : t === 'Updates' ? 'bg-blue-500 text-white'
-                          : 'bg-amber-500 text-white'
+                          : t === 'Events' ? 'bg-amber-500 text-white'
+                          : 'bg-emerald-500 text-white'
                         : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                     }`}>
                     {t || 'General'}

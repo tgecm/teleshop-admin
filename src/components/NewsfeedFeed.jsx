@@ -195,6 +195,7 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
           { label: 'Promotion', value: 'Promotion' },
           { label: 'Updates', value: 'Updates' },
           { label: 'Events', value: 'Events' },
+          { label: 'Offers', value: 'Offers' },
         ].map(t => (
           <button key={t.value} onClick={() => handleTopicChange(t.value)}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
@@ -202,7 +203,8 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
                 ? t.value === '' ? 'bg-gray-800 text-white'
                   : t.value === 'Promotion' ? 'bg-rose-500 text-white'
                   : t.value === 'Updates' ? 'bg-blue-500 text-white'
-                  : 'bg-amber-500 text-white'
+                  : t.value === 'Events' ? 'bg-amber-500 text-white'
+                  : 'bg-emerald-500 text-white'
                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}>
             {t.label}
@@ -311,6 +313,7 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
                 post.topic === 'Promotion' ? 'bg-rose-100 text-rose-600'
                 : post.topic === 'Updates' ? 'bg-blue-100 text-blue-600'
                 : post.topic === 'Events' ? 'bg-amber-100 text-amber-600'
+                : post.topic === 'Offers' ? 'bg-emerald-100 text-emerald-600'
                 : 'bg-gray-100 text-gray-600'
               }`}>{post.topic}</span>
             )}
