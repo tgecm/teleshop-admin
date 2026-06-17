@@ -355,7 +355,6 @@ export default function Homepage() {
           <a href="https://t.me/tg_ecommerce_official_bot?start=newbot" className="btn-primary">Sign Up</a>
         </div>
       </nav>
-
       <main className="hp-main">
         {/* HERO */}
         <section className="hero">
