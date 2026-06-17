@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard,
   Package,
@@ -22,15 +23,17 @@ import {
   UserCog,
   Utensils,
   ClipboardList,
-  QrCode
+  QrCode,
+  X
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useBotStore } from '../../store/botStore';
 import { getUnreadCount } from '../../api/chats';
 import { getPendingOrderCount } from '../../api/orders';
 import { getQRMenuPendingCount } from '../../api/orders';
+import BotSwitcher from '../shared/BotSwitcher';
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen, onMobileClose }) {
   const { user, logout, isStaff } = useAuthStore();
   const { bots, selectedBotId } = useBotStore();
   const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
@@ -92,15 +95,18 @@ export default function Sidebar() {
 
   const isTelegramActive = telegramItems.some(item => location.pathname.startsWith(item.to));
 
-  return (
-    <aside className="sidebar-panel hidden md:flex flex-col w-64 lg:w-72 bg-white border-r border-gray-100 h-full overflow-y-auto scrollbar-hide">
-      {/* Navigation */}
+  const bottomNavRoutes = ['/dashboard', '/orders', '/products', '/customers', '/chats', '/settings'];
+  const mobileNavItems = navItems.filter(item => !bottomNavRoutes.includes(item.to));
+
+  const navContent = (isMobile) => (
+    <>
       <div className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto scrollbar-hide">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {(isMobile ? mobileNavItems : navItems).map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
             data-haptic
+            onClick={onMobileClose}
             className={({ isActive }) => `
               flex items-center gap-3 px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all
               ${isActive
@@ -125,7 +131,7 @@ export default function Sidebar() {
             {qrMenuExpanded && (
               <div className="ml-2 mb-1 space-y-0.5 border-l-2 border-indigo-100 pl-2">
                 {qrMenuItems.map(({ to, icon: Icon, label }) => (
-                  <NavLink key={to} to={to} data-haptic
+                  <NavLink key={to} to={to} data-haptic onClick={onMobileClose}
                     className={({ isActive }) => `
                       flex items-center gap-3 px-4 py-2 lg:py-2.5 rounded-xl text-sm font-medium transition-all
                       ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
@@ -158,7 +164,7 @@ export default function Sidebar() {
             {telegramExpanded && (
               <div className="ml-2 mb-1 space-y-0.5 border-l-2 border-indigo-100 pl-2">
                 {telegramItems.map(({ to, icon: Icon, label }) => (
-                  <NavLink key={to} to={to} data-haptic
+                  <NavLink key={to} to={to} data-haptic onClick={onMobileClose}
                     className={({ isActive }) => `
                       flex items-center gap-3 px-4 py-2 lg:py-2.5 rounded-xl text-sm font-medium transition-all
                       ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
@@ -183,7 +189,7 @@ export default function Sidebar() {
 
         {/* Settings */}
           <div className="px-3 py-1">
-            <NavLink to="/settings" data-haptic
+            <NavLink to="/settings" data-haptic onClick={onMobileClose}
               className={({ isActive }) => `
                 flex items-center gap-3 px-4 py-2.5 lg:py-3 rounded-xl text-sm font-medium transition-all
                 ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
@@ -196,7 +202,7 @@ export default function Sidebar() {
       </div>
 
       {/* Logout */}
-      <div className="p-3 border-t border-gray-100">
+      <div className="p-3 border-t border-indigo-100">
         <button
           onClick={logout}
           data-haptic
@@ -206,6 +212,49 @@ export default function Sidebar() {
           <span>Logout</span>
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile sidebar drawer */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 md:hidden"
+          >
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onMobileClose} />
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="absolute left-0 top-0 bottom-0 w-72 bg-gradient-to-b from-indigo-50 to-white shadow-2xl flex flex-col overflow-y-auto"
+            >
+              <div className="flex items-center justify-between px-4 py-4 border-b border-indigo-100 shrink-0">
+                <span className="text-base font-black text-indigo-600">Menu</span>
+                <button onClick={onMobileClose} className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center active:scale-90 transition-transform hover:bg-rose-200">
+                  <X className="w-4 h-4 text-rose-500" />
+                </button>
+              </div>
+              {user?.is_superadmin && (
+                <div className="px-4 py-3 border-b border-indigo-100 shrink-0">
+                  <BotSwitcher light />
+                </div>
+              )}
+              {navContent(true)}
+            </motion.aside>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop sidebar */}
+      <aside className="sidebar-panel hidden md:flex flex-col w-64 lg:w-72 bg-white border-r border-gray-100 h-full overflow-y-auto scrollbar-hide">
+        {navContent(false)}
+      </aside>
+    </>
   );
 }

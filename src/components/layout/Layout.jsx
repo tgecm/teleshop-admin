@@ -13,6 +13,7 @@ export default function Layout() {
   const location = useLocation();
   const navType = useNavigationType();
   const [animDir, setAnimDir] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     setAnimDir(navType === 'POP' ? -1 : 0);
@@ -24,11 +25,11 @@ export default function Layout() {
 
   return (
     <div className="h-full bg-gray-50 flex flex-col">
-      <TopBar />
+      <TopBar onToggleSidebar={() => setSidebarOpen(s => !s)} />
       <NotificationPopup />
 
       <div className="flex flex-1 relative min-h-0">
-        <Sidebar />
+        <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
 
         <main className="flex-1 px-3 sm:px-4 md:px-8 lg:px-10 pb-nav md:pb-0 overflow-y-auto scrollbar-hide max-w-[1600px] mx-auto w-full scroll-smooth">
           <motion.div
