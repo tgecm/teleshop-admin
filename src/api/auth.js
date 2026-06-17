@@ -9,5 +9,8 @@ export const verifyLoginCode = (loginToken, code) =>
 export const getMe = () =>
   client.get('/me').then(res => res.data);
 
+export const pollLoginApproval = (loginToken) =>
+  client.get('/auth/login/poll', { params: { login_token: loginToken } }).then(res => res.data);
+
 export const getLoginAudit = () =>
   client.get('/api/audit/logins').then(res => res.data);
