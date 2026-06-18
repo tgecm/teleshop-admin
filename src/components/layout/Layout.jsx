@@ -45,8 +45,8 @@ export default function Layout() {
           }}>
           <motion.div
             key={location.pathname}
-            initial={animDir === -1 ? { opacity: 0, x: -24 } : {}}
-            animate={{ opacity: 1, x: 0 }}
+            initial={animDir === -1 ? { opacity: 0 } : {}}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
             className="py-4 md:py-6 lg:py-8"
           >
