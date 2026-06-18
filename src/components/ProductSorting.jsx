@@ -247,8 +247,8 @@ export default function ProductSorting({ products, categories, botId, onClose })
   }, [products]);
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center pt-0 md:pt-8 overflow-hidden">
-      <div className="bg-white w-full h-full md:max-w-2xl md:h-auto md:max-h-[85vh] md:rounded-3xl md:shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center pt-0 md:pt-8 overflow-hidden" onClick={onClose}>
+      <div className="bg-white w-full h-full md:max-w-2xl md:h-auto md:max-h-[85vh] md:rounded-3xl md:shadow-2xl flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
           <div className="min-w-0 flex-1">
