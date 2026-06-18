@@ -98,8 +98,8 @@ export default function PullToRefresh({ onRefresh, children }) {
 
       <div
         style={{
-          transform: state === 'refreshing' ? 'translateY(0)' : `translateY(${Math.max(0, pullDistance - 28)}px)`,
-          transition: state === 'pulling' ? 'none' : 'transform 0.3s ease-out',
+          marginTop: state === 'refreshing' ? 0 : Math.max(0, pullDistance - 28),
+          transition: state === 'pulling' ? 'none' : 'margin-top 0.3s ease-out',
         }}
       >
         {children}
