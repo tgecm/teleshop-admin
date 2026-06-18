@@ -6,6 +6,7 @@ import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
 import { isInAppBrowser, downloadViaNative } from '../../utils/download';
 import { generateInvoiceNumber } from '../../api/orders';
+import client from '../../api/client';
 
 const RECEIPT_W = 800;
 const MAIN_BLUE = '#003366';
@@ -92,6 +93,7 @@ const s = {
     paddingBottom: 1,
     minWidth: 150,
     flexGrow: 1,
+    lineHeight: 1.4,
   },
   receiptBlock: { textAlign: 'right' },
   receiptHeading: {
@@ -317,29 +319,7 @@ const s = {
     alignItems: 'center',
     gap: 25,
   },
-  footerCursive: {
-    fontFamily: "'Dancing Script', cursive",
-    fontSize: 28,
-    color: MAIN_BLUE,
-    flexShrink: 0,
-    paddingRight: 25,
-    borderRight: `1px solid ${BORDER_LIGHT}`,
-  },
-  footerMsg: { flexGrow: 1, fontSize: 11, color: TEXT_MUTED },
-  footerMsgStrong: { color: TEXT_DARK, fontWeight: 600, display: 'block', marginBottom: 3 },
-  footerBadge: {
-    width: 50,
-    height: 50,
-    border: `2px solid ${MAIN_BLUE}`,
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 20,
-    color: MAIN_BLUE,
-    flexShrink: 0,
-    backgroundColor: LIGHT_BLUE,
-  },
+  footerNotes: { fontSize: 10, color: TEXT_MUTED, lineHeight: 1.5 },
   websiteBar: {
     backgroundColor: MAIN_BLUE,
     color: 'rgba(255,255,255,0.8)',
@@ -355,8 +335,9 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minRows, invoiceNumber, receiptNumber, type = 'receipt') {
+function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minRows, invoiceNumber, receiptNumber, type = 'receipt', receiptSettings = {}) {
   const isInvoice = type === 'invoice';
+  const { tagline: shopTagline = 'Your Trusted Online Store', phone: svgPhone = 'Phone', email: svgEmail = 'Email', website: svgWebsite = 'Website', address: svgAddress = 'Address', notes: svgNotes = '', botLogo = '' } = receiptSettings;
   const W = 800;
   const PAD = 40;
   const CW = W - PAD * 2;
@@ -384,7 +365,6 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const cEmail = esc(order.buyer_snapshot?.email || '……………………………………');
   const tg = esc(bot?.bot_username ? `@${bot.bot_username}` : '……………………………………');
   const uid = esc(order.customer?.telegram_id || order.customer?.id || '—');
-  const note = esc(order.notes || '—');
   const initial = esc(botName.charAt(0).toUpperCase());
   const sName = esc(botName);
   const fmtDate = myanmarFormat(orderDate, 'MMM dd, yyyy');
@@ -467,31 +447,36 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   <rect width="${W}" height="10" fill="${MB}"/>
 
   <!-- ============ HEADER (y=${HDR_Y}) ============ -->
+  <defs>
+    <clipPath id="logoClip">
+      <circle cx="50" cy="50" r="50"/>
+    </clipPath>
+  </defs>
   <g transform="translate(${PAD}, ${HDR_Y})">
     <!-- Logo -->
     <circle cx="50" cy="50" r="50" fill="#fff" stroke="${MB}" stroke-width="2"/>
-    <text x="50" y="56" text-anchor="middle" fill="${MB}" font-size="16" font-weight="600" class="r">${initial}</text>
+    ${botLogo ? `<image href="${esc(botLogo)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid slice" clip-path="url(#logoClip)"/>` : `<text x="50" y="56" text-anchor="middle" fill="${MB}" font-size="16" font-weight="600" class="r">${initial}</text>`}
 
     <!-- Shop info -->
     <text x="140" y="22" fill="${MB}" font-size="24" font-weight="700" class="r">${sName}</text>
-    <text x="140" y="44" fill="${TM}" font-size="13">Your Trusted Online Store</text>
+    <text x="140" y="44" fill="${TM}" font-size="13">${esc(shopTagline)}</text>
 
     <!-- Contacts -->
     <text x="140" y="68" fill="${TM}" font-size="12">📞</text>
-    <text x="160" y="68" fill="${TM}" font-size="12">Phone</text>
+    <text x="160" y="68" fill="${TM}" font-size="12">${esc(svgPhone)}</text>
     <line x1="160" y1="74" x2="350" y2="74" stroke="${BL}" stroke-width="1"/>
 
     <text x="140" y="90" fill="${TM}" font-size="12">✉️</text>
-    <text x="160" y="90" fill="${TM}" font-size="12">Email</text>
+    <text x="160" y="90" fill="${TM}" font-size="12">${esc(svgEmail)}</text>
     <line x1="160" y1="96" x2="350" y2="96" stroke="${BL}" stroke-width="1"/>
 
     <text x="140" y="112" fill="${TM}" font-size="12">🌐</text>
-    <text x="160" y="112" fill="${TM}" font-size="12">Website</text>
+    <text x="160" y="112" fill="${TM}" font-size="12">${esc(svgWebsite)}</text>
     <line x1="160" y1="118" x2="350" y2="118" stroke="${BL}" stroke-width="1"/>
 
     <text x="140" y="134" fill="${TM}" font-size="12">📍</text>
-    <text x="160" y="134" fill="${TM}" font-size="12">Address</text>
-    <line x1="160" y1="140" x2="350" y2="140" stroke="${BL}" stroke-width="1"/>
+    <text x="160" y="134" fill="${TM}" font-size="12">${esc(svgAddress.slice(0, 40))}</text>
+    ${svgAddress.length > 40 ? `<text x="160" y="152" fill="${TM}" font-size="12">${esc(svgAddress.slice(40, 80))}</text><line x1="160" y1="158" x2="350" y2="158" stroke="${BL}" stroke-width="1"/>` : `<line x1="160" y1="140" x2="350" y2="140" stroke="${BL}" stroke-width="1"/>`}
 
     ${isInvoice ? `<!-- INVOICE heading (right) -->
     <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="44" font-weight="700" class="r">INVOICE</text>
@@ -597,10 +582,6 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     <text x="95" y="96" fill="${TM}" font-size="12">${fmtDate}</text>
     <line x1="95" y1="102" x2="345" y2="102" stroke="${BL}" stroke-width="1"/>
 
-    <text x="0" y="118" fill="${TD}" font-size="12" font-weight="600">Notes</text>
-    <text x="85" y="118" fill="${TM}" font-size="12">:</text>
-    <text x="95" y="118" fill="${TM}" font-size="12">${note}</text>
-    <line x1="95" y1="124" x2="345" y2="124" stroke="${BL}" stroke-width="1"/>
   </g>
   <line x1="${PAD}" y1="${MID_END}" x2="${W-PAD}" y2="${MID_END}" stroke="${BL}" stroke-width="1"/>
 
@@ -637,12 +618,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   <!-- ============ FOOTER (y=${FTR_Y}) ============ -->
   <g transform="translate(${PAD}, ${FTR_Y})">
     <line x1="0" y1="0" x2="${CW}" y2="0" stroke="${BL}" stroke-width="1"/>
-    <text x="0" y="38" fill="${MB}" font-size="28" class="dc">Thank You!</text>
-    <line x1="130" y1="10" x2="130" y2="52" stroke="${BL}" stroke-width="1"/>
-    <text x="150" y="28" fill="${TD}" font-size="12" font-weight="600">We appreciate your business.</text>
-    <text x="150" y="46" fill="${TM}" font-size="11">If you have any questions, please contact us.</text>
-    <circle cx="${CW-25}" cy="30" r="24" fill="${LB}" stroke="${MB}" stroke-width="2"/>
-    <text x="${CW-25}" y="36" text-anchor="middle" fill="${MB}" font-size="16">❤️</text>
+    ${svgNotes ? `<text x="0" y="24" fill="${TM}" font-size="10">${esc(svgNotes.slice(0, 100))}</text>${svgNotes.length > 100 ? `<text x="0" y="38" fill="${TM}" font-size="10">${esc(svgNotes.slice(100))}</text>` : ''}` : ''}
   </g>
 
   <!-- ============ WEBSITE BAR ============ -->
@@ -651,7 +627,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
 </svg>`;
 }
 
-export default function Receipt({ order, bot, open, onClose, receiptType = 'receipt' }) {
+export default function Receipt({ order, bot, open, onClose, receiptType = 'receipt', receiptSettings = {} }) {
   const receiptRef = useRef(null);
   const [generating, setGenerating] = useState(false);
   const [scale, setScale] = useState(1);
@@ -674,7 +650,11 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     };
     calc();
     window.addEventListener('resize', calc);
-    return () => window.removeEventListener('resize', calc);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('resize', calc);
+      document.body.style.overflow = '';
+    };
   }, [open, order]);
 
   if (!order) return null;
@@ -694,13 +674,24 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
 
   const isInv = receiptType === 'invoice';
 
+  const {
+    tagline = 'Your Trusted Online Store',
+    phone: shopPhone = 'Phone',
+    email: shopEmail = bot?.admin_notification_email || 'Email',
+    website: shopWebsite = 'Website',
+    address: shopAddress = 'Address',
+    notes: shopNotes = '',
+  } = receiptSettings;
+
   const handleDownload = async () => {
     setGenerating(true);
     try {
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType);
+      // 1. Build SVG WITHOUT embedded logo (shows initial letter as fallback)
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: '' });
+
+      // 2. Render SVG to canvas
       const blob = new Blob([svg], { type: 'image/svg+xml' });
       const url = URL.createObjectURL(blob);
-
       const img = new Image();
       await new Promise((resolve, reject) => {
         img.onload = resolve;
@@ -713,49 +704,40 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       canvas.height = img.naturalHeight;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
-
       URL.revokeObjectURL(url);
 
-      let logoUrl = bot?.profile_picture || '';
-      if (logoUrl) logoUrl = logoUrl.replace('/static/uploads/profile_pictures/', '/serve/profile-picture/');
+      // 3. Try to load the logo and overlay it
+      const logoUrl = bot?.profile_picture || '';
       if (logoUrl) {
         try {
-          const resp = await fetch(logoUrl);
-          const blob = await resp.blob();
-          const dataUrl = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(blob);
-          });
-          const logoImg = new Image();
-          await new Promise((resolve, reject) => {
-            logoImg.onload = resolve;
-            logoImg.onerror = reject;
-            logoImg.src = dataUrl;
-          });
-
-          const scale = img.naturalWidth / 800;
-          const cx = (40 + 50) * scale;
-          const cy = (40 + 50) * scale;
-          const r = 50 * scale;
-
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.clip();
-          ctx.drawImage(logoImg, cx - r, cy - r, r * 2, r * 2);
-          ctx.restore();
-
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.strokeStyle = '#003366';
-          ctx.lineWidth = 2 * scale;
-          ctx.stroke();
+          // Use axios client (same CORS + auth as all API calls)
+          const logoPath = new URL(logoUrl).pathname;
+          const resp = await client.get(logoPath, { responseType: 'blob' });
+          const blob2 = resp.data;
+          if (blob2 && blob2.size > 0) {
+            const logoUrlObj = URL.createObjectURL(blob2);
+            const logoImg = new Image();
+            await new Promise((resolve, reject) => {
+              logoImg.onload = resolve;
+              logoImg.onerror = reject;
+              logoImg.src = logoUrlObj;
+            });
+            const s = canvas.width / 800;
+            const cx = 90 * s, cy = 90 * s, r = 50 * s;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(logoImg, cx - r, cy - r, r * 2, r * 2);
+            ctx.restore();
+            URL.revokeObjectURL(logoUrlObj);
+          }
         } catch (e) {
-          console.warn('Logo overlay failed:', e);
+          console.warn('Logo overlay skipped:', e);
         }
       }
 
+      // 4. Export PNG
       const link = document.createElement('a');
       link.download = `${receiptType}-${order.order_number || order.id}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -814,8 +796,8 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 pb-6">
-              <div className="flex justify-center" style={{ minHeight: RECEIPT_W * 1.2 }}>
+            <div className="flex-1 overflow-y-hidden px-4 pb-6">
+              <div className="flex justify-center">
                 <div style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
                   <div ref={receiptRef} style={s.wrap}>
                     <div style={s.topLine} />
@@ -832,22 +814,25 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                         </div>
                         <div style={s.shopDetails}>
                           <div style={s.shopName}>{botName}</div>
-                          <div style={s.tagline}>Your Trusted Online Store</div>
+                          <div style={s.tagline}>{tagline}</div>
                           <div style={s.contactRow}>
                             <span style={s.contactIcon}>📞</span>
-                            <span style={s.contactValue}>Phone</span>
+                            <span style={s.contactValue}>{shopPhone}</span>
                           </div>
                           <div style={s.contactRow}>
                             <span style={s.contactIcon}>✉️</span>
-                            <span style={s.contactValue}>Email</span>
+                            <span style={s.contactValue}>{shopEmail}</span>
                           </div>
                           <div style={s.contactRow}>
                             <span style={s.contactIcon}>🌐</span>
-                            <span style={s.contactValue}>Website</span>
+                            <span style={s.contactValue}>{shopWebsite}</span>
                           </div>
                           <div style={s.contactRow}>
                             <span style={s.contactIcon}>📍</span>
-                            <span style={s.contactValue}>Address</span>
+                            <span style={s.contactValue}>
+                              {shopAddress.slice(0, 40)}
+                              {shopAddress.length > 40 && <><br/>{shopAddress.slice(40, 80)}</>}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -922,9 +907,6 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                         </div>
                         <div style={s.fieldItem}>
                           <span style={s.fieldLabelWide}>Date</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{myanmarFormat(orderDate, 'MMM dd, yyyy')}</span>
-                        </div>
-                        <div style={s.fieldItem}>
-                          <span style={s.fieldLabelWide}>Notes</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{order.notes || '—'}</span>
                         </div>
                       </div>
                     </div>
@@ -1004,12 +986,12 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
 
                     {/* Footer */}
                     <div style={s.footer}>
-                      <div style={s.footerCursive}>Thank You!</div>
-                      <div style={s.footerMsg}>
-                        <strong style={s.footerMsgStrong}>We appreciate your business.</strong>
-                        <span>If you have any questions, please contact us.</span>
-                      </div>
-                      <div style={s.footerBadge}>❤️</div>
+                      {shopNotes ? (
+                        <div style={s.footerNotes}>
+                          {shopNotes.slice(0, 100)}
+                          {shopNotes.length > 100 && <><br/>{shopNotes.slice(100)}</>}
+                        </div>
+                      ) : null}
                     </div>
 
                     <div style={s.websiteBar}>
