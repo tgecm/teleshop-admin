@@ -849,6 +849,14 @@ export default function Products() {
                     addToast('Please fill in all required fields', 'error');
                     return;
                   }
+                  if (couponForm.discount_type === 'percentage' && Number(couponForm.discount_value) > 100) {
+                    addToast('Percentage discount cannot exceed 100%', 'error');
+                    return;
+                  }
+                  if (couponForm.discount_type === 'percentage' && (!couponForm.min_spend || Number(couponForm.min_spend) <= 0)) {
+                    addToast('Minimum spend is required for percentage discounts', 'error');
+                    return;
+                  }
                   createCouponMutation.mutate({
                     bot_id: Number(selectedBotId),
                     code: couponForm.code.toUpperCase().slice(0, 9),
@@ -900,9 +908,14 @@ export default function Products() {
                       </div>
                       <input
                         required type="number" min="1"
+                        max={couponForm.discount_type === 'percentage' ? 100 : undefined}
                         value={couponForm.discount_value}
-                        onChange={(e) => setCouponForm(p => ({ ...p, discount_value: e.target.value }))}
-                        placeholder={couponForm.discount_type === 'fixed' ? 'Amount in MMK' : 'Percentage'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (couponForm.discount_type === 'percentage' && Number(val) > 100) return;
+                          setCouponForm(p => ({ ...p, discount_value: val }));
+                        }}
+                        placeholder={couponForm.discount_type === 'fixed' ? 'Amount in MMK' : 'Percentage (max 100%)'}
                         className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
                       />
                     </div>
@@ -940,12 +953,15 @@ export default function Products() {
 
                   {/* Min Spend */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-600 ml-1">Min. Spend (optional)</label>
+                    <label className="text-xs font-bold text-gray-600 ml-1">
+                      Min. Spend {couponForm.discount_type === 'percentage' ? '*' : '(optional)'}
+                    </label>
                     <input
+                      required={couponForm.discount_type === 'percentage'}
                       type="number" min="0"
                       value={couponForm.min_spend}
                       onChange={(e) => setCouponForm(p => ({ ...p, min_spend: e.target.value }))}
-                      placeholder="0 = no minimum"
+                      placeholder={couponForm.discount_type === 'percentage' ? 'Required for % discount' : '0 = no minimum'}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
                     />
                     <p className="text-[10px] text-gray-400 ml-1">Coupon only applies if cart total is at least this amount</p>
@@ -1167,7 +1183,7 @@ function CategoryDropdown({ categories, selected, onSelect }) {
         <span className="hidden sm:inline max-w-[80px] truncate">{selected ? categories.find(c => String(c.id) === selected)?.name || 'Category' : 'All'}</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-60 overflow-y-auto">
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 w-44 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-60 overflow-y-auto">
           <button
             onClick={() => { onSelect(''); setOpen(false); }}
             className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${!selected ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}
