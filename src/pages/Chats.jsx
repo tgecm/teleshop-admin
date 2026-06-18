@@ -23,7 +23,7 @@ import {
   ImageUp,
   Globe,
   Smartphone,
-  ShieldCheck,
+  BadgeCheck,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { MarkdownRenderer } from '../utils/linkify';
@@ -716,8 +716,15 @@ export default function Chats() {
                     } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5 text-gray-500" />
+                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {v.name === 'E-commerce Support'
+                          ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
+                          : (
+                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                              <User className="w-5 h-5 text-gray-500" />
+                            </div>
+                          )
+                        }
                         {v.unread_count > 0 && (
                           <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
                             <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
@@ -727,7 +734,7 @@ export default function Chats() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900 flex items-center gap-1`}>
-                            {v.name === 'E-commerce Support' ? <>E-commerce Support<ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /></> : v.name}
+                            {v.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-4 h-4 fill-blue-600 text-white flex-shrink-0" /></> : v.name}
                           </p>
                           {v.last_time && (
                             <span className="text-[10px] text-gray-400 flex-shrink-0">
@@ -788,8 +795,15 @@ export default function Chats() {
                     } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5 text-gray-500" />
+                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {v.name === 'E-commerce Support'
+                          ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
+                          : (
+                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                              <User className="w-5 h-5 text-gray-500" />
+                            </div>
+                          )
+                        }
                         {v.unread_count > 0 && (
                           <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
                             <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
@@ -799,7 +813,7 @@ export default function Chats() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900 flex items-center gap-1`}>
-                            {v.name === 'E-commerce Support' ? <>E-commerce Support<ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /></> : v.name}
+                            {v.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-4 h-4 fill-blue-600 text-white flex-shrink-0" /></> : v.name}
                           </p>
                           {v.last_time && (
                             <span className="text-[10px] text-gray-400 flex-shrink-0">
@@ -841,8 +855,15 @@ export default function Chats() {
                     } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5 text-gray-500" />
+                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {v.name === 'E-commerce Support'
+                          ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
+                          : (
+                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                              <User className="w-5 h-5 text-gray-500" />
+                            </div>
+                          )
+                        }
                         {v.unread_count > 0 && (
                           <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
                             <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
@@ -852,7 +873,7 @@ export default function Chats() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900 flex items-center gap-1`}>
-                            {v.name === 'E-commerce Support' ? <>E-commerce Support<ShieldCheck className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /></> : v.name}
+                            {v.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-4 h-4 fill-blue-600 text-white flex-shrink-0" /></> : v.name}
                           </p>
                           {v.last_time && (
                             <span className="text-[10px] text-gray-400 flex-shrink-0">
@@ -1001,12 +1022,19 @@ export default function Chats() {
 
               <div className="flex items-center justify-between px-5 pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <User className="w-5 h-5 text-gray-500" />
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {selectedWebChat?.name === 'E-commerce Support'
+                      ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
+                      : (
+                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                          <User className="w-5 h-5 text-gray-500" />
+                        </div>
+                      )
+                    }
                   </div>
                   <div className="min-w-0">
-                    <p className="text-base font-bold text-gray-900 truncate">
-                      {selectedWebChat?.name || selectedChat?.first_name || `User ${selectedUser}`}
+                    <p className="text-base font-bold text-gray-900 truncate flex items-center gap-1">
+                      {selectedWebChat?.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-4 h-4 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || `User ${selectedUser}`)}
                     </p>
                     {selectedChat?.username && (
                       <p className="text-xs text-gray-500 truncate">@{selectedChat.username}</p>
@@ -1016,7 +1044,7 @@ export default function Chats() {
                     )}
                   </div>
                 </div>
-                {selectedWebChat && (
+                {selectedWebChat && selectedWebChat.name !== 'E-commerce Support' && (
                   <div className="flex items-center gap-1.5">
                     <div className="flex flex-col items-center">
                       <button

@@ -181,9 +181,9 @@ export default function StaffAccounts() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
             <Users className="w-5 h-5" />
           </div>
           <div>
@@ -191,13 +191,13 @@ export default function StaffAccounts() {
             <p className="text-xs text-gray-500">Manage staff who can access this dashboard</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button onClick={() => setShowLogs(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all text-sm active:scale-95">
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all text-xs sm:text-sm active:scale-95 whitespace-nowrap">
             <Clock className="w-4 h-4" /> Activity Logs
           </button>
           <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-sm active:scale-95">
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-xs sm:text-sm active:scale-95 whitespace-nowrap">
             <Plus className="w-4 h-4" /> Add Staff
           </button>
         </div>
@@ -359,22 +359,28 @@ export default function StaffAccounts() {
       {/* Permissions Modal */}
       <AnimatePresence>
         {showPerms && selectedStaff && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowPerms(false)} />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="relative bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm max-h-[80vh] flex flex-col">
-              <div className="flex items-center justify-between mb-4">
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={() => setShowPerms(false)} />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed z-50 flex items-center justify-center inset-0 top-10 bottom-[68px] md:top-0 md:bottom-0">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white rounded-3xl shadow-2xl w-full h-full md:max-w-sm md:max-h-[80vh] flex flex-col mx-4 md:mx-0 md:p-6"
+            >
+              <div className="flex items-center justify-between px-6 md:px-0 pt-6 md:pt-0 pb-4">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-emerald-500" />
                   Permissions
                 </h2>
-                <button onClick={() => setShowPerms(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                <button onClick={() => setShowPerms(false)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
-              <p className="text-sm text-gray-500 mb-4">Set permissions for <span className="font-bold text-gray-900">{selectedStaff.name}</span></p>
-              <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
+              <p className="text-sm text-gray-500 mb-4 px-6 md:px-0">Set permissions for <span className="font-bold text-gray-900">{selectedStaff.name}</span></p>
+              <div className="flex-1 overflow-y-auto space-y-3 px-6 md:px-0 pb-4">
                 <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-gray-100 transition-all">
                   <input type="checkbox" checked={PERM_GROUPS.every(g => staffPerms[g.id] === true) && PERM_GROUPS.filter(g => g.subs).every(g => g.subs.every(s => staffPerms[s.id] === true))}
                     onChange={(e) => {
@@ -420,15 +426,14 @@ export default function StaffAccounts() {
                   </div>
                 ))}
               </div>
-              <div className="flex gap-3 mt-4 pt-3 border-t border-gray-100">
+              <div className="flex gap-3 px-6 md:px-0 py-4 border-t border-gray-100">
                 <button onClick={() => setShowPerms(false)}
-                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm">
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm">
                   Cancel
                 </button>
                 <button onClick={async () => {
                   setSavingPerms(true);
                   try {
-                    // Build complete permissions — fill any missing with false
                     const fullPerms = {};
                     PERM_GROUPS.forEach(g => {
                       fullPerms[g.id] = staffPerms[g.id] ?? true;
@@ -442,13 +447,14 @@ export default function StaffAccounts() {
                     addToast(err.response?.data?.detail || 'Failed to save permissions', 'error');
                   } finally { setSavingPerms(false); }
                 }} disabled={savingPerms}
-                  className="flex-1 py-2.5 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                  className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                   {savingPerms ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   Save
                 </button>
               </div>
             </motion.div>
           </motion.div>
+          </>
         )}
       </AnimatePresence>
 
