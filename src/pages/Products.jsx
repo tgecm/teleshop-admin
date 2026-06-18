@@ -198,6 +198,15 @@ export default function Products() {
     if (showDeliveryFeeModal) fetchTownshipFees();
   }, [showDeliveryFeeModal, fetchTownshipFees]);
 
+  useEffect(() => {
+    if (isModalOpen || showCouponModal || showCouponManager || showDeliveryFeeModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isModalOpen, showCouponModal, showCouponManager, showDeliveryFeeModal]);
+
   const saveTownshipFee = async () => {
     if (!selectedBotId || !selectedTownship || !townshipFeeInput) return;
     setSavingTownshipFee(true);
@@ -511,14 +520,14 @@ export default function Products() {
               onClick={() => setIsModalOpen(false)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             />
-            <motion.div
-              initial={{ y: '100%', opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: '100%', opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[85svh] overflow-y-auto md:max-w-xl md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px] md:shadow-2xl"
-            >
-              <ProductForm 
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative bg-white rounded-[20px] md:rounded-[32px] shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+              >
+                <ProductForm
                 product={editingProduct} 
                 categories={categories}
                 selectedBotId={selectedBotId}
@@ -533,6 +542,7 @@ export default function Products() {
                 isLoading={createMutation.isPending || updateMutation.isPending}
               />
             </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
@@ -820,16 +830,13 @@ export default function Products() {
               onClick={() => setShowCouponModal(false)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             />
-            <motion.div
-              initial={{ y: '100%', opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: '100%', opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[90svh] overflow-y-auto md:max-w-lg md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px] md:shadow-2xl"
-            >
-              <div className="flex justify-center pt-4 pb-1 md:hidden">
-                <div className="w-10 h-1 bg-gray-200 rounded-full" />
-              </div>
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative bg-white rounded-[20px] md:rounded-[32px] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              >
               <div className="px-6 pb-8">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
@@ -985,6 +992,7 @@ export default function Products() {
                 </form>
               </div>
             </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
