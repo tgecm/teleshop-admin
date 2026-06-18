@@ -541,61 +541,61 @@ export default function Products() {
       {showDeliveryFeeModal && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowDeliveryFeeModal(false)} />
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <Truck className="w-5 h-5 text-emerald-600" />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-lg p-3 sm:p-6 shadow-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto pb-10 sm:pb-0">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                   </div>
-                  <h2 className="text-lg font-bold text-gray-900">Delivery Fee Settings</h2>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900">Delivery Fee Settings</h2>
                 </div>
-                <button onClick={() => setShowDeliveryFeeModal(false)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                  <X className="w-4 h-4 text-gray-500" />
+                <button onClick={() => setShowDeliveryFeeModal(false)} className="p-1.5 sm:p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+                  <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
                 </button>
               </div>
 
-              <div className="space-y-4 pb-4 border-b border-gray-100">
+              <div className="space-y-3 sm:space-y-4 pb-3 sm:pb-4 border-b border-gray-100">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 block mb-1.5">Delivery Fee (MMK)</label>
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Delivery Fee (MMK)</label>
                   <input
                     type="number"
                     value={deliveryFee}
                     onChange={(e) => setDeliveryFee(e.target.value)}
                     placeholder="e.g. 5000"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Flat fee added at checkout if any product has delivery fee enabled</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Flat fee added at checkout if any product has delivery fee enabled</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 block mb-1.5">Free Delivery if spent this amount (MMK)</label>
+                  <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Free Delivery if spent this amount (MMK)</label>
                   <input
                     type="number"
                     value={freeDeliveryThreshold}
                     onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
                     placeholder="e.g. 50000"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Delivery fee is waived when cart total reaches or exceeds this amount</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Delivery fee is waived when cart total reaches or exceeds this amount</p>
                 </div>
               </div>
 
               {/* CSV Import Section */}
-              <div className="mt-5 pt-4 border-t border-gray-100">
+              <div className="mt-3 sm:mt-5 pt-3 sm:pt-4 border-t border-gray-100">
                 <div className="flex gap-2">
                   <button
                     onClick={downloadCsvTemplate}
-                    className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium text-sm text-gray-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 py-2 sm:py-2.5 bg-gray-100 rounded-xl font-medium text-xs sm:text-sm text-gray-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
                   >
-                    <Download className="w-4 h-4" />
-                    Download Template
+                    <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    Download CSV
                   </button>
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={importingCsv}
-                    className="flex-1 py-2.5 bg-emerald-100 rounded-xl font-medium text-sm text-emerald-700 hover:bg-emerald-200 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-2 sm:py-2.5 bg-emerald-100 rounded-xl font-medium text-xs sm:text-sm text-emerald-700 hover:bg-emerald-200 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 sm:gap-2"
                   >
-                    <Upload className="w-4 h-4" />
+                    <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     {importingCsv ? 'Importing...' : 'Import CSV'}
                   </button>
                 </div>
@@ -606,16 +606,16 @@ export default function Products() {
                   onChange={handleCsvImport}
                   className="hidden"
                 />
-                <p className="text-xs text-gray-400 italic mt-2 text-center">Delivery Fees ဟာ ဒေသပေါ်မူတည်ပြီး မတူညီကြတာကြောင့် ကိုယ်နေတဲ့မြို့ပေါ်မူတည်ပြီး ကိုယ်တိုင် သတ်မှတ်ပေးပါနော်။ Excel Template ကို Download ရယူကာ သက်ဆိုင်ရာမြို့များရဲ့ Delivery Fees များကို ဖြည့်သွင်းပြီး Import CSV မှ တစ်ဆင့် ပြန်လည်ထည့်သွင်းပေးပါ။</p>
+                <p className="text-[10px] sm:text-xs text-gray-400 italic mt-1.5 sm:mt-2 text-center leading-relaxed">Delivery Fees ဟာ ဒေသပေါ်မူတည်ပြီး မတူညီကြတာကြောင့် ကိုယ်နေတဲ့မြို့ပေါ်မူတည်ပြီး ကိုယ်တိုင် သတ်မှတ်ပေးပါနော်။ Excel Template ကို Download ရယူကာ သက်ဆိုင်ရာမြို့များရဲ့ Delivery Fees များကို ဖြည့်သွင်းပြီး Import CSV မှ တစ်ဆင့် ပြန်လည်ထည့်သွင်းပေးပါ။</p>
               </div>
 
               {/* Zone-based Delivery Fees */}
-              <div className="mt-5">
-                <h3 className="text-sm font-bold text-gray-900 mb-3">Zone-based Delivery Fees</h3>
+              <div className="mt-3 sm:mt-5">
+                <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-2 sm:mb-3">Zone-based Delivery Fees</h3>
 
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   <div>
-                    <label className="text-xs font-medium text-gray-600 block mb-1">Region (တိုင်း/ပြည်နယ်)</label>
+                    <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Region (တိုင်း/ပြည်နယ်)</label>
                     <SearchableSelect
                       value={selectedRegion}
                       onChange={handleRegionChange}
@@ -625,7 +625,7 @@ export default function Products() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-medium text-gray-600 block mb-1">District (ခရိုင်)</label>
+                    <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">District (ခရိုင်)</label>
                     <SearchableSelect
                       value={selectedDistrict}
                       onChange={handleDistrictChange}
@@ -636,7 +636,7 @@ export default function Products() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-medium text-gray-600 block mb-1">Township (မြို့နယ်)</label>
+                    <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Township (မြို့နယ်)</label>
                     <SearchableSelect
                       value={selectedTownship}
                       onChange={setSelectedTownship}
@@ -648,20 +648,20 @@ export default function Products() {
 
                   <div className="flex gap-2 items-end">
                     <div className="flex-1">
-                      <label className="text-xs font-medium text-gray-600 block mb-1">Delivery Fee (MMK)</label>
+                      <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Delivery Fee (MMK)</label>
                       <input
                         type="number"
                         value={townshipFeeInput}
                         onChange={(e) => setTownshipFeeInput(e.target.value)}
                         placeholder="e.g. 3000"
                         disabled={!selectedTownship}
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm disabled:opacity-50"
+                        className="w-full px-2.5 sm:px-3 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm disabled:opacity-50"
                       />
                     </div>
                     <button
                       onClick={saveTownshipFee}
                       disabled={!selectedTownship || !townshipFeeInput || savingTownshipFee}
-                      className="px-4 py-2.5 bg-emerald-600 rounded-xl font-bold text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50 h-[42px]"
+                      className="px-3 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 rounded-xl font-bold text-xs sm:text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50 h-[36px] sm:h-[42px]"
                     >
                       {savingTownshipFee ? 'Saving...' : 'Add'}
                     </button>
@@ -670,44 +670,44 @@ export default function Products() {
 
                 {/* Saved township fees list */}
                 {townshipFeesLoading ? (
-                  <div className="text-center py-4 text-sm text-gray-400">Loading...</div>
+                  <div className="text-center py-3 sm:py-4 text-xs sm:text-sm text-gray-400">Loading...</div>
                 ) : townshipFees.length > 0 ? (
-                  <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
+                  <div className="mt-3 sm:mt-4 space-y-1.5 sm:space-y-2 max-h-40 sm:max-h-48 overflow-y-auto">
                     {townshipFees.map((tf) => (
-                      <div key={tf.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2.5">
+                      <div key={tf.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-2.5 sm:px-3 py-2 sm:py-2.5">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{tf.township}</p>
-                          <p className="text-xs text-gray-500 truncate">{tf.region} &gt; {tf.district}</p>
+                          <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{tf.township}</p>
+                          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{tf.region} &gt; {tf.district}</p>
                         </div>
-                        <div className="flex items-center gap-2 ml-2 shrink-0">
-                          <span className="text-sm font-bold text-emerald-600">{Number(tf.fee).toLocaleString()} MMK</span>
+                        <div className="flex items-center gap-1.5 sm:gap-2 ml-2 shrink-0">
+                          <span className="text-xs sm:text-sm font-bold text-emerald-600">{Number(tf.fee).toLocaleString()} MMK</span>
                           <button
                             onClick={() => deleteTownshipFee(tf.id)}
                             disabled={deletingTownshipFeeId === tf.id}
-                            className="p-1.5 bg-white rounded-lg border border-gray-200 text-red-400 hover:text-red-600 hover:border-red-200 transition-all disabled:opacity-50"
+                            className="p-1 sm:p-1.5 bg-white rounded-lg border border-gray-200 text-red-400 hover:text-red-600 hover:border-red-200 transition-all disabled:opacity-50"
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center py-4 text-sm text-gray-400">No township fees set yet</p>
+                  <p className="text-center py-3 sm:py-4 text-xs sm:text-sm text-gray-400">No township fees set yet</p>
                 )}
               </div>
 
-              <div className="mt-6 pt-4 border-t border-gray-100 flex gap-3">
+              <div className="sticky bottom-0 mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-100 flex gap-2 sm:gap-3 bg-white">
                 <button
                   onClick={() => setShowDeliveryFeeModal(false)}
-                  className="flex-1 py-3 bg-gray-100 rounded-xl font-medium text-sm text-gray-700 hover:bg-gray-200 transition-all"
+                  className="flex-1 py-2 sm:py-3 bg-gray-100 rounded-xl font-medium text-xs sm:text-sm text-gray-700 hover:bg-gray-200 active:bg-gray-300 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveDeliverySettings}
                   disabled={deliveryFeeLoading}
-                  className="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50"
+                  className="flex-1 py-2 sm:py-3 bg-emerald-600 rounded-xl font-bold text-xs sm:text-sm text-white hover:bg-emerald-700 active:bg-emerald-800 transition-all disabled:opacity-50"
                 >
                   {deliveryFeeLoading ? 'Saving...' : 'Save Settings'}
                 </button>

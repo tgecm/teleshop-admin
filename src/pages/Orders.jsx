@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrders, updateOrder } from '../api/orders';
+import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import client from '../api/client';
 import { useBotStore } from '../store/botStore';
 import { useAuthStore } from '../store/authStore';
@@ -31,6 +32,7 @@ import {
   FileText,
   User,
   Hash,
+  Store,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -60,6 +62,7 @@ export default function Orders() {
   const [orderTab, setOrderTab] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showFilter, setShowFilter] = useState(false);
+  const [showShopInfo, setShowShopInfo] = useState(false);
   const filterRef = useRef(null);
 
   useEffect(() => {
@@ -74,6 +77,15 @@ export default function Orders() {
     enabled: !!selectedBotId,
   });
 
+  const { data: contentBlocks } = useQuery({
+    queryKey: ['content-blocks', selectedBotId],
+    queryFn: () => getContentBlocks({ bot_id: Number(selectedBotId) }),
+    enabled: !!selectedBotId,
+  });
+
+  const receiptSettingsBlock = contentBlocks?.find(b => b.key === 'receipt_settings');
+  const receiptSettings = receiptSettingsBlock?.content_data || {};
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }) => updateOrder(id, { status }),
     onSuccess: (_data, variables) => {
@@ -83,6 +95,16 @@ export default function Orders() {
       addToast('Order status updated');
     },
     onError: () => addToast('Failed to update order', 'error'),
+  });
+
+  const receiptMutation = useMutation({
+    mutationFn: (data) => updateContentBlock(Number(selectedBotId), 'receipt_settings', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['content-blocks', selectedBotId]);
+      addToast('Shop info saved');
+      setShowShopInfo(false);
+    },
+    onError: (e) => addToast(e?.message || 'Failed to save', 'error'),
   });
 
   const filteredOrders = orders?.filter(o => {
@@ -123,6 +145,12 @@ export default function Orders() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Orders</h1>
+          <button onClick={() => setShowShopInfo(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition-all active:scale-95 text-xs font-bold shadow-sm"
+          >
+            <Store className="w-3.5 h-3.5" />
+            Shop Info
+          </button>
         </div>
         <div className="relative w-full sm:w-72 lg:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -266,20 +294,20 @@ export default function Orders() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: '100%', opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[32px] md:rounded-3xl md:shadow-2xl max-h-[85dvh] overflow-y-auto md:max-w-2xl md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px]"
+              className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[24px] md:rounded-3xl md:shadow-2xl max-h-[85dvh] overflow-y-auto md:max-w-2xl md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px]"
               style={{
                 overscrollBehavior: 'contain',
                 WebkitOverflowScrolling: 'touch',
                 touchAction: 'pan-y',
               }}
             >
-              <div className="sticky top-0 bg-white z-10 rounded-t-[32px] md:rounded-t-3xl pt-4 pb-2 flex flex-col items-center md:hidden">
+              <div className="sticky top-0 bg-white z-10 rounded-t-[24px] md:rounded-t-3xl pt-3 pb-1 flex flex-col items-center md:hidden">
                 <div className="w-10 h-1 bg-gray-200 rounded-full" />
               </div>
-              <div className="px-5 pb-[calc(max(env(safe-area-inset-bottom),16px)+68px)]">
+              <div className="px-4 md:px-5 pb-4 md:pb-6 space-y-3 md:space-y-5">
 
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Order Details</h2>
+                <div className="flex items-center justify-between mb-3 md:mb-6">
+                  <h2 className="text-lg md:text-xl font-bold text-gray-900">Order Details</h2>
                   <div className="flex items-center gap-2">
                     <button onClick={() => {
                       const bs = selectedOrder.buyer_snapshot || {};
@@ -305,9 +333,9 @@ export default function Orders() {
                   </div>
                 </div>
 
-                <div className="space-y-5">
+                <div className="space-y-3 md:space-y-5">
 
-                  <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 space-y-3">
+                  <div className="bg-gray-50 rounded-2xl border border-gray-100 p-3 md:p-4 space-y-2 md:space-y-3">
                     <div>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Order ID</p>
                       <p className="text-base font-bold text-gray-900 break-all mt-0.5">{selectedOrder.order_number || `#${selectedOrder.id}`}</p>
@@ -326,7 +354,7 @@ export default function Orders() {
                     const cust = selectedOrder.customer || {};
                     const label = selectedOrder.payment_method === 'guest' ? 'Guest Info' : selectedOrder.payment_method === 'website' ? 'Customer Profile' : 'Telegram Customer Info';
                     return (
-                      <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 space-y-3">
+                      <div className="bg-gray-50 rounded-2xl border border-gray-100 p-3 md:p-4 space-y-2 md:space-y-3">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
                         {cust.telegram_id && <DetailRow icon={Hash} label="Telegram ID" value={String(cust.telegram_id)} />}
                         {!cust.telegram_id && bs.telegram_id && <DetailRow icon={Hash} label="Telegram ID" value={String(bs.telegram_id)} />}
@@ -342,11 +370,11 @@ export default function Orders() {
                   })()}
 
 
-                  <div className="space-y-2.5">
+                  <div className="space-y-1.5 md:space-y-2.5">
                     <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                       <Package className="w-3 h-3" /> Products
                     </h3>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1">
                       {selectedOrder.items?.map((item, idx) => (
                         <div key={idx} className="text-sm text-gray-700">
                           • {item.product_name || item.name}{item.variant_label ? <span className="text-gray-400"> [{item.variant_label}]</span> : null} (x{item.quantity}) - {(item.price * item.quantity).toLocaleString()} MMK
@@ -356,23 +384,23 @@ export default function Orders() {
                   </div>
 
 
-                  <div className="pt-3 border-t border-gray-100 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
+                  <div className="pt-2 md:pt-3 border-t border-gray-100 space-y-1.5 md:space-y-2">
+                    <div className="flex items-center justify-between text-xs md:text-sm">
                       <span className="text-gray-500">Date</span>
                       <span className="font-bold text-gray-900">{myanmarFormat(selectedOrder.created_at, 'MMM d, yyyy')} at {myanmarFormat(selectedOrder.created_at, 'h:mm a')}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-xs md:text-sm">
                       <span className="text-gray-500">Amount</span>
                       <span className="font-bold text-indigo-600">{selectedOrder.total_amount?.toLocaleString()} MMK</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-xs md:text-sm">
                       <span className="text-gray-500">Payment Method</span>
                       <span className="font-bold text-gray-900 capitalize">{selectedOrder.payment_method || 'Cash'}</span>
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-gray-100">
-                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-4">Status Timeline</h3>
+                  <div className="pt-2 md:pt-3 border-t border-gray-100">
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 md:mb-4">Status Timeline</h3>
                     <div className="relative">
                       {TERMINAL_STATUSES.includes(selectedOrder.status) ? (
                         <div className="flex items-center gap-3">
@@ -615,7 +643,130 @@ export default function Orders() {
         open={showReceipt}
         onClose={() => setShowReceipt(false)}
         receiptType={receiptType}
+        receiptSettings={receiptSettings}
       />
+
+      <ShopInfoModal
+        open={showShopInfo}
+        onClose={() => setShowShopInfo(false)}
+        settings={receiptSettings}
+        onSave={(data) => receiptMutation.mutate(data)}
+        isPending={receiptMutation.isPending}
+      />
+    </div>
+  );
+}
+
+function ShopInfoModal({ open, onClose, settings, onSave, isPending }) {
+  const [tagline, setTagline] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [website, setWebsite] = useState('');
+  const [address, setAddress] = useState('');
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setTagline(settings.tagline || '');
+      setPhone(settings.phone || '');
+      setEmail(settings.email || '');
+      setWebsite(settings.website || '');
+      setAddress(settings.address || '');
+      setNotes(settings.notes || 'Thank You! We appreciate your business.\n❤️');
+    }
+  }, [open, settings]);
+
+  if (!open) return null;
+
+  const handleSave = () => {
+    onSave({
+      tagline: tagline.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
+      website: website.trim(),
+      address: address.trim(),
+      notes: notes.trim(),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto sm:max-h-[90vh] pb-10 sm:pb-0" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-3 sm:p-5 border-b border-gray-100">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <Store className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <h2 className="text-base sm:text-lg font-bold text-gray-900">Shop Info</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="p-3 sm:p-5 space-y-2 sm:space-y-4">
+          <div>
+            <label className="block text-[10px] sm:text-xs font-bold text-gray-500 mb-1 sm:mb-1.5">Tagline</label>
+            <input value={tagline} onChange={e => setTagline(e.target.value)}
+              placeholder="Your Trusted Online Store" maxLength={40}
+              className="w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] sm:text-xs font-bold text-gray-500 mb-1 sm:mb-1.5">Phone</label>
+            <input value={phone} onChange={e => setPhone(e.target.value)}
+              placeholder="09xxxxxxxxx"
+              className="w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] sm:text-xs font-bold text-gray-500 mb-1 sm:mb-1.5">Email</label>
+            <input value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="shop@example.com"
+              className="w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] sm:text-xs font-bold text-gray-500 mb-1 sm:mb-1.5">Website</label>
+            <input value={website} onChange={e => setWebsite(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] sm:text-xs font-bold text-gray-500 mb-1 sm:mb-1.5">Address</label>
+            <textarea value={address} onChange={e => setAddress(e.target.value)}
+              placeholder="Shop address"
+              rows={2} maxLength={80}
+              className="w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] sm:text-xs font-bold text-gray-500 mb-1 sm:mb-1.5">Notes</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)}
+              placeholder="Thank You! We appreciate your business."
+              rows={2} maxLength={100}
+              className="w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="sticky bottom-0 flex gap-2 sm:gap-3 p-3 sm:p-5 border-t border-gray-100 bg-white">
+          <button onClick={onClose}
+            className="flex-1 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-all">
+            Cancel
+          </button>
+          <button onClick={handleSave} disabled={isPending}
+            className="flex-1 py-2 sm:py-2.5 rounded-xl bg-indigo-600 text-xs sm:text-sm font-bold text-white hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:bg-indigo-800">
+            {isPending && <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />}
+            Save
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
