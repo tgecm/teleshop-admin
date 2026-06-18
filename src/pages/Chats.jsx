@@ -491,9 +491,11 @@ export default function Chats() {
 
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
   const webVisitorsWithUid = displayedWebVisitors.filter(v => v.firebase_uid || v.telegram_id);
-  const webVisitorsGuest = displayedWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id);
+  const webVisitorsGuest = displayedWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id && v.name !== 'E-commerce Support');
   const websiteUnread = webVisitorsWithUid.reduce((sum, v) => sum + (v.unread_count || 0), 0);
   const guestUnread = webVisitorsGuest.reduce((sum, v) => sum + (v.unread_count || 0), 0);
+  const supportVisitor = displayedWebVisitors.find(v => v.name === 'E-commerce Support');
+  const supportUnread = supportVisitor?.unread_count || 0;
 
   const filteredChats = displayedChats.filter(c => {
     if (!search.trim()) return true;
@@ -619,15 +621,40 @@ export default function Chats() {
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Chats</h1>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search user..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search user..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
+            />
+          </div>
+          {supportVisitor && (
+            <button
+              onClick={() => {
+                setSelectedVisitor(supportVisitor.visitor_id);
+                setSelectedUser(null);
+                setSearch('');
+                setChatTab('all');
+              }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 ${
+                selectedVisitor === supportVisitor.visitor_id
+                  ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-300'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <Headphones className="w-3.5 h-3.5" />
+              Support
+              {supportUnread > 0 && (
+                <span className="bg-red-500 text-white text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-full min-w-[17px] text-center">
+                  {supportUnread > 99 ? '99+' : supportUnread}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -687,7 +714,7 @@ export default function Chats() {
 
       {chatTab === 'web' || chatTab === 'guest' ? (
         <>
-          {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id) : filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id)).length === 0 ? (
+          {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id) : filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id && v.name !== 'E-commerce Support')).length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <MessageCircle className="w-8 h-8 text-gray-300" />
@@ -701,7 +728,7 @@ export default function Chats() {
             </div>
           ) : (
             <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
-              {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id) : filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id)).map(v => (
+              {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id) : filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id && v.name !== 'E-commerce Support')).map(v => (
                 <div key={v.visitor_id} className="relative group">
                   <button
                     onClick={() => {
@@ -833,14 +860,14 @@ export default function Chats() {
               ))}
             </div>
           )}
-          {chatTab === 'all' && filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id).length > 0 && (
+          {chatTab === 'all' && filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id && v.name !== 'E-commerce Support').length > 0 && (
             <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
               <div className="flex items-center gap-2 px-1 pt-1">
                 <div className="h-px flex-1 bg-gray-100" />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Guest</span>
                 <div className="h-px flex-1 bg-gray-100" />
               </div>
-              {filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id).map(v => (
+              {filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id && v.name !== 'E-commerce Support').map(v => (
                 <div key={v.visitor_id} className="relative group">
                   <button
                     onClick={() => {
@@ -894,7 +921,7 @@ export default function Chats() {
             </div>
           )}
           {filteredChats.length === 0
-            && (chatTab !== 'all' || filteredWebVisitors.length === 0) && (
+            && (chatTab !== 'all' || filteredWebVisitors.filter(v => v.name !== 'E-commerce Support').length === 0) && (
             <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <MessageCircle className="w-8 h-8 text-gray-300" />

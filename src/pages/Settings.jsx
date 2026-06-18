@@ -265,6 +265,9 @@ export default function Settings() {
   const [shopOpen, setShopOpen] = useState(true);
   const [adminSearch, setAdminSearch] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('soundEnabled') !== 'false');
+  const [lowStockThreshold, setLowStockThreshold] = useState('');
+  const [lowStockEnabled, setLowStockEnabled] = useState(false);
+  const [editingLowStock, setEditingLowStock] = useState(false);
   const [editingEmail, setEditingEmail] = useState(false);
   const [editingWebsiteUrl, setEditingWebsiteUrl] = useState(false);
 
@@ -294,7 +297,12 @@ export default function Settings() {
   const [staffFpLoading, setStaffFpLoading] = useState(false);
 
   React.useEffect(() => {
-    if (bot) setEmail(bot.admin_notification_email || '');
+    if (bot) {
+      setEmail(bot.admin_notification_email || '');
+      const threshold = bot.low_stock_threshold;
+      setLowStockThreshold(threshold != null ? String(threshold) : '');
+      setLowStockEnabled(threshold !== null && threshold > 0);
+    }
     if (contentBlocks) {
       const web = contentBlocks.find(b => b.key === 'website_link');
       if (web) {
@@ -536,6 +544,72 @@ export default function Settings() {
                   </button>
                 )}
               </div>
+            </section>
+
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">Low Stock Alert</h3>
+                    <p className="text-[10px] text-gray-500">Auto-notify via E-commerce Support</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const next = !lowStockEnabled;
+                    setLowStockEnabled(next);
+                    if (!next) {
+                      updateBotMutation.mutate({ low_stock_threshold: null });
+                      setLowStockThreshold('');
+                    }
+                  }}
+                  className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${lowStockEnabled ? 'bg-amber-500' : 'bg-gray-300'}`}
+                >
+                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${lowStockEnabled ? 'left-6.5' : 'left-0.5'}`} />
+                </button>
+              </div>
+              {lowStockEnabled && (
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="999"
+                    value={lowStockThreshold}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setLowStockThreshold(raw === '' || raw === '0' ? '' : raw.replace(/^0+/, ''));
+                    }}
+                    disabled={!editingLowStock}
+                    className="flex-1 w-20 px-3 py-2 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium disabled:bg-gray-100 disabled:cursor-not-allowed enabled:bg-white"
+                    placeholder="e.g. 5"
+                  />
+                  {editingLowStock ? (
+                    <button
+                      onClick={() => {
+                        updateBotMutation.mutate({ low_stock_threshold: Number(lowStockThreshold) });
+                        setEditingLowStock(false);
+                      }}
+                      disabled={!lowStockThreshold || Number(lowStockThreshold) < 1}
+                      className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm disabled:opacity-40"
+                    >
+                      Save
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setEditingLowStock(true)}
+                      className="px-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )}
+              <p className="text-[10px] text-gray-400 mt-2">
+                When product stock drops to this number, an alert will be sent to your Support chat.
+              </p>
             </section>
 
             <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
