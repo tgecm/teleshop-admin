@@ -117,47 +117,76 @@ public class MainActivity extends BridgeActivity {
     class BlobDownloadInterface {
         @JavascriptInterface
         public void downloadBase64(String base64, String mime, String contentDisposition) {
-            try {
-                String name = getFileNameFromContentDisposition(contentDisposition);
-                final String fileName = name != null ? name :
-                    "download_" + System.currentTimeMillis() + getExtFromMime(mime);
+            final byte[] data = Base64.decode(base64, Base64.DEFAULT);
+            final String name = getFileNameFromContentDisposition(contentDisposition);
+            final String fileName = name != null ? name :
+                "download_" + System.currentTimeMillis() + getExtFromMime(mime);
 
-                byte[] data = Base64.decode(base64, Base64.DEFAULT);
+            // ContentResolver operations must run on UI thread
+            runOnUiThread(() -> {
+                try {
+                    boolean saved = false;
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    ContentValues values = new ContentValues();
-                    values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
-                    values.put(MediaStore.Downloads.MIME_TYPE, mime);
-                    values.put(MediaStore.Downloads.IS_PENDING, 1);
-                    Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-                    if (uri != null) {
-                        OutputStream os = getContentResolver().openOutputStream(uri);
-                        os.write(data);
-                        os.close();
-                        values.put(MediaStore.Downloads.IS_PENDING, 0);
-                        getContentResolver().update(uri, values, null, null);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        saved = saveViaMediaStore(data, fileName, mime);
                     }
-                } else {
-                    File downloadsDir = Environment.getExternalStoragePublicDirectory(
-                        Environment.DIRECTORY_DOWNLOADS);
-                    if (!downloadsDir.exists()) downloadsDir.mkdirs();
-                    File file = new File(downloadsDir, fileName);
-                    FileOutputStream fos = new FileOutputStream(file);
-                    fos.write(data);
-                    fos.close();
 
-                    android.media.MediaScannerConnection.scanFile(
-                        getApplicationContext(),
-                        new String[]{file.getAbsolutePath()},
-                        null, null);
+                    if (!saved) {
+                        saved = saveViaAppDir(data, fileName, mime);
+                    }
+
+                    if (saved) {
+                        Toast.makeText(getApplicationContext(),
+                            "Saved: " + fileName, Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(getApplicationContext(),
+                            "Save failed: could not write file", Toast.LENGTH_LONG).show();
+                    }
+                } catch (Exception e) {
+                    Toast.makeText(getApplicationContext(),
+                        "Save failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 }
+            });
+        }
 
-                runOnUiThread(() -> Toast.makeText(getApplicationContext(),
-                    "Saved: " + fileName, Toast.LENGTH_SHORT).show());
+        private boolean saveViaMediaStore(byte[] data, String fileName, String mime) {
+            try {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+                values.put(MediaStore.Downloads.MIME_TYPE, mime != null ? mime : "application/octet-stream");
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                }
+                Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                if (uri == null) return false;
 
-            } catch (Exception e) {
-                runOnUiThread(() -> Toast.makeText(getApplicationContext(),
-                    "Save failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                OutputStream os = getContentResolver().openOutputStream(uri);
+                if (os == null) return false;
+                os.write(data);
+                os.close();
+                return true;
+            } catch (Exception ignored) {
+                return false;
+            }
+        }
+
+        private boolean saveViaAppDir(byte[] data, String fileName, String mime) {
+            try {
+                File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                if (dir == null) dir = getFilesDir();
+                dir.mkdirs();
+                File file = new File(dir, fileName);
+                FileOutputStream fos = new FileOutputStream(file);
+                fos.write(data);
+                fos.close();
+
+                android.media.MediaScannerConnection.scanFile(
+                    getApplicationContext(),
+                    new String[]{file.getAbsolutePath()},
+                    mime != null ? new String[]{mime} : null, null);
+                return true;
+            } catch (Exception ignored) {
+                return false;
             }
         }
 
