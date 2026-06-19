@@ -2467,10 +2467,10 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                             {user?.email && <p className="text-[11px] text-gray-400 truncate">{user.email}</p>}
                           </div>
                           {shop?.public_slug ? (
-                            <button onClick={() => { setShowProfileMenu(false); window.location.href = dashboardUrl; }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                            <a href={dashboardUrl} onClick={() => setShowProfileMenu(false)}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
                               <User className="w-4 h-4" /> My Dashboard
-                            </button>
+                            </a>
                           ) : (
                             <div className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium text-gray-400">
                               <User className="w-4 h-4" /> Loading...
