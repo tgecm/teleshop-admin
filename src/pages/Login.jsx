@@ -26,6 +26,7 @@ export default function Login() {
   const [menuPos, setMenuPos] = useState({ show: false, x: 0, y: 0, hasSel: false });
   const menuTargetRef = useRef(null);
   const verifyingRef = useRef(false);
+  const [waitingApproval, setWaitingApproval] = useState(false);
 
   const showInputMenu = useCallback((e, inputEl) => {
     e.preventDefault();
@@ -136,6 +137,8 @@ export default function Login() {
           navigate('/dashboard');
         } else if (data.status === 'expired') {
           if (!cancelled) setError('Login code expired. Please login again.');
+        } else if (data.status === 'pending') {
+          if (!cancelled) setWaitingApproval(true);
         }
       } catch {
         // poll error, retry
@@ -145,7 +148,7 @@ export default function Login() {
     const interval = setInterval(poll, 1000);
     const onFocus = () => { if (!cancelled) poll(); };
     window.addEventListener('visibilitychange', onFocus);
-    return () => { cancelled = true; clearInterval(interval); window.removeEventListener('visibilitychange', onFocus); };
+    return () => { cancelled = true; clearInterval(interval); window.removeEventListener('visibilitychange', onFocus); setWaitingApproval(false); };
   }, [needsCode, loginToken]);
 
   useEffect(() => {
@@ -385,6 +388,16 @@ export default function Login() {
                     />
                   ))}
                 </div>
+                {waitingApproval && code.every(d => !d) && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-2"
+                  >
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                    <span>{staffMode ? 'Waiting for admin approval in Telegram...' : 'Waiting for Telegram approval...'}</span>
+                  </motion.div>
+                )}
               </div>
             )}
 
