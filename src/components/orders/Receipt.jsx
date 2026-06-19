@@ -686,12 +686,32 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
   const handleDownload = async () => {
     setGenerating(true);
     try {
-      // 1. Build SVG WITHOUT embedded logo (shows initial letter as fallback)
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: '' });
+      // 1. Load logo as data URL (so it embeds directly in the SVG)
+      let logoDataUrl = '';
+      const logoUrl = bot?.profile_picture || '';
+      if (logoUrl) {
+        try {
+          const logoPath = new URL(logoUrl).pathname;
+          const resp = await client.get(logoPath, { responseType: 'blob' });
+          const blob = resp.data;
+          if (blob && blob.size > 0) {
+            logoDataUrl = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch (e) {
+          console.warn('Logo load skipped:', e);
+        }
+      }
 
-      // 2. Render SVG to canvas
-      const blob = new Blob([svg], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
+      // 2. Build SVG with embedded logo (falls back to initial letter if no logo)
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: logoDataUrl });
+
+      // 3. Render SVG to canvas
+      const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(svgBlob);
       const img = new Image();
       await new Promise((resolve, reject) => {
         img.onload = resolve;
@@ -705,37 +725,6 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
       URL.revokeObjectURL(url);
-
-      // 3. Try to load the logo and overlay it
-      const logoUrl = bot?.profile_picture || '';
-      if (logoUrl) {
-        try {
-          // Use axios client (same CORS + auth as all API calls)
-          const logoPath = new URL(logoUrl).pathname;
-          const resp = await client.get(logoPath, { responseType: 'blob' });
-          const blob2 = resp.data;
-          if (blob2 && blob2.size > 0) {
-            const logoUrlObj = URL.createObjectURL(blob2);
-            const logoImg = new Image();
-            await new Promise((resolve, reject) => {
-              logoImg.onload = resolve;
-              logoImg.onerror = reject;
-              logoImg.src = logoUrlObj;
-            });
-            const s = canvas.width / 800;
-            const cx = 90 * s, cy = 90 * s, r = 50 * s;
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.clip();
-            ctx.drawImage(logoImg, cx - r, cy - r, r * 2, r * 2);
-            ctx.restore();
-            URL.revokeObjectURL(logoUrlObj);
-          }
-        } catch (e) {
-          console.warn('Logo overlay skipped:', e);
-        }
-      }
 
       // 4. Export PNG
       const fileName = `${receiptType}-${order.order_number || order.id}.png`;

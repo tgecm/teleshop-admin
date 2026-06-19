@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBot } from '../api/bots';
 import { useSelectedBot } from '../hooks/useSelectedBot';
-import { createPlanOrder } from '../api/public';
+import { createPlanOrder, validateSubscriptionDiscount } from '../api/public';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import {
@@ -20,7 +20,7 @@ import {
   Smartphone,
   CreditCard,
   Timer,
-  AlertTriangle,
+  AlertTriangle, Percent, Tag,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { myanmarFormat } from '../utils/date';
@@ -40,8 +40,16 @@ export default function Subscription() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(300);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const [showDiscountForm, setShowDiscountForm] = useState(false);
+  const [pendingPlanKey, setPendingPlanKey] = useState(null);
+  const [discountCodeInput, setDiscountCodeInput] = useState('');
+  const [discountValidating, setDiscountValidating] = useState(false);
+  const [appliedDiscount, setAppliedDiscount] = useState(null);
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownRef = useRef(null);
   const pollRef = useRef(null);
   const timerRef = useRef(null);
+  const pendingPlanRef = useRef(null);
 
   const { data: bot, isLoading } = useQuery({
     queryKey: ['bots', selectedBotId],
@@ -165,22 +173,70 @@ export default function Subscription() {
   const daysRemaining = expiryDate ? differenceInDays(expiryDate, new Date()) : 0;
   const currentRank = PLAN_RANK[currentPlan] || 0;
 
-  const handleUpgrade = async (planKey) => {
+  const handleUpgradeClick = (planKey) => {
+    if (cooldown > 0) return;
+    setPendingPlanKey(planKey);
+    pendingPlanRef.current = planKey;
+    setDiscountCodeInput('');
+    setDiscountValidating(false);
+    setShowDiscountForm(true);
+  };
+
+  const handleApplyDiscount = async () => {
+    const code = discountCodeInput.trim().toUpperCase();
+    if (!code) return addToast('Enter a discount code', 'error');
+    const pk = pendingPlanRef.current;
+    if (!pk) return;
+    setDiscountValidating(true);
+    try {
+      const result = await validateSubscriptionDiscount(code);
+      setAppliedDiscount(result);
+      setShowDiscountForm(false);
+      setDiscountCodeInput(code);
+      handleUpgrade(pk, code);
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Invalid discount code', 'error');
+    } finally {
+      setDiscountValidating(false);
+    }
+  };
+
+  const handleSkipDiscount = () => {
+    const pk = pendingPlanRef.current;
+    if (!pk) return;
+    setShowDiscountForm(false);
+    setAppliedDiscount(null);
+    setDiscountCodeInput('');
+    handleUpgrade(pk);
+  };
+
+  const handleUpgrade = async (planKey, discountCode) => {
     setOrderLoading(true);
     setOrderData(null);
     setShowQr(true);
     setTimeRemaining(300);
+    setAppliedDiscount(null);
     const plan = plans.find(p => p.key === planKey);
     const planType = planBilling[planKey] !== false ? 'yearly' : 'monthly';
 
     try {
-      const result = await createPlanOrder(selectedBotId, planKey, planType);
+      const result = await createPlanOrder(selectedBotId, planKey, planType, discountCode);
+      const originalPrice = planBilling[planKey] !== false ? plan.yearlyPrice : plan.monthlyPrice;
       setOrderData({
         ...result,
         planName: plan.name,
         planType,
-        amountFormatted: planBilling[planKey] !== false ? plan.yearlyPrice : plan.monthlyPrice,
+        amountFormatted: result.original_amount
+          ? `${(result.amount || 0).toLocaleString()} MMK`
+          : originalPrice,
+        originalAmountFormatted: result.discount_percent > 0
+          ? `${(result.original_amount || 0).toLocaleString()} MMK`
+          : null,
+        discountPercent: result.discount_percent || 0,
       });
+      if (discountCode) {
+        setAppliedDiscount({ discount_percent: result.discount_percent });
+      }
     } catch (err) {
       addToast(err.response?.data?.detail || 'Failed to create order', 'error');
       setShowQr(false);
@@ -235,6 +291,18 @@ export default function Subscription() {
     return () => clearInterval(timerRef.current);
   }, [showQr, paymentSuccess, orderLoading]);
 
+  // Cooldown timer after closing QR
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    cooldownRef.current = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) { clearInterval(cooldownRef.current); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(cooldownRef.current);
+  }, [cooldown > 0]);
+
   // Auto-close when timer hits 0
   useEffect(() => {
     if (timeRemaining <= 0 && showQr && !paymentSuccess) {
@@ -249,6 +317,7 @@ export default function Subscription() {
     setPaymentSuccess(false);
     setOrderData(null);
     setShowCloseWarning(false);
+    setCooldown(30);
   };
 
   const closeQr = () => {
@@ -368,11 +437,15 @@ export default function Subscription() {
                   </span>
                 ) : canUpgrade ? (
                   <button
-                    onClick={() => handleUpgrade(plan.key)}
-                    disabled={orderLoading}
+                    onClick={() => handleUpgradeClick(plan.key)}
+                    disabled={orderLoading || cooldown > 0}
                     className="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-xs"
                   >
-                    Upgrade
+                    {cooldown > 0 ? (
+                      <><Timer className="w-3 h-3" /> Wait {cooldown}s</>
+                    ) : (
+                      'Upgrade'
+                    )}
                   </button>
                 ) : (
                   <span className="block w-full py-2.5 text-center text-xs font-bold text-gray-400 bg-gray-50 rounded-xl border border-gray-100">
@@ -384,6 +457,78 @@ export default function Subscription() {
           );
         })}
       </div>
+
+      {/* Discount Code Modal */}
+      <AnimatePresence>
+        {showDiscountForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm relative overflow-hidden"
+            >
+              <button
+                onClick={() => setShowDiscountForm(false)}
+                className="absolute top-3 right-3 w-7 h-7 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors z-10"
+              >
+                <X className="w-3.5 h-3.5 text-white" />
+              </button>
+              <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-6 text-center">
+                <div className="w-12 h-12 mx-auto mb-3 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <Tag className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Have a Discount Code?</h3>
+                <p className="text-indigo-200 text-sm mt-1">
+                  {pendingPlanKey && `${plans.find(p => p.key === pendingPlanKey)?.name} Plan`}
+                </p>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-500 mb-1.5 block">Discount Code</label>
+                  <input
+                    type="text"
+                    value={discountCodeInput}
+                    onChange={e => setDiscountCodeInput(e.target.value.toUpperCase())}
+                    placeholder="Enter your code"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 uppercase tracking-wider font-bold"
+                    autoFocus
+                    onKeyDown={e => { if (e.key === 'Enter') handleApplyDiscount(); }}
+                  />
+                </div>
+                {discountValidating && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Validating...
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleApplyDiscount}
+                    disabled={discountValidating || !discountCodeInput.trim()}
+                    className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {discountValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    Apply
+                  </button>
+                  <button
+                    onClick={handleSkipDiscount}
+                    disabled={discountValidating}
+                    className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all text-sm disabled:opacity-50"
+                  >
+                    Skip
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* QR Code Modal */}
       <AnimatePresence>
@@ -483,7 +628,17 @@ export default function Subscription() {
                     </div>
                     <div className="text-center space-y-1">
                       <p className="text-sm sm:text-lg font-bold text-gray-900">{orderData.planName} Plan</p>
-                      <p className="text-lg sm:text-2xl font-bold text-indigo-600">{orderData.amountFormatted}</p>
+                      {orderData.discountPercent > 0 ? (
+                        <div>
+                          <p className="text-sm text-gray-400 line-through">{orderData.originalAmountFormatted}</p>
+                          <p className="text-lg sm:text-2xl font-bold text-indigo-600">{orderData.amountFormatted}</p>
+                          <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 text-[10px] font-bold rounded-full">
+                            {orderData.discountPercent}% OFF
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="text-lg sm:text-2xl font-bold text-indigo-600">{orderData.amountFormatted}</p>
+                      )}
                     </div>
                     <div className="mt-3 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-center">
                       <p className="text-[11px] text-amber-700 font-medium">
