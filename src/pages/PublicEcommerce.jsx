@@ -525,20 +525,28 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   );
 }
 
-function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees }) {
-  const [form, setForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' });
+function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm }) {
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [profileLoaded, setProfileLoaded] = useState(false);
   const [agreed1, setAgreed1] = useState(false);
   const [agreed2, setAgreed2] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(null);
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
+  const { addToast } = useToastStore();
+
+  const handleCopy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast('Copied to clipboard');
+    } catch {
+      addToast('Failed to copy', 'error');
+    }
+  };
 
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState(0);
@@ -570,9 +578,9 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
 
     let fee = 0;
 
-    if (anyZoneFeeProduct && form.township) {
+    if (anyZoneFeeProduct && contactForm.township) {
       const match = zoneFees.find(zf =>
-        zf.township.toLowerCase() === form.township.toLowerCase()
+        zf.township.toLowerCase() === contactForm.township.toLowerCase()
       );
       if (match && Number(match.fee) > 0) {
         fee = Number(match.fee);
@@ -588,73 +596,7 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
     }
 
     setDeliveryFeeAmount(fee);
-  }, [deliveryFee, freeDeliveryThreshold, cartItems, products, totalAmount, couponApplied, effectiveTotal, zoneFees, form.township]);
-
-  useEffect(() => {
-    const tgToken = localStorage.getItem('telegram_token');
-    const customerUid = user?.uid
-      || (tgToken ? (getUserIdFromToken() || '_') : '');
-    if (!customerUid || !shopSlug || profileLoaded || !shop?.id) return;
-    fetch(`${API_BASE}/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
-      .then(r => r.ok ? r.json() : {})
-      .then(data => {
-        if (data && data.display_name) {
-          const pl = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
-          const el = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [user?.email || ''];
-          setForm({
-            name: data.display_name || user?.displayName || '',
-            phones: pl.length > 0 ? pl : [''],
-            emails: el.length > 0 ? el : [user?.email || ''],
-            telegram: data.telegram_username || '',
-            viber: data.viber_number || '',
-            region: data.region || '',
-            district: data.district || '',
-            township: data.township || '',
-            address: data.address || '',
-            notes: data.notes || '',
-          });
-        } else {
-          setForm(prev => ({ ...prev, name: user?.displayName || '', emails: [user?.email || ''] }));
-        }
-        setProfileLoaded(true);
-      })
-      .catch(() => setProfileLoaded(true));
-  }, [user?.uid, shop?.id, user?.displayName, user?.email, profileLoaded]);
-
-  // Load guest mode cached contact info
-  useEffect(() => {
-    if (viewMode !== 'guest' || !shopSlug || profileLoaded) return;
-    const cacheKey = 'guest_contact_' + shopSlug;
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const data = JSON.parse(cached);
-        if (data && data.name) {
-          setForm({
-            name: data.name || '',
-            phones: data.phones?.length > 0 ? data.phones : [''],
-            emails: data.email ? [data.email] : [''],
-            telegram: data.telegram || '',
-            viber: data.viber || '',
-            region: data.region || '',
-            district: data.district || '',
-            township: data.township || '',
-            address: data.address || '',
-            notes: data.notes || '',
-          });
-        }
-      }
-    } catch {}
-    setProfileLoaded(true);
-  }, [viewMode, shopSlug, profileLoaded]);
-
-  const setPhone = (idx, val) => setForm(p => { const n = [...p.phones]; n[idx] = val; return { ...p, phones: n }; });
-  const addPhone = () => setForm(p => ({ ...p, phones: [...p.phones, ''] }));
-  const removePhone = (idx) => setForm(p => ({ ...p, phones: p.phones.filter((_, i) => i !== idx) }));
-
-  const setEmail = (idx, val) => setForm(p => { const n = [...p.emails]; n[idx] = val; return { ...p, emails: n }; });
-  const addEmail = () => setForm(p => ({ ...p, emails: [...p.emails, ''] }));
-  const removeEmail = (idx) => setForm(p => ({ ...p, emails: p.emails.filter((_, i) => i !== idx) }));
+  }, [deliveryFee, freeDeliveryThreshold, cartItems, products, totalAmount, couponApplied, effectiveTotal, zoneFees, contactForm.township]);
 
   const handleProofFile = (e) => {
     const file = e.target.files?.[0];
@@ -688,10 +630,10 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
   };
 
   const handleSubmit = async () => {
-    if (!form.name.trim()) { setError('Name is required'); return; }
-    if (!form.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
-    if (!form.emails[0]?.trim()) { setError('At least one email is required'); return; }
-    if (!form.address.trim()) { setError('Delivery address is required'); return; }
+    if (!contactForm.name.trim()) { setError('Name is required'); return; }
+    if (!contactForm.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
+    if (!contactForm.emails[0]?.trim()) { setError('At least one email is required'); return; }
+    if (!contactForm.address.trim()) { setError('Delivery address is required'); return; }
     if ((viewMode === 'ecommerce' || viewMode === 'guest') && !proofFile) { setError('Payment proof screenshot is required'); return; }
     setLoading(true);
     setError('');
@@ -730,8 +672,8 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
         setUploadingProof(false);
       }
 
-      const phoneStr = form.phones.filter(Boolean).map(p => p.trim()).join(', ');
-      const emailStr = form.emails.filter(Boolean).map(e => e.trim()).join(', ');
+      const phoneStr = contactForm.phones.filter(Boolean).map(p => p.trim()).join(', ');
+      const emailStr = contactForm.emails.filter(Boolean).map(e => e.trim()).join(', ');
 
       // Save profile first (use uid from Firebase or JWT token for custom domain proxy auth)
       const profileUid = viewMode === 'guest' ? '' : (user?.uid || getUserIdFromToken() || '');
@@ -742,17 +684,17 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
           body: JSON.stringify({
             uid: profileUid,
             bot_id: shop.id,
-            display_name: form.name.trim(),
+            display_name: contactForm.name.trim(),
             email: emailStr,
             phone: phoneStr,
             photo_url: user?.photoURL || '',
-            telegram_username: form.telegram.trim(),
-            viber_number: form.viber.trim(),
-            address: form.address.trim(),
-            notes: form.notes.trim(),
-            region: form.region,
-            district: form.district,
-            township: form.township,
+            telegram_username: contactForm.telegram.trim(),
+            viber_number: contactForm.viber.trim(),
+            address: contactForm.address.trim(),
+            notes: contactForm.notes.trim(),
+            region: contactForm.region,
+            district: contactForm.district,
+            township: contactForm.township,
           }),
         }).catch(() => {});
       }
@@ -761,16 +703,16 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
         bot_id: shop.id,
         ...(profileUid ? { firebase_uid: profileUid } : {}),
         ...(viewMode !== 'guest' && telegramUser?.id ? { telegram_id: telegramUser.id } : {}),
-        customer_name: form.name.trim(),
+        customer_name: contactForm.name.trim(),
         phone: phoneStr,
         email: emailStr,
-        address: form.address.trim(),
-        notes: form.notes.trim(),
-        telegram_username: form.telegram.trim(),
-        viber_number: form.viber.trim(),
-        region: form.region,
-        district: form.district,
-        township: form.township,
+        address: contactForm.address.trim(),
+        notes: contactForm.notes.trim(),
+        telegram_username: contactForm.telegram.trim(),
+        viber_number: contactForm.viber.trim(),
+        region: contactForm.region,
+        district: contactForm.district,
+        township: contactForm.township,
         items: cartItems.map(i => {
           const variantParts = [];
           if (i.selected_color) variantParts.push(COLOR_NAMES[i.selected_color] || i.selected_color);
@@ -810,16 +752,16 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
         const cacheKey = 'guest_contact_' + shopSlug;
         try {
           localStorage.setItem(cacheKey, JSON.stringify({
-            name: form.name.trim(),
-            phones: form.phones.filter(Boolean).map(p => p.trim()),
+            name: contactForm.name.trim(),
+            phones: contactForm.phones.filter(Boolean).map(p => p.trim()),
             email: emailStr,
-            telegram: form.telegram.trim(),
-            viber: form.viber.trim(),
-            region: form.region,
-            district: form.district,
-            township: form.township,
-            address: form.address.trim(),
-            notes: form.notes.trim(),
+            telegram: contactForm.telegram.trim(),
+            viber: contactForm.viber.trim(),
+            region: contactForm.region,
+            district: contactForm.district,
+            township: contactForm.township,
+            address: contactForm.address.trim(),
+            notes: contactForm.notes.trim(),
           }));
         } catch {}
       }
@@ -940,131 +882,59 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
           )}
         </div>
 
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Full Name *</label>
-            <input type="text" value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Phone Numbers *</label>
-            <div className="space-y-2">
-              {form.phones.map((phone, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <input type="tel" value={phone} onChange={e => setPhone(idx, e.target.value)}
-                    placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone"}
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-                  {idx === 0 ? (
-                    <button onClick={addPhone} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button onClick={() => removePhone(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Email Addresses *</label>
-            <div className="space-y-2">
-              {form.emails.map((email, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <input type="email" value={email} onChange={e => setEmail(idx, e.target.value)}
-                    placeholder={idx === 0 ? "your@email.com" : "Additional email"}
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-                  {idx === 0 ? (
-                    <button onClick={addEmail} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button onClick={() => removeEmail(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Telegram Username</label>
-            <input type="text" value={form.telegram} onChange={e => setForm(p => ({...p, telegram: e.target.value}))}
-              placeholder="@username"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Viber Number</label>
-            <input type="tel" value={form.viber} onChange={e => setForm(p => ({...p, viber: e.target.value}))}
-              placeholder="09xxxxxxxxx"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်)</label>
-            <SearchableSelect
-              value={form.region}
-              onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
-              options={REGION_NAMES}
-              placeholder="Select Region"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">District (ခရိုင်)</label>
-            <SearchableSelect
-              value={form.district}
-              onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
-              options={getDistricts(form.region)}
-              placeholder="Select District"
-              disabled={!form.region}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်)</label>
-            <SearchableSelect
-              value={form.township}
-              onChange={v => setForm(p => ({ ...p, township: v }))}
-              options={getTownships(form.region, form.district)}
-              placeholder="Select Township"
-              disabled={!form.district}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Delivery Address *</label>
-            <textarea value={form.address} onChange={e => setForm(p => ({...p, address: e.target.value}))} rows={2}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Notes (optional)</label>
-            <input type="text" value={form.notes} onChange={e => setForm(p => ({...p, notes: e.target.value}))}
-              placeholder="Any special requests?"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-
-          {selectedPayment && (
-            <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
-              <div className="flex items-center gap-3 mb-2">
+        {selectedPayment && (() => {
+          const pm = selectedPayment;
+          const color = PAYMENT_COLORS[(pm.id || 0) % PAYMENT_COLORS.length];
+          return (
+            <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100 space-y-3">
+              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm"
-                  style={{ backgroundColor: PAYMENT_COLORS[(selectedPayment.id || 0) % PAYMENT_COLORS.length] }}>
-                  {(selectedPayment.name || '?').charAt(0).toUpperCase()}
+                  style={{ backgroundColor: color }}>
+                  {(pm.name || '?').charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <p className="font-bold text-sm text-gray-900">Pay via {selectedPayment.name}</p>
-                  <p className="text-xs text-indigo-600 font-medium">Selected payment method</p>
-                </div>
+                <p className="font-bold text-sm text-gray-900">Pay via {pm.name}</p>
               </div>
+              {pm.qr_code_url && (
+                <div className="flex justify-center bg-white rounded-xl p-3">
+                  <img src={pm.qr_code_url} alt="QR Code" className="w-36 h-36 object-contain rounded-lg"
+                    onError={(e) => { e.target.style.display = 'none'; }} />
+                </div>
+              )}
+              {pm.account_name && (
+                <div>
+                  <p className="text-xs text-gray-400 font-medium mb-0.5">Account Name</p>
+                  <p className="text-sm font-bold text-gray-900">{pm.account_name}</p>
+                </div>
+              )}
+              {pm.payment_number && (
+                <div>
+                  <p className="text-xs text-gray-400 font-medium mb-0.5">Account Number</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-gray-900">{pm.payment_number}</p>
+                    <button onClick={() => handleCopy(pm.payment_number)}
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-90">
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              {pm.description && (
+                <div>
+                  <p className="text-xs text-gray-400 font-medium mb-0.5">Details</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{pm.description}</p>
+                </div>
+              )}
+              {pm.notes && (
+                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <p className="text-xs text-amber-700 whitespace-pre-wrap">{pm.notes}</p>
+                </div>
+              )}
             </div>
-          )}
+          );
+        })()}
 
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Payment Proof (screenshot) {(viewMode === 'ecommerce' || viewMode === 'guest') && <span className="text-rose-500"> *</span>}</label>
+        <div>
+          <label className="text-xs text-gray-500 font-medium mb-1 block">Payment Proof (screenshot) {(viewMode === 'ecommerce' || viewMode === 'guest') && <span className="text-rose-500"> *</span>}</label>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => document.getElementById('proof-input').click()}
@@ -1107,7 +977,6 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
               </span>
             </label>
           </div>
-        </div>
 
         {error && <p className="text-rose-500 text-sm mt-3 text-center">{error}</p>}
 
@@ -1272,16 +1141,6 @@ const PAYMENT_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '
 
 function PaymentSelect({ paymentMethods, onBack, onNext }) {
   const [selectedId, setSelectedId] = useState(null);
-  const { addToast } = useToastStore();
-
-  const handleCopy = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      addToast('Copied to clipboard');
-    } catch {
-      addToast('Failed to copy', 'error');
-    }
-  };
 
   return (
     <motion.div
@@ -1314,66 +1173,22 @@ function PaymentSelect({ paymentMethods, onBack, onNext }) {
               return (
                 <div key={pm.id}
                   onClick={() => setSelectedId(isSelected ? null : pm.id)}
-                  className={`rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] ${
+                  className={`rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] p-4 ${
                     isSelected ? 'border-indigo-500 shadow-lg' : 'border-gray-100 hover:border-gray-200'
                   }`}
                 >
-                  <div className="flex items-center gap-3 p-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-sm"
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      isSelected ? 'border-indigo-500' : 'border-gray-300'
+                    }`}>
+                      {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />}
+                    </div>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm"
                       style={{ backgroundColor: color }}>
                       {(pm.name || '?').charAt(0).toUpperCase()}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 text-sm truncate">{pm.name}</p>
-                      {pm.account_name && (
-                        <p className="text-xs text-gray-500 truncate">{pm.account_name}</p>
-                      )}
-                    </div>
-                    <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                    <p className="font-bold text-gray-900 text-sm">{pm.name}</p>
                   </div>
-
-                  {isSelected && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
-                      className="overflow-hidden border-t border-gray-100">
-                      <div className="p-4 pt-3 space-y-3">
-                        {pm.qr_code_url && (
-                          <div className="flex justify-center bg-gray-50 rounded-xl p-4">
-                            <img src={pm.qr_code_url} alt="QR Code" className="w-40 h-40 object-contain rounded-lg"
-                              onError={(e) => { e.target.style.display = 'none'; }} />
-                          </div>
-                        )}
-                        {pm.account_name && (
-                          <div>
-                            <p className="text-xs text-gray-400 font-medium mb-0.5">Account Name</p>
-                            <p className="text-sm font-bold text-gray-900">{pm.account_name}</p>
-                          </div>
-                        )}
-                        {pm.payment_number && (
-                          <div>
-                            <p className="text-xs text-gray-400 font-medium mb-0.5">Account Number</p>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-gray-900">{pm.payment_number}</p>
-                              <button onClick={() => handleCopy(pm.payment_number)}
-                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-90">
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {pm.description && (
-                          <div>
-                            <p className="text-xs text-gray-400 font-medium mb-0.5">Details</p>
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{pm.description}</p>
-                          </div>
-                        )}
-                        {pm.notes && (
-                          <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-                            <p className="text-xs text-amber-700 whitespace-pre-wrap">{pm.notes}</p>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
                 </div>
               );
             })}
@@ -1393,10 +1208,229 @@ function PaymentSelect({ paymentMethods, onBack, onNext }) {
               }`}
               style={selectedId ? { background: THEMES[DEFAULT_THEME].css['--theme-btn'] } : {}}
             >
-              Transferred, Next...
+              Next
             </button>
           </div>
         )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode, shop, shopSlug }) {
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const tgToken = localStorage.getItem('telegram_token');
+    const customerUid = user?.uid
+      || (tgToken ? (getUserIdFromToken() || '_') : '');
+    if (!customerUid || !shopSlug || profileLoaded || !shop?.id) return;
+    fetch(`${API_BASE}/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
+      .then(r => r.ok ? r.json() : {})
+      .then(data => {
+        if (data && data.display_name) {
+          const pl = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
+          const el = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [user?.email || ''];
+          setForm({
+            name: data.display_name || user?.displayName || '',
+            phones: pl.length > 0 ? pl : [''],
+            emails: el.length > 0 ? el : [user?.email || ''],
+            telegram: data.telegram_username || '',
+            viber: data.viber_number || '',
+            region: data.region || '',
+            district: data.district || '',
+            township: data.township || '',
+            address: data.address || '',
+            notes: data.notes || '',
+          });
+        } else {
+          setForm(prev => ({ ...prev, name: user?.displayName || '', emails: [user?.email || ''] }));
+        }
+        setProfileLoaded(true);
+      })
+      .catch(() => setProfileLoaded(true));
+  }, [user?.uid, shop?.id, user?.displayName, user?.email, profileLoaded]);
+
+  useEffect(() => {
+    if (viewMode !== 'guest' || !shopSlug || profileLoaded) return;
+    const cacheKey = 'guest_contact_' + shopSlug;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (data && data.name) {
+          setForm({
+            name: data.name || '',
+            phones: data.phones?.length > 0 ? data.phones : [''],
+            emails: data.email ? [data.email] : [''],
+            telegram: data.telegram || '',
+            viber: data.viber || '',
+            region: data.region || '',
+            district: data.district || '',
+            township: data.township || '',
+            address: data.address || '',
+            notes: data.notes || '',
+          });
+        }
+      }
+    } catch {}
+    setProfileLoaded(true);
+  }, [viewMode, shopSlug, profileLoaded]);
+
+  const setPhone = (idx, val) => setForm(p => { const n = [...p.phones]; n[idx] = val; return { ...p, phones: n }; });
+  const addPhone = () => setForm(p => ({ ...p, phones: [...p.phones, ''] }));
+  const removePhone = (idx) => setForm(p => ({ ...p, phones: p.phones.filter((_, i) => i !== idx) }));
+  const setEmail = (idx, val) => setForm(p => { const n = [...p.emails]; n[idx] = val; return { ...p, emails: n }; });
+  const addEmail = () => setForm(p => ({ ...p, emails: [...p.emails, ''] }));
+  const removeEmail = (idx) => setForm(p => ({ ...p, emails: p.emails.filter((_, i) => i !== idx) }));
+
+  const handleNext = () => {
+    if (!form.name.trim()) { setError('Name is required'); return; }
+    if (!form.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
+    if (!form.emails[0]?.trim()) { setError('At least one email is required'); return; }
+    if (!form.address.trim()) { setError('Delivery address is required'); return; }
+    onNext(form);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm"
+    >
+      <motion.div
+        initial={{ y: '100%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        className="relative bg-white w-full max-w-lg md:rounded-[32px] max-h-[92svh] overflow-y-auto rounded-t-[32px] shadow-2xl p-6"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Contact Information</h2>
+          <button onClick={onBack} className="p-2 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Full Name *</label>
+            <input type="text" value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Phone Numbers *</label>
+            <div className="space-y-2">
+              {form.phones.map((phone, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input type="tel" value={phone} onChange={e => setPhone(idx, e.target.value)}
+                    placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone"}
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                  {idx === 0 ? (
+                    <button onClick={addPhone} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button onClick={() => removePhone(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Email Addresses *</label>
+            <div className="space-y-2">
+              {form.emails.map((email, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input type="email" value={email} onChange={e => setEmail(idx, e.target.value)}
+                    placeholder={idx === 0 ? "your@email.com" : "Additional email"}
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                  {idx === 0 ? (
+                    <button onClick={addEmail} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button onClick={() => removeEmail(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Telegram Username</label>
+            <input type="text" value={form.telegram} onChange={e => setForm(p => ({...p, telegram: e.target.value}))}
+              placeholder="@username"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Viber Number</label>
+            <input type="tel" value={form.viber} onChange={e => setForm(p => ({...p, viber: e.target.value}))}
+              placeholder="09xxxxxxxxx"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်)</label>
+            <SearchableSelect
+              value={form.region}
+              onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
+              options={REGION_NAMES}
+              placeholder="Select Region"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">District (ခရိုင်)</label>
+            <SearchableSelect
+              value={form.district}
+              onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
+              options={getDistricts(form.region)}
+              placeholder="Select District"
+              disabled={!form.region}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်)</label>
+            <SearchableSelect
+              value={form.township}
+              onChange={v => setForm(p => ({ ...p, township: v }))}
+              options={getTownships(form.region, form.district)}
+              placeholder="Select Township"
+              disabled={!form.district}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Delivery Address *</label>
+            <textarea value={form.address} onChange={e => setForm(p => ({...p, address: e.target.value}))} rows={2}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Notes (optional)</label>
+            <input type="text" value={form.notes} onChange={e => setForm(p => ({...p, notes: e.target.value}))}
+              placeholder="Any special requests?"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          </div>
+        </div>
+
+        {error && <p className="text-rose-500 text-sm mt-3 text-center">{error}</p>}
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onBack}
+            className="flex-1 py-3 rounded-2xl font-bold text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all active:scale-[0.98]">
+            Back
+          </button>
+          <button onClick={handleNext}
+            className="flex-1 py-3 rounded-2xl font-bold text-sm text-white shadow-lg transition-all active:scale-[0.98]"
+            style={{ background: THEMES[DEFAULT_THEME].css['--theme-btn'] }}
+          >
+            Next
+          </button>
+        </div>
       </motion.div>
     </motion.div>
   );
@@ -1417,6 +1451,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [showSignIn, setShowSignIn] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
+  const [showContactInfo, setShowContactInfo] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' });
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [orderPlaced, setOrderPlaced] = useState(null);
   const [registered, setRegistered] = useState(null); // null=checking, true, false
@@ -1445,6 +1481,33 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [selectedColors, setSelectedColors] = useState({});
   const [linkSelectedOptions, setLinkSelectedOptions] = useState({});
   const [oosMap, setOosMap] = useState({});
+  const crossSellScrollRef = useRef(null);
+  const crossSellDrag = useRef({ isDragging: false, startX: 0, scrollLeft: 0, moved: false });
+
+  const handleCrossSellMouseDown = useCallback((e) => {
+    const el = crossSellScrollRef.current;
+    if (!el) return;
+    crossSellDrag.current.isDragging = true;
+    crossSellDrag.current.startX = e.pageX - el.offsetLeft;
+    crossSellDrag.current.scrollLeft = el.scrollLeft;
+    crossSellDrag.current.moved = false;
+  }, []);
+
+  const handleCrossSellMouseMove = useCallback((e) => {
+    if (!crossSellDrag.current.isDragging) return;
+    e.preventDefault();
+    const el = crossSellScrollRef.current;
+    if (!el) return;
+    const x = e.pageX - el.offsetLeft;
+    const walk = (x - crossSellDrag.current.startX) * 1.5;
+    if (Math.abs(walk) > 5) crossSellDrag.current.moved = true;
+    el.scrollLeft = crossSellDrag.current.scrollLeft - walk;
+  }, []);
+
+  const handleCrossSellMouseUp = useCallback(() => {
+    crossSellDrag.current.isDragging = false;
+  }, []);
+
   const [userMode, setUserMode] = useState(null);
   const setViewMode = useCallback((v) => {
     if (mode) return; // locked — cannot switch mode on dedicated pages
@@ -1653,14 +1716,14 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     }, selColor || null);
     if (viewMode === 'guest') {
       setShowCart(false);
-      paymentMethods.length > 0 ? setShowPaymentSelect(true) : setCheckoutOpen(true);
+      paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
     } else if (!user && !tgLoggedIn) {
       pendingBuyNowRef.current = true;
       setShowSignIn(true);
     } else {
       setShowCart(false);
       if (registered === true) {
-        paymentMethods.length > 0 ? setShowPaymentSelect(true) : setCheckoutOpen(true);
+        paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
       } else {
         setShowRegister(true);
       }
@@ -1683,7 +1746,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     pendingBuyNowRef.current = false;
     setShowCart(false);
     if (registered === true) {
-      paymentMethods.length > 0 ? setShowPaymentSelect(true) : setCheckoutOpen(true);
+      paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
     } else {
       setShowRegister(true);
     }
@@ -1695,7 +1758,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       if (paymentMethods.length > 0) {
         setShowPaymentSelect(true);
       } else {
-        setCheckoutOpen(true);
+        setShowContactInfo(true);
       }
     };
     if (viewMode === 'guest') {
@@ -1715,8 +1778,18 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     const pm = paymentMethods.find(p => p.id === paymentId);
     setSelectedPaymentMethod(pm || null);
     setShowPaymentSelect(false);
-    setCheckoutOpen(true);
+    setShowContactInfo(true);
   }, [paymentMethods]);
+
+  const handleContactNext = useCallback(() => {
+    setShowContactInfo(false);
+    setCheckoutOpen(true);
+  }, []);
+
+  const handleContactBack = useCallback(() => {
+    setShowContactInfo(false);
+    setShowPaymentSelect(true);
+  }, []);
 
   const handleOrderPlaced = useCallback((orderData) => {
     setCheckoutOpen(false);
@@ -1728,7 +1801,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const handleRegisterSuccess = useCallback(() => {
     setRegistered(true);
     setShowRegister(false);
-    paymentMethods.length > 0 ? setShowPaymentSelect(true) : setCheckoutOpen(true);
+    paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
   }, [paymentMethods.length]);
 
   function generateVisitorId() {
@@ -2377,7 +2450,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                           } else {
                             setShowCart(false);
                             if (registered === true) {
-                              paymentMethods.length > 0 ? setShowPaymentSelect(true) : setCheckoutOpen(true);
+                              paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
                             } else {
                               setShowRegister(true);
                             }
@@ -2395,7 +2468,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                           setViewMode('guest');
                           addToCart(productLinkProduct, linkSelectedColor, linkSelectedOptions);
                           setShowCart(false);
-                          paymentMethods.length > 0 ? setShowPaymentSelect(true) : setCheckoutOpen(true);
+                          paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
                         }}
                         disabled={isOutOfStock || (productColors.length > 0 && !linkSelectedColor) || (linkProductOptions.length > 0 && linkProductOptions.some(o => !linkSelectedOptions[o.id]))}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-all active:scale-[0.98] text-sm"
@@ -2906,7 +2979,13 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="text-sm font-bold text-gray-700">You May Also Like</h4>
                       </div>
-                      <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1">
+                      <div ref={crossSellScrollRef}
+                        onMouseDown={handleCrossSellMouseDown}
+                        onMouseMove={handleCrossSellMouseMove}
+                        onMouseUp={handleCrossSellMouseUp}
+                        onMouseLeave={handleCrossSellMouseUp}
+                        className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1 cursor-grab active:cursor-grabbing select-none"
+                        style={{ scrollbarWidth: 'none' }}>
                         {crossSellProducts.map(p => (
                           <div key={p.id} className="flex-shrink-0 w-28 bg-white rounded-xl border border-gray-100 overflow-hidden">
                             <div className="w-full aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
@@ -2925,7 +3004,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                               <div className="flex items-center justify-between mt-1">
                                 <span className="text-[10px] font-bold" style={{ color: theme.css['--theme-btn'] }}>{formatPrice(p.price)}</span>
                                 <button
-                                  onClick={() => addToCart(p, null, null)}
+                                  onClick={() => { if (crossSellDrag.current.moved) return; addToCart(p, null, null); }}
                                   className="w-6 h-6 rounded-lg flex items-center justify-center active:scale-90 transition-all"
                                   style={{ background: theme.css['--theme-btn'], color: '#fff' }}
                                 >
@@ -2989,6 +3068,22 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         )}
       </AnimatePresence>
 
+      {/* Contact Information Modal */}
+      <AnimatePresence>
+        {showContactInfo && (
+          <ContactInfoStep
+            form={contactForm}
+            setForm={setContactForm}
+            onBack={handleContactBack}
+            onNext={handleContactNext}
+            user={user}
+            viewMode={viewMode}
+            shop={shop}
+            shopSlug={slug || shop?.public_slug || shop?.bot_username || ''}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Checkout Modal */}
       <AnimatePresence>
         {checkoutOpen && (user || tgLoggedIn || viewMode === 'guest') && (
@@ -3004,6 +3099,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             products={products}
             deliverySettings={data?.delivery_settings || {}}
             deliveryFees={data?.delivery_fees || []}
+            contactForm={contactForm}
             onClose={() => { setCheckoutOpen(false); setSelectedPaymentMethod(null); }}
             onOrderPlaced={handleOrderPlaced}
           />
