@@ -3,12 +3,15 @@ import { NavLink } from 'react-router-dom';
 import { useBotStore } from '../../store/botStore';
 
 export default function PlanGate({ children }) {
-  const { bots, selectedBotId } = useBotStore();
+  const { bots, botsLoaded, selectedBotId } = useBotStore();
   const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
   const planName = selectedBot?.plan_name?.toLowerCase() || 'free';
 
   const path = window.location.pathname.replace(/^\//, '');
   if (path === 'subscription') return children;
+
+  // Bots haven't loaded yet — don't flash upgrade gate
+  if (!botsLoaded) return null;
 
   const isQrRoute = path.startsWith('qr-menu');
 
