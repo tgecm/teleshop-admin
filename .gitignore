@@ -8,3 +8,6 @@ coverage/
 !.env.example
 .vite/
 assets/
+android/build/
+.gradle/
+*.local
