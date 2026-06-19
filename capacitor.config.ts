@@ -6,7 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     url: 'https://telegramecommerce.shop/dashboard',
-    cleartext: true
+    cleartext: true,
+    androidScheme: 'https'
   }
 };
 
