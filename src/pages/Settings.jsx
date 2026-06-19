@@ -13,7 +13,11 @@ import {
   createPlanPayment,
   updatePlanPayment,
   deletePlanPayment,
-  getAllBots
+  getAllBots,
+  getSubscriptionDiscounts,
+  createSubscriptionDiscount,
+  updateSubscriptionDiscount,
+  deleteSubscriptionDiscount,
 } from '../api/superadmin';
 import { getStats } from '../api/stats';
 import { getBotPublicSlug, generateBotSlug, listBotDomains, addBotDomain, verifyBotDomainItem, toggleBotDomainItem, deleteBotDomainItem } from '../api/public';
@@ -53,6 +57,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Percent,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1648,6 +1653,10 @@ export default function Settings() {
           </div>
         )}
 
+        {activeTab === 'superadmin' && isSuperadmin && (
+          <DiscountsManager />
+        )}
+
         {activeTab === 'shop' && (
           <>
           </>)}
@@ -1818,6 +1827,283 @@ function ManageBots({ allBots, deleteBotMutation, selectedBotId }) {
             ))}
           </div>
         )}
+      </section>
+    </div>
+  );
+}
+
+// ── Discount Codes Manager ──────────────────────────────────────
+function DiscountsManager() {
+  const { addToast } = useToastStore();
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const generateCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    setForm(f => ({ ...f, code }));
+  };
+
+  const copyCode = async (code) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      addToast('Code copied');
+    } catch { addToast('Failed to copy', 'error'); }
+  };
+
+  const [form, setForm] = useState({
+    code: '', discount_percent: '', duration_days: '', total_cards: '',
+    is_unlimited: false,
+  });
+
+  const { data: discounts, isLoading, refetch } = useQuery({
+    queryKey: ['subscription-discounts'],
+    queryFn: getSubscriptionDiscounts,
+    refetchInterval: 30000,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data) => createSubscriptionDiscount(data),
+    onSuccess: (res) => {
+      refetch();
+      resetForm();
+      addToast(`Discount code "${res.code}" created`);
+    },
+    onError: (err) => addToast(err.response?.data?.detail || 'Failed to create', 'error'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => updateSubscriptionDiscount(id, data),
+    onSuccess: () => {
+      refetch();
+      resetForm();
+      addToast('Discount code updated');
+    },
+    onError: (err) => addToast(err.response?.data?.detail || 'Failed to update', 'error'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => deleteSubscriptionDiscount(id),
+    onSuccess: () => {
+      refetch();
+      addToast('Discount code deleted');
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, is_active }) => updateSubscriptionDiscount(id, { is_active }),
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const resetForm = () => {
+    setShowCreate(false);
+    setEditingId(null);
+    setForm({ code: '', discount_percent: '', duration_days: '', total_cards: '', is_unlimited: false });
+  };
+
+  const openEdit = (d) => {
+    setEditingId(d.id);
+    setForm({
+      code: d.code || '',
+      discount_percent: String(d.discount_percent || ''),
+      duration_days: String(d.duration_days || ''),
+      total_cards: d.total_cards != null ? String(d.total_cards) : '',
+      is_unlimited: d.total_cards == null,
+    });
+    setShowCreate(true);
+  };
+
+  const handleSubmit = () => {
+    const percent = parseInt(form.discount_percent);
+    const days = parseInt(form.duration_days);
+    if (!percent || percent < 1 || percent > 100) return addToast('Discount must be 1-100', 'error');
+    if (!days || days < 1) return addToast('Duration must be at least 1 day', 'error');
+
+    const payload = {
+      code: form.code.trim().toUpperCase(),
+      discount_percent: percent,
+      duration_days: days,
+      total_cards: form.is_unlimited ? null : (parseInt(form.total_cards) || null),
+    };
+
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, data: payload });
+    } else {
+      createMutation.mutate(payload);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <Percent className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Subscription Discount Codes</h3>
+            <p className="text-xs text-gray-500">{discounts?.length || 0} codes</p>
+          </div>
+        </div>
+        <button onClick={() => { resetForm(); setShowCreate(true); }}
+          className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-xs active:scale-95">
+          <Plus className="w-4 h-4" /> Create
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showCreate && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={() => { if (!createMutation.isPending && !updateMutation.isPending) resetForm(); }}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-900">{editingId ? 'Edit' : 'Create'} Discount Code</h3>
+                <button onClick={resetForm} className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200">
+                  <X className="w-3.5 h-3.5 text-gray-500" />
+                </button>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Code</label>
+                <div className="flex gap-2">
+                  <input type="text" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                    placeholder="Manual or generate"
+                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 uppercase" />
+                  <button onClick={generateCode} type="button"
+                    className="px-3 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all text-xs flex items-center gap-1.5 active:scale-95">
+                    <RefreshCw className="w-3.5 h-3.5" /> Generate
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Duration (days)</label>
+                <input type="number" min="1" value={form.duration_days} onChange={e => setForm(f => ({ ...f, duration_days: e.target.value.replace(/\D/g, '') }))}
+                  placeholder="e.g. 365"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Discount (%)</label>
+                <input type="number" min="1" max="100" value={form.discount_percent} onChange={e => {
+                  const v = e.target.value.replace(/\D/g, '');
+                  if (parseInt(v) > 100) return;
+                  setForm(f => ({ ...f, discount_percent: v }));
+                }}
+                  placeholder="e.g. 10"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">
+                  Total Cards <span className="text-gray-300 normal-case">(number of uses)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <input type="number" min="1" value={form.total_cards} onChange={e => setForm(f => ({ ...f, total_cards: e.target.value.replace(/\D/g, '') }))}
+                    disabled={form.is_unlimited}
+                    placeholder="e.g. 5"
+                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed" />
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <button onClick={() => setForm(f => ({ ...f, is_unlimited: !f.is_unlimited }))}
+                      className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${form.is_unlimited ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+                      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${form.is_unlimited ? 'left-5.5' : 'left-0.5'}`} />
+                    </button>
+                    <span className="text-xs font-bold text-gray-500">Unlimited</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button onClick={handleSubmit}
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                  className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-1.5">
+                  {(createMutation.isPending || updateMutation.isPending) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                  {editingId ? 'Update' : 'Create'} Code
+                </button>
+                <button onClick={resetForm} className="px-4 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all text-sm">
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          {isLoading ? (
+            <div className="p-8 space-y-3">{[1,2,3].map(i => <LoadingSkeleton key={i} className="h-12" />)}</div>
+          ) : !discounts || discounts.length === 0 ? (
+            <div className="p-12 text-center">
+              <Percent className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">No discount codes yet</p>
+              <p className="text-xs text-gray-400 mt-1">Click Create to make your first subscription discount code.</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50/50">
+                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Code</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Discount</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duration</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Uses</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="text-right px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {discounts.map(d => (
+                  <tr key={d.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1.5 font-mono font-bold text-gray-900 text-xs bg-gray-100 px-2 py-0.5 rounded-lg">
+                        {d.code}
+                        <button onClick={() => copyCode(d.code)} className="text-gray-400 hover:text-indigo-600 transition-colors">
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-bold text-emerald-600">{d.discount_percent}%</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{d.duration_days}d</td>
+                    <td className="px-4 py-3">
+                      <span className="text-gray-600">{d.used_count}{d.total_cards != null ? `/${d.total_cards}` : '/∞'}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => toggleMutation.mutate({ id: d.id, is_active: !d.is_active })}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all ${
+                          d.is_active
+                            ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
+                            : 'bg-gray-50 border-gray-100 text-gray-400'
+                        }`}>
+                        {d.is_active ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => openEdit(d)}
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => {
+                          if (confirm(`Delete code "${d.code}"?`)) deleteMutation.mutate(d.id);
+                        }}
+                          className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </section>
     </div>
   );

@@ -62,3 +62,20 @@ export const getStaffActivityLogs = (botId, staffId, startDate, endDate) =>
 
 export const downloadStaffActivityLogs = (botId, staffId, startDate, endDate) =>
   client.get('/staff/activity-logs/download', { params: { bot_id: botId, staff_id: staffId, start_date: startDate, end_date: endDate }, responseType: 'blob' }).then(res => res.data);
+
+// ── Subscription Discount Codes ──────────────────────────────────
+
+export const getSubscriptionDiscounts = () =>
+  client.get('/superadmin/subscription-discounts').then(res => res.data);
+
+export const createSubscriptionDiscount = (data) =>
+  client.post('/superadmin/subscription-discounts', data).then(res => res.data);
+
+export const updateSubscriptionDiscount = (id, data) =>
+  client.put(`/superadmin/subscription-discounts/${id}`, data).then(res => res.data);
+
+export const deleteSubscriptionDiscount = (id) =>
+  client.delete(`/superadmin/subscription-discounts/${id}`).then(res => res.data);
+
+export const validateSubscriptionDiscount = (code) =>
+  client.post('/public/validate-subscription-discount', { code }).then(res => res.data);
