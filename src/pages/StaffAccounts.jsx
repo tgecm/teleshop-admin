@@ -7,6 +7,7 @@ import { getStaffActivityLogs, downloadStaffActivityLogs } from '../api/superadm
 import { format } from 'date-fns';
 import { tz } from '@date-fns/tz';
 import { myanmarFormat } from '../utils/date';
+import { downloadBlob } from '../utils/download';
 import client from '../api/client';
 
 const myTZ = tz('Asia/Yangon');
@@ -154,13 +155,8 @@ export default function StaffAccounts() {
     try {
       const range = getDateRange(dateFilter);
       const blob = await downloadStaffActivityLogs(selectedBotId, selectedStaffId, range.startDate, range.endDate);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
       const staffName = staffList?.find(s => s.id === selectedStaffId)?.name || 'staff';
-      a.download = `${staffName.replace(/\s+/g, '_')}_activity_logs.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadBlob(blob, `${staffName.replace(/\s+/g, '_')}_activity_logs.txt`);
       addToast('Logs downloaded');
     } catch {
       addToast('Failed to download logs', 'error');

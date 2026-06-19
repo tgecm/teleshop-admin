@@ -1,18 +1,21 @@
 package com.teleshop.admin;
 
 import android.app.DownloadManager;
+import android.content.ContentValues;
 import android.content.Context;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.webkit.DownloadListener;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.Toast;
 import com.getcapacitor.BridgeActivity;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.OutputStream;
 import android.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -115,20 +118,40 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void downloadBase64(String base64, String mime, String contentDisposition) {
             try {
-                String fileName = "download_" + System.currentTimeMillis() + getExtFromMime(mime);
-                byte[] data = Base64.decode(base64, Base64.DEFAULT);
-                File downloadsDir = Environment.getExternalStoragePublicDirectory(
-                    Environment.DIRECTORY_DOWNLOADS);
-                if (!downloadsDir.exists()) downloadsDir.mkdirs();
-                File file = new File(downloadsDir, fileName);
-                FileOutputStream fos = new FileOutputStream(file);
-                fos.write(data);
-                fos.close();
+                String fileName = getFileNameFromContentDisposition(contentDisposition);
+                if (fileName == null) {
+                    fileName = "download_" + System.currentTimeMillis() + getExtFromMime(mime);
+                }
 
-                android.media.MediaScannerConnection.scanFile(
-                    getApplicationContext(),
-                    new String[]{file.getAbsolutePath()},
-                    null, null);
+                byte[] data = Base64.decode(base64, Base64.DEFAULT);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ContentValues values = new ContentValues();
+                    values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+                    values.put(MediaStore.Downloads.MIME_TYPE, mime);
+                    values.put(MediaStore.Downloads.IS_PENDING, 1);
+                    Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                    if (uri != null) {
+                        OutputStream os = getContentResolver().openOutputStream(uri);
+                        os.write(data);
+                        os.close();
+                        values.put(MediaStore.Downloads.IS_PENDING, 0);
+                        getContentResolver().update(uri, values, null, null);
+                    }
+                } else {
+                    File downloadsDir = Environment.getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_DOWNLOADS);
+                    if (!downloadsDir.exists()) downloadsDir.mkdirs();
+                    File file = new File(downloadsDir, fileName);
+                    FileOutputStream fos = new FileOutputStream(file);
+                    fos.write(data);
+                    fos.close();
+
+                    android.media.MediaScannerConnection.scanFile(
+                        getApplicationContext(),
+                        new String[]{file.getAbsolutePath()},
+                        null, null);
+                }
 
                 runOnUiThread(() -> Toast.makeText(getApplicationContext(),
                     "Saved: " + fileName, Toast.LENGTH_SHORT).show());
@@ -137,6 +160,15 @@ public class MainActivity extends BridgeActivity {
                 runOnUiThread(() -> Toast.makeText(getApplicationContext(),
                     "Save failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
+        }
+
+        private String getFileNameFromContentDisposition(String contentDisposition) {
+            if (contentDisposition != null && contentDisposition.contains("filename=")) {
+                String name = contentDisposition.substring(contentDisposition.indexOf("filename=") + 9);
+                name = name.replace("\"", "").trim();
+                if (!name.isEmpty()) return name;
+            }
+            return null;
         }
 
         @JavascriptInterface

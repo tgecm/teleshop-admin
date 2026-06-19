@@ -10,6 +10,7 @@ import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
+import { downloadText } from '../utils/download';
 import StatCard from '../components/shared/StatCard';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -344,13 +345,9 @@ function OverviewTab({ globalStats, statsLoading, allBots, botsLoading, recentOr
           ]);
         });
         const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `bots-export-${myanmarFormat(new Date(), 'yyyy-MM-dd')}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        await downloadText('﻿' + csv,
+          `bots-export-${myanmarFormat(new Date(), 'yyyy-MM-dd')}.csv`,
+          'text/csv;charset=utf-8;');
         addToast('Bots CSV exported');
       } catch (e) {
         addToast('Export failed', 'error');
