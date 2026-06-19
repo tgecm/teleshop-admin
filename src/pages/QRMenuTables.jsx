@@ -4,6 +4,7 @@ import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { getBotPublicSlug } from '../api/public';
+import { downloadBlob } from '../utils/download';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Plus, Copy, Download, Trash2, QrCode, ExternalLink, Pen } from 'lucide-react';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
@@ -69,7 +70,7 @@ export default function QRMenuTables() {
     if (node) qrRefs.current[number] = node;
   };
 
-  const downloadQR = (number) => {
+  const downloadQR = async (number) => {
     const canvas = qrRefs.current[number];
     if (!canvas) return;
     const table = tables.find(t => t.number === number);
@@ -104,13 +105,8 @@ export default function QRMenuTables() {
     ctx.textBaseline = 'middle';
     ctx.fillText(String(number), cx, cy);
 
-    out.toBlob((blob) => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${label.toLowerCase()}-qr.png`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    });
+    const blob = await new Promise(resolve => out.toBlob(resolve));
+    if (blob) await downloadBlob(blob, `${label.toLowerCase()}-qr.png`);
   };
 
   const copyLink = (number) => {

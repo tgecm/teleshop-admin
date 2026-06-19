@@ -5,6 +5,7 @@ import client from '../api/client';
 import { createCoupon, getCoupons, deleteCoupon } from '../api/coupons';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
+import { downloadBlob } from '../utils/download';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import SearchableSelect from '../components/shared/SearchableSelect';
@@ -249,14 +250,7 @@ export default function Products() {
       const res = await client.get(`/bots/${selectedBotId}/delivery-fees/template`, {
         responseType: 'blob',
       });
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'delivery-fees-template.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await downloadBlob(res.data, 'delivery-fees-template.xlsx');
     } catch (e) {
       addToast('Failed to download template', 'error');
     }
