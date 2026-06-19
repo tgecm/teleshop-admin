@@ -738,12 +738,20 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       }
 
       // 4. Export PNG
-      const link = document.createElement('a');
-      link.download = `${receiptType}-${order.order_number || order.id}.png`;
-      link.href = canvas.toDataURL('image/png');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const fileName = `${receiptType}-${order.order_number || order.id}.png`;
+      const dataUrl = canvas.toDataURL('image/png');
+      if (window.AndroidBridge && typeof window.AndroidBridge.downloadBase64 === 'function') {
+        const base64 = dataUrl.split(',')[1];
+        window.AndroidBridge.downloadBase64(base64, 'image/png', `filename="${fileName}"`);
+      } else {
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
       addToast('Receipt downloaded successfully');
     } catch (err) {
       console.error('Receipt export failed:', err);
