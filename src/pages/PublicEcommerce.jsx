@@ -1455,6 +1455,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     queryKey: viaDomain ? ['public-ecommerce-by-domain'] : ['public-ecommerce', slug],
     queryFn: viaDomain ? getPublicShopByDomain : () => getPublicShop(slug),
     enabled: viaDomain || !!slug,
+    staleTime: 0,
+    gcTime: 0,
     retry: 2,
     retryDelay: 1000,
   });
@@ -1537,6 +1539,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     }
     return pm;
   });
+
   const themeName = data?.theme || DEFAULT_THEME;
   const theme = THEMES[themeName] || THEMES[DEFAULT_THEME];
   const orderButtonLabel = data?.order_button_name || 'Buy Now';
@@ -1549,6 +1552,20 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
   const cart = useCartState(shop?.id, slug || shop?.public_slug || shop?.bot_username || '', user, viewMode);
   const { items: cartItems, cartCount, totalAmount, loading: cartLoading, addItem, updateQty, removeItem, clearCart } = cart;
+
+  const crossSellProducts = useMemo(() => {
+    if (!cartItems.length || !products.length) return [];
+    const cartProductIds = new Set(cartItems.map(i => i.product_id));
+    const cartCategoryIds = new Set(
+      cartItems.map(i => products.find(p => p.id === i.product_id)?.category_id).filter(Boolean)
+    );
+    if (!cartCategoryIds.size) return [];
+    const suggestions = products.filter(p =>
+      p.category_id && cartCategoryIds.has(p.category_id) &&
+      !cartProductIds.has(p.id) && p.stock_quantity !== 0
+    );
+    return suggestions.sort(() => Math.random() - 0.5).slice(0, 5);
+  }, [cartItems, products]);
 
   // Wrap addItem to resolve image URLs before saving
   const addToCart = useCallback((product, colorHex, selectedOptions) => {
@@ -2845,7 +2862,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                     <p className="text-gray-400 text-sm">Your cart is empty</p>
                   </div>
                 ) : (
-                  cartItems.map(item => {
+                  <>
+                  {cartItems.map(item => {
                     const isOOS = oosMap[item.product_id];
                     return (
                     <div key={item.product_id} className={`flex items-center gap-3 bg-gray-50 rounded-2xl p-3 ${isOOS ? 'opacity-50' : ''}`}>
@@ -2881,7 +2899,46 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                       </div>
                     </div>
                     );
-                  })
+                  })}
+
+                  {crossSellProducts.length > 0 && (
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-bold text-gray-700">You May Also Like</h4>
+                      </div>
+                      <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1">
+                        {crossSellProducts.map(p => (
+                          <div key={p.id} className="flex-shrink-0 w-28 bg-white rounded-xl border border-gray-100 overflow-hidden">
+                            <div className="w-full aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
+                              {(() => {
+                                const img = getPublicImageUrls(p.image_url, shop?.id);
+                                const src = img[0];
+                                return src ? (
+                                  <img src={src} alt={p.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <Package className="w-6 h-6 text-gray-300" />
+                                );
+                              })()}
+                            </div>
+                            <div className="p-1.5">
+                              <p className="text-[11px] font-bold text-gray-900 truncate">{p.name}</p>
+                              <div className="flex items-center justify-between mt-1">
+                                <span className="text-[10px] font-bold" style={{ color: theme.css['--theme-btn'] }}>{formatPrice(p.price)}</span>
+                                <button
+                                  onClick={() => addToCart(p, null, null)}
+                                  className="w-6 h-6 rounded-lg flex items-center justify-center active:scale-90 transition-all"
+                                  style={{ background: theme.css['--theme-btn'], color: '#fff' }}
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
 

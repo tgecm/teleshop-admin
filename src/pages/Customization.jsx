@@ -374,7 +374,7 @@ export default function Customization() {
         <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Customization</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
+      <div className="grid grid-cols-1 gap-3 md:gap-6 items-start">
 
         {/* Shop Theme */}
         <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
@@ -398,13 +398,13 @@ export default function Customization() {
                     setShowThemeConfirm(true);
                   }}
                   disabled={updateContentMutation.isPending}
-                  className="flex flex-col items-center gap-1.5 group"
+                  className="flex flex-col items-center gap-1 group"
                 >
                   <div
-                    className={`w-full aspect-square rounded-xl transition-all ${isActive ? 'ring-2 ring-offset-2 ring-indigo-600 scale-105' : 'group-hover:scale-105'}`}
-                    style={{ background: theme.preview }}
+                    className={`w-full rounded-xl transition-all ${isActive ? 'ring-2 ring-offset-2 ring-indigo-600 scale-105' : 'group-hover:scale-105'}`}
+                    style={{ background: theme.preview, paddingBottom: '55%' }}
                   />
-                  <span className={`text-[10px] font-medium text-center leading-tight ${isActive ? 'text-indigo-600 font-bold' : 'text-gray-600'}`}>
+                  <span className={`text-[11px] font-medium text-center leading-tight ${isActive ? 'text-indigo-600 font-bold' : 'text-gray-600'}`}>
                     {theme.name}
                   </span>
                 </button>
@@ -431,15 +431,15 @@ export default function Customization() {
           />
         </section>
 
-        {/* Update Logo */}
+        {/* Logo & Bio */}
         <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-2.5 mb-3">
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
               <UserCircle className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-gray-900">Update Logo</h3>
-              <p className="text-[10px] text-gray-500">Upload bot logo for receipt (1:1, max 512×512)</p>
+              <h3 className="text-base font-bold text-gray-900">Shop Identity</h3>
+              <p className="text-[10px] text-gray-500">Logo and bio for your shop</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -467,7 +467,18 @@ export default function Customization() {
               ) : (
                 <Camera className="w-3.5 h-3.5" />
               )}
-              {uploading ? 'Uploading...' : 'Update'}
+              {uploading ? 'Uploading...' : 'Update Logo'}
+            </button>
+            <div className="w-px h-8 bg-gray-200" />
+            <button
+              onClick={() => setShowBioPopup(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left flex-1"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+              <span className="text-xs text-gray-700 truncate flex-1">
+                {bioText || <span className="text-gray-400 italic">Add a shop bio...</span>}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
             </button>
           </div>
         </section>
@@ -548,6 +559,32 @@ export default function Customization() {
           </div>
         </section>
 
+        {/* Order Button */}
+        <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Order Button</h3>
+              <p className="text-[10px] text-gray-500">Choose the label for the buy button</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              if (!requireFeature(bot?.plan_name, 'change_order_button_name', addToast)) return;
+              setShowOrderBtnPopup(true);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
+          >
+            <ShoppingBag className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            <span className="text-sm text-gray-700 truncate flex-1">
+              Current: <span className="font-bold">{orderButtonLabel}</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          </button>
+        </section>
+
       </div>
       {/* Website Context Popup */}
       <AnimatePresence>
@@ -601,32 +638,6 @@ export default function Customization() {
       </AnimatePresence>
 
 
-      {/* Order Button */}
-      <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-2.5 mb-3">
-          <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
-            <ShoppingBag className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-gray-900">Order Button</h3>
-            <p className="text-[10px] text-gray-500">Choose the label for the buy button</p>
-          </div>
-        </div>
-        <button
-          onClick={() => {
-            if (!requireFeature(bot?.plan_name, 'change_order_button_name', addToast)) return;
-            setShowOrderBtnPopup(true);
-          }}
-          className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
-        >
-          <ShoppingBag className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-          <span className="text-sm text-gray-700 truncate flex-1">
-            Current: <span className="font-bold">{orderButtonLabel}</span>
-          </span>
-          <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-        </button>
-      </section>
-
       {/* Shop Banners */}
       <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-2.5 mb-3">
@@ -646,29 +657,6 @@ export default function Customization() {
           botId={selectedBotId}
           planName={bot?.plan_name}
         />
-
-        {/* Shop Bio */}
-        <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <Edit2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-gray-900">Edit Bio</h3>
-              <p className="text-[10px] text-gray-500">Short bio shown on your shop page</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowBioPopup(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
-          >
-            <Edit2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            <span className="text-sm text-gray-700 truncate flex-1">
-              {bioText || <span className="text-gray-400 italic">Add a shop bio...</span>}
-            </span>
-            <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-          </button>
-        </section>
       </section>
 
       {/* Bio Popup */}
