@@ -333,17 +333,21 @@ export default function Customization() {
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
-    if (img.width > 512 || img.height > 512) {
-      addToast('Image dimensions must not exceed 512x512', 'error');
-      URL.revokeObjectURL(url);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
     URL.revokeObjectURL(url);
     setUploading(true);
     try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, 512, 512);
+      const resizedBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+      const resizedFile = new File([resizedBlob], 'logo.jpg', { type: 'image/jpeg' });
+
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', resizedFile);
       formData.append('bot_id', String(selectedBotId));
       const res = await fetch('https://api.telegramecommerce.shop/upload/profile-picture', {
         method: 'POST',
