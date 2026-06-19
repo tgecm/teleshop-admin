@@ -118,10 +118,9 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void downloadBase64(String base64, String mime, String contentDisposition) {
             try {
-                String fileName = getFileNameFromContentDisposition(contentDisposition);
-                if (fileName == null) {
-                    fileName = "download_" + System.currentTimeMillis() + getExtFromMime(mime);
-                }
+                String name = getFileNameFromContentDisposition(contentDisposition);
+                final String fileName = name != null ? name :
+                    "download_" + System.currentTimeMillis() + getExtFromMime(mime);
 
                 byte[] data = Base64.decode(base64, Base64.DEFAULT);
 
