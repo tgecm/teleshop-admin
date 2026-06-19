@@ -334,7 +334,7 @@ function OverviewTab({ globalStats, statsLoading, allBots, botsLoading, recentOr
   const exportAnalytics = () => {
     if (!allBots) return;
     setExporting(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const rows = [['Bot ID', 'Username', 'Name', 'Plan', 'Status', 'Plan Expiry']];
         allBots.forEach(b => {
