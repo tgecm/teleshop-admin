@@ -691,8 +691,10 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       const logoUrl = bot?.profile_picture || '';
       if (logoUrl) {
         try {
-          const logoPath = new URL(logoUrl).pathname;
-          const resp = await client.get(logoPath, { responseType: 'blob' });
+          // Use full URL with query params preserved — pathname alone strips ?bot_id=
+          const logoUrlObj = new URL(logoUrl);
+          const logoFullPath = logoUrlObj.pathname + logoUrlObj.search;
+          const resp = await client.get(logoFullPath, { responseType: 'blob' });
           const blob = resp.data;
           if (blob && blob.size > 0) {
             logoDataUrl = await new Promise((resolve) => {

@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.teleshop.admin',
+  appId: 'com.ecommercemyanmar.shop',
   appName: 'E-commerce',
   webDir: 'dist'
 };
