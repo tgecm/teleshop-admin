@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { TelegramUserProfile } from '../types/telegram';
-import { getFCMToken, sendTokenToBackend } from '../lib/pushNotifications';
+import { onFCMTokenReady, sendTokenToBackend } from '../lib/pushNotifications';
 
 interface TelegramAuthContextType {
   telegramToken: string | null;
@@ -36,11 +36,8 @@ export function TelegramAuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('telegram_user', JSON.stringify(user));
     setTelegramToken(jwt);
     setTelegramUser(user);
-    // Send stored FCM token to backend after login
-    const fcmToken = getFCMToken();
-    if (fcmToken) {
-      sendTokenToBackend(fcmToken);
-    }
+    // Send FCM token to backend — works whether token arrived before or after login
+    onFCMTokenReady((token) => sendTokenToBackend(token));
   };
 
   const logoutTelegram = () => {
