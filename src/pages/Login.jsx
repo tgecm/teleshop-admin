@@ -235,14 +235,15 @@ export default function Login() {
         }
       } else {
         const data = await loginApi(email, password);
-        if (data.success) {
-          setAuth(data.token, data);
-          sendStoredFCMToken();
-          navigate('/dashboard');
+        if (data.step === '2fa') {
           setLoginToken(data.login_token);
           setNeedsCode(true);
           setPassword('');
           setError('');
+        } else if (data.success) {
+          setAuth(data.token, data);
+          sendStoredFCMToken();
+          navigate('/dashboard');
         } else {
           setError('Invalid credentials');
         }
