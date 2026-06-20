@@ -8,6 +8,7 @@ import { getBots } from './api/bots';
 import { getAllBots } from './api/superadmin';
 import { normalizeText } from './utils/normalizeText';
 import { updatePwaManifest } from './utils/dynamicManifest';
+import { NotificationToast } from './components/NotificationToast';
 
 import ToastContainer from './components/shared/ToastContainer';
 import SelectionToolbar from './components/shared/SelectionToolbar';
@@ -379,6 +380,7 @@ export default function App() {
             <>
               <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>
               <ToastContainer />
+              <NotificationToast />
               <SelectionToolbar />
             </>
           );
@@ -422,6 +424,7 @@ export default function App() {
               </Routes>
             </BrowserRouter>
             <ToastContainer />
+            <NotificationToast />
             <SelectionToolbar />
           </>
         );
