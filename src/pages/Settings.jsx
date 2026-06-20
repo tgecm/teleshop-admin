@@ -1858,17 +1858,7 @@ function AppSettings() {
     () => localStorage.getItem('splash_tagline') || '',
   );
 
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform()) {
-      import('@aparajita/capacitor-biometric-auth').then(({ BiometricAuth }) => {
-        BiometricAuth.isAvailable().then((res) => {
-          setBiometricAvailable(res.isAvailable);
-        }).catch(() => {});
-      }).catch(() => {});
-    }
-  }, []);
+  const isNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
 
   const handleLogoPick = () => {
     const input = document.createElement('input');
@@ -1929,18 +1919,18 @@ function AppSettings() {
           </div>
           <button
             onClick={() => toggleBiometric(!biometricEnabled)}
-            disabled={!biometricAvailable}
+            disabled={!isNative}
             className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${
               biometricEnabled ? 'bg-indigo-600' : 'bg-gray-300'
-            } ${!biometricAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+            } ${!isNative ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${
               biometricEnabled ? 'left-6.5' : 'left-0.5'
             }`} />
           </button>
         </div>
-        {!biometricAvailable && (
-          <p className="text-[10px] text-amber-600 mt-2">Not available on this device</p>
+        {!isNative && (
+          <p className="text-[10px] text-amber-600 mt-2">Only available on Android app</p>
         )}
       </section>
 
