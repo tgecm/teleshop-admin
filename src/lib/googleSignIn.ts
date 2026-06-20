@@ -71,7 +71,7 @@ export async function exchangeGoogleToken(
 ): Promise<{ token: string; user: { id: string; name: string; email: string; photo_url: string } }> {
   const body: Record<string, string> = { access_token: accessToken, shop_slug: shopSlug };
   if (firebaseUid) body.firebase_uid = firebaseUid;
-  const resp = await fetch('https://api.telegramecommerce.shop/auth/google', {
+  const resp = await fetch(`${API_BASE}/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
