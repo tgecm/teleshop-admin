@@ -20,7 +20,7 @@ export async function registerFCMToken(): Promise<string | null> {
   }
 }
 
-async function sendTokenToBackend(token: string): Promise<void> {
+export async function sendTokenToBackend(token: string): Promise<void> {
   const authToken = localStorage.getItem('telegram_token');
   if (!authToken) return;
   try {
