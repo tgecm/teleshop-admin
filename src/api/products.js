@@ -1,3 +1,4 @@
+import { API_BASE } from './config';
 import client from './client';
 
 export const getProducts = (params) => 
@@ -49,7 +50,7 @@ export const getImageUrl = (image_url, bot_id) => {
     ? JSON.parse(localStorage.getItem('auth-storage'))?.state?.token 
     : null;
     
-  let url = `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(file_id)}?bot_id=${bot_id}`;
+  let url = `${API_BASE}/telegram/file/${encodeURIComponent(file_id)}?bot_id=${bot_id}`;
   if (token) {
     url += `&token=${token}`;
   }

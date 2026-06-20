@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const API_BASE = 'https://api.telegramecommerce.shop';
+import { API_BASE } from '../../api/config';
 
 export default function ShopBanner({ banners, botId, theme, children }) {
   const [currentSlide, setCurrentSlide] = useState(0);

@@ -9,7 +9,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
 
-const API_BASE = 'https://api.telegramecommerce.shop';
+import { API_BASE } from '../api/config';
 
 function getPublicImageUrls(image_url, bot_id) {
   if (!image_url) return [];

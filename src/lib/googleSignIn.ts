@@ -1,3 +1,4 @@
+import { API_BASE } from '../api/config';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { auth } from './firebase';
 

@@ -1,3 +1,4 @@
+import { API_BASE } from './config';
 import client from './client';
 
 export const getPublicShop = (slug) =>
@@ -49,7 +50,7 @@ export const getPublicShopByDomain = () =>
   });
 
 export const getShopBio = async (botId) => {
-  const base = 'https://api.telegramecommerce.shop';
+  const base = API_BASE;
   try {
     const res = await fetch(`${base}/public/shop-bio/${botId}`);
     if (!res.ok) return '';
@@ -61,7 +62,7 @@ export const getShopBio = async (botId) => {
 };
 
 export const resolveBotForProductForm = (username, code) => {
-  const base = 'https://api.telegramecommerce.shop';
+  const base = API_BASE;
   return fetch(`${base}/public/bot-resolve/${encodeURIComponent(username)}/${encodeURIComponent(code)}`)
     .then(res => {
       if (!res.ok) throw new Error('Invalid link');
@@ -70,7 +71,7 @@ export const resolveBotForProductForm = (username, code) => {
 };
 
 export const createPublicProduct = (data) => {
-  const base = 'https://api.telegramecommerce.shop';
+  const base = API_BASE;
   return fetch(`${base}/public/products`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

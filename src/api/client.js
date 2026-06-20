@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { API_BASE } from './config';
 import { useAuthStore } from '../store/authStore';
 
 const client = axios.create({
-  baseURL: 'https://api.telegramecommerce.shop',
+  baseURL: API_BASE,
 });
 
 let lastBackendErrorTime = 0;

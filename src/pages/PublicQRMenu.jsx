@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
 
-const API_BASE = 'https://api.telegramecommerce.shop';
+import { API_BASE } from '../api/config';
 
 const CAT_EMOJIS = ['🍽️','🍚','🍜','🍲','🔥','🥗','🥤','🍮','🥩','🌯','🥟','🍕','🥪','🧆','🫘','🥘','🫕','🥫','🍱'];
 
@@ -235,7 +235,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
       const fd = new FormData();
       fd.append('file', proofFile);
       fd.append('bot_id', shop.id);
-      const uploadRes = await fetch('https://api.telegramecommerce.shop/public/upload/photo', {
+      const uploadRes = await fetch(`${API_BASE}/public/upload/photo`, {
         method: 'POST', body: fd,
       });
       if (uploadRes.ok) {
@@ -251,7 +251,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
         quantity: oi.qty,
       }));
 
-      const res = await fetch('https://api.telegramecommerce.shop/public/create-order', {
+      const res = await fetch(`${API_BASE}/public/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

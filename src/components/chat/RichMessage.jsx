@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ShoppingBag, Check, Camera } from 'lucide-react';
 
-const API_BASE = 'https://api.telegramecommerce.shop';
+import { API_BASE } from '../../api/config';
 
 function extractFileId(img) {
   if (!img) return '';
@@ -210,7 +210,7 @@ function CreateOrder({ data, botId }) {
     if (!botId || state !== 'creating') return;
     setState('loading');
     const item = data.product || {};
-    fetch('https://api.telegramecommerce.shop/public/create-order', {
+    fetch(`${API_BASE}/public/create-order`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { API_BASE } from '../api/config';
 
 const CSS = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -388,7 +389,7 @@ export default function Homepage() {
     if (notes.trim().length < 10 || notes.trim().length > 2000) return;
     setContactStatus('submitting');
     try {
-      const res = await fetch('https://api.telegramecommerce.shop/public/contact-submit', {
+      const res = await fetch(`${API_BASE}/public/contact-submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), telegram_username: telegram.trim(), notes: notes.trim() }),

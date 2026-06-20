@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getPublicShop } from '../api/public';
 import { useCartState } from '../context/CartContext';
 
-const API_BASE = 'https://api.telegramecommerce.shop';
+import { API_BASE } from '../api/config';
 
 function getPublicImageUrls(image_url, bot_id) {
   if (!image_url) return [];

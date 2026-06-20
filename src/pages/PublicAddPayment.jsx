@@ -1,11 +1,5 @@
+import { API_BASE } from '../api/config';
 import React, { useState, useRef } from 'react';
-import {
-  CreditCard, AlertCircle, CheckCircle2, Loader2, ImageUp, X,
-  ShoppingBag, ChevronRight, Building2, User, FileText
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-
-const API_BASE = 'https://api.telegramecommerce.shop';
 
 function compressImage(file, maxDimension = 720) {
   return new Promise((resolve) => {

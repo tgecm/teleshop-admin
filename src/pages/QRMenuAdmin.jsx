@@ -53,10 +53,10 @@ function getItemImageUrls(image_url, botId) {
   try {
     const parsed = JSON.parse(image_url);
     if (Array.isArray(parsed)) {
-      return parsed.map(m => `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(m.file_id)}?bot_id=${botId}`);
+      return parsed.map(m => `${API_BASE}/telegram/file/${encodeURIComponent(m.file_id)}?bot_id=${botId}`);
     }
   } catch {}
-  return [`https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(image_url)}?bot_id=${botId}`];
+  return [`${API_BASE}/telegram/file/${encodeURIComponent(image_url)}?bot_id=${botId}`];
 }
 
 function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selectedBotId }) {
@@ -186,7 +186,7 @@ function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selected
             {images.map((img, idx) => (
               <div key={img.file_id} className="relative w-20 h-20 bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden group">
                 <img
-                  src={`https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(img.file_id)}?bot_id=${selectedBotId}`}
+                  src={`${API_BASE}/telegram/file/${encodeURIComponent(img.file_id)}?bot_id=${selectedBotId}`}
                   alt=""
                   className="w-full h-full object-cover"
                   onError={(e) => { e.target.style.display = 'none'; }}
@@ -774,7 +774,7 @@ export default function QRMenuAdmin() {
             {menuBanners.length > 0 && (
               <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-none">
                 {menuBanners.map((banner, i) => {
-                  const url = `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(banner.file_id)}?bot_id=${selectedBotId}`;
+                  const url = `${API_BASE}/telegram/file/${encodeURIComponent(banner.file_id)}?bot_id=${selectedBotId}`;
                   return (
                     <div key={i} className="relative flex-shrink-0 w-48 sm:w-56 aspect-[3/1] rounded-xl overflow-hidden bg-gray-100 group">
                       <img src={url} alt={`Banner ${i + 1}`} className="w-full h-full object-cover" />

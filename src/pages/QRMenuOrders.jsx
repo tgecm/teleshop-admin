@@ -153,7 +153,7 @@ export default function QRMenuOrders() {
                                 if (!fileId) return null;
                                 return (
                                   <img key={i}
-                                    src={`https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(fileId)}?bot_id=${selectedBotId}`}
+                                    src={`${API_BASE}/telegram/file/${encodeURIComponent(fileId)}?bot_id=${selectedBotId}`}
                                     alt="Payment proof"
                                     className="h-28 w-auto rounded-lg border border-gray-200 bg-white object-contain"
                                   />
