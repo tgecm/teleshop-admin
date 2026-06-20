@@ -17,7 +17,10 @@ import NetworkStatus from './components/shared/NetworkStatus';
 import PermissionGuard from './components/shared/PermissionGuard';
 import PlanGate from './components/shared/PlanGate';
 import AppVersionCheck from './components/AppVersionCheck';
+import AppSplashScreen from './components/AppSplashScreen';
 import { useDisableDevTools } from './hooks/useDisableDevTools';
+import { useAppBadge } from './hooks/useAppBadge';
+import { useBackgroundSync } from './hooks/useBackgroundSync';
 
 const Layout = React.lazy(() => import('./components/layout/Layout'));
 const Login = React.lazy(() => import('./pages/Login'));
@@ -147,6 +150,10 @@ const queryClient = new QueryClient({
   },
 });
 
+if (typeof window !== 'undefined') {
+  (window as any).__reactQueryClient = queryClient;
+}
+
 function SuspenseFallback() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -185,6 +192,8 @@ export default function App() {
   const { bots, setBots, selectedBotId, setSelectedBot } = useBotStore();
 
   useDisableDevTools();
+  useAppBadge();
+  useBackgroundSync();
 
   const addProductFromHash = (() => {
     if (typeof window === 'undefined') return null;
@@ -289,6 +298,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AppSplashScreen />
       <AppVersionCheck />
       <HapticProvider>
       <NetworkStatus />

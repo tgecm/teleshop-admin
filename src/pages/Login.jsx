@@ -5,7 +5,9 @@ import { login as loginApi, verifyLoginCode, pollLoginApproval } from '../api/au
 import client from '../api/client';
 import { useBotStore } from '../store/botStore';
 import { motion } from 'motion/react';
-import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff, User, ShieldCheck, Clipboard } from 'lucide-react';
+import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff, User, ShieldCheck, Clipboard, Fingerprint } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -154,7 +156,25 @@ export default function Login() {
   useEffect(() => {
     const token = useAuthStore.getState().token || localStorage.getItem('telegram_token');
     if (token) {
-      navigate('/dashboard', { replace: true });
+      const biometricEnabled = localStorage.getItem('biometric_enabled') === 'true';
+      if (biometricEnabled && Capacitor.isNativePlatform()) {
+        BiometricAuth.authenticate({
+          reason: 'Unlock your account',
+          title: 'Biometric Login',
+          subtitle: 'Use fingerprint or face to sign in',
+          cancelButtonTitle: 'Use Password',
+        }).then((result) => {
+          if (result.authenticated) {
+            navigate('/dashboard', { replace: true });
+          } else {
+            setCheckingAuth(false);
+          }
+        }).catch(() => {
+          setCheckingAuth(false);
+        });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     } else {
       setCheckingAuth(false);
     }

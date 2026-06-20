@@ -9,6 +9,7 @@ import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
 import Receipt from '../components/orders/Receipt';
+import { Capacitor } from '@capacitor/core';
 import {
   Search,
   ChevronRight,
@@ -69,6 +70,13 @@ export default function Orders() {
     const handler = (e) => { if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    import('@capawesome/capacitor-badge').then(({ Badge }) => {
+      Badge.clear();
+    }).catch(() => {});
   }, []);
 
   const { data: orders, isLoading } = useQuery({
