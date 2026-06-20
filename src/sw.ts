@@ -32,6 +32,10 @@ registerRoute(
 // Note: skipWaiting intentionally omitted so that onNeedRefresh fires properly
 // via workbox-window. The page reloads automatically when a new SW is detected.
 
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
