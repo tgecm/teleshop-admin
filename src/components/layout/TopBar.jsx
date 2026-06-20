@@ -17,7 +17,7 @@ export default function TopBar({ onToggleSidebar }) {
   const { bots, selectedBotId } = useBotStore();
   const queryClient = useQueryClient();
   const selectedBot = (bots || []).find(b => b.id.toString() === selectedBotId?.toString());
-  const botName = selectedBot ? normalizeText(selectedBot.bot_full_name || selectedBot.bot_username || 'Admin') : 'Admin';
+  const botName = selectedBot ? normalizeText(selectedBot.bot_full_name || selectedBot.bot_username || 'E-commerce Myanmar') : (user?.email?.split('@')[0] || 'E-commerce Myanmar');
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
