@@ -629,8 +629,25 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
     );
   }
 
+  const planBanner = (() => {
+    const p = shop?.plan_name?.toLowerCase();
+    if (p !== 'free' && p !== 'basic') return null;
+    return (
+      <a href="https://t.me/tg_ecommerce_official_bot?start=newbot" target="_blank" rel="noopener noreferrer"
+        style={{
+          display: 'block', background: '#fef3c7', borderBottom: '1px solid #f59e0b',
+          padding: '5px 16px', textAlign: 'center', fontSize: '11px',
+          color: '#92400e', fontWeight: 500, letterSpacing: '0.01em',
+          textDecoration: 'none',
+        }}>
+        Want this kind of E-commerce? <span style={{textDecoration:'underline', fontWeight:600}}>Get here</span>
+      </a>
+    );
+  })();
+
   return (
     <div className="qr-page" style={theme.css}>
+      {planBanner}
       <div className="qr-container">
         {/* Hero */}
         {closedWhileBrowsing && (

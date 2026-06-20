@@ -634,7 +634,7 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
     if (!contactForm.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
     if (!contactForm.emails[0]?.trim()) { setError('At least one email is required'); return; }
     if (!contactForm.address.trim()) { setError('Delivery address is required'); return; }
-    if ((viewMode === 'ecommerce' || viewMode === 'guest') && !proofFile) { setError('Payment proof screenshot is required'); return; }
+    if ((viewMode === 'ecommerce' || viewMode === 'guest') && !proofFile && selectedPayment?.id !== 'cod') { setError('Payment proof screenshot is required'); return; }
     setLoading(true);
     setError('');
     try {
@@ -739,7 +739,11 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
         coupon_code: couponApplied?.code || '',
       };
       if (paymentProof) body.payment_proof = paymentProof;
-      if (selectedPayment?.name) body.payment_method = selectedPayment.name;
+      if (selectedPayment?.id === 'cod') {
+        body.payment_method = 'COD';
+      } else if (selectedPayment?.name) {
+        body.payment_method = selectedPayment.name;
+      }
 
       const res = await fetch(API_BASE + '/public/create-order', {
         method: 'POST',
@@ -883,6 +887,21 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
         </div>
 
         {selectedPayment && (() => {
+          if (selectedPayment.id === 'cod') {
+            return (
+              <div className="bg-emerald-50 rounded-2xl p-5 border border-emerald-100 text-center">
+                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <p className="font-bold text-gray-900">Cash on Delivery</p>
+                <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+                  Cash on Delivery. Please prepare the amount of <span className="font-bold text-gray-900">{formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount)} MMK</span> for the package
+                </p>
+              </div>
+            );
+          }
           const pm = selectedPayment;
           const color = PAYMENT_COLORS[(pm.id || 0) % PAYMENT_COLORS.length];
           return (
@@ -933,6 +952,7 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
           );
         })()}
 
+        {selectedPayment?.id !== 'cod' && (
         <div>
           <label className="text-xs text-gray-500 font-medium mb-1 block">Payment Proof (screenshot) {(viewMode === 'ecommerce' || viewMode === 'guest') && <span className="text-rose-500"> *</span>}</label>
             <div className="flex items-center gap-3">
@@ -959,6 +979,7 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
             )}
             {uploadingProof && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
           </div>
+        )}
 
           {/* Agreement checkboxes */}
           <div className="space-y-3 pt-2">
@@ -1139,8 +1160,9 @@ function RegisterModal({ shop, user, onClose, onSuccess }) {
 
 const PAYMENT_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'];
 
-function PaymentSelect({ paymentMethods, onBack, onNext }) {
+function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled }) {
   const [selectedId, setSelectedId] = useState(null);
+  const hasOptions = paymentMethods.length > 0 || codEnabled;
 
   return (
     <motion.div
@@ -1157,7 +1179,7 @@ function PaymentSelect({ paymentMethods, onBack, onNext }) {
           <button onClick={onBack} className="p-2 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
 
-        {paymentMethods.length === 0 ? (
+        {!hasOptions ? (
           <div className="text-center py-8">
             <p className="text-gray-400 text-sm">No payment methods available</p>
             <button onClick={onBack}
@@ -1167,6 +1189,29 @@ function PaymentSelect({ paymentMethods, onBack, onNext }) {
           </div>
         ) : (
           <div className="space-y-3">
+            {codEnabled && (
+              <div
+                onClick={() => setSelectedId(selectedId === 'cod' ? null : 'cod')}
+                className={`rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] p-4 ${
+                  selectedId === 'cod' ? 'border-emerald-500 shadow-lg' : 'border-gray-100 hover:border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                    selectedId === 'cod' ? 'border-emerald-500' : 'border-gray-300'
+                  }`}>
+                    {selectedId === 'cod' && <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />}
+                  </div>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm"
+                    style={{ backgroundColor: '#10b981' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <p className="font-bold text-gray-900 text-sm">Cash on Delivery</p>
+                </div>
+              </div>
+            )}
             {paymentMethods.map((pm, i) => {
               const isSelected = selectedId === pm.id;
               const color = PAYMENT_COLORS[i % PAYMENT_COLORS.length];
@@ -1195,7 +1240,7 @@ function PaymentSelect({ paymentMethods, onBack, onNext }) {
           </div>
         )}
 
-        {paymentMethods.length > 0 && (
+        {hasOptions && (
           <div className="flex gap-3 mt-6">
             <button onClick={onBack}
               className="flex-1 py-3 rounded-2xl font-bold text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all active:scale-[0.98]">
@@ -1602,6 +1647,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     }
     return pm;
   });
+  const codEnabled = !!(data?.cod_enabled);
 
   const themeName = data?.theme || DEFAULT_THEME;
   const theme = THEMES[themeName] || THEMES[DEFAULT_THEME];
@@ -1716,19 +1762,19 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     }, selColor || null);
     if (viewMode === 'guest') {
       setShowCart(false);
-      paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
+      paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
     } else if (!user && !tgLoggedIn) {
       pendingBuyNowRef.current = true;
       setShowSignIn(true);
     } else {
       setShowCart(false);
       if (registered === true) {
-        paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
+        paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
       } else {
         setShowRegister(true);
       }
     }
-  }, [user, tgLoggedIn, registered, getProductColors, selectedColors, viewMode, paymentMethods.length, shop?.id]);
+  }, [user, tgLoggedIn, registered, getProductColors, selectedColors, viewMode, paymentMethods.length, codEnabled, shop?.id]);
 
   const handleSignInSuccess = useCallback(() => {
     setShowSignIn(false);
@@ -1746,16 +1792,16 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     pendingBuyNowRef.current = false;
     setShowCart(false);
     if (registered === true) {
-      paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
+      paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
     } else {
       setShowRegister(true);
     }
-  }, [user, tgLoggedIn, registered, paymentMethods.length]);
+  }, [user, tgLoggedIn, registered, paymentMethods.length, codEnabled]);
 
   const handleCheckout = useCallback(() => {
     setShowCart(false);
     const goToPayment = () => {
-      if (paymentMethods.length > 0) {
+      if (paymentMethods.length > 0 || codEnabled) {
         setShowPaymentSelect(true);
       } else {
         setShowContactInfo(true);
@@ -1771,12 +1817,16 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     } else {
       setShowRegister(true);
     }
-  }, [user, tgLoggedIn, registered, viewMode, paymentMethods.length]);
+  }, [user, tgLoggedIn, registered, viewMode, paymentMethods.length, codEnabled]);
 
   const handlePaymentNext = useCallback((paymentId) => {
     if (!paymentId) return;
-    const pm = paymentMethods.find(p => p.id === paymentId);
-    setSelectedPaymentMethod(pm || null);
+    if (paymentId === 'cod') {
+      setSelectedPaymentMethod({ id: 'cod', name: 'Cash on Delivery' });
+    } else {
+      const pm = paymentMethods.find(p => p.id === paymentId);
+      setSelectedPaymentMethod(pm || null);
+    }
     setShowPaymentSelect(false);
     setShowContactInfo(true);
   }, [paymentMethods]);
@@ -1801,8 +1851,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const handleRegisterSuccess = useCallback(() => {
     setRegistered(true);
     setShowRegister(false);
-    paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
-  }, [paymentMethods.length]);
+    paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
+  }, [paymentMethods.length, codEnabled]);
 
   function generateVisitorId() {
     return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -2266,6 +2316,22 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
   if (data?.is_open === false) return <ShopClosed shop={shop} theme={theme} />;
 
+  const planBanner = (() => {
+    const p = shop?.plan_name?.toLowerCase();
+    if (p !== 'free' && p !== 'basic') return null;
+    return (
+      <a href="https://t.me/tg_ecommerce_official_bot?start=newbot" target="_blank" rel="noopener noreferrer"
+        style={{
+          display: 'block', background: '#fef3c7', borderBottom: '1px solid #f59e0b',
+          padding: '5px 16px', textAlign: 'center', fontSize: '11px',
+          color: '#92400e', fontWeight: 500, letterSpacing: '0.01em',
+          textDecoration: 'none',
+        }}>
+        Want this kind of E-commerce? <span style={{textDecoration:'underline', fontWeight:600}}>Get here</span>
+      </a>
+    );
+  })();
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden" style={{
       backgroundColor: theme.css['--theme-bg'],
@@ -2285,6 +2351,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       '--theme-header-text': theme.css['--theme-header-text'],
       '--theme-header-muted': theme.css['--theme-header-muted'],
     }}>
+      {planBanner}
       {/* Header */}
       <div className="relative" style={{ background: theme.css['--theme-header'] }}>
         <ShopBanner banners={data?.banners} botId={shop?.id} theme={theme}>
@@ -2450,7 +2517,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                           } else {
                             setShowCart(false);
                             if (registered === true) {
-                              paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
+                              paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
                             } else {
                               setShowRegister(true);
                             }
@@ -2468,7 +2535,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                           setViewMode('guest');
                           addToCart(productLinkProduct, linkSelectedColor, linkSelectedOptions);
                           setShowCart(false);
-                          paymentMethods.length > 0 ? setShowPaymentSelect(true) : setShowContactInfo(true);
+                          paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
                         }}
                         disabled={isOutOfStock || (productColors.length > 0 && !linkSelectedColor) || (linkProductOptions.length > 0 && linkProductOptions.some(o => !linkSelectedOptions[o.id]))}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-all active:scale-[0.98] text-sm"
@@ -3064,6 +3131,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             paymentMethods={paymentMethods}
             onBack={() => { setShowPaymentSelect(false); setShowCart(true); }}
             onNext={handlePaymentNext}
+            codEnabled={codEnabled}
           />
         )}
       </AnimatePresence>
