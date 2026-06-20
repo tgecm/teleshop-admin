@@ -49,6 +49,16 @@ export async function sendTokenToBackend(token: string): Promise<void> {
   }
 }
 
+export function sendStoredFCMToken(): void {
+  const stored = localStorage.getItem('fcm_token');
+  const alreadySent = localStorage.getItem('fcm_token_sent') === 'true';
+  if (stored && !alreadySent) {
+    sendTokenToBackend(stored).then(() => {
+      localStorage.setItem('fcm_token_sent', 'true');
+    });
+  }
+}
+
 export function initPushNotifications(): void {
   if (!Capacitor.isNativePlatform()) return;
 
@@ -56,7 +66,9 @@ export function initPushNotifications(): void {
     const token = result.value;
     fcmTokenValue = token;
     localStorage.setItem('fcm_token', token);
-    sendTokenToBackend(token);
+    sendTokenToBackend(token).then(() => {
+      localStorage.setItem('fcm_token_sent', 'true');
+    });
     fcmReadyCallbacks.forEach((cb) => cb(token));
     fcmReadyCallbacks = [];
   });

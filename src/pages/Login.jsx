@@ -8,6 +8,7 @@ import { motion } from 'motion/react';
 import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff, User, ShieldCheck, Clipboard, Fingerprint } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { BiometricAuth } from '@aparajita/capacitor-biometric-auth';
+import { sendStoredFCMToken } from '../lib/pushNotifications';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -154,7 +155,7 @@ export default function Login() {
   }, [needsCode, loginToken]);
 
   useEffect(() => {
-    const token = useAuthStore.getState().token || localStorage.getItem('telegram_token');
+    const token = useAuthStore.getState().token || localStorage.getItem('token');
     if (token) {
       const biometricEnabled = localStorage.getItem('biometric_enabled') === 'true';
       if (biometricEnabled && Capacitor.isNativePlatform()) {
@@ -180,6 +181,12 @@ export default function Login() {
     }
   }, [navigate]);
 
+  useEffect(() => {
+    if (useAuthStore.getState().token) {
+      sendStoredFCMToken();
+    }
+  }, []);
+
   if (checkingAuth) return null;
 
 
@@ -195,6 +202,7 @@ export default function Login() {
           const data = await client.post('/auth/staff-login/verify', { login_token: loginToken, code: codeStr }).then(r => r.data);
           if (data.success) {
             setAuth(data.token, { ...data.staff, email: data.staff.username }, true);
+            sendStoredFCMToken();
             if (data.staff?.bot_id) setSelectedBot(data.staff.bot_id);
             navigate('/dashboard');
           } else {
@@ -204,6 +212,7 @@ export default function Login() {
           const data = await verifyLoginCode(loginToken, codeStr);
           if (data.success) {
             setAuth(data.token, data);
+            sendStoredFCMToken();
             navigate('/dashboard');
           } else {
             setError('Verification failed. Try again.');
@@ -218,6 +227,7 @@ export default function Login() {
           setError('');
         } else if (data.success) {
           setAuth(data.token, { ...data.staff, email: data.staff.username }, true);
+          sendStoredFCMToken();
           if (data.staff?.bot_id) setSelectedBot(data.staff.bot_id);
           navigate('/dashboard');
         } else {
@@ -227,8 +237,8 @@ export default function Login() {
         const data = await loginApi(email, password);
         if (data.success) {
           setAuth(data.token, data);
+          sendStoredFCMToken();
           navigate('/dashboard');
-        } else if (data.step === '2fa') {
           setLoginToken(data.login_token);
           setNeedsCode(true);
           setPassword('');
@@ -257,6 +267,7 @@ export default function Login() {
         : await verifyLoginCode(loginToken, codeStr);
       if (data.success) {
         setAuth(data.token, { ...data.staff, email: data.staff?.username || '' }, staffMode);
+        sendStoredFCMToken();
         if (data.staff?.bot_id) setSelectedBot(data.staff.bot_id);
         navigate('/dashboard');
       } else {
