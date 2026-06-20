@@ -1,11 +1,16 @@
 import { Crown, Utensils } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useBotStore } from '../../store/botStore';
+import { useAuthStore } from '../../store/authStore';
 
 export default function PlanGate({ children }) {
   const { bots, botsLoaded, selectedBotId } = useBotStore();
+  const { isSuperadmin } = useAuthStore();
   const selectedBot = bots.find(b => b.id.toString() === selectedBotId?.toString());
   const planName = selectedBot?.plan_name?.toLowerCase() || 'free';
+
+  // Superadmin can see all bots' dashboards regardless of plan
+  if (isSuperadmin) return children;
 
   const path = window.location.pathname.replace(/^\//, '');
   if (path === 'subscription') return children;

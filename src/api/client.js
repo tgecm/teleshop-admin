@@ -1,9 +1,12 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { useToastStore } from '../store/toastStore';
 
 const client = axios.create({
   baseURL: 'https://api.telegramecommerce.shop',
 });
+
+let lastBackendErrorTime = 0;
 
 client.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token || localStorage.getItem('telegram_token');
@@ -16,6 +19,17 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (!error.response) {
+      const now = Date.now();
+      if (now - lastBackendErrorTime > 15000) {
+        lastBackendErrorTime = now;
+        useToastStore.getState().addToast(
+          'လိုင်းမကောင်းရင် VPN လေးချိတ်ပေးပါနော်',
+          'error',
+        );
+      }
+    }
+
     if (error.response?.status === 401) {
       const url = error.config?.url || '';
       if (url.includes('/auth/login') || url.includes('/auth/staff-login')) {

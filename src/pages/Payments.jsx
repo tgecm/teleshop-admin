@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getPaymentMethods, createPayment, updatePayment, deletePayment } from '../api/payments';
+import { getPaymentMethods, createPayment, updatePayment, deletePayment, getCodSettings, updateCodSettings } from '../api/payments';
 import { uploadImage, getImageUrl } from '../api/products';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
@@ -79,6 +79,17 @@ export default function Payments() {
     onSuccess: () => queryClient.invalidateQueries(['payments']),
   });
 
+  const { data: codSettings } = useQuery({
+    queryKey: ['cod-settings', selectedBotId],
+    queryFn: () => getCodSettings(selectedBotId),
+    enabled: !!selectedBotId,
+  });
+
+  const codMutation = useMutation({
+    mutationFn: (data) => updateCodSettings(selectedBotId, data),
+    onSuccess: () => queryClient.invalidateQueries(['cod-settings']),
+  });
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -134,6 +145,30 @@ export default function Payments() {
           <Plus className="w-5 h-5" />
           Add Method
         </button>
+      </div>
+
+      {/* COD (Cash on Delivery) Toggle */}
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center shadow-sm">
+              <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-gray-900">Cash on Delivery</h4>
+              <p className="text-xs text-gray-500">Customers pay in cash when they receive the package</p>
+            </div>
+          </div>
+          <button
+            onClick={() => codMutation.mutate({ cod_enabled: !codSettings?.cod_enabled })}
+            disabled={codMutation.isPending}
+            className={`w-14 h-7 rounded-full transition-colors relative flex-shrink-0 ${codSettings?.cod_enabled ? 'bg-emerald-600' : 'bg-gray-300'}`}
+          >
+            <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${codSettings?.cod_enabled ? 'left-8' : 'left-1'}`} />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
