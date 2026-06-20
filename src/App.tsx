@@ -371,8 +371,10 @@ export default function App() {
         })()
       ) : (() => {
         // Render landing page at root outside BrowserRouter to avoid routing conflicts
+        // Skip landing page in Capacitor app — go straight to admin panel
+        const isCapacitor = typeof window !== 'undefined' && (window.Capacitor !== undefined);
         const pn = window.location.pathname.replace(/^\//, '');
-        if (!pn) {
+        if (!pn && !isCapacitor) {
           return (
             <>
               <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>
