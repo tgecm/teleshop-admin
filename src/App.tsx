@@ -409,6 +409,7 @@ export default function App() {
                 <Route path="/" element={
                   <Suspense fallback={<SuspenseFallback />}><Layout /></Suspense>
                 }>
+                  <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="dashboard" element={<PermissionGuard><PlanGate><Dashboard /></PlanGate></PermissionGuard>} />
                   <Route path="orders" element={<PermissionGuard><PlanGate><Orders /></PlanGate></PermissionGuard>} />
                   <Route path="products" element={<PermissionGuard><PlanGate><Products /></PlanGate></PermissionGuard>} />
