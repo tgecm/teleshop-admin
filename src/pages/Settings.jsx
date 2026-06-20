@@ -1853,7 +1853,7 @@ function DiscountsManager() {
 
   const [form, setForm] = useState({
     code: '', discount_percent: '', duration_days: '', total_cards: '',
-    is_unlimited: false,
+    is_unlimited: false, chat_id: '',
   });
 
   const { data: discounts, isLoading, refetch } = useQuery({
@@ -1900,7 +1900,7 @@ function DiscountsManager() {
   const resetForm = () => {
     setShowCreate(false);
     setEditingId(null);
-    setForm({ code: '', discount_percent: '', duration_days: '', total_cards: '', is_unlimited: false });
+    setForm({ code: '', discount_percent: '', duration_days: '', total_cards: '', is_unlimited: false, chat_id: '' });
   };
 
   const openEdit = (d) => {
@@ -1911,6 +1911,7 @@ function DiscountsManager() {
       duration_days: String(d.duration_days || ''),
       total_cards: d.total_cards != null ? String(d.total_cards) : '',
       is_unlimited: d.total_cards == null,
+      chat_id: d.chat_id ? String(d.chat_id) : '',
     });
     setShowCreate(true);
   };
@@ -1926,6 +1927,7 @@ function DiscountsManager() {
       discount_percent: percent,
       duration_days: days,
       total_cards: form.is_unlimited ? null : (parseInt(form.total_cards) || null),
+      chat_id: form.chat_id ? parseInt(form.chat_id) : null,
     };
 
     if (editingId) {
@@ -2018,6 +2020,15 @@ function DiscountsManager() {
                 </div>
               </div>
 
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">
+                  Telegram Chat ID <span className="text-gray-300 normal-case">(referral notification)</span>
+                </label>
+                <input type="number" value={form.chat_id} onChange={e => setForm(f => ({ ...f, chat_id: e.target.value.replace(/\D/g, '') }))}
+                  placeholder="e.g. 7552675526"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button onClick={handleSubmit}
                   disabled={createMutation.isPending || updateMutation.isPending}
@@ -2052,6 +2063,7 @@ function DiscountsManager() {
                   <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Discount</th>
                   <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duration</th>
                   <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Uses</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Chat ID</th>
                   <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
                   <th className="text-right px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -2073,6 +2085,13 @@ function DiscountsManager() {
                     <td className="px-4 py-3 text-gray-600">{d.duration_days}d</td>
                     <td className="px-4 py-3">
                       <span className="text-gray-600">{d.used_count}{d.total_cards != null ? `/${d.total_cards}` : '/∞'}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {d.chat_id ? (
+                        <span className="font-mono text-xs text-indigo-600">{d.chat_id}</span>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <button onClick={() => toggleMutation.mutate({ id: d.id, is_active: !d.is_active })}
