@@ -18,7 +18,7 @@ android {
     }
     signingConfigs {
         debug {
-            storeFile file('mm-shop.keystore')
+            storeFile file('../mm-shop.keystore')
             storePassword 'teleshop123'
             keyAlias 'mm-shop'
             keyPassword 'teleshop123'
