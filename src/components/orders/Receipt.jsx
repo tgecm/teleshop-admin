@@ -4,6 +4,7 @@ import { X, Download, Share as ShareIcon, Loader2 } from 'lucide-react';
 import { myanmarFormat } from '../../utils/date';
 import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
+import { Capacitor } from '@capacitor/core';
 import { isInAppBrowser, downloadViaNative } from '../../utils/download';
 import { generateInvoiceNumber } from '../../api/orders';
 
@@ -841,18 +842,20 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
             <div className="flex items-center justify-between px-4 pb-3 flex-shrink-0">
               <h2 className="text-lg font-bold text-gray-900">{receiptType === 'invoice' ? 'Invoice' : 'Receipt'}</h2>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleShare}
-                  disabled={generating}
-                  className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
-                >
-                  {generating ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <ShareIcon className="w-4 h-4" />
-                  )}
-                  {generating ? 'Generating...' : 'Share'}
-                </button>
+                {Capacitor.isNativePlatform() && (
+                  <button
+                    onClick={handleShare}
+                    disabled={generating}
+                    className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
+                  >
+                    {generating ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ShareIcon className="w-4 h-4" />
+                    )}
+                    {generating ? 'Generating...' : 'Share'}
+                  </button>
+                )}
                 <button
                   onClick={handleDownload}
                   disabled={generating}
