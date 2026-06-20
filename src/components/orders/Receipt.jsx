@@ -6,7 +6,6 @@ import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
 import { isInAppBrowser, downloadViaNative } from '../../utils/download';
 import { generateInvoiceNumber } from '../../api/orders';
-import client from '../../api/client';
 
 const RECEIPT_W = 800;
 const MAIN_BLUE = '#003366';
@@ -691,11 +690,8 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       const logoUrl = bot?.profile_picture || '';
       if (logoUrl) {
         try {
-          // Use full URL with query params preserved — pathname alone strips ?bot_id=
-          const logoUrlObj = new URL(logoUrl);
-          const logoFullPath = logoUrlObj.pathname + logoUrlObj.search;
-          const resp = await client.get(logoFullPath, { responseType: 'blob' });
-          const blob = resp.data;
+          const resp = await fetch(logoUrl);
+          const blob = await resp.blob();
           if (blob && blob.size > 0) {
             logoDataUrl = await new Promise((resolve) => {
               const reader = new FileReader();
@@ -759,10 +755,8 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       const logoUrl = bot?.profile_picture || '';
       if (logoUrl) {
         try {
-          const logoUrlObj = new URL(logoUrl);
-          const logoFullPath = logoUrlObj.pathname + logoUrlObj.search;
-          const resp = await client.get(logoFullPath, { responseType: 'blob' });
-          const blob = resp.data;
+          const resp = await fetch(logoUrl);
+          const blob = await resp.blob();
           if (blob && blob.size > 0) {
             logoDataUrl = await new Promise((resolve) => {
               const reader = new FileReader();
