@@ -9,7 +9,7 @@ import { getAllBots } from './api/superadmin';
 import { normalizeText } from './utils/normalizeText';
 import { updatePwaManifest } from './utils/dynamicManifest';
 import { NotificationToast } from './components/NotificationToast';
-
+import VpnWarningModal from './components/VpnWarningModal';
 import ToastContainer from './components/shared/ToastContainer';
 import SelectionToolbar from './components/shared/SelectionToolbar';
 import HapticProvider from './components/shared/HapticProvider';
@@ -302,6 +302,7 @@ export default function App() {
       <AppVersionCheck />
       <HapticProvider>
       <NetworkStatus />
+      <VpnWarningModal />
       {addProductFromHash ? (
         <>
           <Suspense fallback={<SuspenseFallback />}>
