@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
-import { useToastStore } from '../store/toastStore';
 
 const client = axios.create({
   baseURL: 'https://api.telegramecommerce.shop',
@@ -23,10 +22,9 @@ client.interceptors.response.use(
       const now = Date.now();
       if (now - lastBackendErrorTime > 15000) {
         lastBackendErrorTime = now;
-        useToastStore.getState().addToast(
-          'လိုင်းမကောင်းရင် VPN လေးချိတ်ပေးပါနော်',
-          'error',
-        );
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('app:vpn-warning'));
+        }
       }
     }
 
