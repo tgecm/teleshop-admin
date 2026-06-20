@@ -9,8 +9,8 @@ import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff, User, ShieldCheck, Clipb
 import { sendStoredFCMToken } from '../lib/pushNotifications';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(() => localStorage.getItem('saved_email') || '');
+  const [password, setPassword] = useState(() => localStorage.getItem('saved_password') || '');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,7 +23,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [staffMode, setStaffMode] = useState(false);
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(() => localStorage.getItem('saved_username') || '');
   const [menuPos, setMenuPos] = useState({ show: false, x: 0, y: 0, hasSel: false });
   const menuTargetRef = useRef(null);
   const verifyingRef = useRef(false);
@@ -169,6 +169,17 @@ export default function Login() {
 
   if (checkingAuth) return null;
 
+  const saveCredentials = () => {
+    try {
+      if (staffMode) {
+        localStorage.setItem('saved_username', username);
+      } else {
+        localStorage.setItem('saved_email', email);
+      }
+      if (password) localStorage.setItem('saved_password', password);
+    } catch {}
+  };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -183,6 +194,7 @@ export default function Login() {
           if (data.success) {
             setAuth(data.token, { ...data.staff, email: data.staff.username }, true);
             sendStoredFCMToken();
+            saveCredentials();
             if (data.staff?.bot_id) setSelectedBot(data.staff.bot_id);
             navigate('/dashboard');
           } else {
@@ -193,6 +205,7 @@ export default function Login() {
           if (data.success) {
             setAuth(data.token, data);
             sendStoredFCMToken();
+            saveCredentials();
             navigate('/dashboard');
           } else {
             setError('Verification failed. Try again.');
@@ -208,6 +221,7 @@ export default function Login() {
         } else if (data.success) {
           setAuth(data.token, { ...data.staff, email: data.staff.username }, true);
           sendStoredFCMToken();
+          saveCredentials();
           if (data.staff?.bot_id) setSelectedBot(data.staff.bot_id);
           navigate('/dashboard');
         } else {
@@ -223,6 +237,7 @@ export default function Login() {
         } else if (data.success) {
           setAuth(data.token, data);
           sendStoredFCMToken();
+          saveCredentials();
           navigate('/dashboard');
         } else {
           setError('Invalid credentials');
