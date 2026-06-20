@@ -1,4 +1,4 @@
-package com.teleshop.admin;
+package com.ecommercemyanmar.shop;
 
 import android.app.DownloadManager;
 import android.content.ContentValues;
