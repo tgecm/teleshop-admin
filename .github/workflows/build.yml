@@ -24,6 +24,16 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Set version from run number
+        run: |
+          # versionCode = run number, versionName = 1.0.<run_number>
+          VC=${{ github.run_number }}
+          VN="1.0.$VC"
+          sed -i "s/versionCode [0-9]*/versionCode $VC/" android/app/build.gradle
+          sed -i "s/versionName \".*\"/versionName \"$VN\"/" android/app/build.gradle
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VN\"/" package.json
+          echo "Version: $VN (code: $VC)"
+
       - name: Build React app
         run: npm run build
 
