@@ -169,6 +169,27 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   .btn-hero,.btn-hero-outline{max-width:240px;white-space:nowrap}
   .hero-cta{flex-direction:row;justify-content:center}
 }
+.contact-section{max-width:500px;margin:0 auto;padding:0 20px}
+.contact-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:32px 24px;text-align:left}
+.contact-title{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(1.4rem,5vw,1.9rem);letter-spacing:-.025em;margin-bottom:8px;text-align:center}
+.contact-sub{color:var(--muted);font-size:.9rem;margin-bottom:28px;text-align:center;font-weight:300}
+.contact-form{display:flex;flex-direction:column;gap:16px}
+.contact-field{display:flex;flex-direction:column;gap:4px}
+.contact-label{font-size:.78rem;font-weight:500;color:var(--muted)}
+.contact-input{width:100%;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;transition:border .2s}
+.contact-input:focus{border-color:var(--accent)}
+.contact-input::placeholder{color:var(--muted);font-size:.8rem}
+.contact-textarea{resize:vertical;min-height:100px}
+.contact-counter{font-size:.7rem;color:var(--muted);text-align:right}
+.contact-counter.over{color:#ff6b8a}
+.contact-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;color:#fff;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .25s;box-shadow:0 0 28px rgba(255,107,43,.3)}
+.contact-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 28px rgba(255,107,43,.5)}
+.contact-btn:disabled{opacity:.6;cursor:not-allowed}
+.contact-btn.done{background:linear-gradient(135deg,#22c55e,#16a34a);box-shadow:0 0 28px rgba(34,197,94,.3);cursor:default}
+.contact-btn.done:hover{transform:none;box-shadow:0 0 28px rgba(34,197,94,.3)}
+.contact-msg{padding:14px;border-radius:12px;font-size:.85rem;text-align:center;font-weight:500}
+.contact-msg.success{background:rgba(255,182,39,.12);border:1px solid rgba(255,182,39,.3);color:var(--accent3)}
+.contact-msg.error{background:rgba(255,61,127,.12);border:1px solid rgba(255,61,127,.3);color:#ff6b8a}
 `;
 
 const PLANS = [
@@ -356,6 +377,29 @@ export default function Homepage() {
   }
 
   const [yearly, setYearly] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', telegram: '', notes: '' });
+  const [contactStatus, setContactStatus] = useState('idle'); // idle | submitting | success | error
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    const { name, telegram, notes } = contactForm;
+    if (name.trim().length < 2 || name.trim().length > 100) return;
+    if (telegram.trim().length > 50) return;
+    if (notes.trim().length < 10 || notes.trim().length > 2000) return;
+    setContactStatus('submitting');
+    try {
+      const res = await fetch('https://api.telegramecommerce.shop/public/contact-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), telegram_username: telegram.trim(), notes: notes.trim() }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setContactForm({ name: '', telegram: '', notes: '' });
+      setContactStatus('success');
+    } catch {
+      setContactStatus('error');
+    }
+  };
 
   return (
     <div>
@@ -524,6 +568,69 @@ export default function Homepage() {
                 <div className="faq-a">{faq.a}</div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* CONTACT */}
+        <section id="contact" className="hp-section">
+          <div className="reveal">
+            <p className="hp-section-label">Get In Touch</p>
+            <h2 className="hp-section-title">Send us a message</h2>
+            <p className="hp-section-sub">Have a question or need help? Drop us a message and we'll get back to you.</p>
+          <form className="contact-section" onSubmit={handleContactSubmit}>
+            <div className="contact-card">
+              <div className="contact-form">
+                <div className="contact-field">
+                  <label className="contact-label">Name</label>
+                  <input
+                    className="contact-input"
+                    type="text"
+                    placeholder="Your name"
+                    required
+                    maxLength={100}
+                    value={contactForm.name}
+                    onChange={(e) => { setContactForm({ ...contactForm, name: e.target.value }); if (contactStatus === 'success') setContactStatus('idle'); }}
+                  />
+                  <div className={'contact-counter' + (contactForm.name.length > 100 ? ' over' : '')}>{contactForm.name.length}/100</div>
+                </div>
+                <div className="contact-field">
+                  <label className="contact-label">Telegram Username</label>
+                  <input
+                    className="contact-input"
+                    type="text"
+                    placeholder="@username"
+                    required
+                    maxLength={50}
+                    value={contactForm.telegram}
+                    onChange={(e) => { setContactForm({ ...contactForm, telegram: e.target.value }); if (contactStatus === 'success') setContactStatus('idle'); }}
+                  />
+                  <div className={'contact-counter' + (contactForm.telegram.length > 50 ? ' over' : '')}>{contactForm.telegram.length}/50</div>
+                </div>
+                <div className="contact-field">
+                  <label className="contact-label">Message</label>
+                  <textarea
+                    className={'contact-input contact-textarea'}
+                    placeholder="Write your message here"
+                    required
+                    maxLength={2000}
+                    value={contactForm.notes}
+                    onChange={(e) => { setContactForm({ ...contactForm, notes: e.target.value }); if (contactStatus === 'success') setContactStatus('idle'); }}
+                  />
+                  <div className={'contact-counter' + (contactForm.notes.length > 2000 ? ' over' : '')}>{contactForm.notes.length}/2000</div>
+                </div>
+                {contactStatus === 'error' && (
+                  <div className="contact-msg error">✗ Something went wrong. Please try again later.</div>
+                )}
+                <button
+                  type="submit"
+                  className={'contact-btn' + (contactStatus === 'success' ? ' done' : '')}
+                  disabled={contactStatus === 'submitting' || contactStatus === 'success' || contactForm.notes.trim().length < 10 || contactForm.name.trim().length < 2 || contactForm.telegram.trim().length < 1}
+                >
+                  {contactStatus === 'submitting' ? 'Sending...' : contactStatus === 'success' ? '✓ Message Sent' : 'Send Message'}
+                </button>
+              </div>
+            </div>
+          </form>
           </div>
         </section>
 
