@@ -459,10 +459,12 @@ export default function Settings() {
     setStaffFpLoading(false);
   };
 
+  const isNativeApp = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
+
   const tabs = [
     { id: 'shop', label: 'Shop', icon: SettingsIcon },
     { id: 'account', label: 'Account', icon: User },
-    { id: 'app', label: 'App', icon: TabletSmartphone },
+    ...(isNativeApp ? [{ id: 'app', label: 'App', icon: TabletSmartphone }] : []),
     ...(isStaff ? [] : [{ id: 'subscription', label: 'Plan', icon: ShieldCheck }]),
     ...(isSuperadmin ? [{ id: 'superadmin', label: 'Admin', icon: ShieldAlert }] : []),
     ...(isSuperadmin ? [{ id: 'bots', label: 'Bots', icon: Bot }] : []),
@@ -1858,8 +1860,6 @@ function AppSettings() {
     () => localStorage.getItem('splash_tagline') || '',
   );
 
-  const isNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
-
   const handleLogoPick = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -1919,19 +1919,15 @@ function AppSettings() {
           </div>
           <button
             onClick={() => toggleBiometric(!biometricEnabled)}
-            disabled={!isNative}
             className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${
               biometricEnabled ? 'bg-indigo-600' : 'bg-gray-300'
-            } ${!isNative ? 'opacity-40 cursor-not-allowed' : ''}`}
+            }`}
           >
             <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${
               biometricEnabled ? 'left-6.5' : 'left-0.5'
             }`} />
           </button>
         </div>
-        {!isNative && (
-          <p className="text-[10px] text-amber-600 mt-2">Only available on Android app</p>
-        )}
       </section>
 
       {/* Splash Screen Settings */}

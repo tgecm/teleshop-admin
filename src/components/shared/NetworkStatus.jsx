@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WifiOff, Wifi, X, RefreshCw } from 'lucide-react';
 
@@ -6,6 +6,7 @@ export default function NetworkStatus() {
   const [offline, setOffline] = useState(!navigator.onLine);
   const [dismissed, setDismissed] = useState(false);
   const [justReconnected, setJustReconnected] = useState(false);
+  const wasOfflineRef = useRef(offline);
 
   const refreshPage = useCallback(() => {
     const queryClient = window.__reactQueryClient;
@@ -18,12 +19,16 @@ export default function NetworkStatus() {
 
   useEffect(() => {
     let capNetwork;
+    let reconnectTimer;
 
-    const handleOffline = () => { setOffline(true); setDismissed(false); };
+    const handleOffline = () => { setOffline(true); wasOfflineRef.current = true; setDismissed(false); };
     const handleOnline = () => {
+      if (!wasOfflineRef.current) return;
+      wasOfflineRef.current = false;
       setOffline(false);
       setJustReconnected(true);
-      setTimeout(() => setJustReconnected(false), 3000);
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => setJustReconnected(false), 3000);
       refreshPage();
     };
 
@@ -34,7 +39,9 @@ export default function NetworkStatus() {
       import('@capacitor/network').then(({ Network }) => {
         capNetwork = Network;
         Network.getStatus().then((status) => {
-          setOffline(!status.connected);
+          const wasOffline = !status.connected;
+          setOffline(wasOffline);
+          wasOfflineRef.current = wasOffline;
         });
         Network.addListener('networkStatusChange', (status) => {
           if (status.connected) {
@@ -49,6 +56,7 @@ export default function NetworkStatus() {
     return () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
+      clearTimeout(reconnectTimer);
       if (capNetwork) {
         capNetwork.removeAllListeners();
       }
