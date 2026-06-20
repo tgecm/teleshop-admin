@@ -3,7 +3,10 @@ import {createRoot} from 'react-dom/client';
 import {AuthProvider} from './context/AuthContext';
 import {TelegramAuthProvider} from './context/TelegramAuthContext';
 import App from './App.tsx';
+import {initPushNotifications} from './lib/pushNotifications';
 import './index.css';
+
+initPushNotifications();
 
 if (!import.meta.env.DEV) {
   import('virtual:pwa-register').then(({registerSW}) => {
