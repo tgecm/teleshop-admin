@@ -2,43 +2,51 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 
 const API_BASE = 'https://api.telegramecommerce.shop';
+let fcmReadyCallbacks: Array<(token: string) => void> = [];
+let fcmTokenValue: string | null = localStorage.getItem('fcm_token');
 
-export async function registerFCMToken(): Promise<string | null> {
-  if (!Capacitor.isNativePlatform()) return null;
+export function onFCMTokenReady(cb: (token: string) => void): void {
+  if (fcmTokenValue) {
+    cb(fcmTokenValue);
+    return;
+  }
+  fcmReadyCallbacks.push(cb);
+}
+
+export async function registerFCMToken(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
 
   try {
     let permStatus = await PushNotifications.checkPermissions();
     if (permStatus.receive === 'prompt') {
       permStatus = await PushNotifications.requestPermissions();
     }
-    if (permStatus.receive !== 'granted') return null;
+    if (permStatus.receive !== 'granted') return;
 
     await PushNotifications.register();
-    return null;
   } catch {
-    return null;
+    // registration failed
   }
 }
 
 export async function sendTokenToBackend(token: string): Promise<void> {
   const authToken = localStorage.getItem('telegram_token');
   if (!authToken) return;
-  try {
-    await fetch(`${API_BASE}/notifications/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({ token }),
-    });
-  } catch {
-    // silently fail
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE}/notifications/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ token }),
+      });
+      if (res.ok) return;
+    } catch {
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 1000));
+    }
   }
-}
-
-export async function getFCMToken(): Promise<string | null> {
-  return localStorage.getItem('fcm_token');
 }
 
 export function initPushNotifications(): void {
@@ -46,8 +54,11 @@ export function initPushNotifications(): void {
 
   PushNotifications.addListener('registration', (result) => {
     const token = result.value;
+    fcmTokenValue = token;
     localStorage.setItem('fcm_token', token);
     sendTokenToBackend(token);
+    fcmReadyCallbacks.forEach((cb) => cb(token));
+    fcmReadyCallbacks = [];
   });
 
   PushNotifications.addListener('registrationError', () => {
