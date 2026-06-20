@@ -1,3 +1,4 @@
+import { API_BASE } from '../api/config';
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
@@ -48,7 +49,7 @@ function BannerEditor({ contentBlocks, onSave, botId, planName }) {
   };
 
   const getBannerUrl = (fileId) => {
-    return fileId ? `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(fileId)}?bot_id=${botId}` : null;
+    return fileId ? `${API_BASE}/telegram/file/${encodeURIComponent(fileId)}?bot_id=${botId}` : null;
   };
 
   const handleUpload = async (e) => {
@@ -349,7 +350,7 @@ export default function Customization() {
       const formData = new FormData();
       formData.append('file', resizedFile);
       formData.append('bot_id', String(selectedBotId));
-      const res = await fetch('https://api.telegramecommerce.shop/upload/profile-picture', {
+      const res = await fetch(`${API_BASE}/upload/profile-picture`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${useAuthStore.getState().token}` },
         body: formData,
@@ -969,7 +970,7 @@ function PosterEditor({ contentBlocks, onSave, botId }) {
   const getPosterUrl = (key) => {
     const block = contentBlocks?.find(b => b.key === key);
     const fileId = block?.content_data?.file_id;
-    return fileId ? `https://api.telegramecommerce.shop/telegram/file/${fileId}?bot_id=${botId}` : null;
+    return fileId ? `${API_BASE}/telegram/file/${fileId}?bot_id=${botId}` : null;
   };
 
   const handleUpload = async (e, key) => {

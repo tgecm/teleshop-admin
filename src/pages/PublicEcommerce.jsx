@@ -6,7 +6,7 @@ import {
   ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
   Minus, Plus, Trash2, LogOut, CheckCircle, CheckCircle2, Loader2, User,
-  MessageCircle, Send, ImageUp, Copy, Ticket
+  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -27,7 +27,7 @@ import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { RichMessage } from '../components/chat/RichMessage';
 import NewsfeedFeed from '../components/NewsfeedFeed';
 
-const API_BASE = 'https://api.telegramecommerce.shop';
+import { API_BASE, fileUrl } from '../api/config';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
@@ -909,7 +909,7 @@ function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClo
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 shadow-sm"
                   style={{ backgroundColor: color }}>
-                  {(pm.name || '?').charAt(0).toUpperCase()}
+                  <CreditCard className="w-5 h-5" />
                 </div>
                 <p className="font-bold text-sm text-gray-900">Pay via {pm.name}</p>
               </div>
@@ -1230,7 +1230,7 @@ function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled }) {
                     </div>
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm"
                       style={{ backgroundColor: color }}>
-                      {(pm.name || '?').charAt(0).toUpperCase()}
+                      <CreditCard className="w-5 h-5" />
                     </div>
                     <p className="font-bold text-gray-900 text-sm">{pm.name}</p>
                   </div>
@@ -2404,7 +2404,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                 ? productLinkProduct.specifications.colors : [];
               const colorImages = productColors.filter(c => c.file_id).map(c => ({
                 file_id: c.file_id, color: c.color,
-                url: `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(c.file_id)}?bot_id=${shop?.id}`,
+                url: `${API_BASE}/telegram/file/${encodeURIComponent(c.file_id)}?bot_id=${shop?.id}`,
               }));
               const linkSelectedColor = selectedColors['_link'] || null;
               const linkProductOptions = productLinkProduct.specifications?.options && Array.isArray(productLinkProduct.specifications.options)

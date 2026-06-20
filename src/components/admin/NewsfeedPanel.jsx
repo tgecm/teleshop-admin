@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getNewsfeedPosts, createNewsfeedPost, updateNewsfeedPost, deleteNewsfeedPost, getNewsfeedPostComments, adminDeleteNewsfeedComment } from '../../api/newsfeed';
+import { API_BASE } from '../../api/config';
 import { uploadImage } from '../../api/products';
 import { useToastStore } from '../../store/toastStore';
 import LoadingSkeleton from '../shared/LoadingSkeleton';
@@ -138,7 +139,7 @@ export default function NewsfeedPanel({ botId }) {
                 <div className={`grid gap-2 mt-3 ${post.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
                   {post.images.map((img, i) => (
                     <div key={i} className="aspect-video rounded-xl bg-gray-50 overflow-hidden">
-                      <img src={img.startsWith('http') ? img : `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(img)}?bot_id=${botId}`}
+                      <img src={img.startsWith('http') ? img : `${API_BASE}/telegram/file/${encodeURIComponent(img)}?bot_id=${botId}`}
                         alt="" className="w-full h-full object-cover" />
                     </div>
                   ))}
@@ -370,7 +371,7 @@ function PostFormModal({ post, botId, onClose, onSave, isPending }) {
               <div className={`grid gap-2 ${images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
                 {images.map((img, i) => (
                   <div key={i} className="relative aspect-video rounded-xl bg-gray-50 overflow-hidden group">
-                    <img src={img.startsWith('http') ? img : `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(img)}?bot_id=${botId}`}
+                    <img src={img.startsWith('http') ? img : `${API_BASE}/telegram/file/${encodeURIComponent(img)}?bot_id=${botId}`}
                       alt="" className="w-full h-full object-cover" />
                     <button onClick={() => removeImage(i)}
                       className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-all text-white">

@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE = 'https://api.telegramecommerce.shop';
+import { API_BASE } from '../api/config';
 
 const api = axios.create({
   baseURL: API_BASE,

@@ -1,6 +1,5 @@
+import { API_BASE } from './config';
 import client from './client';
-
-const API_BASE = 'https://api.telegramecommerce.shop';
 
 export const getUsers = (params) =>
   client.get('/users', { params }).then(res => res.data);

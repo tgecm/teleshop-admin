@@ -16,7 +16,7 @@ import {
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
 
-const API_BASE = 'https://api.telegramecommerce.shop';
+import { API_BASE } from '../api/config';
 
 export default function Customers() {
   const { selectedBotId } = useBotStore();

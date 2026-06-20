@@ -9,7 +9,7 @@ import TelegramLoginModal from '../components/TelegramLoginModal';
 import { isMainDomain } from '../utils/authProxy';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 
-const API_BASE = 'https://api.telegramecommerce.shop';
+import { API_BASE } from '../api/config';
 
 const TELEGRAM_BLUE = '#2AABEE';
 

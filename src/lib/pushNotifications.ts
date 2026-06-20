@@ -1,7 +1,6 @@
+import { API_BASE } from '../api/config';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
-
-const API_BASE = 'https://api.telegramecommerce.shop';
 let fcmReadyCallbacks: Array<(token: string) => void> = [];
 let fcmTokenValue: string | null = localStorage.getItem('fcm_token');
 

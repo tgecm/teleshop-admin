@@ -71,10 +71,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
     { to: '/chats', icon: MessageCircle, label: 'Chats' },
     { to: '/newsfeed', icon: Newspaper, label: 'Newsfeed' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
-    ...(isStaff ? [] : [{ to: '/subscription', icon: ShieldCheck, label: 'Subscription' }]),
     { to: '/customization', icon: Palette, label: 'Customize' },
     ...(isStaff ? [] : [{ to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' }]),
-    ...(isStaff ? [] : [{ to: '/faqs', icon: HelpCircle, label: 'FAQs' }]),
   ];
 
   const qrMenuItems = [
@@ -164,6 +162,30 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
               ))}
             </div>
           </div>
+
+        {/* FAQs & Subscription */}
+          {!isStaff && (
+            <>
+              <NavLink to="/faqs" data-haptic onClick={onMobileClose}
+                className={({ isActive }) => `
+                  flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
+                  ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
+                `}
+              >
+                <HelpCircle className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
+                <span>FAQs</span>
+              </NavLink>
+              <NavLink to="/subscription" data-haptic onClick={onMobileClose}
+                className={({ isActive }) => `
+                  flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
+                  ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
+                `}
+              >
+                <ShieldCheck className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
+                <span>Subscription</span>
+              </NavLink>
+            </>
+          )}
 
         {/* Settings */}
           <NavLink to="/settings" data-haptic onClick={onMobileClose}

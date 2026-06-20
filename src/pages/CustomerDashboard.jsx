@@ -91,7 +91,7 @@ import CustomerShopTab from '../components/CustomerShopTab';
 import NewsfeedFeed from '../components/NewsfeedFeed';
 import { useToastStore } from '../store/toastStore';
 
-const API_BASE = 'https://api.telegramecommerce.shop';
+import { API_BASE } from '../api/config';
 
 function linkifyText(text) {
   const urlRegex = /(https?:\/\/[^\s<]+)|((?:www\.)[^\s<]+\.[^\s<]{2,})|([a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z]{2,})+(?:\/[^\s<]*)?)/gi;
@@ -609,7 +609,7 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
   useEffect(() => {
     if (shop?.shop_bio?.text) setShopBio(shop.shop_bio.text);
     else if (shop?.id) {
-      fetch(`https://api.telegramecommerce.shop/public/shop-bio/${shop.id}`)
+      fetch(`${API_BASE}/public/shop-bio/${shop.id}`)
         .then(r => r.json())
         .then(d => { if (d?.text) setShopBio(d.text); })
         .catch(() => {});
@@ -646,10 +646,10 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
       const parsed = JSON.parse(url);
       if (Array.isArray(parsed)) {
         const fileId = parsed.find(m => m.type === 'photo' || m.file_id)?.file_id;
-        if (fileId) return `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(fileId)}?bot_id=${shop?.id}`;
+        if (fileId) return `${API_BASE}/telegram/file/${encodeURIComponent(fileId)}?bot_id=${shop?.id}`;
       }
     } catch {}
-    return `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(url)}?bot_id=${shop?.id}`;
+    return `${API_BASE}/telegram/file/${encodeURIComponent(url)}?bot_id=${shop?.id}`;
   };
 
   return (
@@ -660,7 +660,7 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
       {banners?.length > 0 && (() => {
         const banner = banners[bannerIndex];
         const url = banner?.file_id
-          ? `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(banner.file_id)}?bot_id=${shop?.id}`
+          ? `${API_BASE}/telegram/file/${encodeURIComponent(banner.file_id)}?bot_id=${shop?.id}`
           : banner?.image_url || '';
         if (!url) return null;
         return (

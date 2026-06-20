@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
+import { API_BASE } from '../api/config';
 import { getBot, getAiSettings, updateAiSettings } from '../api/bots';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { uploadImage } from '../api/products';
@@ -363,7 +364,7 @@ function PosterEditor({ contentBlocks, onSave, botId }) {
   const getPosterUrl = (key) => {
     const block = contentBlocks?.find(b => b.key === key);
     const fileId = block?.content_data?.file_id;
-    return fileId ? `https://api.telegramecommerce.shop/telegram/file/${fileId}?bot_id=${botId}` : null;
+    return fileId ? `${API_BASE}/telegram/file/${fileId}?bot_id=${botId}` : null;
   };
 
   const handleUpload = async (e, key) => {

@@ -4,6 +4,7 @@ import { getPublicNewsfeed, getPublicNewsfeedComments, toggleNewsfeedLike, addNe
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Heart, MessageCircle, Share2, Send, ChevronLeft, Loader2, Newspaper, Link as LinkIcon, Check, Edit2, Trash2 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
+import { API_BASE } from '../api/config';
 
 function getVisitorId() {
   let id = localStorage.getItem('newsfeed_visitor_id');
@@ -339,7 +340,7 @@ function PostCard({ post, botId, visitorId, onLike, slug, shopLogo, shopName, ph
           {images.map((img, i) => (
             <div key={i} className={`${images.length === 1 ? 'aspect-video' : 'aspect-square'} bg-gray-50 overflow-hidden`}
               onClick={() => onPhotoViewerChange({ postId: post.id, index: i })}>
-              <img src={img.startsWith('http') ? img : `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(img)}?bot_id=${botId}`}
+              <img src={img.startsWith('http') ? img : `${API_BASE}/telegram/file/${encodeURIComponent(img)}?bot_id=${botId}`}
                 alt="" className="w-full h-full object-cover" loading="lazy" />
             </div>
           ))}
@@ -549,7 +550,7 @@ function PhotoViewer({ images, botId, initialIndex, onClose }) {
 
   const getUrl = (img) => img.startsWith('http')
     ? img
-    : `https://api.telegramecommerce.shop/telegram/file/${encodeURIComponent(img)}?bot_id=${botId}`;
+    : `${API_BASE}/telegram/file/${encodeURIComponent(img)}?bot_id=${botId}`;
 
   const handleScroll = () => {
     if (!scrollRef.current) return;

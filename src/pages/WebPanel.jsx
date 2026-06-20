@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 
-const API_BASE = 'https://api.telegramecommerce.shop/api/webpanel';
+import { API_BASE } from '../api/config';
+const API_BASE_WEBPANEL = `${API_BASE}/api/webpanel`;
 
 const views = { SIGNUP: 'signup', CHANGEPW: 'changepw', FORGOT: 'forgot', SUCCESS: 'success' };
 const steps = { BOT: 0, BOT_CODE: 1, EMAIL: 2, EMAIL_CODE: 3, PASSWORD: 4 };
@@ -64,7 +65,7 @@ export default function WebPanel() {
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
   const apiPost = async (path, body) => {
-    const res = await fetch(API_BASE + path, {
+    const res = await fetch(API_BASE_WEBPANEL + path, {
       method: 'POST',
       mode: 'cors',
       credentials: 'omit',
