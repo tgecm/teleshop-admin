@@ -58,6 +58,11 @@ import {
   Eye,
   EyeOff,
   Percent,
+  TabletSmartphone,
+  Palette,
+  Fingerprint,
+  Image,
+  Type,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -457,6 +462,7 @@ export default function Settings() {
   const tabs = [
     { id: 'shop', label: 'Shop', icon: SettingsIcon },
     { id: 'account', label: 'Account', icon: User },
+    { id: 'app', label: 'App', icon: TabletSmartphone },
     ...(isStaff ? [] : [{ id: 'subscription', label: 'Plan', icon: ShieldCheck }]),
     ...(isSuperadmin ? [{ id: 'superadmin', label: 'Admin', icon: ShieldAlert }] : []),
     ...(isSuperadmin ? [{ id: 'bots', label: 'Bots', icon: Bot }] : []),
@@ -1653,6 +1659,10 @@ export default function Settings() {
           </div>
         )}
 
+        {activeTab === 'app' && (
+          <AppSettings />
+        )}
+
         {activeTab === 'superadmin' && isSuperadmin && (
           <DiscountsManager />
         )}
@@ -1827,6 +1837,160 @@ function ManageBots({ allBots, deleteBotMutation, selectedBotId }) {
             ))}
           </div>
         )}
+      </section>
+    </div>
+  );
+}
+
+// ── App Settings ───────────────────────────────────────────────
+function AppSettings() {
+  const { addToast } = useToastStore();
+  const [biometricEnabled, setBiometricEnabled] = useState(
+    () => localStorage.getItem('biometric_enabled') === 'true',
+  );
+  const [logo, setLogo] = useState(
+    () => localStorage.getItem('splash_logo') || '',
+  );
+  const [bgColor, setBgColor] = useState(
+    () => localStorage.getItem('splash_bg_color') || '#4f46e5',
+  );
+  const [tagline, setTagline] = useState(
+    () => localStorage.getItem('splash_tagline') || '',
+  );
+
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform()) {
+      import('@aparajita/capacitor-biometric-auth').then(({ BiometricAuth }) => {
+        BiometricAuth.isAvailable().then((res) => {
+          setBiometricAvailable(res.isAvailable);
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+  }, []);
+
+  const handleLogoPick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result;
+        setLogo(dataUrl);
+        localStorage.setItem('splash_logo', dataUrl);
+        addToast('Logo saved');
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
+
+  const removeLogo = () => {
+    setLogo('');
+    localStorage.removeItem('splash_logo');
+    addToast('Logo removed');
+  };
+
+  const handleBgColorChange = (e) => {
+    const val = e.target.value;
+    setBgColor(val);
+    localStorage.setItem('splash_bg_color', val);
+  };
+
+  const handleTaglineChange = (e) => {
+    const val = e.target.value;
+    setTagline(val);
+    localStorage.setItem('splash_tagline', val);
+  };
+
+  const toggleBiometric = (val) => {
+    setBiometricEnabled(val);
+    localStorage.setItem('biometric_enabled', String(val));
+    addToast(val ? 'Biometric login enabled' : 'Biometric login disabled');
+  };
+
+  return (
+    <div className="max-w-lg space-y-4">
+      {/* Biometric Login */}
+      <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <Fingerprint className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Biometric Login</h3>
+              <p className="text-[10px] text-gray-500">Fingerprint or Face unlock</p>
+            </div>
+          </div>
+          <button
+            onClick={() => toggleBiometric(!biometricEnabled)}
+            disabled={!biometricAvailable}
+            className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${
+              biometricEnabled ? 'bg-indigo-600' : 'bg-gray-300'
+            } ${!biometricAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+          >
+            <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${
+              biometricEnabled ? 'left-6.5' : 'left-0.5'
+            }`} />
+          </button>
+        </div>
+        {!biometricAvailable && (
+          <p className="text-[10px] text-amber-600 mt-2">Not available on this device</p>
+        )}
+      </section>
+
+      {/* Splash Screen Settings */}
+      <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+            <Palette className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Splash Screen</h3>
+            <p className="text-[10px] text-gray-500">Customize app startup screen</p>
+          </div>
+        </div>
+
+        {/* Logo */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Logo</label>
+          {logo ? (
+            <div className="flex items-center gap-3 mb-2">
+              <img src={logo} alt="Splash logo" className="w-16 h-16 rounded-2xl object-cover border border-gray-200" />
+              <button onClick={removeLogo} className="px-3 py-1.5 bg-rose-50 text-rose-600 font-bold rounded-xl hover:bg-rose-100 transition-all text-xs">
+                Remove
+              </button>
+            </div>
+          ) : (
+            <button onClick={handleLogoPick} className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-100 transition-all text-sm font-bold text-gray-500 w-full">
+              <Image className="w-4 h-4" />
+              Choose from Gallery
+            </button>
+          )}
+        </div>
+
+        {/* Background Color */}
+        <div className="mb-3">
+          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Background Color</label>
+          <div className="flex items-center gap-3">
+            <input type="color" value={bgColor} onChange={handleBgColorChange}
+              className="w-10 h-10 rounded-xl border border-gray-200 cursor-pointer" />
+            <span className="text-sm font-mono text-gray-600">{bgColor}</span>
+          </div>
+        </div>
+
+        {/* Tagline */}
+        <div>
+          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Tagline (optional)</label>
+          <input type="text" value={tagline} onChange={handleTaglineChange}
+            placeholder="e.g. Myanmar's Best E-commerce"
+            className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+        </div>
       </section>
     </div>
   );

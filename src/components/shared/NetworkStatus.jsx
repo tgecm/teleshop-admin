@@ -1,21 +1,59 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { WifiOff, Wifi, X } from 'lucide-react';
+import { WifiOff, Wifi, X, RefreshCw } from 'lucide-react';
 
 export default function NetworkStatus() {
   const [offline, setOffline] = useState(!navigator.onLine);
   const [dismissed, setDismissed] = useState(false);
+  const [justReconnected, setJustReconnected] = useState(false);
+
+  const refreshPage = useCallback(() => {
+    const queryClient = window.__reactQueryClient;
+    if (queryClient) {
+      queryClient.invalidateQueries();
+    } else {
+      window.location.reload();
+    }
+  }, []);
 
   useEffect(() => {
-    const goOffline = () => { setOffline(true); setDismissed(false); };
-    const goOnline = () => setOffline(false);
-    window.addEventListener('offline', goOffline);
-    window.addEventListener('online', goOnline);
-    return () => {
-      window.removeEventListener('offline', goOffline);
-      window.removeEventListener('online', goOnline);
+    let capNetwork;
+
+    const handleOffline = () => { setOffline(true); setDismissed(false); };
+    const handleOnline = () => {
+      setOffline(false);
+      setJustReconnected(true);
+      setTimeout(() => setJustReconnected(false), 3000);
+      refreshPage();
     };
-  }, []);
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    if (window.Capacitor?.isNativePlatform()) {
+      import('@capacitor/network').then(({ Network }) => {
+        capNetwork = Network;
+        Network.getStatus().then((status) => {
+          setOffline(!status.connected);
+        });
+        Network.addListener('networkStatusChange', (status) => {
+          if (status.connected) {
+            handleOnline();
+          } else {
+            handleOffline();
+          }
+        });
+      }).catch(() => {});
+    }
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+      if (capNetwork) {
+        capNetwork.removeAllListeners();
+      }
+    };
+  }, [refreshPage]);
 
   return (
     <AnimatePresence>
@@ -72,17 +110,18 @@ export default function NetworkStatus() {
         </motion.div>
       )}
 
-      {!offline && dismissed && (
+      {!offline && justReconnected && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.3 }}
-          className="fixed bottom-24 left-4 right-4 z-[99999] max-w-sm mx-auto"
+          className="fixed top-4 left-4 right-4 z-[99999] max-w-sm mx-auto"
         >
           <div className="bg-emerald-600/95 backdrop-blur-xl rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3">
             <Wifi className="w-5 h-5 text-white" />
-            <p className="text-sm font-bold text-white">Back online</p>
+            <p className="text-sm font-bold text-white flex-1">Back online — refreshing data</p>
+            <RefreshCw className="w-4 h-4 text-white animate-spin" />
           </div>
         </motion.div>
       )}
