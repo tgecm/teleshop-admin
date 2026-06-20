@@ -1,43 +1,44 @@
 name: Build Android APK
-
 on:
   push:
     branches: [main]
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: 21
-
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
       - name: Install dependencies
         run: npm install
-
       - name: Build React app
         run: npm run build
-
       - name: Sync Capacitor
         run: npx cap sync android
-
       - name: Fix Java version after sync
         run: find android node_modules/@capacitor/android -name "*.gradle" -exec sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' {} \;
-
       - name: Build debug APK
         run: cd android && ./gradlew assembleDebug
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: mm-shop
           path: android/app/build/outputs/apk/debug/mm-shop.apk
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "TeleshopAdmin v1.0.${{ github.run_number }}"
+          files: android/app/build/outputs/apk/debug/mm-shop.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
