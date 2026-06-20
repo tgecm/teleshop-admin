@@ -30,7 +30,7 @@ export async function registerFCMToken(): Promise<void> {
 }
 
 export async function sendTokenToBackend(token: string): Promise<void> {
-  const authToken = localStorage.getItem('telegram_token');
+  const authToken = localStorage.getItem('token');
   if (!authToken) return;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
