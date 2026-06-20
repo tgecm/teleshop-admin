@@ -60,7 +60,6 @@ import {
   Percent,
   TabletSmartphone,
   Palette,
-  Fingerprint,
   Image,
   Type,
 } from 'lucide-react';
@@ -1847,9 +1846,6 @@ function ManageBots({ allBots, deleteBotMutation, selectedBotId }) {
 // ── App Settings ───────────────────────────────────────────────
 function AppSettings() {
   const { addToast } = useToastStore();
-  const [biometricEnabled, setBiometricEnabled] = useState(
-    () => localStorage.getItem('biometric_enabled') === 'true',
-  );
   const [logo, setLogo] = useState(
     () => localStorage.getItem('splash_logo') || '',
   );
@@ -1897,39 +1893,8 @@ function AppSettings() {
     localStorage.setItem('splash_tagline', val);
   };
 
-  const toggleBiometric = (val) => {
-    setBiometricEnabled(val);
-    localStorage.setItem('biometric_enabled', String(val));
-    addToast(val ? 'Biometric login enabled' : 'Biometric login disabled');
-  };
-
   return (
     <div className="max-w-lg space-y-4">
-      {/* Biometric Login */}
-      <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Fingerprint className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-gray-900">Biometric Login</h3>
-              <p className="text-[10px] text-gray-500">Fingerprint or Face unlock</p>
-            </div>
-          </div>
-          <button
-            onClick={() => toggleBiometric(!biometricEnabled)}
-            className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${
-              biometricEnabled ? 'bg-indigo-600' : 'bg-gray-300'
-            }`}
-          >
-            <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${
-              biometricEnabled ? 'left-6.5' : 'left-0.5'
-            }`} />
-          </button>
-        </div>
-      </section>
-
       {/* Splash Screen Settings */}
       <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-2.5 mb-4">

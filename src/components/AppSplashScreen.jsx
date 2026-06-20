@@ -1,21 +1,21 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Capacitor } from '@capacitor/core';
 
 export default function AppSplashScreen() {
   const [visible, setVisible] = useState(true);
   const logo = localStorage.getItem('splash_logo') || '';
   const bgColor = localStorage.getItem('splash_bg_color') || '#4f46e5';
   const tagline = localStorage.getItem('splash_tagline') || '';
-  const biometricEnabled = localStorage.getItem('biometric_enabled') === 'true';
 
-  const shouldShow = biometricEnabled || logo || tagline;
+  const shouldShow = Capacitor.isNativePlatform() && (logo || tagline);
 
   useEffect(() => {
     if (!shouldShow) {
       setVisible(false);
       return;
     }
-    const timer = setTimeout(() => setVisible(false), 2000);
+    const timer = setTimeout(() => setVisible(false), 3000);
     return () => clearTimeout(timer);
   }, [shouldShow]);
 
