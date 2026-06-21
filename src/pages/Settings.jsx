@@ -18,6 +18,7 @@ import {
   createSubscriptionDiscount,
   updateSubscriptionDiscount,
   deleteSubscriptionDiscount,
+  triggerApkUpdate,
 } from '../api/superadmin';
 import { getStats } from '../api/stats';
 import { getBotPublicSlug, generateBotSlug, listBotDomains, addBotDomain, verifyBotDomainItem, toggleBotDomainItem, deleteBotDomainItem } from '../api/public';
@@ -186,6 +187,12 @@ export default function Settings() {
     onError: (err) => {
       addToast(err.response?.data?.detail || 'Failed to delete bot', 'error');
     },
+  });
+
+  const apkUpdateMutation = useMutation({
+    mutationFn: triggerApkUpdate,
+    onSuccess: () => addToast('APK update triggered successfully'),
+    onError: (err) => addToast(err.response?.data?.detail || 'Failed to update APK', 'error'),
   });
 
   const { data: publicSlug } = useQuery({
@@ -1700,7 +1707,32 @@ export default function Settings() {
         )}
 
         {activeTab === 'superadmin' && isSuperadmin && (
-          <DiscountsManager />
+          <>
+            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+                  <Download className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">APK Update</h3>
+                  <p className="text-[10px] text-gray-500">Download latest APK from GitHub to VPS</p>
+                </div>
+              </div>
+              <button
+                onClick={() => apkUpdateMutation.mutate()}
+                disabled={apkUpdateMutation.isPending}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm"
+              >
+                {apkUpdateMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                Release Update
+              </button>
+            </section>
+            <DiscountsManager />
+          </>
         )}
 
         {activeTab === 'shop' && (

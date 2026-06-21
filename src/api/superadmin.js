@@ -79,3 +79,6 @@ export const deleteSubscriptionDiscount = (id) =>
 
 export const validateSubscriptionDiscount = (code) =>
   client.post('/public/validate-subscription-discount', { code }).then(res => res.data);
+
+export const triggerApkUpdate = () =>
+  client.post('/superadmin/update-apk').then(res => res.data);
