@@ -268,7 +268,7 @@ export default function Subscription() {
       } catch {
         // polling silently retries
       }
-    }, 3000);
+    }, 1000);
 
     return () => {
       clearInterval(pollRef.current);

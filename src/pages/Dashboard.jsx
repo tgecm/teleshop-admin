@@ -88,10 +88,10 @@ function MiniMetric({ icon: Icon, label, value, sub, color = 'indigo', period, o
   return (
     <motion.div variants={itemVariants} className="bg-white rounded-xl md:rounded-2xl border border-gray-100 p-3 sm:p-4 md:p-5 shadow-sm relative" ref={ref}>
       <div className="flex items-center gap-2.5 mb-2 md:mb-3">
-        <div className={`w-7 h-7 md:w-9 md:h-9 rounded-lg md:rounded-xl ${colors[color]} flex items-center justify-center`}>
-          <Icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+        <div className={`w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl ${colors[color]} flex items-center justify-center`}>
+          <Icon className="w-3 h-3 md:w-3.5 md:h-3.5" />
         </div>
-        <span className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-wider break-words">{label}</span>
         {showDropdown && (
           <div className="relative ml-auto">
             <button onClick={() => setOpen(!open)}
@@ -112,8 +112,8 @@ function MiniMetric({ icon: Icon, label, value, sub, color = 'indigo', period, o
           </div>
         )}
       </div>
-      <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 leading-tight">{value}</p>
-      {sub && <p className="text-[10px] md:text-xs text-gray-400 mt-0.5">{sub}</p>}
+      <p className="text-sm sm:text-base md:text-lg font-bold text-gray-900 leading-tight break-words">{value}</p>
+      {sub && <p className="text-[10px] md:text-xs text-gray-400 mt-0.5 break-words">{sub}</p>}
     </motion.div>
   );
 }
@@ -509,12 +509,12 @@ export default function Dashboard() {
             ].map((card, i) => i === 0 ? (
               <motion.div key={i} variants={itemVariants}>
                 <div className="bg-white p-3.5 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 flex items-center gap-3 sm:gap-4 md:gap-5 h-full">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100 flex-shrink-0">
-                    {showRevenue ? <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" /> : <Package className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />}
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100 flex-shrink-0">
+                    {showRevenue ? <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" /> : <Package className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1">
-                      <p className="text-[9px] sm:text-xs md:text-sm font-bold text-gray-400 uppercase tracking-wider truncate">
+                      <p className="text-[9px] sm:text-xs md:text-sm font-bold text-gray-400 uppercase tracking-wider break-words">
                         {showRevenue ? 'Total Revenue' : 'Total Stock Value'}
                       </p>
                       <button onClick={() => setShowRevenue(!showRevenue)}
@@ -522,7 +522,7 @@ export default function Dashboard() {
                         <ArrowLeftRight className="w-3 h-3" />
                       </button>
                     </div>
-                    <h3 className="text-xs sm:text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mt-0.5">
+                    <h3 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-gray-900 leading-tight mt-0.5">
                       {showRevenue ? `${totalRevenue.toLocaleString()} MMK` : `${totalStockValue.toLocaleString()} MMK`}
                     </h3>
                   </div>

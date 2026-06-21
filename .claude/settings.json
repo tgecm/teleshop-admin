@@ -5,7 +5,8 @@
       "Read(//home/meriko/VPS/**)"
     ],
     "additionalDirectories": [
-      "/home/meriko/VPS/backend-api"
+      "/home/meriko/VPS/backend-api",
+      "/tmp"
     ]
   }
 }
