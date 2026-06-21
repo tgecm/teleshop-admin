@@ -1300,7 +1300,7 @@ export default function Settings() {
                 </div>
               </div>
               <a
-                href="https://api.telegramecommerce.shop/download/app"
+                href="http://dl.telegramecommerce.shop/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm"
