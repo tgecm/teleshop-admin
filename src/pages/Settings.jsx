@@ -58,6 +58,7 @@ import {
   Eye,
   EyeOff,
   Percent,
+  ArrowLeftRight,
   TabletSmartphone,
   Download,
   Palette,
@@ -725,64 +726,6 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* Mode Order Buttons */}
-              <div className="mb-3 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
-                <p className="text-[10px] text-gray-500 font-medium mb-2">Reorder mode buttons</p>
-                <div className="flex items-center overflow-hidden flex-nowrap">
-                  {modeOrder.map((key, idx) => {
-                    const labels = { telegram: { label: 'Buy on Telegram', icon: '💬' }, ecommerce: { label: 'Buy on Website', icon: '🛒' }, guest: { label: 'Buy as a Guest', icon: '👤' } };
-                    const info = labels[key] || { label: key, icon: '🔘' };
-                    const isFirst = idx === 0;
-                    const isLast = idx === modeOrder.length - 1;
-                    const on = modeEnabled[key] !== false;
-                    return (
-                      <div key={key} className="flex items-center">
-                        <button
-                          onClick={() => {
-                            if (isFirst) return;
-                            const newOrder = [...modeOrder];
-                            [newOrder[idx-1], newOrder[idx]] = [newOrder[idx], newOrder[idx-1]];
-                            setModeOrder(newOrder);
-                            updateContentMutation.mutate({ key: 'mode_order', data: { order: newOrder, enabled: modeEnabled } });
-                          }}
-                          disabled={isFirst}
-                          className={`w-3.5 h-3.5 flex items-center justify-center rounded-full transition-colors text-[8px] ${isFirst ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
-                        >◀</button>
-                        <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[10px] font-medium whitespace-nowrap transition-all ${on ? 'bg-white border-gray-200 text-gray-600' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
-                          <span>{info.icon}</span>
-                          <span>{info.label}</span>
-                          <button
-                            onClick={(e) => { e.stopPropagation();
-                              if (on) {
-                                const activeCount = Object.values(modeEnabled).filter(Boolean).length;
-                                if (activeCount <= 1) return;
-                              }
-                              const next = { ...modeEnabled, [key]: !on };
-                              setModeEnabled(next);
-                              updateContentMutation.mutate({ key: 'mode_order', data: { order: modeOrder, enabled: next }, _mode: key, _action: on ? 'hidden' : 'shown' });
-                            }}
-                            className={`w-6 h-3.5 rounded-full transition-colors relative flex-shrink-0 ${on ? 'bg-indigo-500' : 'bg-gray-300'}`}
-                          >
-                            <span className={`absolute left-0 top-0.5 w-2.5 h-2.5 bg-white rounded-full shadow transition-transform ${on ? 'translate-x-3' : 'translate-x-0.5'}`} />
-                          </button>
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (isLast) return;
-                            const newOrder = [...modeOrder];
-                            [newOrder[idx], newOrder[idx+1]] = [newOrder[idx+1], newOrder[idx]];
-                            setModeOrder(newOrder);
-                            updateContentMutation.mutate({ key: 'mode_order', data: { order: newOrder, enabled: modeEnabled } });
-                          }}
-                          disabled={isLast}
-                          className={`w-3.5 h-3.5 flex items-center justify-center rounded-full transition-colors text-[8px] ${isLast ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
-                        >▶</button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
               <div className="transition-all duration-300">
                 {publicSlug?.slug ? (
                   <div className="space-y-2.5">
@@ -868,6 +811,75 @@ export default function Settings() {
                 </div>
               )}
                 </div>
+            </section>
+
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+                  <ArrowLeftRight className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">Shop Mode Buttons</h3>
+                  <p className="text-[10px] text-gray-500">Reorder and toggle mode buttons</p>
+                </div>
+              </div>
+              <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-[10px] text-gray-500 font-medium mb-2">Drag to reorder — toggle to show/hide</p>
+                <div className="flex items-center gap-1 flex-nowrap">
+                  {modeOrder.map((key, idx) => {
+                    const labels = { telegram: { label: 'Buy on Telegram', short: 'Telegram', icon: '💬' }, ecommerce: { label: 'Buy on Website', short: 'Website', icon: '🛒' }, guest: { label: 'Buy as a Guest', short: 'Guest', icon: '👤' } };
+                    const info = labels[key] || { label: key, icon: '🔘' };
+                    const isFirst = idx === 0;
+                    const isLast = idx === modeOrder.length - 1;
+                    const on = modeEnabled[key] !== false;
+                    return (
+                      <div key={key} className="flex items-center">
+                        <button
+                          onClick={() => {
+                            if (isFirst) return;
+                            const newOrder = [...modeOrder];
+                            [newOrder[idx-1], newOrder[idx]] = [newOrder[idx], newOrder[idx-1]];
+                            setModeOrder(newOrder);
+                            updateContentMutation.mutate({ key: 'mode_order', data: { order: newOrder, enabled: modeEnabled } });
+                          }}
+                          disabled={isFirst}
+                          className={`w-3 h-3 flex items-center justify-center rounded-full transition-colors text-[7px] ${isFirst ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
+                        >◀</button>
+                        <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[10px] font-medium whitespace-nowrap transition-all ${on ? 'bg-white border-gray-200 text-gray-600' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
+                          <span>{info.icon}</span>
+                          <span className="sm:hidden">{info.short}</span>
+                          <span className="hidden sm:inline">{info.label}</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation();
+                              if (on) {
+                                const activeCount = Object.values(modeEnabled).filter(Boolean).length;
+                                if (activeCount <= 1) return;
+                              }
+                              const next = { ...modeEnabled, [key]: !on };
+                              setModeEnabled(next);
+                              updateContentMutation.mutate({ key: 'mode_order', data: { order: modeOrder, enabled: next }, _mode: key, _action: on ? 'hidden' : 'shown' });
+                            }}
+                            className={`w-5 h-3.5 rounded-full transition-colors relative flex-shrink-0 ${on ? 'bg-indigo-500' : 'bg-gray-300'}`}
+                          >
+                            <span className={`absolute left-0 top-0.5 w-2.5 h-2.5 bg-white rounded-full shadow transition-transform ${on ? 'translate-x-2.5' : 'translate-x-0.5'}`} />
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (isLast) return;
+                            const newOrder = [...modeOrder];
+                            [newOrder[idx], newOrder[idx+1]] = [newOrder[idx+1], newOrder[idx]];
+                            setModeOrder(newOrder);
+                            updateContentMutation.mutate({ key: 'mode_order', data: { order: newOrder, enabled: modeEnabled } });
+                          }}
+                          disabled={isLast}
+                          className={`w-3 h-3 flex items-center justify-center rounded-full transition-colors text-[7px] ${isLast ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
+                        >▶</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </section>
 
             <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
