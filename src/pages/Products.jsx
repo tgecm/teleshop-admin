@@ -485,15 +485,6 @@ export default function Products() {
                 </div>
                 {product.link_code && (
                   <div className="flex items-center gap-1.5 mt-1.5">
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(product.link_code).catch(() => {});
-                      }}
-                      className="p-1 rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
-                      title="Copy link code: {product.link_code}"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
                     <span className="text-[9px] font-mono text-gray-400">{product.link_code}</span>
                   </div>
                 )}
