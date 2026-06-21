@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WifiOff } from 'lucide-react';
 
 export default function VpnWarningModal() {
   const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const dismissedRef = useRef(false);
 
   const open = () => {
     setDismissed(false);
+    dismissedRef.current = false;
     setShow(true);
   };
 
   const close = () => {
     setShow(false);
     setDismissed(true);
+    dismissedRef.current = true;
   };
 
   useEffect(() => {
@@ -25,7 +28,7 @@ export default function VpnWarningModal() {
     }
 
     const handleOffline = () => {
-      if (!dismissed) open();
+      if (!dismissedRef.current) open();
     };
     const handleOnline = () => setShow(false);
 

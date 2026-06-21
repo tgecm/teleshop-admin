@@ -7,6 +7,7 @@ const client = axios.create({
 });
 
 let lastBackendErrorTime = 0;
+let consecutiveErrors = 0;
 
 client.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token || localStorage.getItem('telegram_token');
@@ -17,12 +18,17 @@ client.interceptors.request.use((config) => {
 });
 
 client.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    consecutiveErrors = 0;
+    return response;
+  },
   (error) => {
     if (!error.response) {
+      consecutiveErrors++;
       const now = Date.now();
-      if (now - lastBackendErrorTime > 15000) {
+      if (consecutiveErrors >= 3 && now - lastBackendErrorTime > 30000) {
         lastBackendErrorTime = now;
+        consecutiveErrors = 0;
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('app:vpn-warning'));
         }
