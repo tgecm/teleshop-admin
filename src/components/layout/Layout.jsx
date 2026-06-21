@@ -5,6 +5,7 @@ import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import NotificationPopup from '../shared/NotificationPopup';
+import UpdateBanner from '../UpdateBanner';
 import PullToRefresh from '../shared/PullToRefresh';
 import { motion } from 'motion/react';
 
@@ -27,6 +28,7 @@ export default function Layout() {
     <div className="h-full bg-gray-50 flex flex-col">
       <TopBar onToggleSidebar={() => setSidebarOpen(s => !s)} />
       <NotificationPopup />
+      <UpdateBanner />
 
       <div className="flex flex-1 relative min-h-0">
         <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
