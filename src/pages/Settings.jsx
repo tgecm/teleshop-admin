@@ -1896,11 +1896,19 @@ function AppSettings() {
   const handleCheckUpdate = async () => {
     setCheckingUpdate(true);
     setUpdateResult(null);
-    const { checkForUpdate, clearVersionCache } = await import('../lib/versionCheck');
-    clearVersionCache();
-    const result = await checkForUpdate(true);
-    setUpdateResult(result);
-    setCheckingUpdate(false);
+    const start = Date.now();
+    try {
+      const { checkForUpdate, clearVersionCache } = await import('../lib/versionCheck');
+      clearVersionCache();
+      const result = await checkForUpdate(true);
+      setUpdateResult(result);
+    } catch {
+      setUpdateResult({ hasUpdate: false, latestVersion: '', currentVersion: 'error' });
+    } finally {
+      const elapsed = Date.now() - start;
+      if (elapsed < 800) await new Promise(r => setTimeout(r, 800 - elapsed));
+      setCheckingUpdate(false);
+    }
   };
 
   const handleLogoPick = () => {
