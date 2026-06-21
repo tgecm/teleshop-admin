@@ -59,6 +59,8 @@ import {
   EyeOff,
   Percent,
   TabletSmartphone,
+  Smartphone,
+  Download,
   Palette,
   Image,
   Type,
@@ -1286,6 +1288,27 @@ export default function Settings() {
               </div>
             </section>
             )}
+
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+                  <Smartphone className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">Download Android App</h3>
+                  <p className="text-[10px] text-gray-500">Get the latest APK for your device</p>
+                </div>
+              </div>
+              <a
+                href="https://api.telegramecommerce.shop/download/app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm"
+              >
+                <Download className="w-4 h-4" />
+                Download Android App
+              </a>
+            </section>
 
           </div>
         )}
