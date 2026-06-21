@@ -6,6 +6,7 @@ export default function VpnWarningModal() {
   const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const dismissedRef = useRef(false);
+  const offlineTimerRef = useRef(null);
 
   const open = () => {
     setDismissed(false);
@@ -23,14 +24,17 @@ export default function VpnWarningModal() {
     const handler = () => open();
     window.addEventListener('app:vpn-warning', handler);
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      open();
-    }
-
     const handleOffline = () => {
-      if (!dismissedRef.current) open();
+      if (dismissedRef.current) return;
+      clearTimeout(offlineTimerRef.current);
+      offlineTimerRef.current = setTimeout(() => {
+        if (!dismissedRef.current) open();
+      }, 3000);
     };
-    const handleOnline = () => setShow(false);
+    const handleOnline = () => {
+      clearTimeout(offlineTimerRef.current);
+      setShow(false);
+    };
 
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
@@ -39,6 +43,7 @@ export default function VpnWarningModal() {
       window.removeEventListener('app:vpn-warning', handler);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
+      clearTimeout(offlineTimerRef.current);
     };
   }, []);
 
