@@ -1,3 +1,4 @@
+import { Device } from '@capacitor/device';
 import pkg from '../../package.json';
 
 const GITHUB_API = 'https://api.github.com/repos/tgecm/teleshop-admin/releases/latest';
@@ -20,12 +21,20 @@ function isNewer(latest: string, current: string): boolean {
   return false;
 }
 
+async function getAppVersion(): Promise<string> {
+  try {
+    const info = await Device.getInfo();
+    if (info.appVersion) return info.appVersion;
+  } catch {}
+  return pkg.version;
+}
+
 let cachedResult: { hasUpdate: boolean; latestVersion: string; currentVersion: string } | null = null;
 
 export async function checkForUpdate(): Promise<{ hasUpdate: boolean; latestVersion: string; currentVersion: string }> {
   if (cachedResult) return cachedResult;
 
-  const currentVersion = pkg.version;
+  const currentVersion = await getAppVersion();
   const lastCheck = localStorage.getItem(CHECK_KEY);
   const now = Date.now();
 
