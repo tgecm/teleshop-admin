@@ -6,7 +6,9 @@
     ],
     "additionalDirectories": [
       "/home/meriko/VPS/backend-api",
-      "/tmp"
+      "/tmp",
+      "/home/meriko/VPS/MyanMyanPay",
+      "/home/meriko/VPS/temp"
     ]
   }
 }
