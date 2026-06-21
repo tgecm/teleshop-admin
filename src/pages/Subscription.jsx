@@ -221,6 +221,27 @@ export default function Subscription() {
 
     try {
       const result = await createPlanOrder(selectedBotId, planKey, planType, discountCode);
+      if (result.free) {
+        setOrderData({
+          ...result,
+          planName: plan.name,
+          planType,
+          amountFormatted: '0 MMK',
+          originalAmountFormatted: `${(result.original_amount || 0).toLocaleString()} MMK`,
+          discountPercent: 100,
+        });
+        if (discountCode) {
+          setAppliedDiscount({ discount_percent: 100 });
+        }
+        setPaymentSuccess(true);
+        setTimeout(() => {
+          setShowQr(false);
+          setPaymentSuccess(false);
+          setOrderData(null);
+          queryClient.invalidateQueries({ queryKey: ['bots', selectedBotId] });
+        }, 5000);
+        return;
+      }
       const originalPrice = planBilling[planKey] !== false ? plan.yearlyPrice : plan.monthlyPrice;
       setOrderData({
         ...result,
