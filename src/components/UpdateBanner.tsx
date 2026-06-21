@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { checkForUpdate } from '../lib/versionCheck';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -9,6 +10,7 @@ export default function UpdateBanner() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
     let timer: ReturnType<typeof setTimeout>;
     checkForUpdate().then((result) => {
       if (result.hasUpdate) {
