@@ -1861,8 +1861,9 @@ function AppSettings() {
   const handleCheckUpdate = async () => {
     setCheckingUpdate(true);
     setUpdateResult(null);
-    const { checkForUpdate } = await import('../lib/versionCheck');
-    const result = await checkForUpdate();
+    const { checkForUpdate, clearVersionCache } = await import('../lib/versionCheck');
+    clearVersionCache();
+    const result = await checkForUpdate(true);
     setUpdateResult(result);
     setCheckingUpdate(false);
   };
