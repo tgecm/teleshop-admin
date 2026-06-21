@@ -1890,26 +1890,6 @@ function AppSettings() {
   const [tagline, setTagline] = useState(
     () => localStorage.getItem('splash_tagline') || '',
   );
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [updateResult, setUpdateResult] = useState(null);
-
-  const handleCheckUpdate = async () => {
-    setCheckingUpdate(true);
-    setUpdateResult(null);
-    const start = Date.now();
-    try {
-      const { checkForUpdate, clearVersionCache } = await import('../lib/versionCheck');
-      clearVersionCache();
-      const result = await checkForUpdate(true);
-      setUpdateResult(result);
-    } catch {
-      setUpdateResult({ hasUpdate: false, latestVersion: '', currentVersion: 'error' });
-    } finally {
-      const elapsed = Date.now() - start;
-      if (elapsed < 800) await new Promise(r => setTimeout(r, 800 - elapsed));
-      setCheckingUpdate(false);
-    }
-  };
 
   const handleLogoPick = () => {
     const input = document.createElement('input');
@@ -1999,7 +1979,7 @@ function AppSettings() {
         </div>
       </section>
 
-      {/* Check for Update */}
+      {/* Download Latest Version */}
       <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-2.5 mb-4">
           <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
@@ -2007,47 +1987,18 @@ function AppSettings() {
           </div>
           <div>
             <h3 className="text-sm font-bold text-gray-900">Update</h3>
-            <p className="text-[10px] text-gray-500">Check if a new version is available</p>
+            <p className="text-[10px] text-gray-500">Download the latest APK</p>
           </div>
         </div>
-
-        {!updateResult && (
-          <button
-            onClick={handleCheckUpdate}
-            disabled={checkingUpdate}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm"
-          >
-            {checkingUpdate ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-            Check For Update
-          </button>
-        )}
-
-        {updateResult && !updateResult.hasUpdate && (
-          <div className="bg-green-50 rounded-xl p-3 border border-green-200 text-center">
-            <p className="text-sm font-semibold text-green-700">No Updates Available</p>
-            <p className="text-xs text-green-500 mt-0.5">{updateResult.latestVersion || `v${updateResult.currentVersion}`}</p>
-          </div>
-        )}
-
-        {updateResult && updateResult.hasUpdate && (
-          <div className="bg-orange-50 rounded-xl p-3 border border-orange-200">
-            <p className="text-sm font-semibold text-orange-700 text-center">New Update Available!</p>
-            <p className="text-xs text-orange-500 text-center mt-0.5 mb-3">{updateResult.latestVersion}</p>
-            <a
-              href="http://dl.telegramecommerce.shop/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm"
-            >
-              <Download className="w-4 h-4" />
-              Download Update
-            </a>
-          </div>
-        )}
+        <a
+          href="http://dl.telegramecommerce.shop/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm"
+        >
+          <Download className="w-4 h-4" />
+          Download Latest Version
+        </a>
       </section>
     </div>
   );
