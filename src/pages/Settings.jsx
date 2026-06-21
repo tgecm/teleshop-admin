@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
@@ -75,7 +75,17 @@ export default function Settings() {
   const { selectedBotId, bots, setBots } = useBotStore();
   const { addToast } = useToastStore();
   const [activeTab, setActiveTab] = useState('shop');
+  const [latestVersion, setLatestVersion] = useState(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('https://api.github.com/repos/tgecm/teleshop-admin/releases/latest')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (!cancelled && data?.tag_name) setLatestVersion(data.tag_name); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const { data: bot, isLoading: botLoading } = useQuery({
     queryKey: ['bots', selectedBotId],
@@ -1294,10 +1304,17 @@ export default function Settings() {
                 <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
                   <Smartphone className="w-4 h-4" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="text-sm font-bold text-gray-900">Download Android App</h3>
-                  <p className="text-[10px] text-gray-500">Get the latest APK for your device</p>
+                  <p className="text-[10px] text-gray-500">
+                    {latestVersion ? `Latest: ${latestVersion}` : 'Get the latest APK for your device'}
+                  </p>
                 </div>
+                {latestVersion && (
+                  <div className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-md">
+                    {latestVersion}
+                  </div>
+                )}
               </div>
               <a
                 href="http://dl.telegramecommerce.shop/"
