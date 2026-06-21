@@ -31,20 +31,30 @@ async function getAppVersion(): Promise<string> {
 
 let cachedResult: { hasUpdate: boolean; latestVersion: string; currentVersion: string } | null = null;
 
-export async function checkForUpdate(): Promise<{ hasUpdate: boolean; latestVersion: string; currentVersion: string }> {
-  if (cachedResult) return cachedResult;
+function buildResult(latestVersion: string, currentVersion: string) {
+  return {
+    hasUpdate: isNewer(latestVersion, currentVersion),
+    latestVersion,
+    currentVersion,
+  };
+}
 
+export async function checkForUpdate(bypassCache = false): Promise<{ hasUpdate: boolean; latestVersion: string; currentVersion: string }> {
   const currentVersion = await getAppVersion();
-  const lastCheck = localStorage.getItem(CHECK_KEY);
-  const now = Date.now();
 
-  if (lastCheck && now - Number(lastCheck) < ONE_DAY) {
-    const stored = localStorage.getItem('cached_version_result');
-    if (stored) {
-      try {
-        cachedResult = JSON.parse(stored);
-        return cachedResult!;
-      } catch {}
+  if (!bypassCache) {
+    if (cachedResult && cachedResult.currentVersion === currentVersion) return cachedResult;
+
+    const lastCheck = localStorage.getItem(CHECK_KEY);
+    const now = Date.now();
+    if (lastCheck && now - Number(lastCheck) < ONE_DAY) {
+      const stored = localStorage.getItem('cached_version_result');
+      if (stored) {
+        try {
+          cachedResult = JSON.parse(stored);
+          if (cachedResult.currentVersion === currentVersion) return cachedResult;
+        } catch {}
+      }
     }
   }
 
@@ -54,18 +64,19 @@ export async function checkForUpdate(): Promise<{ hasUpdate: boolean; latestVers
     const data = await res.json();
     const latestVersion = data.tag_name || '';
 
-    cachedResult = {
-      hasUpdate: isNewer(latestVersion, currentVersion),
-      latestVersion,
-      currentVersion,
-    };
+    cachedResult = buildResult(latestVersion, currentVersion);
 
-    localStorage.setItem(CHECK_KEY, String(now));
+    localStorage.setItem(CHECK_KEY, String(Date.now()));
     localStorage.setItem('cached_version_result', JSON.stringify(cachedResult));
 
     return cachedResult;
   } catch {
-    cachedResult = { hasUpdate: false, latestVersion: '', currentVersion };
-    return cachedResult;
+    return buildResult('', currentVersion);
   }
+}
+
+export function clearVersionCache() {
+  cachedResult = null;
+  localStorage.removeItem(CHECK_KEY);
+  localStorage.removeItem('cached_version_result');
 }
