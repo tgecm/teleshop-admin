@@ -525,7 +525,7 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   );
 }
 
-function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm }) {
+export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm }) {
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -1160,7 +1160,7 @@ function RegisterModal({ shop, user, onClose, onSuccess }) {
 
 const PAYMENT_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'];
 
-function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled }) {
+export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled }) {
   const [selectedId, setSelectedId] = useState(null);
   const hasOptions = paymentMethods.length > 0 || codEnabled;
 
@@ -1262,7 +1262,7 @@ function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled }) {
   );
 }
 
-function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode, shop, shopSlug }) {
+export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode, shop, shopSlug }) {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [error, setError] = useState('');
 

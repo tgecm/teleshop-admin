@@ -12,6 +12,7 @@ import { RichMessage } from '../components/chat/RichMessage';
 import { getPublicTopProducts } from '../api/public';
 import SearchableSelect from '../components/shared/SearchableSelect';
 import { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
+import { PaymentSelect, ContactInfoStep, CheckoutModal } from './PublicEcommerce';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
@@ -1009,7 +1010,9 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   const [shopData, setShopData] = useState(null);
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [showContactInfo, setShowContactInfo] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' });
   const [orderPlaced, setOrderPlaced] = useState(null);
   const [oosMap, setOosMap] = useState({});
   const effectiveShop = shopData?.shop || shop;
@@ -1033,19 +1036,34 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   const handleCheckoutAll = async () => {
     const data = await fetchShopDataIfNeeded();
     const methods = data?.payment_methods || shopData?.payment_methods || [];
-    if (methods.length > 0) {
+    const codEnabled = !!(data?.cod_enabled);
+    if (methods.length > 0 || codEnabled) {
       setShowPaymentSelect(true);
     } else {
-      setCheckoutOpen(true);
+      setShowContactInfo(true);
     }
   };
 
   const handlePaymentNext = (paymentId) => {
     if (!paymentId) return;
-    const pm = (shopData?.payment_methods || []).find(p => p.id === paymentId);
-    setSelectedPayment(pm || null);
+    if (paymentId === 'cod') {
+      setSelectedPayment({ id: 'cod', name: 'Cash on Delivery' });
+    } else {
+      const pm = (shopData?.payment_methods || []).find(p => p.id === paymentId);
+      setSelectedPayment(pm || null);
+    }
     setShowPaymentSelect(false);
+    setShowContactInfo(true);
+  };
+
+  const handleContactNext = () => {
+    setShowContactInfo(false);
     setCheckoutOpen(true);
+  };
+
+  const handleContactBack = () => {
+    setShowContactInfo(false);
+    setShowPaymentSelect(true);
   };
 
   const handleOrderPlacedCallback = (orderData) => {
@@ -1113,6 +1131,11 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   }
 
   // totalAmount from cart context
+
+  const products = shopData?.products || [];
+  const deliverySettings = shopData?.delivery_settings || {};
+  const deliveryFees = shopData?.delivery_fees || [];
+  const codEnabled = !!(shopData?.cod_enabled);
 
   return (
     <>
@@ -1183,29 +1206,55 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
         </div>
       </div>
 
-      {/* Payment Select Overlay */}
-      {showPaymentSelect && (
-        <PaymentSelectInline
-          paymentMethods={shopData?.payment_methods || []}
-          onBack={() => setShowPaymentSelect(false)}
-          onNext={handlePaymentNext}
-        />
-      )}
+      {/* Payment Select Modal */}
+      <AnimatePresence>
+        {showPaymentSelect && (
+          <PaymentSelect
+            paymentMethods={shopData?.payment_methods || []}
+            onBack={() => setShowPaymentSelect(false)}
+            onNext={handlePaymentNext}
+            codEnabled={codEnabled}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Checkout Form Overlay */}
-      {checkoutOpen && (
-        <CheckoutFormInline
-          shop={shopData?.shop || null}
-          cartItems={cartItems}
-          totalAmount={totalAmount}
-          user={user}
-          telegramUser={telegramUser}
-          shopSlug={shopSlug}
-          selectedPayment={selectedPayment}
-          onClose={() => setCheckoutOpen(false)}
-          onOrderPlaced={handleOrderPlacedCallback}
-        />
-      )}
+      {/* Contact Information Modal */}
+      <AnimatePresence>
+        {showContactInfo && (
+          <ContactInfoStep
+            form={contactForm}
+            setForm={setContactForm}
+            onBack={handleContactBack}
+            onNext={handleContactNext}
+            user={user}
+            viewMode="ecommerce"
+            shop={effectiveShop}
+            shopSlug={shopSlug}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Checkout Modal */}
+      <AnimatePresence>
+        {checkoutOpen && (
+          <CheckoutModal
+            shop={effectiveShop}
+            cartItems={cartItems}
+            totalAmount={totalAmount}
+            user={user}
+            telegramUser={telegramUser}
+            viewMode="ecommerce"
+            shopSlug={shopSlug}
+            selectedPayment={selectedPayment}
+            products={products}
+            deliverySettings={deliverySettings}
+            deliveryFees={deliveryFees}
+            contactForm={contactForm}
+            onClose={() => { setCheckoutOpen(false); setSelectedPayment(null); }}
+            onOrderPlaced={handleOrderPlacedCallback}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }
@@ -1569,641 +1618,6 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
   );
 }
 
-const PAYMENT_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#f97316', '#8b5cf6'];
-
-/* ─── PAYMENT SELECT INLINE ─── */
-function PaymentSelectInline({ paymentMethods, onBack, onNext }) {
-  const [selectedId, setSelectedId] = useState(null);
-  const { addToast } = useToastStore();
-
-  const handleCopy = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      addToast('Copied to clipboard');
-    } catch {
-      addToast('Failed to copy', 'error');
-    }
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm"
-    >
-      <motion.div
-        initial={{ y: '100%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '100%', opacity: 0 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        className="relative bg-white w-full max-w-lg md:rounded-[32px] max-h-[92svh] overflow-y-auto rounded-t-[32px] shadow-2xl p-6"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-gray-900">Select Payment Method</h2>
-          <button onClick={onBack} className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-all">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {paymentMethods.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-400 text-sm">No payment methods available</p>
-            <button onClick={onBack}
-              className="mt-4 px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm hover:bg-gray-200 transition-all">
-              Back to Cart
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {paymentMethods.map((pm, i) => {
-              const isSelected = selectedId === pm.id;
-              const color = PAYMENT_COLORS[i % PAYMENT_COLORS.length];
-              return (
-                <div key={pm.id}
-                  onClick={() => setSelectedId(isSelected ? null : pm.id)}
-                  className={`rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] ${
-                    isSelected ? 'border-indigo-500 shadow-lg' : 'border-gray-100 hover:border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 p-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-sm"
-                      style={{ backgroundColor: color }}>
-                      {(pm.name || '?').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 text-sm truncate">{pm.name}</p>
-                      {pm.account_name && (
-                        <p className="text-xs text-gray-500 truncate">{pm.account_name}</p>
-                      )}
-                    </div>
-                    <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
-                  </div>
-
-                  {isSelected && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
-                      className="overflow-hidden border-t border-gray-100">
-                      <div className="p-4 pt-3 space-y-3">
-                        {pm.qr_code_url && (
-                          <div className="flex justify-center bg-gray-50 rounded-xl p-4">
-                            <img src={pm.qr_code_url} alt="QR Code" className="w-40 h-40 object-contain rounded-lg"
-                              onError={(e) => { e.target.style.display = 'none'; }} />
-                          </div>
-                        )}
-                        {pm.account_name && (
-                          <div>
-                            <p className="text-xs text-gray-400 font-medium mb-0.5">Account Name</p>
-                            <p className="text-sm font-bold text-gray-900">{pm.account_name}</p>
-                          </div>
-                        )}
-                        {pm.payment_number && (
-                          <div>
-                            <p className="text-xs text-gray-400 font-medium mb-0.5">Account Number</p>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-gray-900">{pm.payment_number}</p>
-                              <button onClick={(e) => { e.stopPropagation(); handleCopy(pm.payment_number); }}
-                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-90">
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                        {pm.description && (
-                          <div>
-                            <p className="text-xs text-gray-400 font-medium mb-0.5">Details</p>
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{pm.description}</p>
-                          </div>
-                        )}
-                        {pm.notes && (
-                          <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-                            <p className="text-xs text-amber-700 whitespace-pre-wrap">{pm.notes}</p>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {paymentMethods.length > 0 && (
-          <div className="flex gap-3 mt-6">
-            <button onClick={onBack}
-              className="flex-1 py-3 rounded-2xl font-bold text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all active:scale-[0.98]">
-              Back
-            </button>
-            <button onClick={() => onNext(selectedId)}
-              disabled={!selectedId}
-              className={`flex-1 py-3 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-50 ${
-                selectedId ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}>
-              Transferred, Next...
-            </button>
-          </div>
-        )}
-      </motion.div>
-    </motion.div>
-  );
-}
-
-/* ─── CHECKOUT FORM INLINE ─── */
-function CheckoutFormInline({ shop, cartItems, totalAmount, user, telegramUser, shopSlug, selectedPayment, onClose, onOrderPlaced }) {
-  const [form, setForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' });
-  const [proofFile, setProofFile] = useState(null);
-  const [proofPreview, setProofPreview] = useState('');
-  const [uploadingProof, setUploadingProof] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [profileLoaded, setProfileLoaded] = useState(false);
-  const [agreed1, setAgreed1] = useState(false);
-  const [agreed2, setAgreed2] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
-  const [couponApplied, setCouponApplied] = useState(null);
-  const [couponError, setCouponError] = useState('');
-  const [couponLoading, setCouponLoading] = useState(false);
-  const effectiveTotal = couponApplied ? totalAmount - couponApplied.discount : totalAmount;
-
-  const loadContactCache = () => {
-    const cacheKey = 'checkout_contact_' + shopSlug;
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const data = JSON.parse(cached);
-        if (data && data.name) {
-          setForm({
-            name: data.name || '',
-            phones: data.phones?.length > 0 ? data.phones : [''],
-            emails: data.email ? [data.email] : [''],
-            telegram: data.telegram || '',
-            viber: data.viber || '',
-            address: data.address || '',
-            notes: data.notes || '',
-          });
-        }
-      }
-    } catch {}
-  };
-
-  useEffect(() => {
-    if (!shopSlug || profileLoaded || !shop?.id) return;
-    const tgToken = localStorage.getItem('telegram_token');
-    const customerUid = user?.uid
-      || (tgToken ? (getUserIdFromToken() || '_') : '');
-    if (!customerUid) {
-      loadContactCache();
-      setProfileLoaded(true);
-      return;
-    }
-    fetch(`${API_BASE}/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
-      .then(r => r.ok ? r.json() : {})
-      .then(data => {
-        if (data && data.id) {
-          const pl = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
-          const el = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [user?.email || ''];
-          setForm({
-            name: data.display_name || user?.displayName || '',
-            phones: pl.length > 0 ? pl : [''],
-            emails: el.length > 0 ? el : [user?.email || ''],
-            telegram: data.telegram_username || '',
-            viber: data.viber_number || '',
-            address: data.address || '',
-            notes: data.notes || '',
-          });
-        } else {
-          setForm(prev => ({ ...prev, name: user?.displayName || '', emails: [user?.email || ''] }));
-          loadContactCache();
-        }
-        setProfileLoaded(true);
-      })
-      .catch(() => { loadContactCache(); setProfileLoaded(true); });
-  }, [shopSlug, user?.uid, shop?.id, user?.displayName, user?.email, profileLoaded]);
-
-  const setPhone = (idx, val) => setForm(p => { const n = [...p.phones]; n[idx] = val; return { ...p, phones: n }; });
-  const addPhone = () => setForm(p => ({ ...p, phones: [...p.phones, ''] }));
-  const removePhone = (idx) => setForm(p => ({ ...p, phones: p.phones.filter((_, i) => i !== idx) }));
-
-  const setEmail = (idx, val) => setForm(p => { const n = [...p.emails]; n[idx] = val; return { ...p, emails: n }; });
-  const addEmail = () => setForm(p => ({ ...p, emails: [...p.emails, ''] }));
-  const removeEmail = (idx) => setForm(p => ({ ...p, emails: p.emails.filter((_, i) => i !== idx) }));
-
-  const handleProofFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setProofFile(file);
-    const reader = new FileReader();
-    reader.onload = () => setProofPreview(reader.result);
-    reader.readAsDataURL(file);
-  };
-
-  const applyCoupon = async () => {
-    const code = couponCode.trim().toUpperCase();
-    if (!code || !shop?.id) return;
-    setCouponLoading(true);
-    setCouponError('');
-    setCouponApplied(null);
-    try {
-      const res = await fetch(API_BASE + '/public/coupon/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bot_id: shop.id, code, cart_total: totalAmount }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setCouponError(data.detail || data.message || 'Invalid coupon'); return; }
-      setCouponApplied(data);
-      setCouponCode('');
-    } catch { setCouponError('Failed to validate coupon'); }
-    finally { setCouponLoading(false); }
-  };
-
-  const removeCoupon = () => {
-    setCouponApplied(null);
-    setCouponError('');
-    setCouponCode('');
-  };
-
-  const handleSubmit = async () => {
-    if (!form.name.trim()) { setError('Name is required'); return; }
-    if (!form.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
-    if (!form.emails[0]?.trim()) { setError('At least one email is required'); return; }
-    if (!form.address.trim()) { setError('Delivery address is required'); return; }
-    if (!proofFile) { setError('Payment proof screenshot is required'); return; }
-    setLoading(true);
-    setError('');
-    try {
-      // Check stock before proceeding
-      const stockRes = await fetch(API_BASE + '/public/check-stock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bot_id: shop?.id, items: cartItems.map(i => ({ product_id: i.product_id, quantity: i.quantity })) }),
-      });
-      if (stockRes.ok) {
-        const stockData = await stockRes.json();
-        const oosItems = stockData.items?.filter(i => !i.in_stock) || [];
-        if (oosItems.length > 0) {
-          const names = oosItems.map(i => i.name || `Product #${i.product_id}`).join(', ');
-          setError(`Out of stock: ${names}. Please remove them and try again.`);
-          setLoading(false);
-          return;
-        }
-      }
-
-      let paymentProof = '';
-      if (proofFile) {
-        setUploadingProof(true);
-        const fd = new FormData();
-        fd.append('file', proofFile);
-        fd.append('bot_id', shop.id);
-        const uploadRes = await fetch(API_BASE + '/public/upload/photo', {
-          method: 'POST',
-          body: fd,
-        });
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          paymentProof = uploadData.file_id || '';
-        }
-        setUploadingProof(false);
-      }
-
-      const phoneStr = form.phones.filter(Boolean).map(p => p.trim()).join(', ');
-      const emailStr = form.emails.filter(Boolean).map(e => e.trim()).join(', ');
-
-      const profileUid = user?.uid || getUserIdFromToken() || '';
-      if (profileUid) {
-        await fetch(API_BASE + '/api/customer-profile/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            uid: profileUid,
-            bot_id: shop.id,
-            display_name: form.name.trim(),
-            email: emailStr,
-            phone: phoneStr,
-            photo_url: user?.photoURL || '',
-            telegram_username: form.telegram.trim(),
-            viber_number: form.viber.trim(),
-            address: form.address.trim(),
-            notes: form.notes.trim(),
-            region: form.region,
-            district: form.district,
-            township: form.township,
-          }),
-        }).catch(() => {});
-      }
-
-      const body = {
-        bot_id: shop.id,
-        ...(profileUid ? { firebase_uid: profileUid } : {}),
-        ...(telegramUser?.id ? { telegram_id: telegramUser.id } : {}),
-        customer_name: form.name.trim(),
-        phone: phoneStr,
-        email: emailStr,
-        address: form.address.trim(),
-        notes: form.notes.trim(),
-        region: form.region,
-        district: form.district,
-        township: form.township,
-        telegram_username: form.telegram.trim(),
-        viber_number: form.viber.trim(),
-        items: cartItems.map(i => {
-          const vp = [];
-          if (i.selected_color) vp.push(i.selected_color);
-          if (i.selected_options) {
-            const p = shopData?.products?.find(pp => pp.id === i.product_id);
-            const opts = p?.specifications?.options || [];
-            Object.entries(i.selected_options).forEach(([optId, valId]) => {
-              const o = opts.find(oo => String(oo.id) === String(optId));
-              if (o) { const v = o.values.find(vv => String(vv.id) === String(valId)); if (v) vp.push(`${o.name}: ${v.label}`); }
-            });
-          }
-          return {
-            product_id: i.product_id,
-            name: i.name,
-            price: i.price,
-            quantity: i.quantity,
-            selected_color: i.selected_color,
-            selected_options: i.selected_options,
-            variant_label: vp.join(', '),
-          };
-        }),
-        total_amount: effectiveTotal,
-      };
-      if (paymentProof) body.payment_proof = paymentProof;
-      if (couponApplied?.code) body.coupon_code = couponApplied.code;
-
-      const res = await fetch(API_BASE + '/public/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to place order');
-      const cacheKey = 'checkout_contact_' + shopSlug;
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify({
-          name: form.name.trim(),
-          phones: form.phones.filter(Boolean).map(p => p.trim()),
-          email: emailStr,
-          telegram: form.telegram.trim(),
-          viber: form.viber.trim(),
-          address: form.address.trim(),
-          notes: form.notes.trim(),
-        }));
-      } catch {}
-      onOrderPlaced(data);
-    } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm"
-    >
-      <motion.div
-        initial={{ y: '100%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '100%', opacity: 0 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        className="relative bg-white w-full max-w-lg md:rounded-[32px] max-h-[92svh] overflow-y-auto rounded-t-[32px] shadow-2xl p-6"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Checkout</h2>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-all">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Order Summary */}
-        <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-          <p className="text-xs text-gray-500 font-medium mb-2">Order Summary</p>
-          {cartItems.map((item, idx) => (
-            <div key={idx} className="flex justify-between text-sm py-1">
-              <span className="text-gray-700">{item.name} x{item.quantity}</span>
-              <span className="font-medium text-gray-900">{formatPrice(item.price * item.quantity)} MMK</span>
-            </div>
-          ))}
-          {couponApplied && (
-            <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between text-sm">
-              <span className="text-emerald-600 font-medium">Discount ({couponApplied.code})</span>
-              <span className="text-emerald-600 font-medium">-{formatPrice(couponApplied.discount)} MMK</span>
-            </div>
-          )}
-          <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-bold text-gray-900">
-            <span>Total</span>
-            <span>{formatPrice(effectiveTotal)} MMK</span>
-          </div>
-        </div>
-
-        {/* Coupon Code */}
-        <div className="mb-6">
-          {couponApplied ? (
-            <div className="flex items-center justify-between bg-emerald-50 rounded-xl px-4 py-3 border border-emerald-200">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span className="text-sm font-bold text-emerald-700">{couponApplied.code}</span>
-                <span className="text-xs text-emerald-600">(-{formatPrice(couponApplied.discount)} MMK)</span>
-              </div>
-              <button onClick={removeCoupon} className="text-xs font-bold text-rose-500 hover:text-rose-700">Remove</button>
-            </div>
-          ) : (
-            <div>
-              <div className="flex gap-2">
-                <input type="text" value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                  placeholder="Coupon code"
-                  className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm uppercase"
-                  onKeyDown={e => e.key === 'Enter' && applyCoupon()} />
-                <button onClick={applyCoupon} disabled={couponLoading || !couponCode.trim()}
-                  className="px-5 py-3 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50">
-                  {couponLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
-                </button>
-              </div>
-              {couponError && <p className="text-xs text-rose-500 mt-1.5">{couponError}</p>}
-            </div>
-          )}
-        </div>
-
-        {/* Form Fields */}
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Full Name *</label>
-            <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Phone Numbers *</label>
-            <div className="space-y-2">
-              {form.phones.map((phone, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <input type="tel" value={phone} onChange={e => setPhone(idx, e.target.value)}
-                    placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone"}
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-                  {idx === 0 ? (
-                    <button onClick={addPhone} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button onClick={() => removePhone(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Email Addresses *</label>
-            <div className="space-y-2">
-              {form.emails.map((email, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <input type="email" value={email} onChange={e => setEmail(idx, e.target.value)}
-                    placeholder={idx === 0 ? "your@email.com" : "Additional email"}
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-                  {idx === 0 ? (
-                    <button onClick={addEmail} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button onClick={() => removeEmail(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Telegram Username</label>
-            <input type="text" value={form.telegram} onChange={e => setForm(p => ({ ...p, telegram: e.target.value }))}
-              placeholder="@username"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Viber Number</label>
-            <input type="tel" value={form.viber} onChange={e => setForm(p => ({ ...p, viber: e.target.value }))}
-              placeholder="09xxxxxxxxx"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Region (တိုင်း/ပြည်နယ်)</label>
-            <SearchableSelect
-              value={form.region}
-              onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
-              options={REGION_NAMES}
-              placeholder="Select Region"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">District (ခရိုင်)</label>
-            <SearchableSelect
-              value={form.district}
-              onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
-              options={getDistricts(form.region)}
-              placeholder="Select District"
-              disabled={!form.region}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Township (မြို့နယ်)</label>
-            <SearchableSelect
-              value={form.township}
-              onChange={v => setForm(p => ({ ...p, township: v }))}
-              options={getTownships(form.region, form.district)}
-              placeholder="Select Township"
-              disabled={!form.district}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Delivery Address *</label>
-            <textarea value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} rows={3}
-              placeholder="Street, city, postal code..."
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
-          </div>
-
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Notes</label>
-            <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} rows={2}
-              placeholder="Any additional information..."
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
-          </div>
-        </div>
-
-        {/* Selected Payment */}
-        {selectedPayment && (
-          <div className="mt-6 bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
-            <p className="text-xs font-bold text-indigo-700 mb-2">Payment Method</p>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-sm shrink-0 bg-indigo-500">
-                {selectedPayment.name?.charAt(0).toUpperCase() || '?'}
-              </div>
-              <div>
-                <p className="font-bold text-sm text-gray-900">{selectedPayment.name}</p>
-                {selectedPayment.payment_number && (
-                  <p className="text-xs text-gray-600">{selectedPayment.payment_number}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Payment Proof Upload */}
-        <div className="mt-6">
-          <label className="text-xs text-gray-500 font-medium mb-1.5 block">Payment Proof *</label>
-          <div className="border-2 border-dashed border-gray-200 rounded-2xl p-4 text-center hover:border-indigo-300 transition-colors">
-            {proofPreview ? (
-              <div className="relative">
-                <img src={proofPreview} alt="Proof" className="max-h-40 mx-auto rounded-xl" />
-                <button onClick={() => { setProofFile(null); setProofPreview(''); }}
-                  className="mt-2 text-xs text-rose-500 font-medium hover:text-rose-700">
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <label className="cursor-pointer block">
-                <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500 font-medium">Tap to upload screenshot</p>
-                <p className="text-xs text-gray-400 mt-1">Show the payment confirmation</p>
-                <input type="file" accept="image/*" onChange={handleProofFile} className="hidden" />
-              </label>
-            )}
-          </div>
-        </div>
-
-        {/* Agreement Checkboxes */}
-        <div className="space-y-3 pt-6">
-          <label className="flex items-start gap-3 cursor-pointer group">
-            <input type="checkbox" checked={agreed1} onChange={(e) => setAgreed1(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-            <span className="text-[12px] text-gray-600 leading-relaxed group-hover:text-gray-900 transition-colors">
-              အထက်ပါ ဆက်သွယ်ရန် အချက်အလက်များကို မှန်ကန်တိကျစွာ ဖြည့်ပြီးပါပြီ။
-            </span>
-          </label>
-          <label className="flex items-start gap-3 cursor-pointer group">
-            <input type="checkbox" checked={agreed2} onChange={(e) => setAgreed2(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-            <span className="text-[12px] text-gray-600 leading-relaxed group-hover:text-gray-900 transition-colors">
-              ဖုန်းနံပါတ်၊ Email၊ လိပ်စာ၊ Telegram၊ Viber နံပါတ်များ မှားယွင်းစွာထည့်ထားပြီး Admin Team မှ ဆက်သွယ်၍မရပါက ဝယ်ယူသူ၏ တာဝန်သာဖြစ်ကြောင်း သဘောတူလက်ခံပါသည်။
-            </span>
-          </label>
-        </div>
-
-        {error && <p className="text-rose-500 text-sm mt-3 text-center">{error}</p>}
-
-        <button
-          onClick={handleSubmit}
-          disabled={loading || !agreed1 || !agreed2}
-          className="w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-base text-white bg-gradient-to-r from-indigo-600 to-purple-600 transition-all active:scale-[0.98] disabled:opacity-60"
-        >
-          {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Placing Order...</> : `Place Order — ${formatPrice(totalAmount)} MMK`}
-        </button>
-      </motion.div>
-    </motion.div>
-  );
-}
 
 /* ─── ORDER CONFIRMATION INLINE ─── */
 function OrderConfirmationInline({ orderData, shop, onContinueShopping, shopSlug }) {

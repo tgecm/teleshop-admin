@@ -1,5 +1,9 @@
 import { API_BASE } from '../api/config';
 import React, { useState, useRef } from 'react';
+import {
+  CreditCard, AlertCircle, CheckCircle2, Loader2, ImageUp, X, ShoppingBag
+} from 'lucide-react';
+import { motion } from 'motion/react';
 
 function compressImage(file, maxDimension = 720) {
   return new Promise((resolve) => {
