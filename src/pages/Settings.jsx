@@ -2041,6 +2041,7 @@ function DiscountsManager() {
   const { addToast } = useToastStore();
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const generateCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
@@ -2166,7 +2167,7 @@ function DiscountsManager() {
             onClick={() => { if (!createMutation.isPending && !updateMutation.isPending) resetForm(); }}>
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               onClick={e => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 space-y-4 sm:space-y-5">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-gray-900">{editingId ? 'Edit' : 'Create'} Discount Code</h3>
                 <button onClick={resetForm} className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200">
@@ -2176,12 +2177,12 @@ function DiscountsManager() {
 
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Code</label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input type="text" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
-                    placeholder="Manual or generate"
-                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 uppercase" />
+                    placeholder="e.g. SAVE50"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 uppercase" />
                   <button onClick={generateCode} type="button"
-                    className="px-3 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all text-xs flex items-center gap-1.5 active:scale-95">
+                    className="w-full sm:w-auto px-3 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all text-xs flex items-center justify-center gap-1.5 active:scale-95">
                     <RefreshCw className="w-3.5 h-3.5" /> Generate
                   </button>
                 </div>
@@ -2249,84 +2250,174 @@ function DiscountsManager() {
         )}
       </AnimatePresence>
 
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {confirmDelete && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={() => setConfirmDelete(null)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+              <div className="w-14 h-14 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-7 h-7 text-rose-500" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Discount Code?</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Are you sure you want to delete <span className="font-bold text-gray-700">"{confirmDelete.code}"</span>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setConfirmDelete(null)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all text-sm">
+                  Cancel
+                </button>
+                <button onClick={() => { deleteMutation.mutate(confirmDelete.id); setConfirmDelete(null); }}
+                  disabled={deleteMutation.isPending}
+                  className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all text-sm flex items-center justify-center gap-1.5">
+                  {deleteMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="p-8 space-y-3">{[1,2,3].map(i => <LoadingSkeleton key={i} className="h-12" />)}</div>
-          ) : !discounts || discounts.length === 0 ? (
-            <div className="p-12 text-center">
-              <Percent className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No discount codes yet</p>
-              <p className="text-xs text-gray-400 mt-1">Click Create to make your first subscription discount code.</p>
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Code</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Discount</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duration</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Uses</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Chat ID</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="text-right px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {discounts.map(d => (
-                  <tr key={d.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 font-mono font-bold text-gray-900 text-xs bg-gray-100 px-2 py-0.5 rounded-lg">
-                        {d.code}
-                        <button onClick={() => copyCode(d.code)} className="text-gray-400 hover:text-indigo-600 transition-colors">
-                          <Copy className="w-3 h-3" />
+        {isLoading ? (
+          <div className="p-8 space-y-3">{[1,2,3].map(i => <LoadingSkeleton key={i} className="h-12" />)}</div>
+        ) : !discounts || discounts.length === 0 ? (
+          <div className="p-12 text-center">
+            <Percent className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+            <p className="text-gray-500 font-medium">No discount codes yet</p>
+            <p className="text-xs text-gray-400 mt-1">Click Create to make your first subscription discount code.</p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/50">
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Code</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Discount</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Duration</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Uses</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Chat ID</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="text-right px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {discounts.map(d => (
+                    <tr key={d.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1.5 font-mono font-bold text-gray-900 text-xs bg-gray-100 px-2 py-0.5 rounded-lg">
+                          {d.code}
+                          <button onClick={() => copyCode(d.code)} className="text-gray-400 hover:text-indigo-600 transition-colors">
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-bold text-emerald-600">{d.discount_percent}%</span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{d.duration_days}d</td>
+                      <td className="px-4 py-3">
+                        <span className="text-gray-600">{d.used_count}{d.total_cards != null ? `/${d.total_cards}` : '/∞'}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {d.chat_id ? (
+                          <span className="font-mono text-xs text-indigo-600">{d.chat_id}</span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => toggleMutation.mutate({ id: d.id, is_active: !d.is_active })}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all ${
+                            d.is_active
+                              ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
+                              : 'bg-gray-50 border-gray-100 text-gray-400'
+                          }`}>
+                          {d.is_active ? 'Active' : 'Inactive'}
                         </button>
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openEdit(d)}
+                            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => setConfirmDelete(d)}
+                            className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-gray-50">
+              {discounts.map(d => (
+                <div key={d.id} className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 font-mono font-bold text-gray-900 text-xs bg-gray-100 px-2 py-0.5 rounded-lg">
+                      {d.code}
+                      <button onClick={() => copyCode(d.code)} className="text-gray-400 hover:text-indigo-600 transition-colors">
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    </span>
+                    <button onClick={() => toggleMutation.mutate({ id: d.id, is_active: !d.is_active })}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all ${
+                        d.is_active
+                          ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
+                          : 'bg-gray-50 border-gray-100 text-gray-400'
+                      }`}>
+                      {d.is_active ? 'Active' : 'Inactive'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-[10px] text-gray-400 block">Discount</span>
                       <span className="font-bold text-emerald-600">{d.discount_percent}%</span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{d.duration_days}d</td>
-                    <td className="px-4 py-3">
-                      <span className="text-gray-600">{d.used_count}{d.total_cards != null ? `/${d.total_cards}` : '/∞'}</span>
-                    </td>
-                    <td className="px-4 py-3">
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 block">Duration</span>
+                      <span className="text-gray-700 font-medium">{d.duration_days}d</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 block">Uses</span>
+                      <span className="text-gray-700 font-medium">{d.used_count}{d.total_cards != null ? `/${d.total_cards}` : '/∞'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 block">Chat ID</span>
                       {d.chat_id ? (
                         <span className="font-mono text-xs text-indigo-600">{d.chat_id}</span>
                       ) : (
                         <span className="text-gray-300">—</span>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => toggleMutation.mutate({ id: d.id, is_active: !d.is_active })}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all ${
-                          d.is_active
-                            ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
-                            : 'bg-gray-50 border-gray-100 text-gray-400'
-                        }`}>
-                        {d.is_active ? 'Active' : 'Inactive'}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openEdit(d)}
-                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => {
-                          if (confirm(`Delete code "${d.code}"?`)) deleteMutation.mutate(d.id);
-                        }}
-                          className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => openEdit(d)}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 text-indigo-600 font-bold rounded-xl hover:bg-indigo-100 transition-all text-xs active:scale-95">
+                      <Edit2 className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button onClick={() => setConfirmDelete(d)}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 text-rose-600 font-bold rounded-xl hover:bg-rose-100 transition-all text-xs active:scale-95">
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </section>
     </div>
   );
