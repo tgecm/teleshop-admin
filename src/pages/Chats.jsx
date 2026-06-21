@@ -271,7 +271,7 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
             onTouchMove={() => {
               if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
             }}>
-            <MarkdownRenderer>{message.message_text}</MarkdownRenderer>
+            <MarkdownRenderer isAdmin={isAdmin}>{message.message_text}</MarkdownRenderer>
           </p>
         ))}
         <p
