@@ -483,11 +483,6 @@ export default function Products() {
                   <Tag className="w-2.5 h-2.5 md:w-3 md:h-3" />
                   <span className="truncate">{categories?.find(c => c.id === product.category_id)?.name || 'Uncategorized'}</span>
                 </div>
-                {product.link_code && (
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <span className="text-[9px] font-mono text-gray-400">{product.link_code}</span>
-                  </div>
-                )}
               </div>
             </motion.div>
           ))}
