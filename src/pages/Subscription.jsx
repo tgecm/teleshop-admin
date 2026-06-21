@@ -263,7 +263,7 @@ export default function Subscription() {
             setPaymentSuccess(false);
             setOrderData(null);
             queryClient.invalidateQueries({ queryKey: ['bots', selectedBotId] });
-          }, 3000);
+          }, 5000);
         }
       } catch {
         // polling silently retries
@@ -587,7 +587,8 @@ export default function Subscription() {
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="flex flex-col items-center justify-center py-4 gap-2"
+                    onClick={() => closeQrForce()}
+                    className="flex flex-col items-center justify-center py-4 gap-2 cursor-pointer"
                   >
                     <motion.div
                       initial={{ scale: 0 }}

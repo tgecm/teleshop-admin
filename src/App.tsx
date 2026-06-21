@@ -56,7 +56,7 @@ const QRMenuTables = React.lazy(() => import('./pages/QRMenuTables'));
 const PublicQRMenu = React.lazy(() => import('./pages/PublicQRMenu'));
 
 const ADMIN_PATHS = new Set([
-  'login', 'dashboard', 'orders', 'products', 'customers',
+  'login', 'manage-web-panel', 'dashboard', 'orders', 'products', 'customers',
   'broadcast', 'commands', 'payments', 'subscription', 'settings',
   'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts', 'qr-menu', 'qr-menu-orders',
   'qr-menu/orders',
