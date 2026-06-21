@@ -2,7 +2,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-export const MarkdownRenderer = React.memo(function MarkdownRenderer({ children, className = '' }) {
+export const MarkdownRenderer = React.memo(function MarkdownRenderer({ children, className = '', isAdmin = false }) {
   if (!children) return null;
   return (
     <div className={`markdown-content ${className}`}>
@@ -11,7 +11,7 @@ export const MarkdownRenderer = React.memo(function MarkdownRenderer({ children,
         components={{
           a: ({ href, children }) => (
             <a href={href} target="_blank" rel="noopener noreferrer"
-              className="text-indigo-600 font-medium hover:underline">
+              className={`font-medium hover:underline ${isAdmin ? 'text-indigo-200' : 'text-indigo-600'}`}>
               {children}
             </a>
           ),
