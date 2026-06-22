@@ -1,0 +1,1 @@
+import{k as a}from"./index-CaCKmcev.js";const o=t=>a.get("/stats",{params:t}).then(s=>s.data),r=t=>a.get("/stats/orders-by-day",{params:t}).then(s=>s.data),d=t=>a.get("/stats/top-products",{params:t}).then(s=>s.data),g=t=>a.get("/stats/users-by-day",{params:t}).then(s=>s.data);export{o as a,d as b,g as c,r as g};
