@@ -2058,7 +2058,7 @@ function DiscountsManager() {
 
   const [form, setForm] = useState({
     code: '', discount_percent: '', duration_days: '', total_cards: '',
-    is_unlimited: false, chat_id: '',
+    is_unlimited: false, chat_id: '', is_free: false,
   });
 
   const { data: discounts, isLoading, refetch } = useQuery({
@@ -2105,7 +2105,7 @@ function DiscountsManager() {
   const resetForm = () => {
     setShowCreate(false);
     setEditingId(null);
-    setForm({ code: '', discount_percent: '', duration_days: '', total_cards: '', is_unlimited: false, chat_id: '' });
+    setForm({ code: '', discount_percent: '', duration_days: '', total_cards: '', is_unlimited: false, chat_id: '', is_free: false });
   };
 
   const openEdit = (d) => {
@@ -2117,14 +2117,16 @@ function DiscountsManager() {
       total_cards: d.total_cards != null ? String(d.total_cards) : '',
       is_unlimited: d.total_cards == null,
       chat_id: d.chat_id ? String(d.chat_id) : '',
+      is_free: d.discount_percent === 100,
     });
     setShowCreate(true);
   };
 
   const handleSubmit = () => {
-    const percent = parseInt(form.discount_percent);
+    const isFree = form.is_free;
+    const percent = isFree ? 100 : parseInt(form.discount_percent);
     const days = parseInt(form.duration_days);
-    if (!percent || percent < 1 || percent > 100) return addToast('Discount must be 1-100', 'error');
+    if (!isFree && (!percent || percent < 1 || percent > 100)) return addToast('Discount must be 1-100', 'error');
     if (!days || days < 1) return addToast('Duration must be at least 1 day', 'error');
 
     const payload = {
@@ -2196,14 +2198,30 @@ function DiscountsManager() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Discount (%)</label>
-                <input type="number" min="1" max="100" value={form.discount_percent} onChange={e => {
-                  const v = e.target.value.replace(/\D/g, '');
-                  if (parseInt(v) > 100) return;
-                  setForm(f => ({ ...f, discount_percent: v }));
-                }}
-                  placeholder="e.g. 10"
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Discount Type</label>
+                <div className="flex bg-gray-100 rounded-xl p-0.5">
+                  <button type="button" onClick={() => setForm(f => ({ ...f, is_free: false, discount_percent: f.discount_percent || '' }))}
+                    className={`flex-1 py-2 text-xs font-bold rounded-[10px] transition-all ${!form.is_free ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    Percentage
+                  </button>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, is_free: true, discount_percent: '100' }))}
+                    className={`flex-1 py-2 text-xs font-bold rounded-[10px] transition-all ${form.is_free ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    Free
+                  </button>
+                </div>
+                {form.is_free ? (
+                  <div className="mt-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-bold text-emerald-700 flex items-center gap-2">
+                    <Zap className="w-4 h-4" /> Free — 100% off, no payment gateway
+                  </div>
+                ) : (
+                  <input type="number" min="1" max="100" value={form.discount_percent} onChange={e => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    if (parseInt(v) > 100) return;
+                    setForm(f => ({ ...f, discount_percent: v }));
+                  }}
+                    placeholder="e.g. 10"
+                    className="mt-2 w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                )}
               </div>
 
               <div>
@@ -2320,7 +2338,7 @@ function DiscountsManager() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-bold text-emerald-600">{d.discount_percent}%</span>
+                        <span className="font-bold text-emerald-600">{d.discount_percent === 100 ? 'Free' : `${d.discount_percent}%`}</span>
                       </td>
                       <td className="px-4 py-3 text-gray-600">{d.duration_days}d</td>
                       <td className="px-4 py-3">
@@ -2384,7 +2402,7 @@ function DiscountsManager() {
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <span className="text-[10px] text-gray-400 block">Discount</span>
-                      <span className="font-bold text-emerald-600">{d.discount_percent}%</span>
+                      <span className="font-bold text-emerald-600">{d.discount_percent === 100 ? 'Free' : `${d.discount_percent}%`}</span>
                     </div>
                     <div>
                       <span className="text-[10px] text-gray-400 block">Duration</span>
