@@ -12,9 +12,10 @@ import SearchableSelect from '../components/shared/SearchableSelect';
 import ProductSorting from '../components/ProductSorting';
 import {
   Plus, Search, Edit2, Trash2, Package, Tag, MoreVertical, X,
-  Image as ImageIcon, ChevronRight, AlertCircle, CheckCircle2,
+  Image as ImageIcon, ChevronRight, ChevronDown, AlertCircle, CheckCircle2,
   Loader2, FolderPlus, ImageUp, Palette, Copy, ArrowUpDown,
-  Ticket, Percent, CalendarDays, Coins, Users, Truck, Download, Upload
+  Ticket, Percent, CalendarDays, Coins, Users, Truck, Download, Upload,
+  Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import townshipsData, { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
@@ -44,6 +45,17 @@ export default function Products() {
   const [isDeleting, setIsDeleting] = useState(null);
   const [showSorting, setShowSorting] = useState(false);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
+  const [noCostPriceFilter, setNoCostPriceFilter] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('no_cost_price') === '1') {
+      // Clean URL param after reading
+      const url = new URL(window.location);
+      url.searchParams.delete('no_cost_price');
+      window.history.replaceState({}, '', url);
+      return true;
+    }
+    return false;
+  });
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [couponForm, setCouponForm] = useState({
     code: '',
@@ -304,6 +316,7 @@ export default function Products() {
   const filteredProducts = products?.filter(p => {
     const term = normalizeForSearch(search).toLowerCase();
     if (selectedCategoryFilter && p.category_id !== Number(selectedCategoryFilter)) return false;
+    if (noCostPriceFilter && p.cost_price != null && p.cost_price !== '') return false;
     return (
       normalizeForSearch(p.name).toLowerCase().includes(term) ||
       normalizeForSearch(p.description).toLowerCase().includes(term)
@@ -1201,7 +1214,9 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     original_price: product?.original_price || '',
     category_id: product?.category_id || '',
     delivery_type: product?.delivery_type || '',
+    cost_price: product?.cost_price || '',
   });
+  const [showAdditional, setShowAdditional] = useState(() => !!product?.cost_price);
   const [promotion, setPromotion] = useState(() => !!product?.original_price);
   const [stockOption, setStockOption] = useState(() => {
     if (product?.stock_quantity === null || product?.stock_quantity === undefined) return 'unlimited';
@@ -1378,9 +1393,10 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
       if (colors.length > 0) specs.colors = colors;
       if (options.length > 0) specs.options = options;
     }
-    const { delivery_type, ...rest } = formData;
+    const { delivery_type, cost_price, ...rest } = formData;
     onSubmit({
       ...rest,
+      cost_price: cost_price ? Number(cost_price) : null,
       apply_delivery_fee: delivery_type === 'flat' || delivery_type === 'zone',
       delivery_type,
       price: Number(formData.price),
@@ -1817,20 +1833,74 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
           </button>
         </div>
 
+        {/* Additional Settings - Cost Price */}
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setShowAdditional(!showAdditional)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-2xl border border-gray-100 text-sm font-bold text-gray-700 hover:bg-gray-100 transition-all"
+          >
+            <div className="flex items-center gap-2">
+              <Settings className="w-4 h-4 text-gray-500" />
+              ⚙️ Additional Settings
+            </div>
+            <motion.div
+              animate={{ rotate: showAdditional ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </motion.div>
+          </button>
+          <AnimatePresence initial={false}>
+            {showAdditional && (
+              <motion.div
+                key="additional-settings"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="space-y-3 pt-1">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700 ml-1">Cost Price (optional)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.cost_price}
+                      onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
+                      placeholder="Enter cost price"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
+                      onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                    />
+                    {formData.cost_price && Number(formData.cost_price) > 0 && (
+                      <p className="text-sm font-semibold ml-1">
+                        Estimated Profit: <span className="text-emerald-600">
+                          {(Number(formData.price || 0) - Number(formData.cost_price || 0)).toLocaleString()} MMK
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         <div className="pt-4 flex gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+            className="flex-1 px-3 py-2.5 sm:px-6 sm:py-3 bg-gray-100 text-gray-700 font-bold rounded-xl sm:rounded-2xl hover:bg-gray-200 transition-all text-sm sm:text-base"
           >
             Cancel
           </button>
           <button
             disabled={isLoading}
             type="submit"
-            className="flex-[2] px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+            className="flex-[2] px-3 py-2.5 sm:px-6 sm:py-3 bg-indigo-600 text-white font-bold rounded-xl sm:rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
           >
-            {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+            {isLoading && <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />}
             {product ? 'Update Product' : 'Create Product'}
           </button>
         </div>

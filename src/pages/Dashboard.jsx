@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getStats, getOrdersByDay, getTopProducts, getUsersByDay } from '../api/stats';
+import { getStats, getOrdersByDay, getTopProducts, getUsersByDay, getProfitSummary } from '../api/stats';
 import { getImageUrl, getProducts } from '../api/products';
 import { getOrders } from '../api/orders';
 import { getUsers } from '../api/customers';
@@ -9,7 +9,7 @@ import StatCard from '../components/shared/StatCard';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import {
   DollarSign, ShoppingBag, Users, Clock, TrendingUp, Trophy, Sparkles, Zap, Package,
-  BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, X, Loader2, ArrowLeftRight,
+  BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, X, Loader2, ArrowLeftRight, AlertTriangle,
 } from 'lucide-react';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -37,6 +37,7 @@ const METRIC_CONFIG = {
   revenue: { label: 'Revenue', color: '#4f46e5', gradient: 'revGrad' },
   orders: { label: 'Orders', color: '#34d399', gradient: 'ordGrad' },
   users: { label: 'Users', color: '#f43f5e', gradient: 'usersGrad' },
+  profit: { label: 'Profit', color: '#22c55e', gradient: 'profitGrad' },
 };
 
 function ChartTooltip({ active, payload, label }) {
@@ -55,7 +56,7 @@ function ChartTooltip({ active, payload, label }) {
             <span className="text-[11px] font-medium text-gray-500">{entry.name}</span>
           </div>
           <span className="text-[11px] font-bold text-gray-800 tabular-nums">
-            {entry.name === 'Revenue'
+            {entry.name === 'Revenue' || entry.name === 'Profit'
               ? `${Number(entry.value).toLocaleString()} MMK`
               : entry.value}
           </span>
@@ -124,7 +125,7 @@ export default function Dashboard() {
 
   // Chart state
   const [chartType, setChartType] = useState('area');
-  const [visibleMetrics, setVisibleMetrics] = useState({ revenue: true, orders: true, users: false });
+  const [visibleMetrics, setVisibleMetrics] = useState({ revenue: true, orders: true, users: false, profit: false });
   const [datePreset, setDatePreset] = useState('30');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -259,6 +260,12 @@ export default function Dashboard() {
     enabled: !!selectedBotId,
   });
 
+  const { data: profitSummary } = useQuery({
+    queryKey: ['stats', 'profit-summary', selectedBotId],
+    queryFn: () => getProfitSummary({ bot_id: Number(selectedBotId) }),
+    enabled: !!selectedBotId,
+  });
+
 
   // Aggregates
   const totalRevenue = stats?.total_revenue || 0;
@@ -271,6 +278,11 @@ export default function Dashboard() {
   const effectiveProductsSold = periodStats?.products_sold ?? stats?.products_sold ?? 0;
   const itemsSold = effectiveItemsSold;
   const productsSold = effectiveProductsSold;
+  const totalProfit = profitSummary?.total_profit || 0;
+  const todayProfit = profitSummary?.today_profit || 0;
+  const untrackedCount = profitSummary?.untracked_count || 0;
+  const hasUntrackedProducts = untrackedCount > 0;
+  const [dismissWarning, setDismissWarning] = useState(false);
 
   // Top products with percentages
   const topProductsWithPct = useMemo(() => {
@@ -304,6 +316,7 @@ export default function Dashboard() {
         revenue: entry ? Number(entry.revenue) : 0,
         count: entry ? entry.count : 0,
         users: usersMap.get(key) || 0,
+        profit: entry ? Number(entry.profit || 0) : 0,
       });
     }
     return result;
@@ -539,6 +552,38 @@ export default function Dashboard() {
         <MiniMetric icon={Package} label="Products Sold" value={productsSold} sub={`${totalOrders} orders`} color="purple" period={productsPeriod} onPeriodChange={setProductsPeriod} />
       </motion.div>
 
+      {/* Profit stat cards */}
+      <motion.div variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
+        <MiniMetric icon={TrendingUp} label="Net Profit"
+          value={hasUntrackedProducts && totalProfit === 0 ? 'Set cost price' : `${totalProfit.toLocaleString()} MMK`}
+          color="emerald"
+          sub={hasUntrackedProducts && totalProfit === 0 ? 'to track profit' : 'from completed orders'} />
+        <MiniMetric icon={Zap} label="Today's Net Profit"
+          value={hasUntrackedProducts && todayProfit === 0 ? 'Set cost price' : `${todayProfit.toLocaleString()} MMK`}
+          color="emerald"
+          sub={hasUntrackedProducts && todayProfit === 0 ? 'to track profit' : 'vs yesterday'} />
+      </motion.div>
+
+      {/* Warning banner */}
+      {hasUntrackedProducts && !dismissWarning && (
+        <motion.div variants={itemVariants}
+          className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl shadow-sm">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-amber-800">{untrackedCount} product{untrackedCount > 1 ? 's' : ''} ha{untrackedCount === 1 ? 's' : 've'} no cost price set</p>
+            <p className="text-xs text-amber-600 mt-0.5">Set cost price to see complete profit data</p>
+            <button onClick={() => window.location.href = '/products?no_cost_price=1'}
+              className="mt-2 px-3 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all active:scale-95">
+              Set Now →
+            </button>
+          </div>
+          <button onClick={() => setDismissWarning(true)}
+            className="p-1 rounded-lg hover:bg-amber-100 text-amber-400 transition-all flex-shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </motion.div>
+      )}
+
       {/* Chart + Top Products */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         <motion.div variants={itemVariants} className="lg:col-span-2 bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-sm border border-gray-100">
@@ -613,6 +658,10 @@ export default function Dashboard() {
                         <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1} />
                         <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
                       </linearGradient>
+                      <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                     <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} dy={10}
@@ -624,6 +673,7 @@ export default function Dashboard() {
                     {visibleMetrics.revenue && <Area yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#4f46e5" strokeWidth={2.5} fillOpacity={1} fill="url(#revGrad)" animationDuration={800} animationEasing="ease-out" />}
                     {visibleMetrics.orders && <Area yAxisId="right" type="monotone" dataKey="count" name="Orders" stroke="#34d399" strokeWidth={2} fillOpacity={1} fill="url(#ordGrad)" animationDuration={800} animationEasing="ease-out" animationBegin={200} />}
                     {visibleMetrics.users && <Area yAxisId="right" type="monotone" dataKey="users" name="Users" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#usersGrad)" animationDuration={800} animationEasing="ease-out" animationBegin={400} />}
+                    {visibleMetrics.profit && <Area yAxisId="left" type="monotone" dataKey="profit" name="Profit" stroke="#22c55e" strokeWidth={2.5} fillOpacity={1} fill="url(#profitGrad)" animationDuration={800} animationEasing="ease-out" animationBegin={600} />}
                   </AreaChart>
                 ) : chartType === 'bar' ? (
                   <BarChart data={mergedChartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
@@ -637,6 +687,7 @@ export default function Dashboard() {
                     {visibleMetrics.revenue && <Bar yAxisId="left" dataKey="revenue" name="Revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} animationDuration={600} />}
                     {visibleMetrics.orders && <Bar yAxisId="right" dataKey="count" name="Orders" fill="#34d399" radius={[4, 4, 0, 0]} animationDuration={600} animationBegin={150} />}
                     {visibleMetrics.users && <Bar yAxisId="right" dataKey="users" name="Users" fill="#f43f5e" radius={[4, 4, 0, 0]} animationDuration={600} animationBegin={300} />}
+                    {visibleMetrics.profit && <Bar yAxisId="left" dataKey="profit" name="Profit" fill="#22c55e" radius={[4, 4, 0, 0]} animationDuration={600} animationBegin={450} />}
                   </BarChart>
                 ) : (
                   <LineChart data={mergedChartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
@@ -650,6 +701,7 @@ export default function Dashboard() {
                     {visibleMetrics.revenue && <Line yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#4f46e5" strokeWidth={2.5} dot={false} animationDuration={800} />}
                     {visibleMetrics.orders && <Line yAxisId="right" type="monotone" dataKey="count" name="Orders" stroke="#34d399" strokeWidth={2} dot={false} animationDuration={800} animationBegin={200} />}
                     {visibleMetrics.users && <Line yAxisId="right" type="monotone" dataKey="users" name="Users" stroke="#f43f5e" strokeWidth={2} dot={false} animationDuration={800} animationBegin={400} />}
+                    {visibleMetrics.profit && <Line yAxisId="left" type="monotone" dataKey="profit" name="Profit" stroke="#22c55e" strokeWidth={2.5} dot={false} animationDuration={800} animationBegin={600} />}
                   </LineChart>
                 )}
               </ResponsiveContainer>
@@ -726,6 +778,11 @@ export default function Dashboard() {
                         <div className="text-right flex-shrink-0 ml-1">
                           <p className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">{product.total_revenue?.toLocaleString()}</p>
                           <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium">MMK</p>
+                          {product.total_profit !== null && product.total_profit !== undefined ? (
+                            <p className="text-[10px] sm:text-[11px] font-bold text-emerald-600 leading-tight mt-0.5">{Number(product.total_profit).toLocaleString()} <span className="text-[8px] font-medium">profit</span></p>
+                          ) : (
+                            <p className="text-[10px] sm:text-[11px] text-gray-300 leading-tight mt-0.5" title="Cost price not set">⚠️ N/A</p>
+                          )}
                         </div>
                       </div>
                     </motion.div>

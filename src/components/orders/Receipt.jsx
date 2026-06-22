@@ -1,10 +1,10 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Download, Share as ShareIcon, Loader2 } from 'lucide-react';
+import { X, Download, Loader2 } from 'lucide-react';
 import { myanmarFormat } from '../../utils/date';
 import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
-import { Capacitor } from '@capacitor/core';
+
 import { isInAppBrowser, downloadViaNative } from '../../utils/download';
 import { generateInvoiceNumber } from '../../api/orders';
 
@@ -783,75 +783,6 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     }
   };
 
-  const handleShare = async () => {
-    setGenerating(true);
-    try {
-      let logoImg = null;
-      const logoUrl = bot?.profile_picture || '';
-      if (logoUrl) {
-        try {
-          logoImg = await loadLogoImage(logoUrl);
-        } catch (e) {}
-      }
-
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: '' });
-
-      const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(svgBlob);
-      const img = new Image();
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = url;
-      });
-
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
-
-      if (logoImg) {
-        const scale = canvas.width / 800;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(90 * scale, 90 * scale, 50 * scale, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(logoImg, 40 * scale, 40 * scale, 100 * scale, 100 * scale);
-        ctx.restore();
-      }
-
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-      if (!blob) throw new Error('Failed to create blob');
-
-      const file = new File([blob], `${receiptType}-${order.order_number || order.id}.png`, { type: 'image/png' });
-
-      if (window.Capacitor?.isNativePlatform()) {
-        const { Share } = await import('@capacitor/share');
-        await Share.share({
-          title: `${receiptType === 'invoice' ? 'Invoice' : 'Receipt'} - ${order.order_number || order.id}`,
-          files: [file],
-          dialogTitle: 'Share Receipt',
-        });
-      } else if (navigator.share) {
-        await navigator.share({
-          title: `${receiptType === 'invoice' ? 'Invoice' : 'Receipt'}`,
-          files: [file],
-        });
-      } else {
-        addToast('Sharing not supported on this browser', 'error');
-      }
-      addToast('Receipt shared successfully');
-    } catch (err) {
-      if (err.name !== 'CancelError' && err.message !== 'canceled') {
-        console.error('Share failed:', err);
-        addToast('Failed to share receipt', 'error');
-      }
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   return (
     <AnimatePresence>
@@ -878,21 +809,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
             <div className="flex items-center justify-between px-4 pb-3 flex-shrink-0">
               <h2 className="text-lg font-bold text-gray-900">{receiptType === 'invoice' ? 'Invoice' : 'Receipt'}</h2>
               <div className="flex items-center gap-2">
-                {Capacitor.isNativePlatform() && (
                   <button
-                    onClick={handleShare}
-                    disabled={generating}
-                    className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
-                  >
-                    {generating ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <ShareIcon className="w-4 h-4" />
-                    )}
-                    {generating ? 'Generating...' : 'Share'}
-                  </button>
-                )}
-                <button
                   onClick={handleDownload}
                   disabled={generating}
                   className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"

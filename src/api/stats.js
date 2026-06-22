@@ -11,3 +11,6 @@ export const getTopProducts = (params) =>
 
 export const getUsersByDay = (params) =>
   client.get('/stats/users-by-day', { params }).then(res => res.data);
+
+export const getProfitSummary = (params) =>
+  client.get('/stats/profit-summary', { params }).then(res => res.data);
