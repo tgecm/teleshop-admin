@@ -1,49 +1,78 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WifiOff } from 'lucide-react';
+import { API_BASE } from '../api/config';
+
+const LS_KEY = 'vpn_warning_dismiss';
+
+function isDismissedToday() {
+  try {
+    return localStorage.getItem(LS_KEY) === new Date().toDateString();
+  } catch { return false; }
+}
+
+function markDismissedToday() {
+  try { localStorage.setItem(LS_KEY, new Date().toDateString()); } catch {}
+}
 
 export default function VpnWarningModal() {
   const [show, setShow] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const dismissedRef = useRef(false);
-  const offlineTimerRef = useRef(null);
-
-  const open = () => {
-    setDismissed(false);
-    dismissedRef.current = false;
-    setShow(true);
-  };
+  const failedRef = useRef(false);
 
   const close = () => {
     setShow(false);
-    setDismissed(true);
-    dismissedRef.current = true;
+    markDismissedToday();
   };
 
   useEffect(() => {
-    const handler = () => open();
-    window.addEventListener('app:vpn-warning', handler);
+    // Backend health check — show warning after 5s of unreachability, once per day
+    let failTimer = null;
+    let mounted = true;
+    const check = async () => {
+      if (isDismissedToday()) return;
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 4000);
+      try {
+        await fetch(API_BASE, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(id);
+        // Backend is reachable
+        clearTimeout(failTimer);
+        failTimer = null;
+        failedRef.current = false;
+        setShow(false);
+      } catch {
+        clearTimeout(id);
+        // Backend unreachable — start 5s timer
+        if (!failedRef.current) {
+          failedRef.current = true;
+          failTimer = setTimeout(() => {
+            if (!isDismissedToday() && mounted) setShow(true);
+          }, 5000);
+        }
+      }
+    };
+    check();
+    const interval = setInterval(check, 4000);
 
+    // Browser offline detection
     const handleOffline = () => {
-      if (dismissedRef.current) return;
-      clearTimeout(offlineTimerRef.current);
-      offlineTimerRef.current = setTimeout(() => {
-        if (!dismissedRef.current) open();
+      if (isDismissedToday()) return;
+      const timer = setTimeout(() => {
+        if (!isDismissedToday()) setShow(true);
       }, 3000);
+      return () => clearTimeout(timer);
     };
-    const handleOnline = () => {
-      clearTimeout(offlineTimerRef.current);
-      setShow(false);
-    };
+    const handleOnline = () => setShow(false);
 
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
 
     return () => {
-      window.removeEventListener('app:vpn-warning', handler);
+      mounted = false;
+      clearInterval(interval);
+      clearTimeout(failTimer);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
-      clearTimeout(offlineTimerRef.current);
     };
   }, []);
 
