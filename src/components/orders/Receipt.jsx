@@ -683,6 +683,27 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     notes: shopNotes = '',
   } = receiptSettings;
 
+  /** Try to load an image URL as a base64 data URL via Image+canvas (more compatible across environments) */
+  const imageToDataUrl = (url) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth;
+          c.height = img.naturalHeight;
+          c.getContext('2d').drawImage(img, 0, 0);
+          resolve(c.toDataURL('image/png'));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+  };
+
   const handleDownload = async () => {
     setGenerating(true);
     try {
@@ -690,18 +711,24 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       let logoDataUrl = '';
       const logoUrl = bot?.profile_picture || '';
       if (logoUrl) {
+        // Try Image+canvas first (works in Capacitor WebViews where fetch may fail)
         try {
-          const resp = await fetch(logoUrl);
-          const blob = await resp.blob();
-          if (blob && blob.size > 0) {
-            logoDataUrl = await new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result);
-              reader.readAsDataURL(blob);
-            });
+          logoDataUrl = await imageToDataUrl(logoUrl);
+        } catch (_) {
+          try {
+            // Fallback: fetch + blob + FileReader
+            const resp = await fetch(logoUrl);
+            const blob = await resp.blob();
+            if (blob && blob.size > 0) {
+              logoDataUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+              });
+            }
+          } catch (e2) {
+            console.warn('Logo load skipped:', e2);
           }
-        } catch (e) {
-          console.warn('Logo load skipped:', e);
         }
       }
 
@@ -756,16 +783,20 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       const logoUrl = bot?.profile_picture || '';
       if (logoUrl) {
         try {
-          const resp = await fetch(logoUrl);
-          const blob = await resp.blob();
-          if (blob && blob.size > 0) {
-            logoDataUrl = await new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result);
-              reader.readAsDataURL(blob);
-            });
-          }
-        } catch (e) {}
+          logoDataUrl = await imageToDataUrl(logoUrl);
+        } catch (_) {
+          try {
+            const resp = await fetch(logoUrl);
+            const blob = await resp.blob();
+            if (blob && blob.size > 0) {
+              logoDataUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+              });
+            }
+          } catch (e) {}
+        }
       }
 
       const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: logoDataUrl });
