@@ -683,57 +683,52 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     notes: shopNotes = '',
   } = receiptSettings;
 
-  /** Try to load an image URL as a base64 data URL via Image+canvas (more compatible across environments) */
-  const imageToDataUrl = (url) => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        try {
-          const c = document.createElement('canvas');
-          c.width = img.naturalWidth;
-          c.height = img.naturalHeight;
-          c.getContext('2d').drawImage(img, 0, 0);
-          resolve(c.toDataURL('image/png'));
-        } catch (e) {
-          reject(e);
-        }
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
+  /** Load an image with CORS for canvas overlay rendering */
+  const loadLogoImage = async (url) => {
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.crossOrigin = 'anonymous';
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = url;
+      });
+      return img;
+    } catch (_) {
+      // Fallback: fetch + blob + object URL
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      if (!blob || !blob.size) throw new Error('empty blob');
+      const blobUrl = URL.createObjectURL(blob);
+      try {
+        return await new Promise((resolve, reject) => {
+          const i = new Image();
+          i.onload = () => resolve(i);
+          i.onerror = reject;
+          i.src = blobUrl;
+        });
+      } finally {
+        URL.revokeObjectURL(blobUrl);
+      }
+    }
   };
 
   const handleDownload = async () => {
     setGenerating(true);
     try {
-      // 1. Load logo as data URL (so it embeds directly in the SVG)
-      let logoDataUrl = '';
+      // 1. Load logo image for canvas overlay (avoids SVG <image> async decode issues)
+      let logoImg = null;
       const logoUrl = bot?.profile_picture || '';
       if (logoUrl) {
-        // Try Image+canvas first (works in Capacitor WebViews where fetch may fail)
         try {
-          logoDataUrl = await imageToDataUrl(logoUrl);
-        } catch (_) {
-          try {
-            // Fallback: fetch + blob + FileReader
-            const resp = await fetch(logoUrl);
-            const blob = await resp.blob();
-            if (blob && blob.size > 0) {
-              logoDataUrl = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsDataURL(blob);
-              });
-            }
-          } catch (e2) {
-            console.warn('Logo load skipped:', e2);
-          }
+          logoImg = await loadLogoImage(logoUrl);
+        } catch (e) {
+          console.warn('Logo load skipped:', e);
         }
       }
 
-      // 2. Build SVG with embedded logo (falls back to initial letter if no logo)
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: logoDataUrl });
+      // 2. Build SVG without embedded logo (shows initial letter as fallback)
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: '' });
 
       // 3. Render SVG to canvas
       const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
@@ -752,7 +747,19 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       ctx.drawImage(img, 0, 0);
       URL.revokeObjectURL(url);
 
-      // 4. Export PNG
+      // 4. Draw logo on top of canvas at the circular position
+      if (logoImg) {
+        const scale = canvas.width / 800;
+        // Circle at PAD=40, HDR_Y=40, cx=50, cy=50, r=50 (viewBox coords)
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(90 * scale, 90 * scale, 50 * scale, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(logoImg, 40 * scale, 40 * scale, 100 * scale, 100 * scale);
+        ctx.restore();
+      }
+
+      // 5. Export PNG
       const fileName = `${receiptType}-${order.order_number || order.id}.png`;
       const dataUrl = canvas.toDataURL('image/png');
       if (window.AndroidBridge && typeof window.AndroidBridge.downloadBase64 === 'function') {
@@ -779,27 +786,15 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
   const handleShare = async () => {
     setGenerating(true);
     try {
-      let logoDataUrl = '';
+      let logoImg = null;
       const logoUrl = bot?.profile_picture || '';
       if (logoUrl) {
         try {
-          logoDataUrl = await imageToDataUrl(logoUrl);
-        } catch (_) {
-          try {
-            const resp = await fetch(logoUrl);
-            const blob = await resp.blob();
-            if (blob && blob.size > 0) {
-              logoDataUrl = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsDataURL(blob);
-              });
-            }
-          } catch (e) {}
-        }
+          logoImg = await loadLogoImage(logoUrl);
+        } catch (e) {}
       }
 
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: logoDataUrl });
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: '' });
 
       const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
       const url = URL.createObjectURL(svgBlob);
@@ -816,6 +811,16 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
       URL.revokeObjectURL(url);
+
+      if (logoImg) {
+        const scale = canvas.width / 800;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(90 * scale, 90 * scale, 50 * scale, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(logoImg, 40 * scale, 40 * scale, 100 * scale, 100 * scale);
+        ctx.restore();
+      }
 
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
       if (!blob) throw new Error('Failed to create blob');
