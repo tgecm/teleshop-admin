@@ -1,7 +1,7 @@
 import { API_BASE } from '../api/config';
 import React, { useState, useRef } from 'react';
 import {
-  CreditCard, AlertCircle, CheckCircle2, Loader2, ImageUp, X, ShoppingBag
+  CreditCard, AlertCircle, CheckCircle2, Loader2, ImageUp, X, ShoppingBag, ChevronRight
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
