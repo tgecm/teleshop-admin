@@ -6,6 +6,7 @@ import { getChats, getChatMessages, sendChatMessage, deleteChat, markChatRead, m
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
+import ErrorBoundary from '../components/shared/ErrorBoundary';
 import {
   Search,
   MessageCircle,
@@ -271,7 +272,9 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
             onTouchMove={() => {
               if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
             }}>
-            <MarkdownRenderer isAdmin={isAdmin}>{message.message_text}</MarkdownRenderer>
+            <ErrorBoundary fallback={<span className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.message_text}</span>}>
+              <MarkdownRenderer isAdmin={isAdmin}>{message.message_text}</MarkdownRenderer>
+            </ErrorBoundary>
           </p>
         ))}
         <p
