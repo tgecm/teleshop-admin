@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
-import { getFaqs, createFaq, deleteFaq } from '../api/superadmin';
+import { getFaqs, createFaq, updateFaq, deleteFaq } from '../api/superadmin';
 import {
-  HelpCircle, Plus, X, Loader2, Trash2, ChevronDown, ChevronRight
+  HelpCircle, Plus, X, Loader2, Trash2, Pencil, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { linkifyText } from '../utils/linkify';
 import { motion, AnimatePresence } from 'motion/react';
@@ -15,6 +15,7 @@ export default function FAQs() {
   const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [editFaq, setEditFaq] = useState(null);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
 
@@ -33,6 +34,18 @@ export default function FAQs() {
       addToast('FAQ created');
     },
     onError: (err) => addToast(err.response?.data?.detail || 'Failed to create FAQ', 'error'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, question, answer }) => updateFaq(id, question, answer),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['faqs'] });
+      setEditFaq(null);
+      setQuestion('');
+      setAnswer('');
+      addToast('FAQ updated');
+    },
+    onError: (err) => addToast(err.response?.data?.detail || 'Failed to update FAQ', 'error'),
   });
 
   const deleteMutation = useMutation({
@@ -82,10 +95,16 @@ export default function FAQs() {
                 <span className="flex-1 text-sm font-bold text-gray-900">{faq.question}</span>
                 <div className="flex items-center gap-2">
                   {user?.is_superadmin && (
-                    <button onClick={e => { e.stopPropagation(); if (confirm('Delete this FAQ?')) deleteMutation.mutate(faq.id); }}
-                      className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button onClick={e => { e.stopPropagation(); setEditFaq(faq); setQuestion(faq.question); setAnswer(faq.answer); }}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={e => { e.stopPropagation(); if (confirm('Delete this FAQ?')) deleteMutation.mutate(faq.id); }}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                   {expandedId === faq.id ? <ChevronDown className="w-4 h-4 text-gray-300" /> : <ChevronRight className="w-4 h-4 text-gray-300" />}
                 </div>
@@ -144,6 +163,54 @@ export default function FAQs() {
                   className="flex-[2] py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                   {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Create FAQ
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit modal */}
+      <AnimatePresence>
+        {editFaq && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setEditFaq(null); setQuestion(''); setAnswer(''); }} />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="relative bg-white rounded-3xl shadow-2xl p-6 w-full max-w-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <HelpCircle className="w-5 h-5 text-indigo-500" />
+                  Edit FAQ
+                </h2>
+                <button onClick={() => { setEditFaq(null); setQuestion(''); setAnswer(''); }} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-500 mb-1.5 block">Question</label>
+                  <input type="text" value={question} onChange={e => setQuestion(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Enter the question..." autoFocus />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 mb-1.5 block">Answer</label>
+                  <textarea value={answer} onChange={e => setAnswer(e.target.value)} rows={5}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    placeholder="Enter the answer..." />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => { setEditFaq(null); setQuestion(''); setAnswer(''); }}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm">
+                  Cancel
+                </button>
+                <button onClick={() => updateMutation.mutate({ id: editFaq.id, question: question.trim(), answer: answer.trim() })}
+                  disabled={updateMutation.isPending || !question.trim() || !answer.trim()}
+                  className="flex-[2] py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                  {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
+                  Update FAQ
                 </button>
               </div>
             </motion.div>

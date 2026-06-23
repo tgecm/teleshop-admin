@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
 
 import { API_BASE } from '../api/config';
+import { RichMessage } from '../components/chat/RichMessage';
 
 function getPublicImageUrls(image_url, bot_id) {
   if (!image_url) return [];
@@ -382,6 +383,15 @@ export default function PublicShop({ slug, viaDomain }) {
   const themeName = data?.theme || DEFAULT_THEME;
   const theme = THEMES[themeName] || THEMES[DEFAULT_THEME];
 
+  const getProductUrl = useCallback((productId) => {
+    const product = products.find(p => p.id === Number(productId));
+    if (!product?.link_code) return null;
+    const base = slug
+      ? window.location.origin + '/?p=/' + slug
+      : window.location.href.split('?')[0];
+    return base + '?product=' + product.link_code;
+  }, [products, slug]);
+
   const handleVisitorPhoto = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file || !shop?.id) return;
@@ -435,7 +445,15 @@ export default function PublicShop({ slug, viaDomain }) {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.detail || 'Chat failed');
-      setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply, file_id: null, file_type: null }]);
+      if (d.ai_unavailable) {
+        const noticeKey = 'ai_notice_' + visitorIdRef.current;
+        if (!localStorage.getItem(noticeKey)) {
+          localStorage.setItem(noticeKey, '1');
+          setChatMessages(prev => [...prev, { role: 'assistant', content: 'AI Agent is not available right now. Please leave your message.' }]);
+        }
+      } else {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply, file_id: null, file_type: null }]);
+      }
     } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
     } finally {
@@ -1113,7 +1131,11 @@ export default function PublicShop({ slug, viaDomain }) {
                           loading="lazy"
                         />
                       )}
-                      {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
+                      {msg.content && msg.role === 'assistant' ? (
+                        <RichMessage content={msg.content} isAssistant={true} botId={shop?.id} getProductUrl={getProductUrl} />
+                      ) : (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -110,13 +110,14 @@ function DocumentItem({ fileUrl, tgLink, isAdmin }) {
   );
 }
 
-function ChatBubble({ message, isAdmin, botId, botUsername }) {
+function ChatBubble({ message, isAdmin, isAi, botId, botUsername }) {
   const token = useAuthStore(s => s.token);
   const currentUser = useAuthStore(s => s.user);
   const isOwner = currentUser?.is_superadmin;
   const copyTimerRef = useRef(null);
   const touchCopiedRef = useRef(false);
   const msgRef = useRef(null);
+  const isRightSide = isAdmin || isAi;
 
   const txt = message.message_text || '';
   const isAction = txt.startsWith('__action__') || txt.startsWith('__form__') || txt.startsWith('__file__');
@@ -165,18 +166,18 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
       case 'audio':
       case 'voice':
         return (
-          <div className={`mb-2 rounded-xl p-3 ${isAdmin ? 'bg-indigo-500/30' : 'bg-white/60'}`}>
+          <div className={`mb-2 rounded-xl p-3 ${isRightSide ? 'bg-indigo-500/30' : 'bg-white/60'}`}>
             <div className="flex items-center gap-3 mb-2">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isAdmin ? 'bg-indigo-400/30' : 'bg-gray-200'}`}>
-                <Headphones className={`w-5 h-5 ${isAdmin ? 'text-indigo-200' : 'text-gray-600'}`} />
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${isRightSide ? 'bg-indigo-400/30' : 'bg-gray-200'}`}>
+                <Headphones className={`w-5 h-5 ${isRightSide ? 'text-indigo-200' : 'text-gray-600'}`} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-bold ${isAdmin ? 'text-white' : 'text-gray-900'}`}>
+                <p className={`text-sm font-bold ${isRightSide ? 'text-white' : 'text-gray-900'}`}>
                   {message.file_type === 'voice' ? 'Voice Message' : 'Audio'}
                 </p>
               </div>
               <a href={tgLink} target="_blank" rel="noreferrer"
-                className={`text-[10px] font-bold hover:underline flex-shrink-0 ${isAdmin ? 'text-indigo-200' : 'text-indigo-600'}`}
+                className={`text-[10px] font-bold hover:underline flex-shrink-0 ${isRightSide ? 'text-indigo-200' : 'text-indigo-600'}`}
                 onClick={(e) => e.stopPropagation()}>
                 Open ↗
               </a>
@@ -193,7 +194,7 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
           </div>
         );
       case 'document':
-        return <DocumentItem fileUrl={fileUrl} tgLink={tgLink} isAdmin={isAdmin} />;
+        return <DocumentItem fileUrl={fileUrl} tgLink={tgLink} isAdmin={isRightSide} />;
       default:
         return (
           <div className="mb-2">
@@ -212,15 +213,20 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
   };
 
   return (
-    <div className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${isRightSide ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[88%] rounded-2xl px-4 py-2.5 ${
-          isAdmin
-            ? 'bg-indigo-600 text-white rounded-br-md'
-            : 'bg-gray-100 text-gray-900 rounded-bl-md'
+        className={`max-w-[92%] md:max-w-[88%] rounded-2xl px-4 py-2.5 ${
+          isAi
+            ? 'bg-indigo-50 text-indigo-900 border border-indigo-200 rounded-br-md'
+            : isAdmin
+              ? 'bg-indigo-600 text-white rounded-br-md'
+              : 'bg-gray-100 text-gray-900 rounded-bl-md'
         }`}
       >
         {renderMedia()}
+        {isAi && (
+          <p className="text-[10px] font-bold text-indigo-400 mb-0.5">AI</p>
+        )}
         {isAdmin && message.sender_name && isOwner && (
           <p className="text-[10px] font-bold text-indigo-200 mb-0.5">{message.sender_name}</p>
         )}
@@ -279,7 +285,7 @@ function ChatBubble({ message, isAdmin, botId, botUsername }) {
         ))}
         <p
           className={`text-[10px] mt-1 ${
-            isAdmin ? 'text-indigo-200' : 'text-gray-400'
+            isAi ? 'text-indigo-400' : isAdmin ? 'text-indigo-200' : 'text-gray-400'
           }`}
         >
           {myanmarFormat(message.created_at, 'h:mm a')}
@@ -1039,70 +1045,67 @@ export default function Chats() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[32px] md:rounded-[32px] md:shadow-2xl max-h-[85dvh] flex flex-col md:max-w-lg md:mx-auto md:bottom-10"
+              className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[32px] md:rounded-[32px] md:shadow-2xl max-h-[92dvh] flex flex-col md:max-w-lg md:mx-auto md:bottom-10"
               style={{
                 overscrollBehavior: 'contain',
                 WebkitOverflowScrolling: 'touch',
                 touchAction: 'pan-y',
               }}
             >
-              <div className="sticky top-0 bg-white z-10 rounded-t-[32px] pt-4 pb-2 flex flex-col items-center">
+              <div className="sticky top-0 bg-white z-10 rounded-t-[32px] pt-2 pb-1 flex flex-col items-center">
                 <div className="w-10 h-1 bg-gray-200 rounded-full" />
               </div>
 
-              <div className="flex items-center justify-between px-5 pb-3 border-b border-gray-100">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <div className="flex items-center justify-between px-4 md:px-5 pb-2.5 border-b border-gray-100">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {selectedWebChat?.name === 'E-commerce Support'
                       ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
                       : (
                         <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                          <User className="w-5 h-5 text-gray-500" />
+                          <User className="w-4 h-4 text-gray-500" />
                         </div>
                       )
                     }
                   </div>
                   <div className="min-w-0">
-                    <p className="text-base font-bold text-gray-900 truncate flex items-center gap-1">
-                      {selectedWebChat?.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-4 h-4 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || `User ${selectedUser}`)}
+                    <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
+                      {selectedWebChat?.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || `User ${selectedUser}`)}
                     </p>
                     {selectedChat?.username && (
-                      <p className="text-xs text-gray-500 truncate">@{selectedChat.username}</p>
+                      <p className="text-[11px] text-gray-500 truncate">@{selectedChat.username}</p>
                     )}
                     {selectedWebChat?.phone && (
-                      <p className="text-xs text-gray-500 truncate">{selectedWebChat.phone}</p>
+                      <p className="text-[11px] text-gray-500 truncate">{selectedWebChat.phone}</p>
                     )}
                   </div>
                 </div>
                 {selectedWebChat && selectedWebChat.name !== 'E-commerce Support' && (
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex flex-col items-center">
-                      <button
-                        onClick={() => toggleAiMutation.mutate({ visitorId: selectedVisitor, disabled: !selectedWebChat.ai_disabled })}
-                        disabled={toggleAiMutation.isPending}
-                        className={`p-2 rounded-full active:scale-90 transition-all flex-shrink-0 ${
-                          selectedWebChat.ai_disabled ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-                        }`}
-                      >
-                        <Brain className="w-5 h-5" />
-                      </button>
-                      <span className={`text-[9px] font-bold uppercase tracking-wider mt-0.5 ${
-                        selectedWebChat.ai_disabled ? 'text-red-500' : 'text-green-500'
-                      }`}>
-                        {selectedWebChat.ai_disabled ? 'Off' : 'AI Mode'}
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => toggleAiMutation.mutate({ visitorId: selectedVisitor, disabled: !selectedWebChat.ai_disabled })}
+                      disabled={toggleAiMutation.isPending}
+                      className={`p-1.5 rounded-full active:scale-90 transition-all flex-shrink-0 ${
+                        selectedWebChat.ai_disabled ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                      }`}
+                      title={selectedWebChat.ai_disabled ? 'Enable AI responses' : 'Disable AI responses'}
+                    >
+                      <Brain className="w-4 h-4" />
+                    </button>
+                    <span className={`text-[8px] font-bold leading-none ${selectedWebChat.ai_disabled ? 'text-red-500' : 'text-green-600'}`}>
+                      {selectedWebChat.ai_disabled ? 'AI mode is off' : 'AI mode is on'}
+                    </span>
                   </div>
                 )}
                 <button
                   onClick={() => { setSelectedUser(null); setSelectedVisitor(null); }}
-                  className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform flex-shrink-0"
+                  className="p-1.5 bg-gray-100 rounded-full active:scale-90 transition-transform flex-shrink-0"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 space-y-3 min-h-0 [overflow-wrap:anywhere]">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-5 py-4 space-y-3 min-h-0 [overflow-wrap:anywhere]">
                 {(() => {
                   const msgs = selectedVisitor ? webMessages : messages;
                   return msgs.length === 0 ? (
@@ -1115,6 +1118,7 @@ export default function Chats() {
                         key={msg.id}
                         message={msg}
                         isAdmin={msg.sender_type === 'admin'}
+                        isAi={msg.sender_type === 'ai'}
                         botId={Number(selectedBotId)}
                         botUsername={botUsername}
                       />
@@ -1124,7 +1128,7 @@ export default function Chats() {
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className="sticky bottom-0 bg-white border-t border-gray-100 px-5 py-3 pb-[calc(max(env(safe-area-inset-bottom),8px)+12px)]">
+              <div className="sticky bottom-0 bg-white border-t border-gray-100 px-4 md:px-5 py-3 pb-[calc(max(env(safe-area-inset-bottom),8px)+12px)]">
                 <div className="flex items-end gap-2">
                   <input
                     ref={fileInputRef}

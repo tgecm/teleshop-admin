@@ -57,6 +57,9 @@ export const createFaq = (question, answer) =>
 export const deleteFaq = (id) =>
   client.delete(`/faqs/${id}`).then(res => res.data);
 
+export const updateFaq = (id, question, answer) =>
+  client.put(`/faqs/${id}`, { question, answer }).then(res => res.data);
+
 export const getStaffActivityLogs = (botId, staffId, startDate, endDate) =>
   client.get('/staff/activity-logs', { params: { bot_id: botId, staff_id: staffId, start_date: startDate, end_date: endDate } }).then(res => res.data);
 

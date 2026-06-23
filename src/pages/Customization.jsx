@@ -1,5 +1,5 @@
 import { API_BASE } from '../api/config';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
@@ -292,6 +292,7 @@ export default function Customization() {
   const [showOrderBtnPopup, setShowOrderBtnPopup] = useState(false);
 
   const fileInputRef = React.useRef(null);
+  const bioTextareaRef = useRef(null);
 
   React.useEffect(() => {
     if (bot?.profile_picture) setProfilePicture(bot.profile_picture);
@@ -317,6 +318,13 @@ export default function Customization() {
       setAiGender(aiSettings.gender || 'male');
     }
   }, [contentBlocks, aiSettings]);
+
+  useEffect(() => {
+    if (showBioPopup && bioTextareaRef.current) {
+      bioTextareaRef.current.style.height = 'auto';
+      bioTextareaRef.current.style.height = bioTextareaRef.current.scrollHeight + 'px';
+    }
+  }, [showBioPopup, bioText]);
 
   const handleProfileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -447,41 +455,43 @@ export default function Customization() {
               <p className="text-[10px] text-gray-500">Logo and bio for your shop</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-gray-200">
-              {profilePicture ? (
-                <img src={profilePicture} alt="Logo" className="w-full h-full object-cover" />
-              ) : (
-                <UserCircle className="w-7 h-7 text-gray-400" />
-              )}
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-gray-200">
+                {profilePicture ? (
+                  <img src={profilePicture} alt="Logo" className="w-full h-full object-cover" />
+                ) : (
+                  <UserCircle className="w-7 h-7 text-gray-400" />
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleProfileUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
+              >
+                {uploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Camera className="w-3.5 h-3.5" />
+                )}
+                {uploading ? 'Uploading...' : 'Update Logo'}
+              </button>
             </div>
-            <input
-              type="file"
-              accept="image/*"
-              ref={fileInputRef}
-              onChange={handleProfileUpload}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
-            >
-              {uploading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Camera className="w-3.5 h-3.5" />
-              )}
-              {uploading ? 'Uploading...' : 'Update Logo'}
-            </button>
-            <div className="w-px h-8 bg-gray-200" />
+            <div className="hidden md:block w-px h-8 bg-gray-200" />
             <button
               onClick={() => setShowBioPopup(true)}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left flex-1"
+              className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left w-full md:flex-1"
             >
               <Edit2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
               <span className="text-xs text-gray-700 truncate flex-1">
-                {bioText || <span className="text-gray-400 italic">Add a shop bio...</span>}
+                {bioText ? (bioText.length > 40 ? bioText.slice(0, 40) + '...' : bioText) : <span className="text-gray-400 italic">Add a shop bio...</span>}
               </span>
               <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
             </button>
@@ -700,6 +710,7 @@ export default function Customization() {
               </div>
 
               <textarea
+                ref={bioTextareaRef}
                 value={bioText}
                 onChange={e => { if (e.target.value.length <= 150) setBioText(e.target.value); }}
                 onInput={(e) => {
@@ -776,7 +787,7 @@ export default function Customization() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {ORDER_BUTTON_OPTIONS.map(option => {
                   const isActive = orderButtonLabel === option;
                   return (
@@ -788,7 +799,7 @@ export default function Customization() {
                         setShowOrderBtnPopup(false);
                       }}
                       disabled={updateContentMutation.isPending}
-                      className={`px-3 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.97] ${
+                      className={`px-3 py-2 rounded-xl font-bold text-xs whitespace-nowrap transition-all active:scale-[0.97] ${
                         isActive
                           ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-600'
                           : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'

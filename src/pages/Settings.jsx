@@ -278,8 +278,6 @@ export default function Settings() {
   });
 
   const [email, setEmail] = useState('');
-  const [websiteUrl, setWebsiteUrl] = useState('');
-  const [websiteEnabled, setWebsiteEnabled] = useState(false);
   const [shopOpen, setShopOpen] = useState(true);
   const [adminSearch, setAdminSearch] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('soundEnabled') !== 'false');
@@ -287,7 +285,6 @@ export default function Settings() {
   const [lowStockEnabled, setLowStockEnabled] = useState(false);
   const [editingLowStock, setEditingLowStock] = useState(false);
   const [editingEmail, setEditingEmail] = useState(false);
-  const [editingWebsiteUrl, setEditingWebsiteUrl] = useState(false);
 
   const [showDomainGuide, setShowDomainGuide] = useState(false);
   const [modeOrder, setModeOrder] = useState([]);
@@ -326,11 +323,6 @@ export default function Settings() {
       setLowStockEnabled(threshold !== null && threshold > 0);
     }
     if (contentBlocks) {
-      const web = contentBlocks.find(b => b.key === 'website_link');
-      if (web) {
-        setWebsiteUrl(web.content_data?.url || '');
-        setWebsiteEnabled(web.content_data?.enabled !== false);
-      }
       const shop = contentBlocks.find(b => b.key === 'shop_settings');
       if (shop) {
         setShopOpen(shop.content_data?.is_open !== false);
@@ -661,68 +653,6 @@ export default function Settings() {
 
 
             <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <Globe className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-900">Website Link</h3>
-                    <p className="text-[10px] text-gray-500">Website button in bot's main menu</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    const newEnabled = !websiteEnabled;
-                    setWebsiteEnabled(newEnabled);
-                    if (!newEnabled) {
-                      updateContentMutation.mutate({ key: 'website_link', data: { url: websiteUrl, enabled: false } });
-                    }
-                  }}
-                  className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${websiteEnabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
-                >
-                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${websiteEnabled ? 'left-6.5' : 'left-0.5'}`} />
-                </button>
-              </div>
-              {websiteEnabled && (
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={websiteUrl}
-                    onChange={(e) => setWebsiteUrl(e.target.value)}
-                    disabled={!editingWebsiteUrl}
-                    className="flex-1 px-3 py-2 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium disabled:bg-gray-100 disabled:cursor-not-allowed enabled:bg-white"
-                    placeholder="https://..."
-                  />
-                  {editingWebsiteUrl ? (
-                    <button
-                      onClick={() => {
-                        updateContentMutation.mutate({ key: 'website_link', data: { url: websiteUrl, enabled: websiteEnabled } });
-                        setEditingWebsiteUrl(false);
-                      }}
-                      className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm"
-                    >
-                      Save
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setEditingWebsiteUrl(true)}
-                      className="px-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              )}
-              {!websiteEnabled && (
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 text-center">
-                  <p className="text-xs text-gray-400">Website button is hidden</p>
-                </div>
-              )}
-            </section>
-
-
-            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
                   <Globe className="w-4 h-4" />
@@ -832,56 +762,54 @@ export default function Settings() {
               </div>
               <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
                 <p className="text-[10px] text-gray-500 font-medium mb-2">Drag to reorder — toggle to show/hide</p>
-                <div className="flex items-center gap-1 flex-nowrap">
+                <div className="grid grid-cols-3 gap-2">
                   {modeOrder.map((key, idx) => {
-                    const labels = { telegram: { label: 'Buy on Telegram', short: 'Telegram', icon: '💬' }, ecommerce: { label: 'Buy on Website', short: 'Website', icon: '🛒' }, guest: { label: 'Buy as a Guest', short: 'Guest', icon: '👤' } };
-                    const info = labels[key] || { label: key, icon: '🔘' };
+                    const labels = { telegram: 'Telegram', ecommerce: 'Website', guest: 'Guest' };
                     const isFirst = idx === 0;
                     const isLast = idx === modeOrder.length - 1;
                     const on = modeEnabled[key] !== false;
                     return (
-                      <div key={key} className="flex items-center">
-                        <button
-                          onClick={() => {
-                            if (isFirst) return;
-                            const newOrder = [...modeOrder];
-                            [newOrder[idx-1], newOrder[idx]] = [newOrder[idx], newOrder[idx-1]];
-                            setModeOrder(newOrder);
-                            updateContentMutation.mutate({ key: 'mode_order', data: { order: newOrder, enabled: modeEnabled } });
-                          }}
-                          disabled={isFirst}
-                          className={`w-3 h-3 flex items-center justify-center rounded-full transition-colors text-[7px] ${isFirst ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
-                        >◀</button>
-                        <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[10px] font-medium whitespace-nowrap transition-all ${on ? 'bg-white border-gray-200 text-gray-600' : 'bg-gray-100 border-gray-200 text-gray-400'}`}>
-                          <span>{info.icon}</span>
-                          <span className="sm:hidden">{info.short}</span>
-                          <span className="hidden sm:inline">{info.label}</span>
+                      <div key={key} className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-white border border-gray-200">
+                        <div className="flex items-center gap-1">
                           <button
-                            onClick={(e) => { e.stopPropagation();
-                              if (on) {
-                                const activeCount = Object.values(modeEnabled).filter(Boolean).length;
-                                if (activeCount <= 1) return;
-                              }
-                              const next = { ...modeEnabled, [key]: !on };
-                              setModeEnabled(next);
-                              updateContentMutation.mutate({ key: 'mode_order', data: { order: modeOrder, enabled: next }, _mode: key, _action: on ? 'hidden' : 'shown' });
+                            onClick={() => {
+                              if (isFirst) return;
+                              const newOrder = [...modeOrder];
+                              [newOrder[idx-1], newOrder[idx]] = [newOrder[idx], newOrder[idx-1]];
+                              setModeOrder(newOrder);
+                              updateContentMutation.mutate({ key: 'mode_order', data: { order: newOrder, enabled: modeEnabled } });
                             }}
-                            className={`w-5 h-3.5 rounded-full transition-colors relative flex-shrink-0 ${on ? 'bg-indigo-500' : 'bg-gray-300'}`}
-                          >
-                            <span className={`absolute left-0 top-0.5 w-2.5 h-2.5 bg-white rounded-full shadow transition-transform ${on ? 'translate-x-2.5' : 'translate-x-0.5'}`} />
-                          </button>
+                            disabled={isFirst}
+                            className={`w-4 h-4 flex items-center justify-center rounded text-[8px] transition-colors ${isFirst ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
+                          >◀</button>
+                          <span className="text-[9px] text-gray-400 font-medium tabular-nums">{idx + 1}</span>
+                          <button
+                            onClick={() => {
+                              if (isLast) return;
+                              const newOrder = [...modeOrder];
+                              [newOrder[idx], newOrder[idx+1]] = [newOrder[idx+1], newOrder[idx]];
+                              setModeOrder(newOrder);
+                              updateContentMutation.mutate({ key: 'mode_order', data: { order: newOrder, enabled: modeEnabled } });
+                            }}
+                            disabled={isLast}
+                            className={`w-4 h-4 flex items-center justify-center rounded text-[8px] transition-colors ${isLast ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
+                          >▶</button>
                         </div>
+                        <span className="text-[11px] font-semibold text-gray-700 text-center leading-tight">{labels[key]}</span>
                         <button
                           onClick={() => {
-                            if (isLast) return;
-                            const newOrder = [...modeOrder];
-                            [newOrder[idx], newOrder[idx+1]] = [newOrder[idx+1], newOrder[idx]];
-                            setModeOrder(newOrder);
-                            updateContentMutation.mutate({ key: 'mode_order', data: { order: newOrder, enabled: modeEnabled } });
+                            if (on) {
+                              const activeCount = Object.values(modeEnabled).filter(Boolean).length;
+                              if (activeCount <= 1) return;
+                            }
+                            const next = { ...modeEnabled, [key]: !on };
+                            setModeEnabled(next);
+                            updateContentMutation.mutate({ key: 'mode_order', data: { order: modeOrder, enabled: next }, _mode: key, _action: on ? 'hidden' : 'shown' });
                           }}
-                          disabled={isLast}
-                          className={`w-3 h-3 flex items-center justify-center rounded-full transition-colors text-[7px] ${isLast ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
-                        >▶</button>
+                          className={`w-8 h-5 rounded-full transition-all relative flex-shrink-0 ${on ? 'bg-indigo-500 shadow-sm' : 'bg-gray-200'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform ${on ? 'translate-x-3' : 'translate-x-0'}`} />
+                        </button>
                       </div>
                     );
                   })}
@@ -898,15 +826,13 @@ export default function Settings() {
                   <h3 className="text-sm font-bold text-gray-900">Custom Domains</h3>
                   <p className="text-[10px] text-gray-500">Use up to 3 custom domains for the public shop</p>
                 </div>
-                {hasUnverifiedDomain && (
-                  <button
-                    onClick={() => setShowDomainGuide(true)}
-                    className="w-10 h-10 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-500 hover:text-indigo-700 flex items-center justify-center transition-all flex-shrink-0 font-bold text-lg shadow-sm"
-                    title="Setup guide"
-                  >
-                    <HelpCircle className="w-5 h-5" />
-                  </button>
-                )}
+                <button
+                  onClick={() => setShowDomainGuide(true)}
+                  className="w-10 h-10 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-500 hover:text-indigo-700 flex items-center justify-center transition-all flex-shrink-0 font-bold text-lg shadow-sm"
+                  title="Setup guide"
+                >
+                  <HelpCircle className="w-5 h-5" />
+                </button>
               </div>
 
               <div className="space-y-2.5">
@@ -2125,14 +2051,12 @@ function DiscountsManager() {
   const handleSubmit = () => {
     const isFree = form.is_free;
     const percent = isFree ? 100 : parseInt(form.discount_percent);
-    const days = parseInt(form.duration_days);
     if (!isFree && (!percent || percent < 1 || percent > 100)) return addToast('Discount must be 1-100', 'error');
-    if (!days || days < 1) return addToast('Duration must be at least 1 day', 'error');
 
     const payload = {
       code: form.code.trim().toUpperCase(),
       discount_percent: percent,
-      duration_days: days,
+      duration_days: form.duration_days ? parseInt(form.duration_days) : null,
       total_cards: form.is_unlimited ? null : (parseInt(form.total_cards) || null),
       chat_id: form.chat_id ? parseInt(form.chat_id) : null,
     };
@@ -2191,9 +2115,11 @@ function DiscountsManager() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Duration (days)</label>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">
+                  Duration (days) <span className="text-gray-300 normal-case font-normal">(optional)</span>
+                </label>
                 <input type="number" min="1" value={form.duration_days} onChange={e => setForm(f => ({ ...f, duration_days: e.target.value.replace(/\D/g, '') }))}
-                  placeholder="e.g. 365"
+                  placeholder="Leave empty to use the plan's duration"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
 
@@ -2340,7 +2266,7 @@ function DiscountsManager() {
                       <td className="px-4 py-3">
                         <span className="font-bold text-emerald-600">{d.discount_percent === 100 ? 'Free' : `${d.discount_percent}%`}</span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{d.duration_days}d</td>
+                      <td className="px-4 py-3 text-gray-600">{d.duration_days ? `${d.duration_days}d` : '—'}</td>
                       <td className="px-4 py-3">
                         <span className="text-gray-600">{d.used_count}{d.total_cards != null ? `/${d.total_cards}` : '/∞'}</span>
                       </td>
@@ -2406,7 +2332,7 @@ function DiscountsManager() {
                     </div>
                     <div>
                       <span className="text-[10px] text-gray-400 block">Duration</span>
-                      <span className="text-gray-700 font-medium">{d.duration_days}d</span>
+                      <span className="text-gray-700 font-medium">{d.duration_days ? `${d.duration_days}d` : '—'}</span>
                     </div>
                     <div>
                       <span className="text-[10px] text-gray-400 block">Uses</span>

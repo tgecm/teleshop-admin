@@ -17,6 +17,7 @@ import {
   ChevronRight,
   X,
   Loader2,
+  Globe,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -62,12 +63,25 @@ export default function BotCustomization() {
 
   const [aiContext, setAiContext] = useState('');
   const [showAiContextPopup, setShowAiContextPopup] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [websiteEnabled, setWebsiteEnabled] = useState(true);
+  const [editingWebsiteUrl, setEditingWebsiteUrl] = useState(false);
 
   React.useEffect(() => {
     if (aiSettings) {
       setAiContext(aiSettings.system_context || '');
     }
   }, [aiSettings]);
+
+  React.useEffect(() => {
+    if (contentBlocks) {
+      const web = contentBlocks.find(b => b.key === 'website_link');
+      if (web) {
+        setWebsiteUrl(web.content_data?.url || '');
+        setWebsiteEnabled(web.content_data?.enabled !== false);
+      }
+    }
+  }, [contentBlocks]);
 
   if (botLoading) return <LoadingSkeleton type="list" count={5} />;
 
@@ -202,6 +216,68 @@ export default function BotCustomization() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Website Link */}
+      <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Globe className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Website Link</h3>
+              <p className="text-[10px] text-gray-500">Website button in bot's main menu</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const newEnabled = !websiteEnabled;
+              setWebsiteEnabled(newEnabled);
+              if (!newEnabled) {
+                updateContentMutation.mutate({ key: 'website_link', data: { url: websiteUrl, enabled: false } });
+              }
+            }}
+            className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${websiteEnabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
+          >
+            <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${websiteEnabled ? 'left-6.5' : 'left-0.5'}`} />
+          </button>
+        </div>
+        {websiteEnabled && (
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              disabled={!editingWebsiteUrl}
+              className="flex-1 px-3 py-2 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium disabled:bg-gray-100 disabled:cursor-not-allowed enabled:bg-white"
+              placeholder="https://..."
+            />
+            {editingWebsiteUrl ? (
+              <button
+                onClick={() => {
+                  updateContentMutation.mutate({ key: 'website_link', data: { url: websiteUrl, enabled: websiteEnabled } });
+                  setEditingWebsiteUrl(false);
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] text-sm"
+              >
+                Save
+              </button>
+            ) : (
+              <button
+                onClick={() => setEditingWebsiteUrl(true)}
+                className="px-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
+        {!websiteEnabled && (
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 text-center">
+            <p className="text-xs text-gray-400">Website button is hidden</p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
