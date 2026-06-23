@@ -389,7 +389,7 @@ export default function PublicShop({ slug, viaDomain }) {
     const base = slug
       ? window.location.origin + '/?p=/' + slug
       : window.location.href.split('?')[0];
-    return base + '?product=' + product.link_code;
+    return base + (slug ? '&' : '?') + 'product=' + product.link_code;
   }, [products, slug]);
 
   const handleVisitorPhoto = useCallback(async (e) => {

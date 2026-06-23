@@ -1634,7 +1634,15 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
 
   const shop = data?.shop;
-  const products = data?.products || [];
+  const products = useMemo(() => {
+    const all = data?.products || [];
+    return all.filter(p => {
+      if (viewMode === 'telegram') return p.show_on_telegram !== false;
+      if (viewMode === 'ecommerce') return p.show_on_website !== false;
+      if (viewMode === 'guest') return p.show_on_guest !== false;
+      return true;
+    });
+  }, [data?.products, viewMode]);
   const productStockMap = useMemo(() => {
     const map = {};
     products.forEach(p => { map[p.id] = p.stock_quantity; });
@@ -2015,7 +2023,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     const base = slug
       ? window.location.origin + '/?p=/' + slug
       : window.location.href.split('?')[0];
-    return base + '?product=' + product.link_code;
+    return base + (slug ? '&' : '?') + 'product=' + product.link_code;
   }, [products, slug]);
 
   function stripComponents(t) { return t.replace(/<!--C[\s\S]*?<!--C-->/g, '').trim(); }
