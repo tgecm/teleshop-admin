@@ -147,7 +147,7 @@ function LoadingSkeleton() {
   );
 }
 
-function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, viewMode, sentProducts, setSentProducts, slug, orderButtonLabel }) {
+function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, viewMode, sentProducts, setSentProducts, slug, orderButtonLabel, onOpenCart, onUpdateQty, totalCartCount }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedOptions, setSelectedOptions] = useState({});
@@ -197,16 +197,28 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
         className="relative bg-white w-full max-w-lg md:rounded-[32px] md:mx-4 max-h-[92svh] overflow-y-auto rounded-t-xl shadow-2xl"
       >
-        <button onClick={onClose} className="absolute top-4 right-4 z-20 p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all">
-          <X className="w-5 h-5 text-gray-700" />
-        </button>
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+          {viewMode !== 'telegram' && (
+            <button onClick={onOpenCart} className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all relative">
+              <ShoppingCart className="w-5 h-5 text-gray-700" />
+              {totalCartCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md">
+                  {totalCartCount > 99 ? '99+' : totalCartCount}
+                </span>
+              )}
+            </button>
+          )}
+          <button onClick={onClose} className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all">
+            <X className="w-5 h-5 text-gray-700" />
+          </button>
+        </div>
 
         <div className="sticky top-0 z-10 aspect-[16/9] bg-gray-100 overflow-hidden" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           <AnimatePresence mode="wait">
             <motion.img
               key={currentImageIndex} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ duration: 0.2 }}
               src={allImages[currentImageIndex] || '/placeholder.svg'} alt={product.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               onError={(e) => { e.target.style.display = 'none'; }}
             />
           </AnimatePresence>
@@ -320,22 +332,54 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
           )}
 
           {viewMode !== 'telegram' && (
-            <button
-              onClick={() => onAddToCart(product, selectedColor, selectedOptions)}
-              disabled={isOutOfStock || (productColors.length > 0 && !selectedColor) || (productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id])) || (product.stock_quantity !== null && cartQty >= product.stock_quantity)}
-              className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-base transition-all ${
-                isOutOfStock || (product.stock_quantity !== null && cartQty >= product.stock_quantity)
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : productColors.length > 0 && !selectedColor
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id])
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'theme-btn hover:shadow-xl active:scale-[0.98] shadow-lg'
-              }`}
-            >
-              <ShoppingCart className="w-5 h-5" />
-              {isOutOfStock ? 'Currently Unavailable' : product.stock_quantity !== null && cartQty >= product.stock_quantity ? 'Max Reached' : productColors.length > 0 && !selectedColor ? 'Select a Color' : productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id]) ? 'Select Options' : cartQty > 0 ? `Add to Cart (${cartQty} in cart)` : 'Add to Cart'}
-            </button>
+            <div className="flex gap-2">
+              {cartQty > 0 ? (
+                <div className="flex-1 flex items-center justify-between bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
+                  <button
+                    onClick={() => onUpdateQty(product.id, -1)}
+                    className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-90 transition-all"
+                  >
+                    <Minus className="w-4 h-4 text-gray-600" />
+                  </button>
+                  <span className="text-lg font-bold text-gray-900 min-w-[28px] text-center">{cartQty}</span>
+                  <button
+                    onClick={() => { onAddToCart(product, selectedColor, selectedOptions); }}
+                    disabled={isOutOfStock || (product.stock_quantity !== null && cartQty >= product.stock_quantity)}
+                    className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-40"
+                  >
+                    <Plus className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { onAddToCart(product, selectedColor, selectedOptions); }}
+                  disabled={isOutOfStock || (productColors.length > 0 && !selectedColor) || (productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id]))}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm transition-all shadow-sm ${
+                    isOutOfStock
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                      : productColors.length > 0 && !selectedColor
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                        : productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id])
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                        : 'bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 active:scale-[0.98]'
+                  }`}
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  {isOutOfStock ? 'Currently Unavailable' : productColors.length > 0 && !selectedColor ? 'Select a Color' : productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id]) ? 'Select Options' : 'Add to Cart'}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (cartQty === 0) onAddToCart(product, selectedColor, selectedOptions);
+                  onOpenCart();
+                }}
+                disabled={isOutOfStock || cartQty === 0 && ((productColors.length > 0 && !selectedColor) || (productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id])))}
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg theme-btn hover:shadow-xl active:scale-[0.98] disabled:opacity-50"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Buy
+              </button>
+            </div>
           )}
 
           {shop?.bot_username && viewMode === 'telegram' && (
@@ -1724,16 +1768,6 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       .catch(() => setRegistered(false));
   }, [user, tgLoggedIn, shop]);
 
-  // URL sync when product detail opens — only add param, never remove initial one
-  useEffect(() => {
-    if (selectedProduct?.link_code) {
-      const params = new URLSearchParams(window.location.search);
-      params.set('product', selectedProduct.link_code);
-      const newUrl = window.location.pathname + '?' + params.toString();
-      window.history.replaceState(null, '', newUrl);
-    }
-  }, [selectedProduct]);
-
   // Auto-open product from ?product= URL param on page load — handled inline
 
   const dashboardUrl = viaDomain
@@ -2441,7 +2475,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                   className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 mt-4 max-w-lg mx-auto">
                   {linkImages.length > 0 && (
                     <div className="aspect-square bg-gray-50 relative">
-                      <img src={linkImages[0]} alt={productLinkProduct.name} className="w-full h-full object-cover" />
+                      <img src={linkImages[0]} alt={productLinkProduct.name} className="w-full h-full object-contain" />
                     </div>
                   )}
                   <div className="p-5 space-y-4">
@@ -2987,6 +3021,9 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             setSentProducts={setSentProducts}
             slug={slug}
             orderButtonLabel={orderButtonLabel}
+            totalCartCount={cartCount}
+            onOpenCart={() => setShowCart(true)}
+            onUpdateQty={updateQty}
           />
         )}
       </AnimatePresence>
@@ -3219,7 +3256,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: 'spring', damping: 15, stiffness: 300 }}
             onClick={() => setShowCart(true)}
-            className="fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-xl z-40 flex items-center justify-center active:scale-90 hover:scale-105"
+            className={`fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-xl flex items-center justify-center active:scale-90 hover:scale-105 ${selectedProduct ? 'z-[70]' : 'z-40'}`}
             style={{ background: theme.css['--theme-btn'] }}
           >
             <ShoppingCart className="w-6 h-6 text-white" />
