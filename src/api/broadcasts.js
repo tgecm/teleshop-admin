@@ -17,3 +17,6 @@ export const createGiveaway = (data) =>
 
 export const drawGiveawayWinner = (id, data) =>
   client.post(`/giveaways/${id}/draw`, data).then(res => res.data);
+
+export const getGiveawayWinners = (id) =>
+  client.get(`/giveaways/${id}/winners`).then(res => res.data);

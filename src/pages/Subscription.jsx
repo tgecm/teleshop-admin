@@ -263,6 +263,7 @@ export default function Subscription() {
     } catch (err) {
       addToast(err.response?.data?.detail || 'Failed to create order', 'error');
       setShowQr(false);
+      setCooldown(30);
     } finally {
       setOrderLoading(false);
     }
