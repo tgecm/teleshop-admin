@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, getImageUrl, uploadImage } from '../api/products';
+import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, deleteCategory, getImageUrl, uploadImage } from '../api/products';
 import client from '../api/client';
 import { createCoupon, getCoupons, deleteCoupon } from '../api/coupons';
 import { useBotStore } from '../store/botStore';
@@ -338,8 +338,8 @@ export default function Products() {
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Products</h1>
-        <div className="flex gap-2">
-          <div className="relative flex-1 sm:w-64">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
@@ -349,6 +349,7 @@ export default function Products() {
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
             />
           </div>
+          <div className="flex gap-2 flex-wrap">
           <CategoryDropdown
             categories={categories || []}
             selected={selectedCategoryFilter}
@@ -407,6 +408,7 @@ export default function Products() {
             <Truck className="w-5 h-5" />
             <span className="hidden sm:inline font-bold">Delivery Fees</span>
           </button>
+          </div>
         </div>
       </div>
 
@@ -545,7 +547,7 @@ export default function Products() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowDeliveryFeeModal(false)} />
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4">
-            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-lg p-3 sm:p-6 shadow-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto pb-10 sm:pb-0">
+            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-lg p-3 sm:p-6 shadow-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-100 rounded-full flex items-center justify-center">
@@ -870,16 +872,16 @@ export default function Products() {
                   {/* Coupon Code */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-gray-600 ml-1">Coupon Code *</label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <input
                         required maxLength={9}
                         value={couponForm.code}
                         onChange={(e) => setCouponForm(p => ({ ...p, code: e.target.value.toUpperCase() }))}
                         placeholder="e.g. SAVE50"
-                        className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-mono font-bold uppercase text-sm tracking-widest"
+                        className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-mono font-bold uppercase text-sm tracking-widest min-w-0"
                       />
                       <button type="button" onClick={generateCouponCode}
-                        className="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all text-xs font-bold flex items-center gap-1.5"
+                        className="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all text-xs font-bold flex items-center gap-1.5 flex-shrink-0"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                         Generate
@@ -891,19 +893,19 @@ export default function Products() {
                   {/* Discount Type + Value */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-gray-600 ml-1">Discount *</label>
-                    <div className="flex gap-2">
-                      <div className="flex bg-gray-100 p-0.5 rounded-xl">
+                    <div className="flex gap-2 flex-wrap">
+                      <div className="flex bg-gray-100 p-0.5 rounded-lg flex-shrink-0">
                         <button type="button"
                           onClick={() => setCouponForm(p => ({ ...p, discount_type: 'fixed' }))}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${couponForm.discount_type === 'fixed' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+                          className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${couponForm.discount_type === 'fixed' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
                         >
-                          <Coins className="w-3.5 h-3.5 inline mr-1" />Fixed
+                          <Coins className="w-3 h-3 inline mr-0.5" />Fixed
                         </button>
                         <button type="button"
                           onClick={() => setCouponForm(p => ({ ...p, discount_type: 'percentage' }))}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${couponForm.discount_type === 'percentage' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+                          className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${couponForm.discount_type === 'percentage' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
                         >
-                          <Percent className="w-3.5 h-3.5 inline mr-1" />%
+                          <Percent className="w-3 h-3 inline mr-0.5" />%
                         </button>
                       </div>
                       <input
@@ -916,7 +918,7 @@ export default function Products() {
                           setCouponForm(p => ({ ...p, discount_value: val }));
                         }}
                         placeholder={couponForm.discount_type === 'fixed' ? 'Amount in MMK' : 'Percentage (max 100%)'}
-                        className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                        className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm min-w-0"
                       />
                     </div>
                   </div>
@@ -1162,13 +1164,31 @@ function compressImage(file, maxDimension = 720) {
 
 function CategoryDropdown({ categories, selected, onSelect }) {
   const [open, setOpen] = useState(false);
+  const [deletingCategory, setDeletingCategory] = useState(null);
+  const [confirmStep, setConfirmStep] = useState(1);
   const ref = useRef(null);
+  const queryClient = useQueryClient();
+  const deleteMutation = useMutation({
+    mutationFn: (id) => deleteCategory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      if (selected === String(deletingCategory?.id)) onSelect('');
+      setDeletingCategory(null);
+      setConfirmStep(1);
+      setOpen(false);
+    },
+  });
 
   useEffect(() => {
     const handle = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('pointerdown', handle);
     return () => document.removeEventListener('pointerdown', handle);
   }, []);
+
+  const handleCloseConfirm = () => {
+    setDeletingCategory(null);
+    setConfirmStep(1);
+  };
 
   return (
     <div className="relative" ref={ref}>
@@ -1184,7 +1204,7 @@ function CategoryDropdown({ categories, selected, onSelect }) {
         <span className="hidden sm:inline max-w-[80px] truncate">{selected ? categories.find(c => String(c.id) === selected)?.name || 'Category' : 'All'}</span>
       </button>
       {open && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 w-44 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-60 overflow-y-auto">
+        <div className="absolute left-0 sm:left-1/2 sm:-translate-x-1/2 top-full mt-1 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-60 overflow-y-auto">
           <button
             onClick={() => { onSelect(''); setOpen(false); }}
             className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${!selected ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}
@@ -1192,15 +1212,47 @@ function CategoryDropdown({ categories, selected, onSelect }) {
             All
           </button>
           {categories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => { onSelect(String(cat.id)); setOpen(false); }}
-              className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${selected === String(cat.id) ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}
-            >
-              {cat.name}
-            </button>
+            <div key={cat.id} className={`flex items-center px-4 py-2.5 text-sm font-bold transition-colors ${selected === String(cat.id) ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}>
+              <button
+                onClick={() => { onSelect(String(cat.id)); setOpen(false); }}
+                className="flex-1 text-left truncate"
+              >
+                {cat.name}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setDeletingCategory(cat); setConfirmStep(1); }}
+                className="p-1 ml-1 text-gray-400 hover:text-rose-500 transition-colors flex-shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           ))}
         </div>
+      )}
+
+      {confirmStep === 1 && (
+        <ConfirmDialog
+          open={!!deletingCategory}
+          onClose={handleCloseConfirm}
+          onConfirm={() => setConfirmStep(2)}
+          title="Delete Category"
+          message={`Every product in "` + (deletingCategory?.name || '') + `" will be deleted. Are you sure?`}
+          confirmText="Delete"
+          variant="danger"
+        />
+      )}
+
+      {confirmStep === 2 && (
+        <ConfirmDialog
+          open={!!deletingCategory}
+          onClose={handleCloseConfirm}
+          onConfirm={() => { if (deletingCategory) deleteMutation.mutate(deletingCategory.id); }}
+          title="Are you absolutely sure?"
+          message="This action cannot be undone."
+          confirmText="Yes, Delete"
+          variant="danger"
+          loading={deleteMutation.isPending}
+        />
       )}
     </div>
   );
@@ -1215,6 +1267,9 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     category_id: product?.category_id || '',
     delivery_type: product?.delivery_type || '',
     cost_price: product?.cost_price || '',
+    show_on_telegram: product?.show_on_telegram !== undefined ? product.show_on_telegram : true,
+    show_on_website: product?.show_on_website !== undefined ? product.show_on_website : true,
+    show_on_guest: product?.show_on_guest !== undefined ? product.show_on_guest : true,
   });
   const [showAdditional, setShowAdditional] = useState(() => !!product?.cost_price);
   const [promotion, setPromotion] = useState(() => !!product?.original_price);
@@ -1384,6 +1439,10 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
       addToast('Promotion price cannot exceed original price', 'error');
       return;
     }
+    if (!formData.show_on_telegram && !formData.show_on_website && !formData.show_on_guest) {
+      addToast('At least one channel must be selected', 'error');
+      return;
+    }
     const imageUrl = images.length > 0
       ? JSON.stringify(images.map(img => ({ file_id: img.file_id, type: 'photo' })))
       : null;
@@ -1409,7 +1468,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
   };
 
   return (
-    <div className="p-5 pb-24">
+    <div className="p-5 pb-5">
       <div className="flex justify-center mb-4">
         <div className="w-10 h-1 bg-gray-200 rounded-full" />
       </div>
@@ -1429,7 +1488,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             required
             value={formData.category_id}
             onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-sm"
           >
             <option value="">Select Category</option>
             {categories?.map(cat => (
@@ -1465,7 +1524,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
               <button
                 type="button"
                 onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}
-                className="px-3 py-2 text-gray-500 text-sm font-bold rounded-xl hover:bg-gray-100 transition-all"
+                className="px-3 py-2 text-gray-500 text-sm font-bold rounded-xl hover:bg-gray-100 transition-all flex-shrink-0 whitespace-nowrap"
               >
                 Cancel
               </button>
@@ -1886,6 +1945,44 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             <Plus className="w-4 h-4" />
             {options.length >= 10 ? 'Max 10 options' : 'Add Option'}
           </button>
+        </div>
+
+        {/* Channel Visibility */}
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-700 ml-1">This product will be shown on</label>
+          <div className="flex gap-2">
+            {[
+              { key: 'show_on_telegram', label: 'Telegram' },
+              { key: 'show_on_website', label: 'Website' },
+              { key: 'show_on_guest', label: 'Guest' },
+            ].map(({ key, label }) => (
+              <label
+                key={key}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all select-none ${
+                  formData[key] ? 'border-indigo-300 bg-indigo-50/50' : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={formData[key]}
+                  onChange={(e) => {
+                    // Prevent unchecking the last channel
+                    const checked = e.target.checked;
+                    if (!checked) {
+                      const otherChecked = Object.entries(formData)
+                        .filter(([k]) => k.startsWith('show_on_'))
+                        .filter(([k]) => k !== key)
+                        .some(([, v]) => v);
+                      if (!otherChecked) return;
+                    }
+                    setFormData({ ...formData, [key]: checked });
+                  }}
+                  className="w-3.5 h-3.5 text-indigo-600 rounded accent-indigo-600"
+                />
+                <span className={`text-xs font-bold ${formData[key] ? 'text-indigo-700' : 'text-gray-600'}`}>{label}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="pt-4 flex gap-3">

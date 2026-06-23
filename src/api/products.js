@@ -33,6 +33,9 @@ export const updateProductSortOrder = (botId, items) =>
 export const updateCategory = (id, data) =>
   client.patch(`/categories/${id}`, data).then(res => res.data);
 
+export const deleteCategory = (id) =>
+  client.delete(`/categories/${id}`).then(res => res.data);
+
 export const getImageUrl = (image_url, bot_id) => {
   if (!image_url) return null;
   if (image_url.startsWith('http')) return image_url;

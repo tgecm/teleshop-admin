@@ -252,8 +252,8 @@ export default function ProductSorting({ products, categories, botId, onClose })
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold text-gray-900 truncate">Product Sorting</h2>
-            <p className="text-[11px] text-gray-500">Drag ≡ to reorder products</p>
+            <h2 className="text-base font-bold text-gray-900">Product Sorting</h2>
+            <p className="text-[11px] text-gray-500 whitespace-nowrap">Drag ≡ to reorder products</p>
           </div>
           <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
             {hasCustomOrder && (
