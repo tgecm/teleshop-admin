@@ -685,6 +685,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
 
   /** Load an image with CORS for canvas overlay rendering */
   const loadLogoImage = async (url) => {
+    // Try direct crossOrigin load first
     try {
       const img = await new Promise((resolve, reject) => {
         const i = new Image();
@@ -695,20 +696,32 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       });
       return img;
     } catch (_) {
-      // Fallback: fetch + blob + object URL
-      const resp = await fetch(url);
-      const blob = await resp.blob();
-      if (!blob || !blob.size) throw new Error('empty blob');
-      const blobUrl = URL.createObjectURL(blob);
+      // Fallback: fetch -> blob -> data URL (avoids revokable URL lifecycle issues on mobile)
       try {
+        const resp = await fetch(url, { mode: 'cors' });
+        if (!resp.ok) throw new Error('fetch failed');
+        const blob = await resp.blob();
+        if (!blob || !blob.size) throw new Error('empty blob');
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
         return await new Promise((resolve, reject) => {
           const i = new Image();
           i.onload = () => resolve(i);
           i.onerror = reject;
-          i.src = blobUrl;
+          i.src = dataUrl;
         });
-      } finally {
-        URL.revokeObjectURL(blobUrl);
+      } catch (e) {
+        // Last resort: try without CORS (crossOrigin = '') — works on same-origin
+        return await new Promise((resolve, reject) => {
+          const i = new Image();
+          i.onload = () => resolve(i);
+          i.onerror = reject;
+          i.src = url;
+        });
       }
     }
   };

@@ -439,6 +439,9 @@ export default function Products() {
               className="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:border-indigo-200 hover:shadow-md transition-all group"
             >
               <div className="aspect-[4/3] md:aspect-square bg-gray-50 relative overflow-hidden">
+                {!product.cost_price && (
+                  <div className="absolute top-1.5 left-1.5 md:top-2 md:left-2 z-10 w-2 h-2 md:w-2.5 md:h-2.5 bg-orange-400/70 rounded-full" />
+                )}
                 {product.image_url ? (
                   <img
                     src={getImageUrl(product.image_url, selectedBotId)}
