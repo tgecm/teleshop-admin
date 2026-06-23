@@ -546,10 +546,10 @@ export default function Dashboard() {
 
       {/* Mini metrics */}
       <motion.div variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
-        <MiniMetric icon={ShoppingBag} label="Items Sold" value={itemsSold} color="indigo" period={itemsPeriod} onPeriodChange={setItemsPeriod} />
+        <MiniMetric icon={ShoppingBag} label="Units Sold" value={itemsSold} color="indigo" period={itemsPeriod} onPeriodChange={setItemsPeriod} />
         <MiniMetric icon={Zap} label="Today's Revenue" value={`${todayRevenue.toLocaleString()} MMK`} color="emerald" />
         <MiniMetric icon={TrendingUp} label="Monthly Revenue" value={`${monthlyRevenue.toLocaleString()} MMK`} sub={`${totalRevenue.toLocaleString()} MMK total`} color="amber" />
-        <MiniMetric icon={Package} label="Products Sold" value={productsSold} sub={`${totalOrders} orders`} color="purple" period={productsPeriod} onPeriodChange={setProductsPeriod} />
+        <MiniMetric icon={Package} label="Product Sold" value={productsSold} sub={`${totalOrders} orders`} color="purple" period={productsPeriod} onPeriodChange={setProductsPeriod} />
       </motion.div>
 
       {/* Profit stat cards */}
