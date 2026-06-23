@@ -47,6 +47,7 @@ export default function Subscription() {
   const [appliedDiscount, setAppliedDiscount] = useState(null);
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef(null);
+  const failureCountRef = useRef(0);
   const pollRef = useRef(null);
   const timerRef = useRef(null);
   const pendingPlanRef = useRef(null);
@@ -223,6 +224,7 @@ export default function Subscription() {
 
     try {
       const result = await createPlanOrder(selectedBotId, planKey, planType, discountCode);
+      failureCountRef.current = 0;
       if (result.free) {
         setOrderData({
           ...result,
@@ -263,7 +265,14 @@ export default function Subscription() {
     } catch (err) {
       addToast(err.response?.data?.detail || 'Failed to create order', 'error');
       setShowQr(false);
-      setCooldown(30);
+      // Use backend's wait time on 429, otherwise exponential backoff
+      if (err.response?.status === 429) {
+        const match = (err.response?.data?.detail || '').match(/(\d+)/);
+        setCooldown(match ? parseInt(match[1]) : 30);
+      } else {
+        setCooldown(Math.min(30 * Math.pow(2, failureCountRef.current), 1800));
+      }
+      failureCountRef.current += 1;
     } finally {
       setOrderLoading(false);
     }
@@ -341,6 +350,7 @@ export default function Subscription() {
     setPaymentSuccess(false);
     setOrderData(null);
     setShowCloseWarning(false);
+    failureCountRef.current = 0;
     setCooldown(30);
   };
 
