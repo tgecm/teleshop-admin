@@ -170,7 +170,9 @@ export default function Subscription() {
 
   const currentPlan = bot?.plan_name?.toLowerCase() || 'free';
   const expiryDate = bot?.plan_expiry ? new Date(bot.plan_expiry) : null;
+  const hasExpiry = !!expiryDate;
   const daysRemaining = expiryDate ? differenceInDays(expiryDate, new Date()) : 0;
+  const isSubActive = currentPlan === 'free' || !hasExpiry || daysRemaining > 0;
   const currentRank = PLAN_RANK[currentPlan] || 0;
 
   const handleUpgradeClick = (planKey) => {
@@ -391,9 +393,9 @@ export default function Subscription() {
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 capitalize truncate">{plans.find(p => p.key === currentPlan)?.name || 'Free'} Plan</h2>
               <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider self-center sm:self-auto ${
-                daysRemaining > 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
+                isSubActive ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'
               }`}>
-                {daysRemaining > 0 ? 'Active' : 'Expired'}
+                {isSubActive ? 'Active' : 'Expired'}
               </span>
             </div>
             <p className="text-gray-500 text-sm">
@@ -401,13 +403,13 @@ export default function Subscription() {
                 ? 'Never expires'
                 : expiryDate
                   ? `Expires on ${myanmarFormat(expiryDate, 'MMM d, yyyy')}`
-                  : 'No active subscription found.'}
+                  : 'Active — no expiry date set'}
             </p>
           </div>
 
           <div className="bg-gray-50 px-6 py-4 rounded-2xl text-center border border-gray-100 w-full sm:w-auto">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Days Remaining</p>
-            <p className="text-3xl font-bold text-indigo-600">{Math.max(0, daysRemaining)}</p>
+            <p className="text-3xl font-bold text-indigo-600">{hasExpiry ? Math.max(0, daysRemaining) : '—'}</p>
           </div>
         </motion.div>
       )}

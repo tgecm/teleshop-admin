@@ -15,7 +15,7 @@ import {
   Image as ImageIcon, ChevronRight, ChevronDown, AlertCircle, CheckCircle2,
   Loader2, FolderPlus, ImageUp, Palette, Copy, ArrowUpDown,
   Ticket, Percent, CalendarDays, Coins, Users, Truck, Download, Upload,
-  Settings
+  Settings, BadgeDollarSign
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import townshipsData, { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
@@ -700,7 +700,7 @@ export default function Products() {
                 )}
               </div>
 
-              <div className="sticky bottom-0 mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-gray-100 flex gap-2 sm:gap-3 bg-white">
+              <div className="sticky bottom-0 mt-10 sm:mt-12 pt-4 sm:pt-5 border-t border-gray-100 flex gap-2 sm:gap-3 bg-white">
                 <button
                   onClick={() => setShowDeliveryFeeModal(false)}
                   className="flex-1 py-2 sm:py-3 bg-gray-100 rounded-xl font-medium text-xs sm:text-sm text-gray-700 hover:bg-gray-200 active:bg-gray-300 transition-all"
@@ -1527,6 +1527,61 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
               <p className="text-xs text-rose-500 font-medium mt-1">Promotion price cannot exceed original price</p>
             )}
           </div>
+
+        {/* Additional Settings - Cost Price */}
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setShowAdditional(!showAdditional)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-2xl border border-gray-100 text-sm font-bold text-gray-700 hover:bg-gray-100 transition-all"
+          >
+            <div className="flex items-center gap-2">
+              <BadgeDollarSign className="w-4 h-4 text-emerald-500" />
+              💰 Cost Price
+            </div>
+            <motion.div
+              animate={{ rotate: showAdditional ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </motion.div>
+          </button>
+          <AnimatePresence initial={false}>
+            {showAdditional && (
+              <motion.div
+                key="additional-settings"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="space-y-3 pt-1">
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-gray-400 ml-1">Not public — just to track net profit. You can ignore this.</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.cost_price}
+                      onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
+                      placeholder="Enter cost price"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
+                      onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                    />
+                    {formData.cost_price && Number(formData.cost_price) > 0 && (
+                      <p className="text-sm font-semibold ml-1">
+                        Estimated Profit: <span className="text-emerald-600">
+                          {(Number(formData.price || 0) - Number(formData.cost_price || 0)).toLocaleString()} MMK
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
           <div className="space-y-2">
             <label className="text-sm font-bold text-gray-700 ml-1">Stock</label>
             <div className="flex gap-1.5 flex-wrap">
@@ -1831,60 +1886,6 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             <Plus className="w-4 h-4" />
             {options.length >= 10 ? 'Max 10 options' : 'Add Option'}
           </button>
-        </div>
-
-        {/* Additional Settings - Cost Price */}
-        <div className="space-y-3">
-          <button
-            type="button"
-            onClick={() => setShowAdditional(!showAdditional)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-2xl border border-gray-100 text-sm font-bold text-gray-700 hover:bg-gray-100 transition-all"
-          >
-            <div className="flex items-center gap-2">
-              <Settings className="w-4 h-4 text-gray-500" />
-              ⚙️ Additional Settings
-            </div>
-            <motion.div
-              animate={{ rotate: showAdditional ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            </motion.div>
-          </button>
-          <AnimatePresence initial={false}>
-            {showAdditional && (
-              <motion.div
-                key="additional-settings"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="overflow-hidden"
-              >
-                <div className="space-y-3 pt-1">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700 ml-1">Cost Price (optional)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={formData.cost_price}
-                      onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
-                      placeholder="Enter cost price"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
-                      onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                    />
-                    {formData.cost_price && Number(formData.cost_price) > 0 && (
-                      <p className="text-sm font-semibold ml-1">
-                        Estimated Profit: <span className="text-emerald-600">
-                          {(Number(formData.price || 0) - Number(formData.cost_price || 0)).toLocaleString()} MMK
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         <div className="pt-4 flex gap-3">

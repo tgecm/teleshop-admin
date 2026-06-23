@@ -350,7 +350,7 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
                 window.open(link, '_blank', 'noopener');
                 setSentProducts(prev => new Set(prev).add(product.id));
               }}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-base transition-all active:scale-[0.98] theme-btn">
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all active:scale-[0.98] theme-btn">
                 <ShoppingCart className="w-5 h-5" />
                 {orderButtonLabel}
               </button>
@@ -1907,7 +1907,15 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.detail || 'Chat failed');
-      setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
+      if (d.ai_unavailable) {
+        const noticeKey = 'ai_notice_' + visitorIdRef.current;
+        if (!localStorage.getItem(noticeKey)) {
+          localStorage.setItem(noticeKey, '1');
+          setChatMessages(prev => [...prev, { role: 'assistant', content: 'AI Agent is not available right now. Please leave your message.' }]);
+        }
+      } else {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
+      }
     } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
     } finally {
@@ -1938,7 +1946,15 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.detail || 'Chat failed');
-      setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
+      if (d.ai_unavailable) {
+        const noticeKey = 'ai_notice_' + visitorIdRef.current;
+        if (!localStorage.getItem(noticeKey)) {
+          localStorage.setItem(noticeKey, '1');
+          setChatMessages(prev => [...prev, { role: 'assistant', content: 'AI Agent is not available right now. Please leave your message.' }]);
+        }
+      } else {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
+      }
     } catch {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
     } finally {
@@ -2866,7 +2882,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                             window.open(link, '_blank', 'noopener');
                             setSentProducts(prev => new Set(prev).add(product.id));
                           }}
-                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-[0.97] theme-btn">
+                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all active:scale-[0.97] theme-btn">
                             <ShoppingCart className="w-4 h-4" />
                             {orderButtonLabel}
                           </button>
@@ -2907,7 +2923,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                         {!isOutOfStock && (
                           <button onClick={(e) => { e.stopPropagation(); const hasOptions = product.specifications?.options?.length > 0; if (hasOptions) { setSelectedProduct(product); return; } handleBuyNow(product); }}
                             disabled={getProductColors(product).length > 0 && !selectedColors[product.id]}
-                            className={`flex-1 px-3 py-2 rounded-xl font-bold text-xs transition-all active:scale-[0.97] ${
+                            className={`flex-1 px-3 py-2 rounded-xl font-bold text-xs whitespace-nowrap transition-all active:scale-[0.97] ${
                               getProductColors(product).length > 0 && !selectedColors[product.id] ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'theme-btn shadow-sm'
                             }`}>
                             {orderButtonLabel}
