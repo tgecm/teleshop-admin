@@ -47,6 +47,7 @@ const BotCustomization = React.lazy(() => import('./pages/BotCustomization'));
 const NewsfeedAdmin = React.lazy(() => import('./pages/NewsfeedAdmin'));
 const SuperadminDashboard = React.lazy(() => import('./pages/SuperadminDashboard'));
 const SendMessage = React.lazy(() => import('./pages/SendMessage'));
+const Subscribers = React.lazy(() => import('./pages/Subscribers'));
 const FAQs = React.lazy(() => import('./pages/FAQs'));
 const StaffAccounts = React.lazy(() => import('./pages/StaffAccounts'));
 const Homepage = React.lazy(() => import('./pages/Homepage'));
@@ -58,7 +59,7 @@ const PublicQRMenu = React.lazy(() => import('./pages/PublicQRMenu'));
 const ADMIN_PATHS = new Set([
   'login', 'manage-web-panel', 'dashboard', 'orders', 'products', 'customers',
   'broadcast', 'commands', 'payments', 'subscription', 'settings',
-  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts', 'qr-menu', 'qr-menu-orders',
+  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'subscribers', 'faqs', 'staff-accounts', 'qr-menu', 'qr-menu-orders',
   'qr-menu/orders',
   'qr-menu/tables',
 ]);
@@ -424,6 +425,7 @@ export default function App() {
                   <Route path="bot-customization" element={<PermissionGuard><PlanGate><BotCustomization /></PlanGate></PermissionGuard>} />
                   <Route path="superadmin" element={<SuperadminDashboard />} />
                   <Route path="send-message" element={<SendMessage />} />
+                  <Route path="subscribers" element={<Subscribers />} />
                   <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
                   <Route path="qr-menu" element={<PermissionGuard><PlanGate><QRMenuAdmin /></PlanGate></PermissionGuard>} />
                   <Route path="qr-menu/orders" element={<PermissionGuard><PlanGate><QRMenuOrders /></PlanGate></PermissionGuard>} />

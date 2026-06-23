@@ -38,7 +38,7 @@ export function useDisableDevTools() {
       const pParam = new URLSearchParams(window.location.search).get('p') || '';
       if (fullUrl.includes('user-dashboard') || pParam.includes('user-dashboard')) return;
       const path = window.location.pathname.replace(/^\//, '').split('/')[0];
-      const ADMIN_ROUTES = new Set(['dashboard', 'orders', 'products', 'customers', 'broadcast', 'commands', 'payments', 'subscription', 'settings', 'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'faqs', 'staff-accounts']);
+      const ADMIN_ROUTES = new Set(['dashboard', 'orders', 'products', 'customers', 'broadcast', 'commands', 'payments', 'subscription', 'settings', 'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'subscribers', 'faqs', 'staff-accounts']);
       if (!ADMIN_ROUTES.has(path)) return;
       if (path === 'chats') return;
 

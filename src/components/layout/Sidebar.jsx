@@ -65,6 +65,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     ...(user?.is_superadmin ? [{ to: '/send-message', icon: Mail, label: 'Send Message' }] : []),
+    ...(user?.is_superadmin ? [{ to: '/subscribers', icon: Users, label: 'Subscribers' }] : []),
     { to: '/orders', icon: Package, label: 'Orders' },
     { to: '/products', icon: ShoppingBag, label: 'Products' },
     { to: '/customers', icon: Users, label: 'Customers' },
@@ -92,13 +93,6 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
   const navContent = (isMobile) => (
     <>
-      {/* Brand Logo */}
-      {!isMobile && (
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
-          <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
-          <span className="text-sm font-black text-gray-800 tracking-wide truncate">TeleShop Admin</span>
-        </div>
-      )}
       <div className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto scrollbar-hide">
         {(isMobile ? mobileNavItems : navItems).map(({ to, icon: Icon, label }) => (
           <NavLink
