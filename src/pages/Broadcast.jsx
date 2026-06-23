@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getBroadcasts, createBroadcast, getGiveaways, createGiveaway, getGiveawayParticipants } from '../api/broadcasts';
+import { getBroadcasts, createBroadcast, getGiveaways, createGiveaway, getGiveawayParticipants, drawGiveawayWinner } from '../api/broadcasts';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
@@ -9,18 +9,16 @@ import {
   Send,
   Gift,
   Plus,
-  Search,
   Users,
   Calendar,
-  Clock,
   ChevronRight,
   X,
-  CheckCircle2,
-  AlertCircle,
   Loader2,
   MessageSquare,
   Trophy,
-  User
+  RefreshCw,
+  Crown,
+  Shuffle
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,6 +30,12 @@ export default function Broadcast() {
   const [activeTab, setActiveTab] = useState('broadcasts');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGiveaway, setSelectedGiveaway] = useState(null);
+  const [drawMethod, setDrawMethod] = useState('weighted');
+  const [drawCount, setDrawCount] = useState(1);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [spinnerName, setSpinnerName] = useState('');
+  const [drawResult, setDrawResult] = useState(null);
+  const [selectedDrawGw, setSelectedDrawGw] = useState(null);
 
   const { data: broadcasts, isLoading: broadcastsLoading } = useQuery({
     queryKey: ['broadcasts', selectedBotId],
@@ -55,6 +59,25 @@ export default function Broadcast() {
     onError: () => addToast('Failed to send broadcast', 'error'),
   });
 
+  const activeGwId = selectedGiveaway?.id || selectedDrawGw?.id;
+  const { data: participants } = useQuery({
+    queryKey: ['giveaway-participants', activeGwId],
+    queryFn: () => getGiveawayParticipants(activeGwId),
+    enabled: !!activeGwId,
+  });
+
+  const drawMutation = useMutation({
+    mutationFn: (data) => drawGiveawayWinner((selectedDrawGw || selectedGiveaway).id, data),
+    onSuccess: (result) => {
+      setDrawResult(result);
+      setIsSpinning(false);
+    },
+    onError: () => {
+      addToast('Failed to draw winner', 'error');
+      setIsSpinning(false);
+    },
+  });
+
   const createGiveawayMutation = useMutation({
     mutationFn: (data) => createGiveaway({ ...data, bot_id: Number(selectedBotId) }),
     onSuccess: () => {
@@ -66,6 +89,33 @@ export default function Broadcast() {
   });
 
   if (broadcastsLoading || giveawaysLoading) return <LoadingSkeleton type="list" count={5} />;
+
+  const startSpin = () => {
+    if (!participants?.length) {
+      addToast('No participants in this giveaway', 'error');
+      return;
+    }
+    setDrawResult(null);
+    setIsSpinning(true);
+
+    // Cycle names for visual effect then call API
+    let frame = 0;
+    const totalFrames = 20 + Math.floor(Math.random() * 15);
+    let speed = 60;
+
+    const cycle = () => {
+      const p = participants[Math.floor(Math.random() * participants.length)];
+      setSpinnerName(p.first_name || p.username || `User ${p.telegram_id}`);
+      frame++;
+      speed = 60 + (frame / totalFrames) * 250;
+      if (frame < totalFrames) {
+        setTimeout(cycle, speed);
+      } else {
+        drawMutation.mutate({ method: drawMethod, count: drawCount });
+      }
+    };
+    cycle();
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
@@ -86,6 +136,12 @@ export default function Broadcast() {
           >
             <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Giveaways
+          </button>
+          <button
+            onClick={() => setActiveTab('draw')}
+            className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 text-xs sm:text-sm font-bold rounded-[10px] sm:rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'draw' ? 'bg-amber-600 text-white shadow-lg shadow-amber-100' : 'text-gray-500 hover:bg-gray-50'}`}
+          >
+            🎲 Draw
           </button>
         </div>
       </div>
@@ -186,6 +242,152 @@ export default function Broadcast() {
               ))
             )}
           </>
+        ) : activeTab === 'draw' ? (
+          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-sm">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Crown className="w-5 h-5 text-amber-500" />
+              Draw Winner
+            </h2>
+
+            {/* Giveaway selector */}
+            <div className="space-y-2 mb-5">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Select Giveaway</label>
+              {giveaways?.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">No giveaways yet. Create one first.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {giveaways?.map(g => (
+                    <button
+                      key={g.id}
+                      onClick={() => { setSelectedDrawGw(g); setDrawResult(null); }}
+                      className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all ${
+                        selectedDrawGw?.id === g.id
+                          ? 'bg-amber-500 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      🎁 {g.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selectedDrawGw && (
+              <>
+                {/* Method + count */}
+                <div className="flex gap-1.5 mb-4">
+                  <button
+                    onClick={() => setDrawMethod('weighted')}
+                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-all ${
+                      drawMethod === 'weighted'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-600 border border-gray-200'
+                    }`}
+                  >
+                    🎟️ By Tickets
+                  </button>
+                  <button
+                    onClick={() => setDrawMethod('equal')}
+                    className={`flex-1 px-3 py-2 text-xs font-bold rounded-xl transition-all ${
+                      drawMethod === 'equal'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-600 border border-gray-200'
+                    }`}
+                  >
+                    👤 Equal
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5 border border-gray-200 mb-5">
+                  <span className="text-xs font-bold text-gray-700">Number of Winners</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setDrawCount(Math.max(1, drawCount - 1))}
+                      disabled={drawCount <= 1}
+                      className="w-7 h-7 rounded-lg bg-gray-200 text-gray-700 font-bold flex items-center justify-center disabled:opacity-30"
+                    >−</button>
+                    <span className="text-sm font-bold text-gray-900 w-4 text-center">{drawCount}</span>
+                    <button
+                      onClick={() => setDrawCount(Math.min(5, drawCount + 1))}
+                      disabled={drawCount >= 5}
+                      className="w-7 h-7 rounded-lg bg-gray-200 text-gray-700 font-bold flex items-center justify-center disabled:opacity-30"
+                    >+</button>
+                  </div>
+                </div>
+
+                {/* Pick button (idle) */}
+                {!isSpinning && !drawResult && (
+                  <button
+                    onClick={startSpin}
+                    className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-base"
+                  >
+                    <Shuffle className="w-5 h-5" />
+                    🎲 Pick Winner
+                  </button>
+                )}
+
+                {/* Spinner */}
+                {isSpinning && (
+                  <div className="text-center py-8">
+                    <div className="relative mx-auto w-full max-w-xs h-16 mb-4 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-900 via-purple-800 to-indigo-900 border-2 border-amber-400 shadow-inner">
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent" />
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-white font-bold text-xl tracking-wider tabular-nums slot-text">
+                          {spinnerName}
+                        </p>
+                      </div>
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+                    </div>
+                    <p className="text-xs text-gray-500 font-bold animate-pulse">Picking winner...</p>
+                  </div>
+                )}
+
+                {/* Winner result */}
+                {drawResult && !isSpinning && (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Winner{drawResult.winners?.length > 1 ? 's' : ''}</p>
+                    </div>
+                    {drawResult.winners?.map((w, i) => (
+                      <div key={i} className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0">
+                            {i === 0 ? <Crown className="w-6 h-6" /> : `#${i + 1}`}
+                          </div>
+                          <div>
+                            <p className="text-base font-bold text-gray-900">{w.name}</p>
+                            <p className="text-sm text-gray-500">
+                              {w.username ? `@${w.username}` : 'No username'} · {w.tickets} ticket{w.tickets > 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={startSpin}
+                        className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 text-sm"
+                      >
+                        <RefreshCw className="w-4 h-4" /> Draw Again
+                      </button>
+                      <button
+                        onClick={() => { setDrawResult(null); setSelectedDrawGw(null); }}
+                        className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 active:scale-[0.98] transition-all text-sm"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400 text-center italic">
+                      Prize: {drawResult.prize_name || selectedDrawGw.title}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         ) : null}
       </div>
 
@@ -237,7 +439,7 @@ export default function Broadcast() {
                   
                   <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
                     <h4 className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <Trophy className="w-3 h-3" /> Winner Info
+                      <Crown className="w-3 h-3" /> Winner Info
                     </h4>
                     <p className="text-sm text-indigo-900 font-medium">Winner will be selected automatically when the giveaway ends.</p>
                   </div>

@@ -181,6 +181,25 @@ input[type="number"] {
   border-radius: 10px;
 }
 
+/* Slot machine text effect for giveaway spinner */
+@keyframes slot-scroll {
+  0% { transform: translateY(-6px); opacity: 0.3; }
+  25% { transform: translateY(0); opacity: 1; }
+  75% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(6px); opacity: 0.3; }
+}
+.slot-text {
+  animation: slot-scroll 0.15s ease-in-out infinite;
+}
+
+@keyframes spin-gradient {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin-bg {
+  animation: spin-gradient 3s linear infinite;
+}
+
 .markdown-content > *:first-child {
   margin-top: 0;
 }
