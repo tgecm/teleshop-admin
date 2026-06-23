@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getBroadcasts, createBroadcast, getGiveaways, createGiveaway, getGiveawayParticipants, drawGiveawayWinner } from '../api/broadcasts';
+import { getBroadcasts, createBroadcast, getGiveaways, createGiveaway, getGiveawayParticipants, drawGiveawayWinner, getGiveawayWinners } from '../api/broadcasts';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
@@ -36,6 +36,7 @@ export default function Broadcast() {
   const [spinnerName, setSpinnerName] = useState('');
   const [drawResult, setDrawResult] = useState(null);
   const [selectedDrawGw, setSelectedDrawGw] = useState(null);
+  const [showWinners, setShowWinners] = useState(false);
 
   const { data: broadcasts, isLoading: broadcastsLoading } = useQuery({
     queryKey: ['broadcasts', selectedBotId],
@@ -71,11 +72,18 @@ export default function Broadcast() {
     onSuccess: (result) => {
       setDrawResult(result);
       setIsSpinning(false);
+      queryClient.invalidateQueries(['giveaway-winners', activeGwId]);
     },
     onError: () => {
       addToast('Failed to draw winner', 'error');
       setIsSpinning(false);
     },
+  });
+
+  const { data: pastWinners } = useQuery({
+    queryKey: ['giveaway-winners', activeGwId],
+    queryFn: () => getGiveawayWinners(activeGwId),
+    enabled: !!activeGwId,
   });
 
   const createGiveawayMutation = useMutation({
@@ -259,7 +267,7 @@ export default function Broadcast() {
                   {giveaways?.map(g => (
                     <button
                       key={g.id}
-                      onClick={() => { setSelectedDrawGw(g); setDrawResult(null); }}
+                      onClick={() => { setSelectedDrawGw(g); setDrawResult(null); setShowWinners(false); }}
                       className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all ${
                         selectedDrawGw?.id === g.id
                           ? 'bg-amber-500 text-white shadow-md'
@@ -344,29 +352,58 @@ export default function Broadcast() {
                   </div>
                 )}
 
-                {/* Winner result */}
+                {/* Winner result with animation */}
                 {drawResult && !isSpinning && (
                   <div className="space-y-4">
                     <div className="text-center">
-                      <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Winner{drawResult.winners?.length > 1 ? 's' : ''}</p>
+                      <motion.p
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', damping: 10, stiffness: 200 }}
+                        className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2"
+                      >
+                        🎉 Winner{drawResult.winners?.length > 1 ? 's' : ''} 🎉
+                      </motion.p>
                     </div>
-                    {drawResult.winners?.map((w, i) => (
-                      <div key={i} className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0">
-                            {i === 0 ? <Crown className="w-6 h-6" /> : `#${i + 1}`}
+                    <AnimatePresence>
+                      {drawResult.winners?.map((w, i) => (
+                        <motion.div
+                          key={w.telegram_id}
+                          initial={{ opacity: 0, y: 40, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          transition={{ delay: i * 0.15, type: 'spring', damping: 20, stiffness: 200 }}
+                          className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200"
+                        >
+                          <div className="flex items-center gap-4">
+                            <motion.div
+                              initial={{ rotate: -180, scale: 0 }}
+                              animate={{ rotate: 0, scale: 1 }}
+                              transition={{ delay: i * 0.15 + 0.2, type: 'spring', damping: 10, stiffness: 150 }}
+                              className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0"
+                            >
+                              {i === 0 ? <Crown className="w-6 h-6" /> : `#${i + 1}`}
+                            </motion.div>
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.15 + 0.35 }}
+                            >
+                              <p className="text-base font-bold text-gray-900">{w.name}</p>
+                              <p className="text-sm text-gray-500">
+                                {w.username ? `@${w.username}` : 'No username'} · {w.tickets} ticket{w.tickets > 1 ? 's' : ''}
+                              </p>
+                            </motion.div>
                           </div>
-                          <div>
-                            <p className="text-base font-bold text-gray-900">{w.name}</p>
-                            <p className="text-sm text-gray-500">
-                              {w.username ? `@${w.username}` : 'No username'} · {w.tickets} ticket{w.tickets > 1 ? 's' : ''}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
 
-                    <div className="flex gap-3 pt-2">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: drawResult.winners?.length * 0.15 + 0.5 }}
+                      className="flex gap-3 pt-2"
+                    >
                       <button
                         onClick={startSpin}
                         className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 text-sm"
@@ -379,10 +416,66 @@ export default function Broadcast() {
                       >
                         Reset
                       </button>
-                    </div>
-                    <p className="text-[10px] text-gray-400 text-center italic">
+                    </motion.div>
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: drawResult.winners?.length * 0.15 + 0.6 }}
+                      className="text-[10px] text-gray-400 text-center italic"
+                    >
                       Prize: {drawResult.prize_name || selectedDrawGw.title}
-                    </p>
+                    </motion.p>
+                  </div>
+                )}
+
+                {/* Past Winners */}
+                {selectedDrawGw && pastWinners?.winners?.length > 0 && (
+                  <div className="mt-6 pt-6 border-t border-gray-100">
+                    <button
+                      onClick={() => setShowWinners(!showWinners)}
+                      className="flex items-center justify-between w-full text-sm font-bold text-gray-700"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-amber-500" />
+                        Past Winners ({pastWinners.winners.length})
+                      </span>
+                      <motion.span animate={{ rotate: showWinners ? 180 : 0 }}>
+                        <ChevronRight className="w-4 h-4" />
+                      </motion.span>
+                    </button>
+                    <AnimatePresence>
+                      {showWinners && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="pt-3 space-y-2">
+                            {pastWinners.winners.map((w, i) => (
+                              <motion.div
+                                key={w.id}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                                className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl"
+                              >
+                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
+                                  #{i + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-gray-900 truncate">{w.name}</p>
+                                  <p className="text-[10px] text-gray-400">
+                                    {w.username && `@${w.username}`} · {myanmarFormat(w.drawn_at, 'MMM d, yyyy')}
+                                  </p>
+                                </div>
+                                <span className="text-[10px] font-bold text-indigo-600">{w.tickets} ticket{w.tickets > 1 ? 's' : ''}</span>
+                              </motion.div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
               </>
