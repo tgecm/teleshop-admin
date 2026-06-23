@@ -18,6 +18,9 @@ export default defineConfig(({mode}) => {
         injectManifest: {
           minify: false,
         },
+        build: {
+          emptyOutDir: false,
+        },
         manifest: {
           name: 'E-commerce Myanmar',
           short_name: 'TeleShop',

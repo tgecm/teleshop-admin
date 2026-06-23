@@ -162,7 +162,7 @@ export default function CustomerDashboard({ shopSlug }) {
   const uid = user?.uid
     || (telegramToken ? (getUserIdFromToken() || '') : '')
     || (telegramUser?.id ? String(telegramUser.id) : '');
-  const displayName = user?.displayName || telegramUser?.name || 'User';
+  const displayName = user?.displayName || telegramUser?.name || telegramUser?.first_name || 'User';
   const photoUrl = user?.photoURL || telegramUser?.photo_url || null;
 
   useAuthTokenFromUrl();
