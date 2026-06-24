@@ -4,7 +4,7 @@ import { X, Download, Loader2 } from 'lucide-react';
 import { myanmarFormat } from '../../utils/date';
 import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
-import { isInAppBrowser, downloadViaNative } from '../../utils/download';
+import { isInAppBrowser, downloadViaNative, downloadBlob } from '../../utils/download';
 import { generateInvoiceNumber } from '../../api/orders';
 import client from '../../api/client';
 
@@ -703,29 +703,23 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     setGenerating(true);
     try {
       const botLogo = await getBotLogoDataUrl(bot?.profile_picture || '');
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo });
-
+      const logoUrl = bot?.profile_picture || '';
+      // Use placeholder when client-side logo fetch fails (server will fetch it)
+      const svgBotLogo = botLogo || '{{LOGO_BASE64}}';
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: svgBotLogo });
       const fileName = `${receiptType}-${order.order_number || order.id}`;
-      const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
 
-      // Check for native Android bridge
-      if (window.AndroidBridge && typeof window.AndroidBridge.downloadBase64 === 'function') {
-        const reader = new FileReader();
-        const base64 = await new Promise((resolve, reject) => {
-          reader.onloadend = () => resolve(reader.result.split(',')[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(svgBlob);
-        });
-        window.AndroidBridge.downloadBase64(base64, 'image/svg+xml', `filename="${fileName}.svg"`);
-      } else {
-        const url = URL.createObjectURL(svgBlob);
-        const link = document.createElement('a');
-        link.download = `${fileName}.svg`;
-        link.href = url;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+      // Try server-side PNG conversion (server can also fetch logo)
+      try {
+        const res = await client.post('/orders/receipt-png', { svg, logo_url: logoUrl || undefined }, { responseType: 'blob' });
+        const pngBlob = new Blob([res.data], { type: 'image/png' });
+        await downloadBlob(pngBlob, `${fileName}.png`);
+      } catch (serverErr) {
+        console.warn('PNG conversion server error, falling back to SVG:', serverErr);
+        // Rebuild SVG with best-effort logo for fallback
+        const fallbackSvg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo });
+        const svgBlob = new Blob([fallbackSvg], { type: 'image/svg+xml' });
+        await downloadBlob(svgBlob, `${fileName}.svg`);
       }
 
       addToast('Receipt downloaded successfully');
