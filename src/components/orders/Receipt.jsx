@@ -344,6 +344,23 @@ function blobToDataUrl(blob) {
   });
 }
 
+function renderEmoji(emoji, size = 16) {
+  try {
+    const scale = 2;
+    const c = document.createElement('canvas');
+    c.width = size * scale;
+    c.height = size * scale;
+    const ctx = c.getContext('2d');
+    ctx.font = `${size * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, size, size);
+    return c.toDataURL();
+  } catch {
+    return '';
+  }
+}
+
 async function getBotLogoDataUrl(logoUrl) {
   if (!logoUrl) return '';
   try {
@@ -371,7 +388,7 @@ async function getBotLogoDataUrl(logoUrl) {
 
 function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minRows, invoiceNumber, receiptNumber, type = 'receipt', receiptSettings = {}) {
   const isInvoice = type === 'invoice';
-  const { tagline: shopTagline = 'Your Trusted Online Store', phone: svgPhone = 'Phone', email: svgEmail = 'Email', website: svgWebsite = 'Website', address: svgAddress = 'Address', notes: svgNotes = '', botLogo = '' } = receiptSettings;
+  const { tagline: shopTagline = 'Your Trusted Online Store', phone: svgPhone = 'Phone', email: svgEmail = 'Email', website: svgWebsite = 'Website', address: svgAddress = 'Address', notes: svgNotes = '', botLogo = '', emojis = {} } = receiptSettings;
   const W = 800;
   const PAD = 40;
   const CW = W - PAD * 2;
@@ -383,9 +400,9 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const LB = '#e0f2f7';
   const FS = '#bbb';
 
-  const qtyX = isInvoice ? 550 : 470;
-  const priceX = isInvoice ? 645 : 610;
-  const totalX = isInvoice ? 760 : 740;
+  const qtyX = isInvoice ? 450 : 420;
+  const priceX = isInvoice ? 560 : 540;
+  const totalX = isInvoice ? 690 : 670;
   const hdgSize = isInvoice ? 44 : 52;
   const subSize = isInvoice ? 15 : 16;
 
@@ -455,8 +472,6 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const deliveryFeeLine = order?.delivery_fee > 0 ? { l: 'Delivery Fee', v: `+ ${Number(order.delivery_fee).toFixed(2)} MMK` } : null;
   const totalLines = [
     { l: 'Subtotal', v: sub },
-    { l: 'Discount', v: `- ${sub}` },
-    { l: 'Tax', v: `+ 0.00 MMK` },
     ...(deliveryFeeLine ? [deliveryFeeLine] : []),
   ];
   let totalsSvg = '';
@@ -496,18 +511,18 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     <text x="140" y="44" fill="${TM}" font-size="13">${esc(shopTagline)}</text>
 
     <!-- Contacts -->
-    <text x="140" y="68" fill="${TM}" font-size="12">📞</text>
-    <text x="160" y="68" fill="${TM}" font-size="12">${esc(svgPhone)}</text>
+    ${emojis.phone ? `<image href="${esc(emojis.phone)}" x="132" y="56" width="16" height="16"/>` : `<text x="140" y="68" fill="${TM}" font-size="12">📞</text>`}
+    <text x="152" y="68" fill="${TM}" font-size="12">${esc(svgPhone)}</text>
 
-    <text x="140" y="90" fill="${TM}" font-size="12">✉️</text>
-    <text x="160" y="90" fill="${TM}" font-size="12">${esc(svgEmail)}</text>
+    ${emojis.email ? `<image href="${esc(emojis.email)}" x="132" y="78" width="16" height="16"/>` : `<text x="140" y="90" fill="${TM}" font-size="12">✉️</text>`}
+    <text x="152" y="90" fill="${TM}" font-size="12">${esc(svgEmail)}</text>
 
-    <text x="140" y="112" fill="${TM}" font-size="12">🌐</text>
-    <text x="160" y="112" fill="${TM}" font-size="12">${esc(svgWebsite)}</text>
+    ${emojis.globe ? `<image href="${esc(emojis.globe)}" x="132" y="100" width="16" height="16"/>` : `<text x="140" y="112" fill="${TM}" font-size="12">🌐</text>`}
+    <text x="152" y="112" fill="${TM}" font-size="12">${esc(svgWebsite)}</text>
 
-    <text x="140" y="134" fill="${TM}" font-size="12">📍</text>
-    <text x="160" y="134" fill="${TM}" font-size="12">${esc(svgAddress.slice(0, 40))}</text>
-    ${svgAddress.length > 40 ? `<text x="160" y="152" fill="${TM}" font-size="12">${esc(svgAddress.slice(40, 80))}</text>` : ''}
+    ${emojis.pin ? `<image href="${esc(emojis.pin)}" x="132" y="122" width="16" height="16"/>` : `<text x="140" y="134" fill="${TM}" font-size="12">📍</text>`}
+    <text x="152" y="134" fill="${TM}" font-size="12">${esc(svgAddress.slice(0, 40))}</text>
+    ${svgAddress.length > 40 ? `<text x="152" y="152" fill="${TM}" font-size="12">${esc(svgAddress.slice(40, 80))}</text>` : ''}
 
     ${isInvoice ? `<!-- INVOICE heading (right) -->
     <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="44" font-weight="700" class="r">INVOICE</text>
@@ -562,7 +577,8 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   <!-- ${isInvoice ? 'Bill To' : 'Received From'} -->
   <g transform="translate(${PAD}, ${MID_Y+12})">
     <rect x="0" y="0" width="${isInvoice ? 115 : 150}" height="28" rx="5" fill="${MB}"/>
-    <text x="12" y="19" fill="#fff" font-size="13" font-weight="500" class="r">👤 ${isInvoice ? 'Bill To' : 'Received From'}</text>
+    ${emojis.person ? `<image href="${esc(emojis.person)}" x="8" y="6" width="16" height="16"/>` : ''}
+    <text x="${emojis.person ? 28 : 12}" y="19" fill="#fff" font-size="13" font-weight="500" class="r">${isInvoice ? 'Bill To' : 'Received From'}</text>
     <text x="0" y="52" fill="${TD}" font-size="12" font-weight="600">Name</text>
     <text x="60" y="52" fill="${TM}" font-size="12">:</text>
     <text x="70" y="52" fill="${TM}" font-size="12">${cName}</text>
@@ -586,7 +602,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   <!-- ${isInvoice ? 'Order Details' : 'Payment Details'} -->
   <g transform="translate(415, ${MID_Y+12})">
     <rect x="0" y="0" width="${isInvoice ? 170 : 200}" height="28" rx="5" fill="${MB}"/>
-    <text x="12" y="19" fill="#fff" font-size="13" font-weight="500" class="r">🧾 ${isInvoice ? 'ORDER DETAILS' : 'PAYMENT DETAILS'}</text>
+    ${emojis.receipt ? `<image href="${esc(emojis.receipt)}" x="8" y="6" width="16" height="16"/><text x="28" y="19" fill="#fff" font-size="13" font-weight="500" class="r">${isInvoice ? 'ORDER DETAILS' : 'PAYMENT DETAILS'}</text>` : `<text x="12" y="19" fill="#fff" font-size="13" font-weight="500" class="r">🧾 ${isInvoice ? 'ORDER DETAILS' : 'PAYMENT DETAILS'}</text>`}
     <text x="0" y="52" fill="${TD}" font-size="12" font-weight="600">${isInvoice ? 'Amount to pay' : 'Amount Paid'}</text>
     <text x="85" y="52" fill="${TM}" font-size="12">:</text>
     <text x="95" y="52" fill="${TM}" font-size="12">${tot}</text>
@@ -614,11 +630,13 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   <!-- ============ BOTTOM (y=${BOT_Y}) ============ -->
   <g transform="translate(${PAD}, ${BOT_Y})">
     <rect x="0" y="0" width="290" height="50" rx="8" fill="#fff" stroke="${BL}" stroke-width="1"/>
-    <text x="15" y="20" fill="${MB}" font-size="13" font-weight="500" class="r">💳 PAYMENT METHOD</text>
+    ${emojis.card ? `<image href="${esc(emojis.card)}" x="13" y="2" width="16" height="16"/>` : ''}
+    <text x="${emojis.card ? 33 : 15}" y="20" fill="${MB}" font-size="13" font-weight="500" class="r">PAYMENT METHOD</text>
     <text x="15" y="42" fill="${TM}" font-size="12">${payM}</text>
 
     <rect x="0" y="65" width="290" height="70" rx="8" fill="#fff" stroke="${BL}" stroke-width="1"/>
-    <text x="15" y="85" fill="${MB}" font-size="13" font-weight="500" class="r">💰 ${isInvoice ? 'AMOUNT TO PAY' : 'AMOUNT PAID'}</text>
+    ${emojis.money ? `<image href="${esc(emojis.money)}" x="13" y="67" width="16" height="16"/>` : ''}
+    <text x="${emojis.money ? 33 : 15}" y="85" fill="${MB}" font-size="13" font-weight="500" class="r">${isInvoice ? 'AMOUNT TO PAY' : 'AMOUNT PAID'}</text>
     <text x="15" y="115" fill="${MB}" font-size="16" font-weight="700">${tot}</text>
     <line x1="15" y1="122" x2="130" y2="122" stroke="${AL}" stroke-width="2"/>
 
@@ -706,7 +724,18 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       const logoUrl = bot?.profile_picture || '';
       // Use placeholder when client-side logo fetch fails (server will fetch it)
       const svgBotLogo = botLogo || '{{LOGO_BASE64}}';
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: svgBotLogo });
+      // Pre-render emojis to canvas data URLs for embedding in SVG images
+      const emojis = {
+        phone: renderEmoji('\u{1F4DE}'),
+        email: renderEmoji('✉️'),
+        globe: renderEmoji('\u{1F310}'),
+        pin: renderEmoji('\u{1F4CD}'),
+        person: renderEmoji('\u{1F464}'),
+        receipt: renderEmoji('\u{1F9FE}'),
+        card: renderEmoji('\u{1F4B3}'),
+        money: renderEmoji('\u{1F4B0}'),
+      };
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: svgBotLogo, emojis });
       const fileName = `${receiptType}-${order.order_number || order.id}`;
 
       // Try server-side PNG conversion (server can also fetch logo)
@@ -942,12 +971,6 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                       <div style={s.totalsCol}>
                         <div style={s.totalsRow}>
                           <span style={s.totalLabel}>Subtotal</span><span style={s.totalColon}>:</span><span style={s.totalValue}>{subtotal.toFixed(2)} MMK</span>
-                        </div>
-                        <div style={s.totalsRow}>
-                          <span style={s.totalLabel}>Discount</span><span style={s.totalColon}>:</span><span style={s.totalValue}>- 0.00 MMK</span>
-                        </div>
-                        <div style={s.totalsRow}>
-                          <span style={s.totalLabel}>Tax</span><span style={s.totalColon}>:</span><span style={s.totalValue}>+ 0.00 MMK</span>
                         </div>
                         {deliveryFee > 0 && (
                           <div style={s.totalsRow}>

@@ -255,6 +255,10 @@ export default function BotCustomization() {
             {editingWebsiteUrl ? (
               <button
                 onClick={() => {
+                  if (!websiteUrl.startsWith('https://')) {
+                    addToast('the link must starts with https://', 'error');
+                    return;
+                  }
                   updateContentMutation.mutate({ key: 'website_link', data: { url: websiteUrl, enabled: websiteEnabled } });
                   setEditingWebsiteUrl(false);
                 }}
