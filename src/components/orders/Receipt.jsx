@@ -392,34 +392,60 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     try {
       if (!receiptRef.current) throw new Error('Receipt element not found');
 
-      const fileName = `${receiptType}-${order.order_number || order.id}.png`;
+      const fileName = `${receiptType}-${order.order_number || order.id}`;
 
-      // Check for native Android bridge (Teleshop Admin app)
+      // Try PNG via dom-to-image-more
+      try {
+        let dataUrl;
+        if (window.AndroidBridge && typeof window.AndroidBridge.downloadBase64 === 'function') {
+          dataUrl = await domtoimage.toPng(receiptRef.current, {
+            width: RECEIPT_W * 2,
+            height: (receiptRef.current.scrollHeight || 1200) * 2,
+            style: {
+              transform: 'scale(2)',
+              transformOrigin: 'top left',
+            },
+          });
+          const base64 = dataUrl.split(',')[1];
+          window.AndroidBridge.downloadBase64(base64, 'image/png', `filename="${fileName}.png"`);
+        } else {
+          dataUrl = await domtoimage.toPng(receiptRef.current, {
+            width: RECEIPT_W,
+            height: receiptRef.current.scrollHeight || 1200,
+          });
+          const link = document.createElement('a');
+          link.download = `${fileName}.png`;
+          link.href = dataUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+        addToast('Receipt downloaded successfully');
+        setGenerating(false);
+        return;
+      } catch (pngErr) {
+        console.warn('PNG export failed, falling back to SVG:', pngErr);
+      }
+
+      // Fallback: export as SVG (works in all browsers/WebViews)
+      const svgDataUrl = await domtoimage.toSvg(receiptRef.current, {
+        width: RECEIPT_W,
+        height: receiptRef.current.scrollHeight || 1200,
+      });
+
       if (window.AndroidBridge && typeof window.AndroidBridge.downloadBase64 === 'function') {
-        const dataUrl = await domtoimage.toPng(receiptRef.current, {
-          width: RECEIPT_W * 2,
-          height: (receiptRef.current.scrollHeight || 1200) * 2,
-          style: {
-            transform: 'scale(2)',
-            transformOrigin: 'top left',
-          },
-        });
-        const base64 = dataUrl.split(',')[1];
-        window.AndroidBridge.downloadBase64(base64, 'image/png', `filename="${fileName}"`);
+        const base64 = svgDataUrl.split(',')[1];
+        window.AndroidBridge.downloadBase64(base64, 'image/svg+xml', `filename="${fileName}.svg"`);
       } else {
-        const dataUrl = await domtoimage.toPng(receiptRef.current, {
-          width: RECEIPT_W,
-          height: receiptRef.current.scrollHeight || 1200,
-        });
         const link = document.createElement('a');
-        link.download = fileName;
-        link.href = dataUrl;
+        link.download = `${fileName}.svg`;
+        link.href = svgDataUrl;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       }
 
-      addToast('Receipt downloaded successfully');
+      addToast('Receipt downloaded (SVG format)');
     } catch (err) {
       console.error('Receipt export failed:', err);
       addToast('Failed to generate receipt image', 'error');
