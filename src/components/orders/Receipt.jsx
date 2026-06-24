@@ -335,6 +335,40 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function getBotLogoDataUrl(logoUrl) {
+  if (!logoUrl) return '';
+  try {
+    if (logoUrl.startsWith('data:')) return logoUrl;
+    if (logoUrl.startsWith('blob:')) return logoUrl;
+
+    const url = logoUrl.startsWith('http')
+      ? new URL(logoUrl)
+      : new URL(logoUrl, client.defaults.baseURL || window.location.origin);
+
+    const path = `${url.pathname}${url.search}`;
+    const resp = await client.get(path, { responseType: 'blob' });
+    if (!resp.data || !resp.data.size) return '';
+    return await blobToDataUrl(resp.data);
+  } catch {
+    try {
+      const resp = await fetch(logoUrl, { mode: 'cors', credentials: 'omit' });
+      if (!resp.ok) return '';
+      return await blobToDataUrl(await resp.blob());
+    } catch {
+      return '';
+    }
+  }
+}
+
 function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minRows, invoiceNumber, receiptNumber, type = 'receipt', receiptSettings = {}) {
   const isInvoice = type === 'invoice';
   const { tagline: shopTagline = 'Your Trusted Online Store', phone: svgPhone = 'Phone', email: svgEmail = 'Email', website: svgWebsite = 'Website', address: svgAddress = 'Address', notes: svgNotes = '', botLogo = '' } = receiptSettings;
@@ -464,19 +498,16 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     <!-- Contacts -->
     <text x="140" y="68" fill="${TM}" font-size="12">📞</text>
     <text x="160" y="68" fill="${TM}" font-size="12">${esc(svgPhone)}</text>
-    <line x1="160" y1="74" x2="350" y2="74" stroke="${BL}" stroke-width="1"/>
 
     <text x="140" y="90" fill="${TM}" font-size="12">✉️</text>
     <text x="160" y="90" fill="${TM}" font-size="12">${esc(svgEmail)}</text>
-    <line x1="160" y1="96" x2="350" y2="96" stroke="${BL}" stroke-width="1"/>
 
     <text x="140" y="112" fill="${TM}" font-size="12">🌐</text>
     <text x="160" y="112" fill="${TM}" font-size="12">${esc(svgWebsite)}</text>
-    <line x1="160" y1="118" x2="350" y2="118" stroke="${BL}" stroke-width="1"/>
 
     <text x="140" y="134" fill="${TM}" font-size="12">📍</text>
     <text x="160" y="134" fill="${TM}" font-size="12">${esc(svgAddress.slice(0, 40))}</text>
-    ${svgAddress.length > 40 ? `<text x="160" y="152" fill="${TM}" font-size="12">${esc(svgAddress.slice(40, 80))}</text><line x1="160" y1="158" x2="350" y2="158" stroke="${BL}" stroke-width="1"/>` : `<line x1="160" y1="140" x2="350" y2="140" stroke="${BL}" stroke-width="1"/>`}
+    ${svgAddress.length > 40 ? `<text x="160" y="152" fill="${TM}" font-size="12">${esc(svgAddress.slice(40, 80))}</text>` : ''}
 
     ${isInvoice ? `<!-- INVOICE heading (right) -->
     <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="44" font-weight="700" class="r">INVOICE</text>
@@ -488,25 +519,21 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
       <text x="460" y="80" fill="${TD}" font-size="13" font-weight="600">Invoice No.</text>
       <text x="565" y="80" fill="${TM}" font-size="13">:</text>
       <text x="580" y="80" fill="${TM}" font-size="13">${esc(invoiceNumber)}</text>
-      <line x1="580" y1="86" x2="720" y2="86" stroke="${BL}" stroke-width="1"/>
     </g>
     <g transform="translate(0, 0)">
       <text x="460" y="102" fill="${TD}" font-size="13" font-weight="600">Date</text>
       <text x="565" y="102" fill="${TM}" font-size="13">:</text>
       <text x="580" y="102" fill="${TM}" font-size="13">${fmtDate}</text>
-      <line x1="580" y1="108" x2="720" y2="108" stroke="${BL}" stroke-width="1"/>
     </g>
     <g transform="translate(0, 0)">
       <text x="460" y="124" fill="${TD}" font-size="13" font-weight="600">Order ID</text>
       <text x="565" y="124" fill="${TM}" font-size="13">:</text>
       <text x="580" y="124" fill="${TM}" font-size="13">${orderNum}</text>
-      <line x1="580" y1="130" x2="720" y2="130" stroke="${BL}" stroke-width="1"/>
     </g>
     <g transform="translate(0, 0)">
       <text x="460" y="146" fill="${TD}" font-size="13" font-weight="600">Payment Status</text>
       <text x="565" y="146" fill="${TM}" font-size="13">:</text>
       <text x="580" y="146" fill="${TM}" font-size="13">Pending</text>
-      <line x1="580" y1="152" x2="720" y2="152" stroke="${BL}" stroke-width="1"/>
     </g>` : `<!-- RECEIPT heading (right) -->
     <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="52" font-weight="700" class="r">RECEIPT</text>
     <text x="720" y="48" text-anchor="end" fill="${AL}" font-size="16" class="dc">Thank you for your purchase!</text>
@@ -517,19 +544,16 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
       <text x="460" y="80" fill="${TD}" font-size="13" font-weight="600">Invoice No.</text>
       <text x="565" y="80" fill="${TM}" font-size="13">:</text>
       <text x="580" y="80" fill="${TM}" font-size="13">${esc(invoiceNumber)}</text>
-      <line x1="580" y1="86" x2="720" y2="86" stroke="${BL}" stroke-width="1"/>
     </g>
     <g transform="translate(0, 0)">
       <text x="460" y="102" fill="${TD}" font-size="13" font-weight="600">Receipt No.</text>
       <text x="565" y="102" fill="${TM}" font-size="13">:</text>
       <text x="580" y="102" fill="${TM}" font-size="13">${esc(receiptNumber)}</text>
-      <line x1="580" y1="108" x2="720" y2="108" stroke="${BL}" stroke-width="1"/>
     </g>
     <g transform="translate(0, 0)">
       <text x="460" y="124" fill="${TD}" font-size="13" font-weight="600">Payment Status</text>
       <text x="565" y="124" fill="${TM}" font-size="13">:</text>
       <text x="580" y="124" fill="${TM}" font-size="13">Paid</text>
-      <line x1="580" y1="130" x2="720" y2="130" stroke="${BL}" stroke-width="1"/>
     </g>`}
   </g>
   <line x1="${PAD}" y1="${HDR_Y+HDR_H}" x2="${W-PAD}" y2="${HDR_Y+HDR_H}" stroke="${BL}" stroke-width="1"/>
@@ -542,22 +566,18 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     <text x="0" y="52" fill="${TD}" font-size="12" font-weight="600">Name</text>
     <text x="60" y="52" fill="${TM}" font-size="12">:</text>
     <text x="70" y="52" fill="${TM}" font-size="12">${cName}</text>
-    <line x1="70" y1="58" x2="350" y2="58" stroke="${BL}" stroke-width="1"/>
 
     <text x="0" y="74" fill="${TD}" font-size="12" font-weight="600">Phone</text>
     <text x="60" y="74" fill="${TM}" font-size="12">:</text>
     <text x="70" y="74" fill="${TM}" font-size="12">${phone}</text>
-    <line x1="70" y1="80" x2="350" y2="80" stroke="${BL}" stroke-width="1"/>
 
     <text x="0" y="96" fill="${TD}" font-size="12" font-weight="600">Email</text>
     <text x="60" y="96" fill="${TM}" font-size="12">:</text>
     <text x="70" y="96" fill="${TM}" font-size="12">${email}</text>
-    <line x1="70" y1="102" x2="350" y2="102" stroke="${BL}" stroke-width="1"/>
 
     <text x="0" y="118" fill="${TD}" font-size="12" font-weight="600">Address</text>
     <text x="60" y="118" fill="${TM}" font-size="12">:</text>
     <text x="70" y="118" fill="${TM}" font-size="12">${addr}</text>
-    <line x1="70" y1="124" x2="350" y2="124" stroke="${BL}" stroke-width="1"/>
   </g>
 
   <!-- Vertical divider -->
@@ -570,17 +590,14 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     <text x="0" y="52" fill="${TD}" font-size="12" font-weight="600">${isInvoice ? 'Amount to pay' : 'Amount Paid'}</text>
     <text x="85" y="52" fill="${TM}" font-size="12">:</text>
     <text x="95" y="52" fill="${TM}" font-size="12">${tot}</text>
-    <line x1="95" y1="58" x2="345" y2="58" stroke="${BL}" stroke-width="1"/>
 
     <text x="0" y="74" fill="${TD}" font-size="12" font-weight="600">Payment</text>
     <text x="85" y="74" fill="${TM}" font-size="12">:</text>
     <text x="95" y="74" fill="${TM}" font-size="12">${payM}</text>
-    <line x1="95" y1="80" x2="345" y2="80" stroke="${BL}" stroke-width="1"/>
 
     <text x="0" y="96" fill="${TD}" font-size="12" font-weight="600">Date</text>
     <text x="85" y="96" fill="${TM}" font-size="12">:</text>
     <text x="95" y="96" fill="${TM}" font-size="12">${fmtDate}</text>
-    <line x1="95" y1="102" x2="345" y2="102" stroke="${BL}" stroke-width="1"/>
 
   </g>
   <line x1="${PAD}" y1="${MID_END}" x2="${W-PAD}" y2="${MID_END}" stroke="${BL}" stroke-width="1"/>
@@ -596,7 +613,6 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
 
   <!-- ============ BOTTOM (y=${BOT_Y}) ============ -->
   <g transform="translate(${PAD}, ${BOT_Y})">
-    <!-- LEFT: Payment -->
     <rect x="0" y="0" width="290" height="50" rx="8" fill="#fff" stroke="${BL}" stroke-width="1"/>
     <text x="15" y="20" fill="${MB}" font-size="13" font-weight="500" class="r">💳 PAYMENT METHOD</text>
     <text x="15" y="42" fill="${TM}" font-size="12">${payM}</text>
@@ -686,72 +702,32 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
   const handleDownload = async () => {
     setGenerating(true);
     try {
-      // 1. Build SVG WITHOUT embedded logo (shows initial letter as fallback)
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: '' });
+      const botLogo = await getBotLogoDataUrl(bot?.profile_picture || '');
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo });
 
-      // 2. Render SVG to canvas
-      const blob = new Blob([svg], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = url;
-      });
+      const fileName = `${receiptType}-${order.order_number || order.id}`;
+      const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
 
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
-
-      // 3. Try to load the logo and overlay it
-      const logoUrl = bot?.profile_picture || '';
-      if (logoUrl) {
-        try {
-          // Use axios client (same CORS + auth as all API calls)
-          const logoPath = new URL(logoUrl).pathname;
-          const resp = await client.get(logoPath, { responseType: 'blob' });
-          const blob2 = resp.data;
-          if (blob2 && blob2.size > 0) {
-            const logoUrlObj = URL.createObjectURL(blob2);
-            const logoImg = new Image();
-            await new Promise((resolve, reject) => {
-              logoImg.onload = resolve;
-              logoImg.onerror = reject;
-              logoImg.src = logoUrlObj;
-            });
-            const s = canvas.width / 800;
-            const cx = 90 * s, cy = 90 * s, r = 50 * s;
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.clip();
-            ctx.drawImage(logoImg, cx - r, cy - r, r * 2, r * 2);
-            ctx.restore();
-            URL.revokeObjectURL(logoUrlObj);
-          }
-        } catch (e) {
-          console.warn('Logo overlay skipped:', e);
-        }
-      }
-
-      // 4. Export PNG
-      const fileName = `${receiptType}-${order.order_number || order.id}.png`;
-      const dataUrl = canvas.toDataURL('image/png');
+      // Check for native Android bridge
       if (window.AndroidBridge && typeof window.AndroidBridge.downloadBase64 === 'function') {
-        const base64 = dataUrl.split(',')[1];
-        window.AndroidBridge.downloadBase64(base64, 'image/png', `filename="${fileName}"`);
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve, reject) => {
+          reader.onloadend = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(svgBlob);
+        });
+        window.AndroidBridge.downloadBase64(base64, 'image/svg+xml', `filename="${fileName}.svg"`);
       } else {
+        const url = URL.createObjectURL(svgBlob);
         const link = document.createElement('a');
-        link.download = fileName;
-        link.href = dataUrl;
+        link.download = `${fileName}.svg`;
+        link.href = url;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       }
-      
+
       addToast('Receipt downloaded successfully');
     } catch (err) {
       console.error('Receipt export failed:', err);
