@@ -3,14 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Download, Loader2 } from 'lucide-react';
 import { myanmarFormat } from '../../utils/date';
 import { useToastStore } from '../../store/toastStore';
-import { useAuthStore } from '../../store/authStore';
 import { normalizeText } from '../../utils/normalizeText';
-import { API_BASE } from '../../api/config';
-import { downloadBlob } from '../../utils/download';
-import html2canvas from 'html2canvas';
-import domtoimage from 'dom-to-image-more';
-
+import { isInAppBrowser, downloadViaNative } from '../../utils/download';
 import { generateInvoiceNumber } from '../../api/orders';
+import client from '../../api/client';
 
 const RECEIPT_W = 800;
 const MAIN_BLUE = '#003366';
@@ -19,104 +15,6 @@ const TEXT_DARK = '#333';
 const TEXT_MUTED = '#666';
 const BORDER_LIGHT = '#ddd';
 const LIGHT_BLUE = '#e0f2f7';
-const TRANSPARENT_PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
-
-const getAuthToken = () => {
-  const stateToken = useAuthStore.getState().token;
-  if (stateToken) return stateToken;
-  try {
-    return JSON.parse(localStorage.getItem('auth-storage'))?.state?.token || null;
-  } catch {
-    return null;
-  }
-};
-
-const toAbsoluteUrl = (url) => {
-  if (!url || url.startsWith('data:') || url.startsWith('blob:')) return url;
-  if (/^https?:\/\//i.test(url)) return url;
-  if (url.startsWith('/')) return `${API_BASE}${url}`;
-  return url;
-};
-
-const getBotLogoUrl = (bot) => {
-  const rawLogo = bot?.profile_picture || bot?.logo || bot?.logo_url || bot?.avatar_url;
-  if (!rawLogo) return null;
-  if (/^(data:|blob:|https?:\/\/|\/)/i.test(rawLogo)) return toAbsoluteUrl(rawLogo);
-
-  const token = getAuthToken();
-  const params = new URLSearchParams({ bot_id: String(bot.id) });
-  if (token) params.set('token', token);
-  return `${API_BASE}/telegram/file/${encodeURIComponent(rawLogo)}?${params.toString()}`;
-};
-
-const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(reader.result);
-  reader.onerror = reject;
-  reader.readAsDataURL(blob);
-});
-
-const loadLogoDataUrl = async (url) => {
-  if (!url || url.startsWith('data:')) return url;
-  if (url.startsWith('blob:')) return url;
-
-  const token = getAuthToken();
-  let res = await fetch(url, { mode: 'cors', credentials: 'omit' });
-  if (!res.ok && token) {
-    res = await fetch(url, {
-      mode: 'cors',
-      credentials: 'omit',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  }
-  if (!res.ok) throw new Error('Logo request failed');
-  const blob = await res.blob();
-  return blobToDataUrl(blob);
-};
-
-const waitForImages = async (node, timeoutMs = 2500) => {
-  const images = Array.from(node.querySelectorAll('img'));
-  await Promise.all(images.map(async (img) => {
-    if (img.complete && img.naturalWidth > 0) return;
-    if (typeof img.decode === 'function') {
-      try {
-        await img.decode();
-        return;
-      } catch {}
-    }
-    await new Promise((resolve) => {
-      const timeout = window.setTimeout(resolve, timeoutMs);
-      img.onload = resolve;
-      img.onerror = resolve;
-      img.addEventListener('load', () => window.clearTimeout(timeout), { once: true });
-      img.addEventListener('error', () => window.clearTimeout(timeout), { once: true });
-    });
-  }));
-};
-
-const createExportNode = (node, logoDataUrl) => {
-  const clone = node.cloneNode(true);
-  clone.style.width = `${RECEIPT_W}px`;
-  clone.style.transform = 'none';
-  clone.style.position = 'fixed';
-  clone.style.left = '-10000px';
-  clone.style.top = '0';
-  clone.style.zIndex = '-1';
-  clone.style.backgroundColor = '#ffffff';
-
-  const logoImg = clone.querySelector('[data-receipt-logo]');
-  if (logoImg) {
-    if (logoDataUrl) {
-      logoImg.setAttribute('src', logoDataUrl);
-      logoImg.removeAttribute('crossorigin');
-    } else {
-      logoImg.remove();
-    }
-  }
-
-  document.body.appendChild(clone);
-  return clone;
-};
 
 const s = {
   wrap: {
@@ -432,14 +330,308 @@ const s = {
   },
 };
 
+function esc(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minRows, invoiceNumber, receiptNumber, type = 'receipt', receiptSettings = {}) {
+  const isInvoice = type === 'invoice';
+  const { tagline: shopTagline = 'Your Trusted Online Store', phone: svgPhone = 'Phone', email: svgEmail = 'Email', website: svgWebsite = 'Website', address: svgAddress = 'Address', notes: svgNotes = '', botLogo = '' } = receiptSettings;
+  const W = 800;
+  const PAD = 40;
+  const CW = W - PAD * 2;
+  const MB = '#003366';
+  const AL = '#007bff';
+  const TD = '#333';
+  const TM = '#666';
+  const BL = '#ddd';
+  const LB = '#e0f2f7';
+  const FS = '#bbb';
+
+  const qtyX = isInvoice ? 550 : 470;
+  const priceX = isInvoice ? 645 : 610;
+  const totalX = isInvoice ? 760 : 740;
+  const hdgSize = isInvoice ? 44 : 52;
+  const subSize = isInvoice ? 15 : 16;
+
+  const orderNum = esc(order.order_number || `#${order.id}`);
+  const cName = esc(order.buyer_snapshot?.name || order.buyer_snapshot?.full_name || order.customer?.first_name || '—');
+  const phone = esc(order.buyer_snapshot?.phone || '—');
+  const email = esc(order.buyer_snapshot?.email || '—');
+  const addr = esc(order.buyer_snapshot?.address || '—');
+  const cAddr = esc(order.buyer_snapshot?.address || '……………………………………');
+  const cPhone = esc(order.buyer_snapshot?.phone || '……………………………………');
+  const cEmail = esc(order.buyer_snapshot?.email || '……………………………………');
+  const tg = esc(bot?.bot_username ? `@${bot.bot_username}` : '……………………………………');
+  const uid = esc(order.customer?.telegram_id || order.customer?.id || '—');
+  const initial = esc(botName.charAt(0).toUpperCase());
+  const sName = esc(botName);
+  const fmtDate = myanmarFormat(orderDate, 'MMM dd, yyyy');
+  const payM = esc(paymentMethod);
+  const sub = `${(subtotal || 0).toFixed(2)} MMK`;
+  const tot = `${(total || 0).toFixed(2)} MMK`;
+
+  const HDR_Y = 40;
+  const HDR_H = 170;
+  const MID_Y = HDR_Y + HDR_H + 5;
+  const MID_END = MID_Y + 12 + 118 + 6 + 12;
+  const TBL_BAR = MID_END + 6;
+  const TBL_H = 28;
+  const ROW_H = 30;
+  const TBL_BODY = TBL_BAR + TBL_H + 6;
+  const TBL_END = TBL_BODY + minRows * ROW_H;
+  const BOT_Y = TBL_END + 22;
+  const BOT_H = 155;
+  const FTR_Y = BOT_Y + BOT_H + 10;
+  const FTR_H = 65;
+  const WEB_Y = FTR_Y + FTR_H + 5;
+  const WEB_H = 28;
+  const TOTAL_H = WEB_Y + WEB_H + 20;
+
+  let tableRows = '';
+  for (let i = 0; i < minRows; i++) {
+    const item = items[i];
+    const ry = TBL_BODY + i * ROW_H;
+    let cells;
+    if (item) {
+      const ln = `${((item.price||0)*(item.quantity||0)).toFixed(2)} MMK`;
+      const pn = esc(item.product_name || item.name || '—');
+      const vl = item.variant_label ? esc(` [${item.variant_label}]`) : '';
+      cells = `
+        <text x="55" y="${ry+19}" fill="${MB}" font-weight="600" font-size="12">${i+1}</text>
+        <text x="100" y="${ry+19}" fill="${TD}" font-size="12">${pn}${vl}</text>
+        <text x="${qtyX}" y="${ry+19}" text-anchor="middle" fill="${TD}" font-size="12">${item.quantity||'—'}</text>
+        <text x="${priceX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${(item.price||0).toFixed(2)} MMK</text>
+        <text x="${totalX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${ln}</text>`;
+    } else {
+      cells = `
+        <text x="55" y="${ry+19}" fill="${FS}" font-weight="600" font-size="12">${i+1}</text>
+        <text x="100" y="${ry+19}" fill="${FS}" font-size="12">${'·'.repeat(30)}</text>
+        <text x="${qtyX}" y="${ry+19}" text-anchor="middle" fill="${FS}" font-size="12">${'·'.repeat(4)}</text>
+        <text x="${priceX}" y="${ry+19}" text-anchor="end" fill="${FS}" font-size="12">${'·'.repeat(10)}</text>
+        <text x="${totalX}" y="${ry+19}" text-anchor="end" fill="${FS}" font-size="12">${'·'.repeat(10)}</text>`;
+    }
+    tableRows += `<g>
+      <line x1="40" y1="${ry+ROW_H-1}" x2="760" y2="${ry+ROW_H-1}" stroke="${BL}" stroke-width="1"/>
+      ${cells}
+    </g>`;
+  }
+
+  const deliveryFeeLine = order?.delivery_fee > 0 ? { l: 'Delivery Fee', v: `+ ${Number(order.delivery_fee).toFixed(2)} MMK` } : null;
+  const totalLines = [
+    { l: 'Subtotal', v: sub },
+    { l: 'Discount', v: `- ${sub}` },
+    { l: 'Tax', v: `+ 0.00 MMK` },
+    ...(deliveryFeeLine ? [deliveryFeeLine] : []),
+  ];
+  let totalsSvg = '';
+  totalLines.forEach((t, i) => {
+    const ty = i * 22;
+    totalsSvg += `
+      <text x="0" y="${ty+15}" fill="${TD}" font-size="13" font-weight="500">${t.l}</text>
+      <text x="85" y="${ty+15}" fill="${TM}" font-size="13">:</text>
+      <text x="100" y="${ty+15}" fill="${TM}" font-size="13">${t.v}</text>`;
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W*2}" height="${TOTAL_H*2}" viewBox="0 0 ${W} ${TOTAL_H}">
+  <defs><style>
+    text{font-family:'Open Sans',system-ui,-apple-system,sans-serif;font-size:12px}
+    .r{font-family:'Roboto',system-ui,sans-serif}
+    .dc{font-family:'Dancing Script',cursive}
+    .w{fill:#fff}
+  </style>
+  </defs>
+  <rect width="${W}" height="${TOTAL_H}" fill="#fff"/>
+  <!-- TOP BAR -->
+  <rect width="${W}" height="10" fill="${MB}"/>
+
+  <!-- ============ HEADER (y=${HDR_Y}) ============ -->
+  <defs>
+    <clipPath id="logoClip">
+      <circle cx="50" cy="50" r="50"/>
+    </clipPath>
+  </defs>
+  <g transform="translate(${PAD}, ${HDR_Y})">
+    <!-- Logo -->
+    <circle cx="50" cy="50" r="50" fill="#fff" stroke="${MB}" stroke-width="2"/>
+    ${botLogo ? `<image href="${esc(botLogo)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid slice" clip-path="url(#logoClip)"/>` : `<text x="50" y="56" text-anchor="middle" fill="${MB}" font-size="16" font-weight="600" class="r">${initial}</text>`}
+
+    <!-- Shop info -->
+    <text x="140" y="22" fill="${MB}" font-size="24" font-weight="700" class="r">${sName}</text>
+    <text x="140" y="44" fill="${TM}" font-size="13">${esc(shopTagline)}</text>
+
+    <!-- Contacts -->
+    <text x="140" y="68" fill="${TM}" font-size="12">📞</text>
+    <text x="160" y="68" fill="${TM}" font-size="12">${esc(svgPhone)}</text>
+    <line x1="160" y1="74" x2="350" y2="74" stroke="${BL}" stroke-width="1"/>
+
+    <text x="140" y="90" fill="${TM}" font-size="12">✉️</text>
+    <text x="160" y="90" fill="${TM}" font-size="12">${esc(svgEmail)}</text>
+    <line x1="160" y1="96" x2="350" y2="96" stroke="${BL}" stroke-width="1"/>
+
+    <text x="140" y="112" fill="${TM}" font-size="12">🌐</text>
+    <text x="160" y="112" fill="${TM}" font-size="12">${esc(svgWebsite)}</text>
+    <line x1="160" y1="118" x2="350" y2="118" stroke="${BL}" stroke-width="1"/>
+
+    <text x="140" y="134" fill="${TM}" font-size="12">📍</text>
+    <text x="160" y="134" fill="${TM}" font-size="12">${esc(svgAddress.slice(0, 40))}</text>
+    ${svgAddress.length > 40 ? `<text x="160" y="152" fill="${TM}" font-size="12">${esc(svgAddress.slice(40, 80))}</text><line x1="160" y1="158" x2="350" y2="158" stroke="${BL}" stroke-width="1"/>` : `<line x1="160" y1="140" x2="350" y2="140" stroke="${BL}" stroke-width="1"/>`}
+
+    ${isInvoice ? `<!-- INVOICE heading (right) -->
+    <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="44" font-weight="700" class="r">INVOICE</text>
+    <text x="720" y="46" text-anchor="end" fill="${AL}" font-size="15" class="dc">Thank you for your purchase!</text>
+    <line x1="550" y1="54" x2="720" y2="54" stroke="${AL}" stroke-width="2"/>
+
+    <!-- Meta rows -->
+    <g transform="translate(0, 0)">
+      <text x="460" y="80" fill="${TD}" font-size="13" font-weight="600">Invoice No.</text>
+      <text x="565" y="80" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="80" fill="${TM}" font-size="13">${esc(invoiceNumber)}</text>
+      <line x1="580" y1="86" x2="720" y2="86" stroke="${BL}" stroke-width="1"/>
+    </g>
+    <g transform="translate(0, 0)">
+      <text x="460" y="102" fill="${TD}" font-size="13" font-weight="600">Date</text>
+      <text x="565" y="102" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="102" fill="${TM}" font-size="13">${fmtDate}</text>
+      <line x1="580" y1="108" x2="720" y2="108" stroke="${BL}" stroke-width="1"/>
+    </g>
+    <g transform="translate(0, 0)">
+      <text x="460" y="124" fill="${TD}" font-size="13" font-weight="600">Order ID</text>
+      <text x="565" y="124" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="124" fill="${TM}" font-size="13">${orderNum}</text>
+      <line x1="580" y1="130" x2="720" y2="130" stroke="${BL}" stroke-width="1"/>
+    </g>
+    <g transform="translate(0, 0)">
+      <text x="460" y="146" fill="${TD}" font-size="13" font-weight="600">Payment Status</text>
+      <text x="565" y="146" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="146" fill="${TM}" font-size="13">Pending</text>
+      <line x1="580" y1="152" x2="720" y2="152" stroke="${BL}" stroke-width="1"/>
+    </g>` : `<!-- RECEIPT heading (right) -->
+    <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="52" font-weight="700" class="r">RECEIPT</text>
+    <text x="720" y="48" text-anchor="end" fill="${AL}" font-size="16" class="dc">Thank you for your purchase!</text>
+    <line x1="550" y1="56" x2="720" y2="56" stroke="${AL}" stroke-width="2"/>
+
+    <!-- Meta rows -->
+    <g transform="translate(0, 0)">
+      <text x="460" y="80" fill="${TD}" font-size="13" font-weight="600">Invoice No.</text>
+      <text x="565" y="80" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="80" fill="${TM}" font-size="13">${esc(invoiceNumber)}</text>
+      <line x1="580" y1="86" x2="720" y2="86" stroke="${BL}" stroke-width="1"/>
+    </g>
+    <g transform="translate(0, 0)">
+      <text x="460" y="102" fill="${TD}" font-size="13" font-weight="600">Receipt No.</text>
+      <text x="565" y="102" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="102" fill="${TM}" font-size="13">${esc(receiptNumber)}</text>
+      <line x1="580" y1="108" x2="720" y2="108" stroke="${BL}" stroke-width="1"/>
+    </g>
+    <g transform="translate(0, 0)">
+      <text x="460" y="124" fill="${TD}" font-size="13" font-weight="600">Payment Status</text>
+      <text x="565" y="124" fill="${TM}" font-size="13">:</text>
+      <text x="580" y="124" fill="${TM}" font-size="13">Paid</text>
+      <line x1="580" y1="130" x2="720" y2="130" stroke="${BL}" stroke-width="1"/>
+    </g>`}
+  </g>
+  <line x1="${PAD}" y1="${HDR_Y+HDR_H}" x2="${W-PAD}" y2="${HDR_Y+HDR_H}" stroke="${BL}" stroke-width="1"/>
+
+  <!-- ============ MID SECTION (y=${MID_Y}) ============ -->
+  <!-- ${isInvoice ? 'Bill To' : 'Received From'} -->
+  <g transform="translate(${PAD}, ${MID_Y+12})">
+    <rect x="0" y="0" width="${isInvoice ? 115 : 150}" height="28" rx="5" fill="${MB}"/>
+    <text x="12" y="19" fill="#fff" font-size="13" font-weight="500" class="r">👤 ${isInvoice ? 'Bill To' : 'Received From'}</text>
+    <text x="0" y="52" fill="${TD}" font-size="12" font-weight="600">Name</text>
+    <text x="60" y="52" fill="${TM}" font-size="12">:</text>
+    <text x="70" y="52" fill="${TM}" font-size="12">${cName}</text>
+    <line x1="70" y1="58" x2="350" y2="58" stroke="${BL}" stroke-width="1"/>
+
+    <text x="0" y="74" fill="${TD}" font-size="12" font-weight="600">Phone</text>
+    <text x="60" y="74" fill="${TM}" font-size="12">:</text>
+    <text x="70" y="74" fill="${TM}" font-size="12">${phone}</text>
+    <line x1="70" y1="80" x2="350" y2="80" stroke="${BL}" stroke-width="1"/>
+
+    <text x="0" y="96" fill="${TD}" font-size="12" font-weight="600">Email</text>
+    <text x="60" y="96" fill="${TM}" font-size="12">:</text>
+    <text x="70" y="96" fill="${TM}" font-size="12">${email}</text>
+    <line x1="70" y1="102" x2="350" y2="102" stroke="${BL}" stroke-width="1"/>
+
+    <text x="0" y="118" fill="${TD}" font-size="12" font-weight="600">Address</text>
+    <text x="60" y="118" fill="${TM}" font-size="12">:</text>
+    <text x="70" y="118" fill="${TM}" font-size="12">${addr}</text>
+    <line x1="70" y1="124" x2="350" y2="124" stroke="${BL}" stroke-width="1"/>
+  </g>
+
+  <!-- Vertical divider -->
+  <line x1="400" y1="${MID_Y+12}" x2="400" y2="${MID_END-5}" stroke="${BL}" stroke-width="1"/>
+
+  <!-- ${isInvoice ? 'Order Details' : 'Payment Details'} -->
+  <g transform="translate(415, ${MID_Y+12})">
+    <rect x="0" y="0" width="${isInvoice ? 170 : 200}" height="28" rx="5" fill="${MB}"/>
+    <text x="12" y="19" fill="#fff" font-size="13" font-weight="500" class="r">🧾 ${isInvoice ? 'ORDER DETAILS' : 'PAYMENT DETAILS'}</text>
+    <text x="0" y="52" fill="${TD}" font-size="12" font-weight="600">${isInvoice ? 'Amount to pay' : 'Amount Paid'}</text>
+    <text x="85" y="52" fill="${TM}" font-size="12">:</text>
+    <text x="95" y="52" fill="${TM}" font-size="12">${tot}</text>
+    <line x1="95" y1="58" x2="345" y2="58" stroke="${BL}" stroke-width="1"/>
+
+    <text x="0" y="74" fill="${TD}" font-size="12" font-weight="600">Payment</text>
+    <text x="85" y="74" fill="${TM}" font-size="12">:</text>
+    <text x="95" y="74" fill="${TM}" font-size="12">${payM}</text>
+    <line x1="95" y1="80" x2="345" y2="80" stroke="${BL}" stroke-width="1"/>
+
+    <text x="0" y="96" fill="${TD}" font-size="12" font-weight="600">Date</text>
+    <text x="85" y="96" fill="${TM}" font-size="12">:</text>
+    <text x="95" y="96" fill="${TM}" font-size="12">${fmtDate}</text>
+    <line x1="95" y1="102" x2="345" y2="102" stroke="${BL}" stroke-width="1"/>
+
+  </g>
+  <line x1="${PAD}" y1="${MID_END}" x2="${W-PAD}" y2="${MID_END}" stroke="${BL}" stroke-width="1"/>
+
+  <!-- ============ TABLE (bar y=${TBL_BAR}) ============ -->
+  <rect x="${PAD}" y="${TBL_BAR}" width="${CW}" height="${TBL_H}" rx="5" fill="${MB}"/>
+  <text x="55" y="${TBL_BAR+19}" fill="#fff" font-size="12" font-weight="600" class="r">#</text>
+  <text x="100" y="${TBL_BAR+19}" fill="#fff" font-size="12" font-weight="600" class="r">PRODUCTS</text>
+  <text x="${qtyX}" y="${TBL_BAR+19}" text-anchor="middle" fill="#fff" font-size="12" font-weight="600" class="r">QTY</text>
+  <text x="${priceX}" y="${TBL_BAR+19}" text-anchor="end" fill="#fff" font-size="12" font-weight="600" class="r">UNIT PRICE</text>
+  <text x="${totalX}" y="${TBL_BAR+19}" text-anchor="end" fill="#fff" font-size="12" font-weight="600" class="r">TOTAL PRICE</text>
+  ${tableRows}
+
+  <!-- ============ BOTTOM (y=${BOT_Y}) ============ -->
+  <g transform="translate(${PAD}, ${BOT_Y})">
+    <!-- LEFT: Payment -->
+    <rect x="0" y="0" width="290" height="50" rx="8" fill="#fff" stroke="${BL}" stroke-width="1"/>
+    <text x="15" y="20" fill="${MB}" font-size="13" font-weight="500" class="r">💳 PAYMENT METHOD</text>
+    <text x="15" y="42" fill="${TM}" font-size="12">${payM}</text>
+
+    <rect x="0" y="65" width="290" height="70" rx="8" fill="#fff" stroke="${BL}" stroke-width="1"/>
+    <text x="15" y="85" fill="${MB}" font-size="13" font-weight="500" class="r">💰 ${isInvoice ? 'AMOUNT TO PAY' : 'AMOUNT PAID'}</text>
+    <text x="15" y="115" fill="${MB}" font-size="16" font-weight="700">${tot}</text>
+    <line x1="15" y1="122" x2="130" y2="122" stroke="${AL}" stroke-width="2"/>
+
+    <!-- RIGHT: Totals -->
+    <g transform="translate(340, 0)">
+      ${totalsSvg}
+      <rect x="0" y="97" width="380" height="38" rx="5" fill="${MB}"/>
+      <text x="15" y="121" fill="#fff" font-size="17" font-weight="700" class="r">TOTAL</text>
+      <text x="365" y="121" text-anchor="end" fill="#fff" font-size="17" font-weight="700" class="r">${tot}</text>
+    </g>
+  </g>
+
+  <!-- ============ FOOTER (y=${FTR_Y}) ============ -->
+  <g transform="translate(${PAD}, ${FTR_Y})">
+    <line x1="0" y1="0" x2="${CW}" y2="0" stroke="${BL}" stroke-width="1"/>
+    ${svgNotes ? `<text x="0" y="24" fill="${TM}" font-size="10">${esc(svgNotes.slice(0, 100))}</text>${svgNotes.length > 100 ? `<text x="0" y="38" fill="${TM}" font-size="10">${esc(svgNotes.slice(100))}</text>` : ''}` : ''}
+  </g>
+
+  <!-- ============ WEBSITE BAR ============ -->
+  <rect x="0" y="${WEB_Y}" width="${W}" height="${WEB_H}" fill="${MB}"/>
+  <text x="400" y="${WEB_Y+18}" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="11">${sName}</text>
+</svg>`;
+}
 
 export default function Receipt({ order, bot, open, onClose, receiptType = 'receipt', receiptSettings = {} }) {
   const receiptRef = useRef(null);
   const [generating, setGenerating] = useState(false);
   const [scale, setScale] = useState(1);
   const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [logoSrc, setLogoSrc] = useState(null);
-  const [logoError, setLogoError] = useState(false);
   const { addToast } = useToastStore();
 
   useEffect(() => {
@@ -452,20 +644,6 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
         setInvoiceNumber(res.invoice_number);
       }).catch(() => {});
     }
-
-    // Fetch the logo as a blob-backed data URL so html2canvas can export it without CORS tainting.
-    let cancelled = false;
-    setLogoError(false);
-    setLogoSrc(null);
-    const logoUrl = getBotLogoUrl(bot);
-    if (logoUrl) {
-      loadLogoDataUrl(logoUrl)
-        .then((dataUrl) => {
-          if (!cancelled) setLogoSrc(dataUrl);
-        })
-        .catch(() => {});
-    }
-
     const calc = () => {
       const vw = window.innerWidth - 32;
       setScale(Math.min(1, vw / RECEIPT_W));
@@ -474,11 +652,10 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     window.addEventListener('resize', calc);
     document.body.style.overflow = 'hidden';
     return () => {
-      cancelled = true;
       window.removeEventListener('resize', calc);
       document.body.style.overflow = '';
     };
-  }, [open, order, bot?.id, bot?.profile_picture, bot?.logo, bot?.logo_url, bot?.avatar_url]);
+  }, [open, order]);
 
   if (!order) return null;
 
@@ -505,56 +682,84 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     address: shopAddress = 'Address',
     notes: shopNotes = '',
   } = receiptSettings;
-  const logoUrl = getBotLogoUrl(bot);
-  const previewLogoSrc = logoError ? null : (logoSrc || logoUrl);
 
   const handleDownload = async () => {
     setGenerating(true);
-    let exportNode = null;
     try {
-      if (!receiptRef.current) throw new Error('Receipt element not found');
+      // 1. Build SVG WITHOUT embedded logo (shows initial letter as fallback)
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: '' });
 
-      const fileName = `${receiptType}-${order.order_number || order.id}.png`;
-      const sourceNode = receiptRef.current;
-      const exportLogoSrc = logoSrc || await loadLogoDataUrl(logoUrl).catch(() => null);
-      exportNode = createExportNode(sourceNode, exportLogoSrc);
-      await waitForImages(exportNode);
+      // 2. Render SVG to canvas
+      const blob = new Blob([svg], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = url;
+      });
 
-      try {
-        const canvas = await html2canvas(exportNode, {
-          width: RECEIPT_W,
-          height: exportNode.scrollHeight || 1200,
-          scale: 2,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: '#ffffff',
-          logging: false,
-        });
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
 
-        const dataUrl = canvas.toDataURL('image/png');
-        const blob = await (await fetch(dataUrl)).blob();
-        await downloadBlob(blob, fileName);
-      } catch (err) {
-        console.warn('html2canvas receipt export failed, retrying with dom-to-image:', err);
-        const blob = await domtoimage.toBlob(exportNode, {
-          width: RECEIPT_W,
-          height: exportNode.scrollHeight || 1200,
-          bgcolor: '#ffffff',
-          cacheBust: true,
-          imagePlaceholder: TRANSPARENT_PIXEL,
-        });
-        await downloadBlob(blob, fileName);
+      // 3. Try to load the logo and overlay it
+      const logoUrl = bot?.profile_picture || '';
+      if (logoUrl) {
+        try {
+          // Use axios client (same CORS + auth as all API calls)
+          const logoPath = new URL(logoUrl).pathname;
+          const resp = await client.get(logoPath, { responseType: 'blob' });
+          const blob2 = resp.data;
+          if (blob2 && blob2.size > 0) {
+            const logoUrlObj = URL.createObjectURL(blob2);
+            const logoImg = new Image();
+            await new Promise((resolve, reject) => {
+              logoImg.onload = resolve;
+              logoImg.onerror = reject;
+              logoImg.src = logoUrlObj;
+            });
+            const s = canvas.width / 800;
+            const cx = 90 * s, cy = 90 * s, r = 50 * s;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(logoImg, cx - r, cy - r, r * 2, r * 2);
+            ctx.restore();
+            URL.revokeObjectURL(logoUrlObj);
+          }
+        } catch (e) {
+          console.warn('Logo overlay skipped:', e);
+        }
       }
+
+      // 4. Export PNG
+      const fileName = `${receiptType}-${order.order_number || order.id}.png`;
+      const dataUrl = canvas.toDataURL('image/png');
+      if (window.AndroidBridge && typeof window.AndroidBridge.downloadBase64 === 'function') {
+        const base64 = dataUrl.split(',')[1];
+        window.AndroidBridge.downloadBase64(base64, 'image/png', `filename="${fileName}"`);
+      } else {
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
       addToast('Receipt downloaded successfully');
     } catch (err) {
       console.error('Receipt export failed:', err);
       addToast('Failed to generate receipt image', 'error');
     } finally {
-      if (exportNode) exportNode.remove();
       setGenerating(false);
     }
   };
-
 
   return (
     <AnimatePresence>
@@ -581,7 +786,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
             <div className="flex items-center justify-between px-4 pb-3 flex-shrink-0">
               <h2 className="text-lg font-bold text-gray-900">{receiptType === 'invoice' ? 'Invoice' : 'Receipt'}</h2>
               <div className="flex items-center gap-2">
-                  <button
+                <button
                   onClick={handleDownload}
                   disabled={generating}
                   className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
@@ -609,16 +814,10 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                     <div style={s.header}>
                       <div style={s.shopInfo}>
                         <div style={s.logoCircle}>
-                          {previewLogoSrc ? (
-                            <img
-                              src={previewLogoSrc}
-                              alt="Logo"
-                              data-receipt-logo="true"
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
-                              onError={() => setLogoError(true)}
-                            />
+                          {bot?.profile_picture ? (
+                            <img src={bot.profile_picture} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                           ) : (
-                            <span style={logoError ? {} : { opacity: 0.5 }}>{botName.charAt(0).toUpperCase()}</span>
+                            botName.charAt(0).toUpperCase()
                           )}
                         </div>
                         <div style={s.shopDetails}>
