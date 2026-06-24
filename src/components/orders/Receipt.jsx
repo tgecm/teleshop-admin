@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Download, Loader2 } from 'lucide-react';
 import { myanmarFormat } from '../../utils/date';
 import { useToastStore } from '../../store/toastStore';
+import { useAuthStore } from '../../store/authStore';
 import { normalizeText } from '../../utils/normalizeText';
+import { API_BASE } from '../../api/config';
 import html2canvas from 'html2canvas';
 
 import { generateInvoiceNumber } from '../../api/orders';
@@ -15,6 +17,73 @@ const TEXT_DARK = '#333';
 const TEXT_MUTED = '#666';
 const BORDER_LIGHT = '#ddd';
 const LIGHT_BLUE = '#e0f2f7';
+
+const getAuthToken = () => {
+  const stateToken = useAuthStore.getState().token;
+  if (stateToken) return stateToken;
+  try {
+    return JSON.parse(localStorage.getItem('auth-storage'))?.state?.token || null;
+  } catch {
+    return null;
+  }
+};
+
+const toAbsoluteUrl = (url) => {
+  if (!url || url.startsWith('data:') || url.startsWith('blob:')) return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith('/')) return `${API_BASE}${url}`;
+  return url;
+};
+
+const getBotLogoUrl = (bot) => {
+  const rawLogo = bot?.profile_picture || bot?.logo || bot?.logo_url || bot?.avatar_url;
+  if (!rawLogo) return null;
+  if (/^(data:|blob:|https?:\/\/|\/)/i.test(rawLogo)) return toAbsoluteUrl(rawLogo);
+
+  const token = getAuthToken();
+  const params = new URLSearchParams({ bot_id: String(bot.id) });
+  if (token) params.set('token', token);
+  return `${API_BASE}/telegram/file/${encodeURIComponent(rawLogo)}?${params.toString()}`;
+};
+
+const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = reject;
+  reader.readAsDataURL(blob);
+});
+
+const loadLogoDataUrl = async (url) => {
+  if (!url || url.startsWith('data:')) return url;
+  if (url.startsWith('blob:')) return url;
+
+  const token = getAuthToken();
+  const res = await fetch(url, {
+    mode: 'cors',
+    credentials: 'omit',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) throw new Error('Logo request failed');
+  const blob = await res.blob();
+  return blobToDataUrl(blob);
+};
+
+const waitForImages = async (node) => {
+  const images = Array.from(node.querySelectorAll('img'));
+  await Promise.all(images.map(async (img) => {
+    if (img.complete && img.naturalWidth > 0) return;
+    if (typeof img.decode === 'function') {
+      try {
+        await img.decode();
+        return;
+      } catch {}
+    }
+    await new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+  }));
+};
 
 const s = {
   wrap: {
@@ -351,22 +420,19 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       }).catch(() => {});
     }
 
-    // Pre-fetch logo as data URL for reliable rendering in both preview and dom-to-image capture
+    // Fetch the logo as a blob-backed data URL so html2canvas can export it without CORS tainting.
+    let cancelled = false;
     setLogoError(false);
     setLogoSrc(null);
-    if (bot?.profile_picture) {
-      const imgUrl = bot.profile_picture;
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        const c = document.createElement('canvas');
-        c.width = img.naturalWidth;
-        c.height = img.naturalHeight;
-        c.getContext('2d').drawImage(img, 0, 0);
-        setLogoSrc(c.toDataURL('image/png'));
-      };
-      img.onerror = () => setLogoError(true);
-      img.src = imgUrl;
+    const logoUrl = getBotLogoUrl(bot);
+    if (logoUrl) {
+      loadLogoDataUrl(logoUrl)
+        .then((dataUrl) => {
+          if (!cancelled) setLogoSrc(dataUrl);
+        })
+        .catch(() => {
+          if (!cancelled) setLogoError(true);
+        });
     }
 
     const calc = () => {
@@ -377,10 +443,11 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     window.addEventListener('resize', calc);
     document.body.style.overflow = 'hidden';
     return () => {
+      cancelled = true;
       window.removeEventListener('resize', calc);
       document.body.style.overflow = '';
     };
-  }, [open, order]);
+  }, [open, order, bot?.id, bot?.profile_picture, bot?.logo, bot?.logo_url, bot?.avatar_url]);
 
   if (!order) return null;
 
@@ -415,6 +482,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
 
       const fileName = `${receiptType}-${order.order_number || order.id}.png`;
       const node = receiptRef.current;
+      await waitForImages(node);
 
       // Temporarily pause the CSS transform scale so html2canvas reads native dimensions
       const origTransform = node.parentElement?.style.transform || '';
