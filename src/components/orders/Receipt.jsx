@@ -6,7 +6,9 @@ import { useToastStore } from '../../store/toastStore';
 import { useAuthStore } from '../../store/authStore';
 import { normalizeText } from '../../utils/normalizeText';
 import { API_BASE } from '../../api/config';
+import { downloadBlob } from '../../utils/download';
 import html2canvas from 'html2canvas';
+import domtoimage from 'dom-to-image-more';
 
 import { generateInvoiceNumber } from '../../api/orders';
 
@@ -17,6 +19,7 @@ const TEXT_DARK = '#333';
 const TEXT_MUTED = '#666';
 const BORDER_LIGHT = '#ddd';
 const LIGHT_BLUE = '#e0f2f7';
+const TRANSPARENT_PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
 const getAuthToken = () => {
   const stateToken = useAuthStore.getState().token;
@@ -58,17 +61,20 @@ const loadLogoDataUrl = async (url) => {
   if (url.startsWith('blob:')) return url;
 
   const token = getAuthToken();
-  const res = await fetch(url, {
-    mode: 'cors',
-    credentials: 'omit',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
+  let res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+  if (!res.ok && token) {
+    res = await fetch(url, {
+      mode: 'cors',
+      credentials: 'omit',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
   if (!res.ok) throw new Error('Logo request failed');
   const blob = await res.blob();
   return blobToDataUrl(blob);
 };
 
-const waitForImages = async (node) => {
+const waitForImages = async (node, timeoutMs = 2500) => {
   const images = Array.from(node.querySelectorAll('img'));
   await Promise.all(images.map(async (img) => {
     if (img.complete && img.naturalWidth > 0) return;
@@ -79,10 +85,37 @@ const waitForImages = async (node) => {
       } catch {}
     }
     await new Promise((resolve) => {
+      const timeout = window.setTimeout(resolve, timeoutMs);
       img.onload = resolve;
       img.onerror = resolve;
+      img.addEventListener('load', () => window.clearTimeout(timeout), { once: true });
+      img.addEventListener('error', () => window.clearTimeout(timeout), { once: true });
     });
   }));
+};
+
+const createExportNode = (node, logoDataUrl) => {
+  const clone = node.cloneNode(true);
+  clone.style.width = `${RECEIPT_W}px`;
+  clone.style.transform = 'none';
+  clone.style.position = 'fixed';
+  clone.style.left = '-10000px';
+  clone.style.top = '0';
+  clone.style.zIndex = '-1';
+  clone.style.backgroundColor = '#ffffff';
+
+  const logoImg = clone.querySelector('[data-receipt-logo]');
+  if (logoImg) {
+    if (logoDataUrl) {
+      logoImg.setAttribute('src', logoDataUrl);
+      logoImg.removeAttribute('crossorigin');
+    } else {
+      logoImg.remove();
+    }
+  }
+
+  document.body.appendChild(clone);
+  return clone;
 };
 
 const s = {
@@ -430,9 +463,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
         .then((dataUrl) => {
           if (!cancelled) setLogoSrc(dataUrl);
         })
-        .catch(() => {
-          if (!cancelled) setLogoError(true);
-        });
+        .catch(() => {});
     }
 
     const calc = () => {
@@ -474,28 +505,25 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     address: shopAddress = 'Address',
     notes: shopNotes = '',
   } = receiptSettings;
+  const logoUrl = getBotLogoUrl(bot);
+  const previewLogoSrc = logoError ? null : (logoSrc || logoUrl);
 
   const handleDownload = async () => {
     setGenerating(true);
+    let exportNode = null;
     try {
       if (!receiptRef.current) throw new Error('Receipt element not found');
 
       const fileName = `${receiptType}-${order.order_number || order.id}.png`;
-      const node = receiptRef.current;
-      await waitForImages(node);
-
-      // Temporarily pause the CSS transform scale so html2canvas reads native dimensions
-      const origTransform = node.parentElement?.style.transform || '';
-      const origOrigin = node.parentElement?.style.transformOrigin || '';
-      if (node.parentElement) {
-        node.parentElement.style.transform = 'none';
-        node.parentElement.style.transformOrigin = '';
-      }
+      const sourceNode = receiptRef.current;
+      const exportLogoSrc = logoSrc || await loadLogoDataUrl(logoUrl).catch(() => null);
+      exportNode = createExportNode(sourceNode, exportLogoSrc);
+      await waitForImages(exportNode);
 
       try {
-        const canvas = await html2canvas(node, {
+        const canvas = await html2canvas(exportNode, {
           width: RECEIPT_W,
-          height: node.scrollHeight || 1200,
+          height: exportNode.scrollHeight || 1200,
           scale: 2,
           useCORS: true,
           allowTaint: false,
@@ -503,38 +531,26 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
           logging: false,
         });
 
-        // Restore transform
-        if (node.parentElement) {
-          node.parentElement.style.transform = origTransform;
-          node.parentElement.style.transformOrigin = origOrigin;
-        }
-
         const dataUrl = canvas.toDataURL('image/png');
-
-        if (window.AndroidBridge && typeof window.AndroidBridge.downloadBase64 === 'function') {
-          const base64 = dataUrl.split(',')[1];
-          window.AndroidBridge.downloadBase64(base64, 'image/png', `filename="${fileName}"`);
-        } else {
-          const link = document.createElement('a');
-          link.download = fileName;
-          link.href = dataUrl;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-        addToast('Receipt downloaded successfully');
+        const blob = await (await fetch(dataUrl)).blob();
+        await downloadBlob(blob, fileName);
       } catch (err) {
-        // Restore transform if not done yet
-        if (node.parentElement) {
-          node.parentElement.style.transform = origTransform;
-          node.parentElement.style.transformOrigin = origOrigin;
-        }
-        throw err;
+        console.warn('html2canvas receipt export failed, retrying with dom-to-image:', err);
+        const blob = await domtoimage.toBlob(exportNode, {
+          width: RECEIPT_W,
+          height: exportNode.scrollHeight || 1200,
+          bgcolor: '#ffffff',
+          cacheBust: true,
+          imagePlaceholder: TRANSPARENT_PIXEL,
+        });
+        await downloadBlob(blob, fileName);
       }
+      addToast('Receipt downloaded successfully');
     } catch (err) {
       console.error('Receipt export failed:', err);
       addToast('Failed to generate receipt image', 'error');
     } finally {
+      if (exportNode) exportNode.remove();
       setGenerating(false);
     }
   };
@@ -593,8 +609,14 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                     <div style={s.header}>
                       <div style={s.shopInfo}>
                         <div style={s.logoCircle}>
-                          {logoSrc ? (
-                            <img src={logoSrc} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                          {previewLogoSrc ? (
+                            <img
+                              src={previewLogoSrc}
+                              alt="Logo"
+                              data-receipt-logo="true"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                              onError={() => setLogoError(true)}
+                            />
                           ) : (
                             <span style={logoError ? {} : { opacity: 0.5 }}>{botName.charAt(0).toUpperCase()}</span>
                           )}
