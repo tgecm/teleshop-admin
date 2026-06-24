@@ -4,7 +4,7 @@ import { X, Download, Loader2 } from 'lucide-react';
 import { myanmarFormat } from '../../utils/date';
 import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
-import domtoimage from 'dom-to-image-more';
+import html2canvas from 'html2canvas';
 
 import { generateInvoiceNumber } from '../../api/orders';
 
@@ -336,6 +336,8 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
   const [generating, setGenerating] = useState(false);
   const [scale, setScale] = useState(1);
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [logoSrc, setLogoSrc] = useState(null);
+  const [logoError, setLogoError] = useState(false);
   const { addToast } = useToastStore();
 
   useEffect(() => {
@@ -348,6 +350,25 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
         setInvoiceNumber(res.invoice_number);
       }).catch(() => {});
     }
+
+    // Pre-fetch logo as data URL for reliable rendering in both preview and dom-to-image capture
+    setLogoError(false);
+    setLogoSrc(null);
+    if (bot?.profile_picture) {
+      const imgUrl = bot.profile_picture;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth;
+        c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        setLogoSrc(c.toDataURL('image/png'));
+      };
+      img.onerror = () => setLogoError(true);
+      img.src = imgUrl;
+    }
+
     const calc = () => {
       const vw = window.innerWidth - 32;
       setScale(Math.min(1, vw / RECEIPT_W));
@@ -392,60 +413,56 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     try {
       if (!receiptRef.current) throw new Error('Receipt element not found');
 
-      const fileName = `${receiptType}-${order.order_number || order.id}`;
+      const fileName = `${receiptType}-${order.order_number || order.id}.png`;
+      const node = receiptRef.current;
 
-      // Try PNG via dom-to-image-more
+      // Temporarily pause the CSS transform scale so html2canvas reads native dimensions
+      const origTransform = node.parentElement?.style.transform || '';
+      const origOrigin = node.parentElement?.style.transformOrigin || '';
+      if (node.parentElement) {
+        node.parentElement.style.transform = 'none';
+        node.parentElement.style.transformOrigin = '';
+      }
+
       try {
-        let dataUrl;
+        const canvas = await html2canvas(node, {
+          width: RECEIPT_W,
+          height: node.scrollHeight || 1200,
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: '#ffffff',
+          logging: false,
+        });
+
+        // Restore transform
+        if (node.parentElement) {
+          node.parentElement.style.transform = origTransform;
+          node.parentElement.style.transformOrigin = origOrigin;
+        }
+
+        const dataUrl = canvas.toDataURL('image/png');
+
         if (window.AndroidBridge && typeof window.AndroidBridge.downloadBase64 === 'function') {
-          dataUrl = await domtoimage.toPng(receiptRef.current, {
-            width: RECEIPT_W * 2,
-            height: (receiptRef.current.scrollHeight || 1200) * 2,
-            style: {
-              transform: 'scale(2)',
-              transformOrigin: 'top left',
-            },
-          });
           const base64 = dataUrl.split(',')[1];
-          window.AndroidBridge.downloadBase64(base64, 'image/png', `filename="${fileName}.png"`);
+          window.AndroidBridge.downloadBase64(base64, 'image/png', `filename="${fileName}"`);
         } else {
-          dataUrl = await domtoimage.toPng(receiptRef.current, {
-            width: RECEIPT_W,
-            height: receiptRef.current.scrollHeight || 1200,
-          });
           const link = document.createElement('a');
-          link.download = `${fileName}.png`;
+          link.download = fileName;
           link.href = dataUrl;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
         }
         addToast('Receipt downloaded successfully');
-        setGenerating(false);
-        return;
-      } catch (pngErr) {
-        console.warn('PNG export failed, falling back to SVG:', pngErr);
+      } catch (err) {
+        // Restore transform if not done yet
+        if (node.parentElement) {
+          node.parentElement.style.transform = origTransform;
+          node.parentElement.style.transformOrigin = origOrigin;
+        }
+        throw err;
       }
-
-      // Fallback: export as SVG (works in all browsers/WebViews)
-      const svgDataUrl = await domtoimage.toSvg(receiptRef.current, {
-        width: RECEIPT_W,
-        height: receiptRef.current.scrollHeight || 1200,
-      });
-
-      if (window.AndroidBridge && typeof window.AndroidBridge.downloadBase64 === 'function') {
-        const base64 = svgDataUrl.split(',')[1];
-        window.AndroidBridge.downloadBase64(base64, 'image/svg+xml', `filename="${fileName}.svg"`);
-      } else {
-        const link = document.createElement('a');
-        link.download = `${fileName}.svg`;
-        link.href = svgDataUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-
-      addToast('Receipt downloaded (SVG format)');
     } catch (err) {
       console.error('Receipt export failed:', err);
       addToast('Failed to generate receipt image', 'error');
@@ -508,10 +525,10 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                     <div style={s.header}>
                       <div style={s.shopInfo}>
                         <div style={s.logoCircle}>
-                          {bot?.profile_picture ? (
-                            <img src={bot.profile_picture} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                          {logoSrc ? (
+                            <img src={logoSrc} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                           ) : (
-                            botName.charAt(0).toUpperCase()
+                            <span style={logoError ? {} : { opacity: 0.5 }}>{botName.charAt(0).toUpperCase()}</span>
                           )}
                         </div>
                         <div style={s.shopDetails}>
