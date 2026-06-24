@@ -611,36 +611,32 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
 
   useEffect(() => {
     const total = couponApplied ? effectiveTotal : totalAmount;
-    const anyFlatFeeProduct = cartItems.some(item => {
-      const p = (products || []).find(pp => pp.id === item.product_id);
-      return p?.apply_delivery_fee && p?.delivery_type !== 'zone';
-    });
-    const anyZoneFeeProduct = cartItems.some(item => {
-      const p = (products || []).find(pp => pp.id === item.product_id);
-      return p?.delivery_type === 'zone';
-    });
-
     let fee = 0;
 
-    if (anyZoneFeeProduct && contactForm.township) {
+    // Match zone fee by Region + District + Township (all 3 required to avoid duplicate names)
+    if (zoneFees.length > 0 && contactForm.region && contactForm.district && contactForm.township) {
       const match = zoneFees.find(zf =>
-        zf.township.toLowerCase() === contactForm.township.toLowerCase()
+        zf.region?.toLowerCase() === contactForm.region.toLowerCase() &&
+        zf.district?.toLowerCase() === contactForm.district.toLowerCase() &&
+        zf.township?.toLowerCase() === contactForm.township.toLowerCase()
       );
       if (match && Number(match.fee) > 0) {
         fee = Number(match.fee);
-      } else if (anyFlatFeeProduct && deliveryFee > 0) {
-        fee = deliveryFee;
       }
-    } else if (anyFlatFeeProduct && deliveryFee > 0) {
+    }
+
+    // Fallback to flat delivery fee if no zone match
+    if (fee === 0 && deliveryFee > 0) {
       fee = deliveryFee;
     }
 
+    // Free delivery threshold
     if (fee > 0 && freeDeliveryThreshold > 0 && total >= freeDeliveryThreshold) {
       fee = 0;
     }
 
     setDeliveryFeeAmount(fee);
-  }, [deliveryFee, freeDeliveryThreshold, cartItems, products, totalAmount, couponApplied, effectiveTotal, zoneFees, contactForm.township]);
+  }, [deliveryFee, freeDeliveryThreshold, deliveryFees, totalAmount, couponApplied, effectiveTotal, zoneFees, contactForm.region, contactForm.district, contactForm.township]);
 
   const handleProofFile = (e) => {
     const file = e.target.files?.[0];
@@ -850,12 +846,10 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
               <span className="font-semibold">-{formatPrice(couponApplied.discount)} MMK</span>
             </div>
           )}
-          {deliveryFeeAmount > 0 && (
-            <div className="flex justify-between text-sm py-1 text-gray-600">
-              <span>Delivery Fee</span>
-              <span>{formatPrice(deliveryFeeAmount)} MMK</span>
-            </div>
-          )}
+          <div className="flex justify-between text-sm py-1 text-gray-600">
+            <span>Delivery Fee</span>
+            <span>{deliveryFeeAmount > 0 ? `${formatPrice(deliveryFeeAmount)} MMK` : 'Free'}</span>
+          </div>
           <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-bold text-gray-900">
             <span>Total</span>
             <span>{formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount)} MMK</span>
