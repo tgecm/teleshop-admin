@@ -27,12 +27,16 @@ function processQueue() {
 }
 
 async function doFetch(url, key) {
-  const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
-  if (!resp.ok) throw new Error('fetch failed');
-  const cache = await caches.open(CACHE_NAME);
-  const clone = resp.clone();
-  cache.put(key, clone).catch(() => {});
-  return URL.createObjectURL(await resp.blob());
+  try {
+    const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!resp.ok) throw new Error('fetch failed');
+    const cache = await caches.open(CACHE_NAME);
+    const clone = resp.clone();
+    cache.put(key, clone).catch(() => {});
+    return URL.createObjectURL(await resp.blob());
+  } catch {
+    throw new Error('fetch failed');
+  }
 }
 
 function enqueueFetch(url, key) {

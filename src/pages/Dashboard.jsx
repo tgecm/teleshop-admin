@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect, Suspense } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getStats, getOrdersByDay, getTopProducts, getUsersByDay, getProfitSummary } from '../api/stats';
 import { getImageUrl, getProducts } from '../api/products';
@@ -8,7 +8,7 @@ import { useSelectedBot } from '../hooks/useSelectedBot';
 import StatCard from '../components/shared/StatCard';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import {
-  DollarSign, ShoppingBag, Users, Clock, TrendingUp, Trophy, Sparkles, Zap, Package,
+  DollarSign, ShoppingBag, Users, Clock, TrendingUp, Activity, Trophy, Sparkles, Zap, Package,
   BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, X, Loader2, ArrowLeftRight, AlertTriangle,
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -95,7 +95,7 @@ export default function Dashboard() {
   const { addToast } = useToastStore();
 
   // Chart state
-  const [chartType, setChartType] = useState('area');
+  const [chartType, setChartType] = useState('line');
   const [visibleMetrics, setVisibleMetrics] = useState({ revenue: true, orders: true, users: false, profit: false });
   const [datePreset, setDatePreset] = useState('30');
   const [customStart, setCustomStart] = useState('');
@@ -542,9 +542,8 @@ export default function Dashboard() {
               <h3 className="text-sm sm:text-lg lg:text-xl font-bold text-gray-900">Sales</h3>
               <div className="flex bg-gray-100 p-0.5 rounded-lg">
                 {[
-                  { key: 'area', icon: TrendingUp },
                   { key: 'bar', icon: BarChart3 },
-                  { key: 'line', icon: TrendingUp },
+                  { key: 'line', icon: Activity },
                   { key: 'pie', icon: PieChartIcon },
                 ].map(({ key, icon: Icon }) => (
                   <button key={key} onClick={() => setChartType(key)}
@@ -574,15 +573,13 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <Suspense fallback={<LoadingSkeleton className="h-[220px] sm:h-[280px] lg:h-[360px] w-full" />}>
-            <ChartRenderer
+          <ChartRenderer
               chartType={chartType}
               visibleMetrics={visibleMetrics}
               mergedChartData={mergedChartData}
               pieData={pieData}
               chartLoading={chartLoading}
             />
-          </Suspense>
         </motion.div>
 
         {/* Top Products */}
