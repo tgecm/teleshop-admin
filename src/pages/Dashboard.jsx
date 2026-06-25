@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getStats, getOrdersByDay, getTopProducts, getUsersByDay, getProfitSummary } from '../api/stats';
 import { getImageUrl, getProducts } from '../api/products';
@@ -277,6 +277,20 @@ export default function Dashboard() {
   const pieData = useMemo(() => {
     return (topProducts || []).map((p) => ({ name: p.name, value: Number(p.total_revenue) || 0 }));
   }, [topProducts]);
+
+  const quickStats = useMemo(() => {
+    if (!mergedChartData?.length) return null;
+    const revenues = mergedChartData.map((d) => Number(d.revenue) || 0);
+    const totalRev = revenues.reduce((a, b) => a + b, 0);
+    const avgDaily = totalRev / revenues.length;
+    const maxRev = Math.max(...revenues);
+    const bestDay = mergedChartData.find((d) => Number(d.revenue) === maxRev)?.day;
+    const halfSize = Math.floor(revenues.length / 2);
+    const firstHalf = halfSize > 0 ? revenues.slice(0, halfSize).reduce((a, b) => a + b, 0) : 0;
+    const secondHalf = halfSize > 0 ? revenues.slice(revenues.length - halfSize).reduce((a, b) => a + b, 0) : 0;
+    const growth = halfSize > 1 && firstHalf > 0 ? ((secondHalf - firstHalf) / firstHalf) * 100 : null;
+    return { avgDailyRevenue: avgDaily, maxRevenue: maxRev, bestDay, growthRate: growth };
+  }, [mergedChartData]);
 
   // Generate CSV
   const generateCSV = useCallback(async () => {

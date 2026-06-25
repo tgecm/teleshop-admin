@@ -6,7 +6,7 @@ import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { getBotPublicSlug } from '../api/public';
 import { downloadBlob } from '../utils/download';
 import { QRCodeCanvas } from 'qrcode.react';
-import { Plus, Copy, Download, Trash2, QrCode, ExternalLink, Pen, SkipForward, RotateCcw, Ticket } from 'lucide-react';
+import { Plus, Copy, Download, Trash2, QrCode, ExternalLink, Pen, SkipForward, RotateCcw, Ticket, ChevronLeft } from 'lucide-react';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 
 export default function QRMenuTables() {
@@ -18,6 +18,7 @@ export default function QRMenuTables() {
   const [editingName, setEditingName] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [mode, setMode] = useState('table');
+  const [deletingToken, setDeletingToken] = useState(null);
 
   const { data: contentBlocks } = useQuery({
     queryKey: ['content-blocks', selectedBotId],
@@ -168,7 +169,33 @@ export default function QRMenuTables() {
     saveTokenMutation.mutate({ current: 0, next: 1, assigned: [] });
   };
 
+  const skipToken = () => {
+    const assigned = tokenQueue.assigned || [];
+    const current = tokenQueue.current || 0;
+    const served = assigned.filter(t => t <= current);
+    let waiting = assigned.filter(t => t > current);
+    if (waiting.length === 0) return;
+    const skipT = waiting.shift();
+    const insertAt = Math.min(5, waiting.length);
+    waiting.splice(insertAt, 0, skipT);
+    saveTokenMutation.mutate({ ...tokenQueue, assigned: [...served, ...waiting] });
+  };
+
+  const backToken = () => {
+    const current = tokenQueue.current || 0;
+    if (current <= 0) return;
+    saveTokenMutation.mutate({ ...tokenQueue, current: current - 1, assigned: [current, ...(tokenQueue.assigned || [])] });
+  };
+
+  const confirmDeleteToken = () => {
+    if (!deletingToken) return;
+    const newAssigned = (tokenQueue.assigned || []).filter(t => t !== deletingToken);
+    saveTokenMutation.mutate({ ...tokenQueue, current: (tokenQueue.current || 0) + 1, assigned: newAssigned });
+    setDeletingToken(null);
+  };
+
   const waitingCount = (tokenQueue.assigned || []).filter(t => t > (tokenQueue.current || 0)).length;
+  const firstWaiting = (tokenQueue.assigned || []).filter(t => t > (tokenQueue.current || 0))[0];
 
   return (
     <div className="space-y-5">
@@ -343,11 +370,35 @@ export default function QRMenuTables() {
               <div className="text-5xl font-black text-violet-600 mb-3">
                 #{String(tokenQueue.current || 0).padStart(3, '0')}
               </div>
-              <div className="flex gap-3 justify-center">
+              <div className="flex gap-2 justify-center flex-wrap">
+                <button
+                  onClick={() => setDeletingToken(tokenQueue.current)}
+                  disabled={(tokenQueue.current || 0) <= 0 || saveTokenMutation.isPending}
+                  className="px-3 py-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl font-bold text-xs hover:bg-rose-100 transition-all flex items-center gap-1.5 disabled:opacity-40 active:scale-95"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+                <button
+                  onClick={skipToken}
+                  disabled={!firstWaiting || saveTokenMutation.isPending}
+                  className="px-3 py-2.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center gap-1.5 disabled:opacity-40 active:scale-95"
+                >
+                  <SkipForward className="w-3.5 h-3.5" />
+                  Skip
+                </button>
+                <button
+                  onClick={backToken}
+                  disabled={(tokenQueue.current || 0) <= 0 || saveTokenMutation.isPending}
+                  className="px-3 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-100 transition-all flex items-center gap-1.5 disabled:opacity-40 active:scale-95"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Back
+                </button>
                 <button
                   onClick={advanceToken}
-                  disabled={saveTokenMutation.isPending}
-                  className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 text-white rounded-xl font-bold text-sm hover:from-violet-600 hover:to-indigo-600 transition-all flex items-center gap-2 disabled:opacity-50 active:scale-95 shadow-lg shadow-violet-200"
+                  disabled={!firstWaiting || saveTokenMutation.isPending}
+                  className="px-4 py-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 text-white rounded-xl font-bold text-sm hover:from-violet-600 hover:to-indigo-600 transition-all flex items-center gap-2 disabled:opacity-50 active:scale-95 shadow-lg shadow-violet-200"
                 >
                   <SkipForward className="w-4 h-4" />
                   Next →
@@ -453,6 +504,16 @@ export default function QRMenuTables() {
         confirmText="Delete"
         variant="danger"
         loading={saveMutation.isPending}
+      />
+      <ConfirmDialog
+        open={!!deletingToken}
+        onClose={() => setDeletingToken(null)}
+        onConfirm={confirmDeleteToken}
+        title={`Delete Token #${String(deletingToken || '').padStart(3, '0')}?`}
+        message="This will remove this token from the queue entirely. This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+        loading={saveTokenMutation.isPending}
       />
     </div>
   );

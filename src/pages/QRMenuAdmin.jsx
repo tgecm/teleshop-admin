@@ -1047,7 +1047,10 @@ export default function QRMenuAdmin() {
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">QR Menu System</h1>
+        <div>
+          <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">QR Menu System</h1>
+          <p className="text-xs sm:text-sm italic text-indigo-400 mt-1">We're trying hard to improve the user experience with lots of features</p>
+        </div>
       </div>
 
       {/* Toolbar: combined search+category | Orders | QR Menu | New Item */}
