@@ -739,7 +739,7 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   const orderFlowMode = data?.order_flow_mode || 'postpaid';
   const qrLanding = data?.qr_landing || {};
   const isBrowseOnly = orderFlowMode === 'browse_only';
-  const showWelcome = !isTokenUrlMode && dualModeEnabled && !tableProp && !!data && !isLoading && !error && !userDismissedWelcome;
+  const showWelcome = dualModeEnabled && !tableProp && !!data && !isLoading && !error && !userDismissedWelcome;
 
   const qrTheme = data?.qr_theme;
   const qrThemeColors = data?.qr_theme_colors || {};
@@ -821,7 +821,7 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
 
   useEffect(() => {
     if (data && !isLoading && !error) {
-      if (isTokenUrlMode) {
+      if (isTokenUrlMode && !dualModeEnabled) {
         setTokenMode(true);
         doAssignToken();
       }
@@ -939,8 +939,9 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   }, [closedWhileBrowsing]);
 
   const updateQty = useCallback((id, qty) => {
-    if (qty <= 0) { setOrderItems(prev => prev.filter(oi => (oi.cartKey || oi.item.id) !== id)); return; }
-    setOrderItems(prev => prev.map(oi => (oi.cartKey || oi.item.id) === id ? { ...oi, qty } : oi));
+    const key = String(id);
+    if (qty <= 0) { setOrderItems(prev => prev.filter(oi => String(oi.cartKey || oi.item.id) !== key)); return; }
+    setOrderItems(prev => prev.map(oi => String(oi.cartKey || oi.item.id) === key ? { ...oi, qty } : oi));
   }, []);
 
   const removeItem = useCallback((id) => setOrderItems(prev => prev.filter(oi => (oi.cartKey || oi.item.id) !== id)), []);
