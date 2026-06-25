@@ -658,7 +658,7 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   const [orderItems, setOrderItems] = useState([]);
   const [bannerSlide, setBannerSlide] = useState(0);
   const [wasEverOpen, setWasEverOpen] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(false);
+  const [userDismissedWelcome, setUserDismissedWelcome] = useState(false);
   const [tokenMode, setTokenMode] = useState(false);
   const [tokenNumber, setTokenNumber] = useState(null);
   const [showTokenCard, setShowTokenCard] = useState(false);
@@ -739,6 +739,7 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   const orderFlowMode = data?.order_flow_mode || 'postpaid';
   const qrLanding = data?.qr_landing || {};
   const isBrowseOnly = orderFlowMode === 'browse_only';
+  const showWelcome = !isTokenUrlMode && dualModeEnabled && !tableProp && !!data && !isLoading && !error && !userDismissedWelcome;
 
   const qrTheme = data?.qr_theme;
   const qrThemeColors = data?.qr_theme_colors || {};
@@ -802,15 +803,17 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   async function doAssignToken() {
     if (!slug) return;
     setAssigningToken(true);
+    setTokenMode(true);
     try {
-      const res = await fetch(`${API_BASE}/public/qr-menu/${slug}/assign-token`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/public/qr-menu/${slug}/assign-token`, {
+        method: 'POST',
+      });
       if (!res.ok) throw new Error('Failed to assign token');
-      const result = await res.json();
-      setTokenNumber(result.token_number);
-      setShowTokenCard(true);
-      setShowWelcome(false);
-    } catch {
-      // silently fail - token assignment is best-effort
+      const data = await res.json();
+      sessionStorage.setItem('qr_token', data.token_number);
+      setTokenNumber(data.token_number);
+    } catch (err) {
+      console.error('Token error:', err);
     } finally {
       setAssigningToken(false);
     }
@@ -821,11 +824,9 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
       if (isTokenUrlMode) {
         setTokenMode(true);
         doAssignToken();
-      } else if (dualModeEnabled && !tableProp) {
-        setShowWelcome(true);
       }
     }
-  }, [data, isLoading, error, dualModeEnabled, tableProp, isTokenUrlMode, slug]);
+  }, [data, isLoading, error, isTokenUrlMode, slug]);
 
   const dismissTokenCard = () => {
     setShowTokenCard(false);
@@ -1048,67 +1049,156 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   // Welcome Screen (Dual Mode)
   if (showWelcome) {
     return (
-      <div className="qr-page" style={finalThemeCss}>
-        <div className="qr-welcome-wrap">
-          <div className="qr-welcome-inner">
-            <div className="qr-welcome-brand">
-              {shop?.profile_picture ? (
-                <img src={shop.profile_picture} alt="" className="qr-welcome-avatar" />
-              ) : (
-                <div className="qr-welcome-avatar qr-welcome-avatar-fallback">🏪</div>
-              )}
-            </div>
-            <h1 className="qr-welcome-name">{shop?.bot_full_name}</h1>
-            <p className="qr-welcome-msg">{labels.welcome_message}</p>
-            <p className="qr-welcome-subtitle">How would you like to order?</p>
-            <div className="qr-welcome-choices">
-              <button className="qr-welcome-btn" onClick={() => {
-                setShowWelcome(false);
-                if (pointsSettings?.enabled && !customerId) setShowPhonePrompt(true);
-              }}>
-                <span className="qr-welcome-btn-icon">🪑</span>
-                <span className="qr-welcome-btn-label">Take a {labels.table_name}</span>
-                <span className="qr-welcome-btn-desc">Dine in & order</span>
-              </button>
-              <button
-                className="qr-welcome-btn qr-welcome-btn-secondary"
-                onClick={doAssignToken}
-                disabled={assigningToken}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="min-h-screen flex items-center justify-center p-6"
+        style={{
+          ...finalThemeCss,
+          background: `linear-gradient(160deg, var(--theme-primary, #4f46e5) 0%, #1e1b4b 100%)`,
+          fontFamily: 'system-ui,-apple-system,sans-serif',
+        }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
+          className="w-full max-w-sm text-center"
+        >
+          {/* Shop Logo */}
+          <div className="flex justify-center mb-5">
+            {shop?.profile_picture ? (
+              <img
+                src={shop.profile_picture}
+                alt=""
+                className="w-24 h-24 rounded-full object-cover shadow-2xl ring-4"
+                style={{ borderColor: 'rgba(255,255,255,0.25)' }}
+              />
+            ) : (
+              <div
+                className="w-24 h-24 rounded-full flex items-center justify-center text-3xl shadow-2xl ring-4"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05))',
+                  borderColor: 'rgba(255,255,255,0.25)',
+                }}
               >
-                <span className="qr-welcome-btn-icon">🎫</span>
-                <span className="qr-welcome-btn-label">Get a Token</span>
-                <span className="qr-welcome-btn-desc">Walk-in queue</span>
-              </button>
-            </div>
-            {assigningToken && <p className="qr-welcome-loading">Getting your token...</p>}
+                🏪
+              </div>
+            )}
           </div>
-        </div>
-        <style>{`
-          *, *::before, *::after { box-sizing: border-box; }
-          body { margin: 0; }
-          .qr-page { min-height: 100vh; background: var(--theme-bg, #f7f5f0); font-family: system-ui,-apple-system,sans-serif; }
-          .qr-welcome-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-          .qr-welcome-inner { text-align: center; max-width: 380px; width: 100%; }
-          .qr-welcome-brand { margin-bottom: 16px; }
-          .qr-welcome-avatar { width: 80px; height: 80px; border-radius: 20px; object-fit: cover; box-shadow: 0 4px 20px var(--theme-primary-shadow, rgba(79,70,229,0.2)); }
-          .qr-welcome-avatar-fallback { background: linear-gradient(135deg, var(--theme-primary, #4f46e5), #7c3aed); display: flex; align-items: center; justify-content: center; font-size: 32px; width: 80px; height: 80px; border-radius: 20px; margin: 0 auto; }
-          .qr-welcome-name { font-size: 24px; font-weight: 800; color: #1a1a1a; margin: 0 0 4px; }
-          .qr-welcome-msg { font-size: 15px; color: #666; margin: 0 0 24px; }
-          .qr-welcome-subtitle { font-size: 13px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 16px; }
-          .qr-welcome-choices { display: flex; flex-direction: column; gap: 12px; }
-          .qr-welcome-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 20px; border: 2px solid var(--theme-primary, #4f46e5); border-radius: 20px; background: var(--theme-primary-light, #eef2ff); cursor: pointer; transition: all 0.2s; }
-          .qr-welcome-btn:active { transform: scale(0.97); }
-          .qr-welcome-btn-secondary { background: #fff; border-color: #e5e7eb; }
-          .qr-welcome-btn-secondary:active { border-color: var(--theme-primary, #4f46e5); }
-          .qr-welcome-btn-icon { font-size: 36px; line-height: 1; }
-          .qr-welcome-btn-label { font-size: 16px; font-weight: 700; color: #1a1a1a; }
-          .qr-welcome-btn-desc { font-size: 12px; color: #888; }
-          .qr-welcome-loading { margin-top: 16px; font-size: 13px; color: var(--theme-primary, #4f46e5); font-weight: 600; }
-          @media (min-width: 640px) {
-            .qr-welcome-choices { flex-direction: row; }
-          }
-        `}</style>
-      </div>
+
+          {/* Shop Name */}
+          <h1 className="text-2xl font-bold text-white mt-1 mb-2">
+            {shop?.bot_full_name}
+          </h1>
+
+          {/* Welcome Message */}
+          <p className="text-sm text-white/60 mb-10">
+            {labels.welcome_message}
+          </p>
+
+          {/* Divider */}
+          <div className="flex items-center gap-4 mb-5">
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.12)' }} />
+            <span className="text-[11px] font-bold tracking-[2px] text-white/40 uppercase whitespace-nowrap">
+              How would you like to order?
+            </span>
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.12)' }} />
+          </div>
+
+          {/* Mode Cards */}
+          <div className="flex gap-3">
+            {/* Table */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                setUserDismissedWelcome(true);
+                if (pointsSettings?.enabled && !customerId) setShowPhonePrompt(true);
+              }}
+              className="flex-1 min-h-[160px] rounded-2xl border p-5 flex flex-col items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md"
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                borderColor: 'rgba(255,255,255,0.15)',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              <span className="text-4xl leading-none">🪑</span>
+              <span className="text-[15px] font-bold text-white mt-3">Take a {labels.table_name}</span>
+              <span className="text-[11px] text-white/40 mt-1">Dine in & order</span>
+            </motion.button>
+
+            {/* Token */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={doAssignToken}
+              disabled={assigningToken}
+              className="flex-1 min-h-[160px] rounded-2xl border p-5 flex flex-col items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md"
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                borderColor: 'rgba(255,255,255,0.15)',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              <span className="text-4xl leading-none">🎫</span>
+              <span className="text-[15px] font-bold text-white mt-3">Get a Token</span>
+              <span className="text-[11px] text-white/40 mt-1">Walk-in queue</span>
+            </motion.button>
+          </div>
+
+          {assigningToken && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center mt-5 text-sm text-white/60"
+            >
+              Getting your token...
+            </motion.p>
+          )}
+
+          {tokenNumber && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 flex items-center justify-center p-6"
+              style={{ background: 'rgba(0,0,0,0.55)', zIndex: 50 }}
+              onClick={() => setUserDismissedWelcome(true)}
+            >
+              <motion.div
+                initial={{ y: 100, opacity: 0, scale: 0.8 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+                className="bg-white rounded-[28px] p-8 text-center max-w-xs w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-5xl mb-4">🎫</div>
+                <p className="text-sm font-semibold text-gray-400 uppercase tracking-[1px] mb-2">
+                  Your Token Number
+                </p>
+                <motion.div
+                  initial={{ scale: 0.3, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', damping: 8, stiffness: 120, delay: 0.15 }}
+                  className="text-5xl font-black my-3 tracking-[4px] leading-none"
+                  style={{ color: 'var(--theme-primary, #4f46e5)' }}
+                >
+                  #{String(tokenNumber).padStart(3, '0')}
+                </motion.div>
+                <p className="text-sm text-gray-400 mb-6">Show this number at the counter</p>
+                <button
+                  onClick={() => setUserDismissedWelcome(true)}
+                  className="w-full py-3 px-6 rounded-xl font-bold text-white border-none cursor-pointer text-sm"
+                  style={{ background: 'linear-gradient(to right, var(--theme-primary, #4f46e5), #4338ca)' }}
+                >
+                  Browse Menu →
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </motion.div>
+      </motion.div>
     );
   }
 
@@ -1613,7 +1703,14 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
               <div className="token-card-body">
                 <div className="token-card-icon">🎫</div>
                 <p className="token-card-label">Your Token Number</p>
-                <div className="token-card-number">#{String(tokenNumber).padStart(3, '0')}</div>
+                <motion.div
+                  initial={{ scale: 0.3, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', damping: 8, stiffness: 120, delay: 0.15 }}
+                  className="token-card-number"
+                >
+                  #{String(tokenNumber).padStart(3, '0')}
+                </motion.div>
                 <p className="token-card-hint">Show this number at the counter</p>
                 <button
                   className="modal-add-btn token-card-btn"

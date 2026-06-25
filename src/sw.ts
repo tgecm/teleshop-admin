@@ -29,17 +29,20 @@ registerRoute(
   new CacheFirst({cacheName: 'image-cache'}),
 );
 
-// Note: skipWaiting intentionally omitted so that onNeedRefresh fires properly
-// via workbox-window. The page reloads automatically when a new SW is detected.
-
 self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
+const PRESERVE_CACHES = ['image-cache', 'img-cache-v1'];
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.map(key => caches.delete(key)))
+      Promise.all(
+        keys
+          .filter(key => !PRESERVE_CACHES.includes(key))
+          .map(key => caches.delete(key))
+      )
     ).then(() => self.clients.claim())
   );
 });

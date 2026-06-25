@@ -11,16 +11,14 @@ import {
   DollarSign, ShoppingBag, Users, Clock, TrendingUp, Trophy, Sparkles, Zap, Package,
   BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, X, Loader2, ArrowLeftRight, AlertTriangle,
 } from 'lucide-react';
-import {
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-} from 'recharts';
 import { motion } from 'motion/react';
 import { parseISO, differenceInDays, subDays, addDays } from 'date-fns';
+const ChartRenderer = React.lazy(() => import('../components/dashboard/ChartRenderer'));
 import { myanmarFormat } from '../utils/date';
 import { downloadText } from '../utils/download';
 import { useToastStore } from '../store/toastStore';
 import InstallPrompt from '../components/InstallPrompt';
+import CachedImage from '../components/shared/CachedImage';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -32,39 +30,12 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: 'spring', damping: 22, stiffness: 200 } },
 };
 
-const CHART_COLORS = ['#4f46e5', '#34d399', '#f43f5e', '#f59e0b', '#8b5cf6', '#06b6d4'];
 const METRIC_CONFIG = {
   revenue: { label: 'Revenue', color: '#4f46e5', gradient: 'revGrad' },
   orders: { label: 'Orders', color: '#34d399', gradient: 'ordGrad' },
   users: { label: 'Users', color: '#f43f5e', gradient: 'usersGrad' },
   profit: { label: 'Profit', color: '#22c55e', gradient: 'profitGrad' },
 };
-
-function ChartTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null;
-  const formatted = (() => {
-    try { return myanmarFormat(parseISO(label), 'MMM d, yyyy'); }
-    catch { return label; }
-  })();
-  return (
-    <div className="bg-white rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.15)] px-3 py-2 border border-gray-50/50">
-      <p className="text-[10px] font-semibold text-gray-400 mb-1">{formatted}</p>
-      {payload.map((entry, idx) => (
-        <div key={idx} className="flex items-center justify-between gap-2 py-[1px]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
-            <span className="text-[11px] font-medium text-gray-500">{entry.name}</span>
-          </div>
-          <span className="text-[11px] font-bold text-gray-800 tabular-nums">
-            {entry.name === 'Revenue' || entry.name === 'Profit'
-              ? `${Number(entry.value).toLocaleString()} MMK`
-              : entry.value}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function MiniMetric({ icon: Icon, label, value, sub, color = 'indigo', period, onPeriodChange }) {
   const colors = {
@@ -150,30 +121,6 @@ export default function Dashboard() {
   });
   const totalStockValue = allProducts?.totalStockValue || 0;
 
-  // Tooltip smart positioning
-  const chartWrapperRef = useRef(null);
-  const [cursorXY, setCursorXY] = useState(null);
-
-  const handleChartPointerMove = useCallback((e) => {
-    const el = chartWrapperRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    setCursorXY({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  }, []);
-
-  const handleChartPointerLeave = useCallback(() => setCursorXY(null), []);
-
-  // Compute tooltip position based on cursor side
-  const tooltipPosition = useMemo(() => {
-    if (!cursorXY || !chartWrapperRef.current) return undefined;
-    const { width } = chartWrapperRef.current.getBoundingClientRect();
-    const isRightHalf = cursorXY.x > width / 2;
-    return {
-      x: isRightHalf ? Math.max(2, cursorXY.x - 180) : cursorXY.x + 15,
-      y: Math.max(5, cursorXY.y - 100),
-    };
-  }, [cursorXY]);
-
   // Export modal state
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportOpts, setExportOpts] = useState({
@@ -224,6 +171,7 @@ export default function Dashboard() {
     queryKey: ['stats', selectedBotId, datePreset, customStart, customEnd],
     queryFn: () => getStats(statsParams),
     enabled: !!selectedBotId,
+    placeholderData: (prev) => prev,
   });
 
   // Separate period stats — only fetches items_sold / products_sold by period
@@ -245,6 +193,7 @@ export default function Dashboard() {
     queryKey: ['stats', 'orders-by-day', queryParams],
     queryFn: () => getOrdersByDay(queryParams),
     enabled: !!selectedBotId,
+    placeholderData: (prev) => prev,
   });
 
   const { data: usersByDay } = useQuery({
@@ -258,12 +207,14 @@ export default function Dashboard() {
     queryKey: ['stats', 'top-products', selectedBotId],
     queryFn: () => getTopProducts({ bot_id: Number(selectedBotId), limit: 10 }),
     enabled: !!selectedBotId,
+    placeholderData: (prev) => prev,
   });
 
   const { data: profitSummary } = useQuery({
     queryKey: ['stats', 'profit-summary', selectedBotId],
     queryFn: () => getProfitSummary({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
+    placeholderData: (prev) => prev,
   });
 
 
@@ -326,22 +277,6 @@ export default function Dashboard() {
   const pieData = useMemo(() => {
     return (topProducts || []).map((p) => ({ name: p.name, value: Number(p.total_revenue) || 0 }));
   }, [topProducts]);
-
-  // Quick stats
-  const quickStats = useMemo(() => {
-    if (!mergedChartData?.length) return null;
-    const revenues = mergedChartData.map((d) => Number(d.revenue) || 0);
-    const totalRev = revenues.reduce((a, b) => a + b, 0);
-    const avgDaily = totalRev / revenues.length;
-    const maxRev = Math.max(...revenues);
-    const bestDay = mergedChartData.find((d) => Number(d.revenue) === maxRev)?.day;
-    // Compare equal-sized first vs second half
-    const halfSize = Math.floor(revenues.length / 2);
-    const firstHalf = halfSize > 0 ? revenues.slice(0, halfSize).reduce((a, b) => a + b, 0) : 0;
-    const secondHalf = halfSize > 0 ? revenues.slice(revenues.length - halfSize).reduce((a, b) => a + b, 0) : 0;
-    const growth = halfSize > 1 && firstHalf > 0 ? ((secondHalf - firstHalf) / firstHalf) * 100 : null;
-    return { avgDailyRevenue: avgDaily, maxRevenue: maxRev, bestDay, growthRate: growth };
-  }, [mergedChartData]);
 
   // Generate CSV
   const generateCSV = useCallback(async () => {
@@ -625,115 +560,15 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Chart area */}
-          <div ref={chartWrapperRef} className="h-[220px] sm:h-[280px] lg:h-[360px] w-full" onMouseMove={handleChartPointerMove} onMouseLeave={handleChartPointerLeave}>
-            {chartLoading ? (
-              <LoadingSkeleton className="w-full h-full" />
-            ) : chartType === 'pie' ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100}
-                    paddingAngle={3} dataKey="value" animationDuration={600}>
-                    {pieData.map((_, idx) => (
-                      <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                {chartType === 'area' ? (
-                  <AreaChart data={mergedChartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="ordGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#34d399" stopOpacity={0.08} />
-                        <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="usersGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1} />
-                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} dy={10}
-                      tickFormatter={(v) => { try { return myanmarFormat(parseISO(v), 'd MMM'); } catch { return v; } }} />
-                    <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
-                      tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
-                    <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
-                    {visibleMetrics.revenue && <Area yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#4f46e5" strokeWidth={2.5} fillOpacity={1} fill="url(#revGrad)" animationDuration={800} animationEasing="ease-out" />}
-                    {visibleMetrics.orders && <Area yAxisId="right" type="monotone" dataKey="count" name="Orders" stroke="#34d399" strokeWidth={2} fillOpacity={1} fill="url(#ordGrad)" animationDuration={800} animationEasing="ease-out" animationBegin={200} />}
-                    {visibleMetrics.users && <Area yAxisId="right" type="monotone" dataKey="users" name="Users" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#usersGrad)" animationDuration={800} animationEasing="ease-out" animationBegin={400} />}
-                    {visibleMetrics.profit && <Area yAxisId="left" type="monotone" dataKey="profit" name="Profit" stroke="#22c55e" strokeWidth={2.5} fillOpacity={1} fill="url(#profitGrad)" animationDuration={800} animationEasing="ease-out" animationBegin={600} />}
-                  </AreaChart>
-                ) : chartType === 'bar' ? (
-                  <BarChart data={mergedChartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} dy={10}
-                      tickFormatter={(v) => { try { return myanmarFormat(parseISO(v), 'd MMM'); } catch { return v; } }} />
-                    <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
-                      tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
-                    <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f9fafb' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
-                    {visibleMetrics.revenue && <Bar yAxisId="left" dataKey="revenue" name="Revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} animationDuration={600} />}
-                    {visibleMetrics.orders && <Bar yAxisId="right" dataKey="count" name="Orders" fill="#34d399" radius={[4, 4, 0, 0]} animationDuration={600} animationBegin={150} />}
-                    {visibleMetrics.users && <Bar yAxisId="right" dataKey="users" name="Users" fill="#f43f5e" radius={[4, 4, 0, 0]} animationDuration={600} animationBegin={300} />}
-                    {visibleMetrics.profit && <Bar yAxisId="left" dataKey="profit" name="Profit" fill="#22c55e" radius={[4, 4, 0, 0]} animationDuration={600} animationBegin={450} />}
-                  </BarChart>
-                ) : (
-                  <LineChart data={mergedChartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} dy={10}
-                      tickFormatter={(v) => { try { return myanmarFormat(parseISO(v), 'd MMM'); } catch { return v; } }} />
-                    <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
-                      tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
-                    <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
-                    {visibleMetrics.revenue && <Line yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#4f46e5" strokeWidth={2.5} dot={false} animationDuration={800} />}
-                    {visibleMetrics.orders && <Line yAxisId="right" type="monotone" dataKey="count" name="Orders" stroke="#34d399" strokeWidth={2} dot={false} animationDuration={800} animationBegin={200} />}
-                    {visibleMetrics.users && <Line yAxisId="right" type="monotone" dataKey="users" name="Users" stroke="#f43f5e" strokeWidth={2} dot={false} animationDuration={800} animationBegin={400} />}
-                    {visibleMetrics.profit && <Line yAxisId="left" type="monotone" dataKey="profit" name="Profit" stroke="#22c55e" strokeWidth={2.5} dot={false} animationDuration={800} animationBegin={600} />}
-                  </LineChart>
-                )}
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          {/* Quick stats */}
-          {quickStats && (
-            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100">
-              <div className="text-center">
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Best Day</p>
-                <p className="text-sm font-bold text-gray-900 mt-0.5">
-                  {quickStats.bestDay ? (() => { try { return myanmarFormat(parseISO(quickStats.bestDay), 'd MMM'); } catch { return quickStats.bestDay; } })() : '—'}
-                </p>
-                <p className="text-[10px] text-indigo-600 font-semibold">{quickStats.maxRevenue.toLocaleString()} MMK</p>
-              </div>
-              <div className="text-center border-x border-gray-100">
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Avg Daily</p>
-                <p className="text-sm font-bold text-gray-900 mt-0.5">{Math.round(quickStats.avgDailyRevenue).toLocaleString()} MMK</p>
-              </div>
-              <div className="text-center">
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Growth</p>
-                {quickStats.growthRate !== null ? (
-                  <p className={`text-sm font-bold mt-0.5 ${quickStats.growthRate >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {quickStats.growthRate >= 0 ? '+' : ''}{quickStats.growthRate.toFixed(1)}%
-                  </p>
-                ) : (
-                  <p className="text-sm font-bold mt-0.5 text-gray-300">—</p>
-                )}
-              </div>
-            </div>
-          )}
+          <Suspense fallback={<LoadingSkeleton className="h-[220px] sm:h-[280px] lg:h-[360px] w-full" />}>
+            <ChartRenderer
+              chartType={chartType}
+              visibleMetrics={visibleMetrics}
+              mergedChartData={mergedChartData}
+              pieData={pieData}
+              chartLoading={chartLoading}
+            />
+          </Suspense>
         </motion.div>
 
         {/* Top Products */}
@@ -753,7 +588,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors">
                         <div className="relative w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0">
                           {product.image_url
-                            ? <img src={getImageUrl(product.image_url, selectedBotId)} alt={product.name}
+                            ? <CachedImage src={getImageUrl(product.image_url, selectedBotId)} alt={product.name}
                                 className="w-full h-full rounded-lg object-cover"
                                 onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }} />
                             : null}

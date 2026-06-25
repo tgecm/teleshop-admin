@@ -8,6 +8,7 @@ import { getBots } from './api/bots';
 import { getAllBots } from './api/superadmin';
 import { normalizeText } from './utils/normalizeText';
 import { updatePwaManifest } from './utils/dynamicManifest';
+import { preloadImage } from './utils/imageCache';
 import { NotificationToast } from './components/NotificationToast';
 import VpnWarningModal from './components/VpnWarningModal';
 import ToastContainer from './components/shared/ToastContainer';
@@ -146,7 +147,8 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: 1,
-      staleTime: 30000,
+      staleTime: 5 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
     },
   },
 });
@@ -289,6 +291,7 @@ export default function App() {
           icon.setAttribute('href', '/vite.svg');
         }
         updatePwaManifest(name, bot.profile_picture);
+        if (bot.profile_picture) preloadImage(bot.profile_picture);
       } else {
         document.title = 'E-commerce Myanmar';
       }

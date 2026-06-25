@@ -5,6 +5,7 @@ import { uploadImage, getImageUrl } from '../api/products';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import CachedImage from '../components/shared/CachedImage';
 import {
   Plus,
   CreditCard,
@@ -224,7 +225,7 @@ export default function Payments() {
                   </span>
                   {payment.qr_code_url && (
                     <div className="relative group">
-                      <img
+                      <CachedImage
                         src={getImageUrl(payment.qr_code_url, selectedBotId)}
                         alt="QR"
                         className="w-10 h-10 rounded-xl object-cover border border-gray-200"
@@ -340,7 +341,7 @@ export default function Payments() {
                     />
                     {formData.qr_code_url ? (
                       <div className="relative w-40 h-40 mx-auto">
-                        <img
+                        <CachedImage
                           src={getImageUrl(formData.qr_code_url, selectedBotId)}
                           alt="QR Code"
                           className="w-full h-full object-cover rounded-2xl border border-gray-200"

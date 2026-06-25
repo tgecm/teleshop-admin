@@ -83,12 +83,14 @@ export default function Orders() {
     queryKey: ['orders', selectedBotId],
     queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
+    placeholderData: (prev) => prev,
   });
 
   const { data: contentBlocks } = useQuery({
     queryKey: ['content-blocks', selectedBotId],
     queryFn: () => getContentBlocks({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
+    placeholderData: (prev) => prev,
   });
 
   const receiptSettingsBlock = contentBlocks?.find(b => b.key === 'receipt_settings');

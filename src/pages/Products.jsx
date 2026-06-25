@@ -9,6 +9,7 @@ import { downloadBlob } from '../utils/download';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import SearchableSelect from '../components/shared/SearchableSelect';
+import CachedImage from '../components/shared/CachedImage';
 import ProductSorting from '../components/ProductSorting';
 import {
   Plus, Search, Edit2, Trash2, Package, Tag, MoreVertical, X,
@@ -87,12 +88,14 @@ export default function Products() {
     queryKey: ['products', selectedBotId],
     queryFn: () => getProducts({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
+    placeholderData: (prev) => prev,
   });
 
   const { data: categories } = useQuery({
     queryKey: ['categories', selectedBotId],
     queryFn: () => getCategories({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
+    placeholderData: (prev) => prev,
   });
 
   const createMutation = useMutation({
@@ -443,7 +446,7 @@ export default function Products() {
                   <div className="absolute top-1.5 left-1.5 md:top-2 md:left-2 z-10 w-2 h-2 md:w-2.5 md:h-2.5 bg-orange-400/70 rounded-full" />
                 )}
                 {product.image_url ? (
-                  <img
+                  <CachedImage
                     src={getImageUrl(product.image_url, selectedBotId)}
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
@@ -1738,7 +1741,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             <div className={images.length === 1 ? 'flex justify-center' : 'grid grid-cols-4 gap-2'}>
               {images.map((img, index) => (
                 <div key={index} className={`relative ${images.length === 1 ? 'w-48 h-48' : 'aspect-square'}`}>
-                  <img
+                  <CachedImage
                     src={getImageUrl(img.file_id, selectedBotId)}
                     alt={`Photo ${index + 1}`}
                     className="w-full h-full object-cover rounded-2xl border border-gray-200"
@@ -1797,7 +1800,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
                       style={{ backgroundColor: c.color }}
                     >
                       {c.file_id && (
-                        <img
+                        <CachedImage
                           src={getImageUrl(c.file_id, selectedBotId)}
                           alt={c.color}
                           className="w-full h-full object-cover"

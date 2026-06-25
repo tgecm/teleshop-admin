@@ -32,12 +32,14 @@ export default function Customers() {
     queryKey: ['users', 'customers', selectedBotId],
     queryFn: () => getUsers({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId && section === 'telegram',
+    placeholderData: (prev) => prev,
   });
 
   const { data: webCustomers, isLoading: webLoading, refetch: refetchWeb } = useQuery({
     queryKey: ['web-customers', selectedBotId],
     queryFn: () => getWebCustomers(Number(selectedBotId)),
     enabled: !!selectedBotId && section === 'website',
+    placeholderData: (prev) => prev,
   });
 
   const handleRefresh = useCallback(async () => {
@@ -53,6 +55,7 @@ export default function Customers() {
     queryKey: ['orders', selectedBotId],
     queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
+    placeholderData: (prev) => prev,
   });
 
   const toggleBlockMutation = useMutation({
