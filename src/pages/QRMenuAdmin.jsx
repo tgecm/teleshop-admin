@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getQRMenuItems, createQRMenuItem, updateQRMenuItem, deleteQRMenuItem, getQRMenuCategories, createQRMenuCategory, updateQRMenuCategory, deleteQRMenuCategory } from '../api/qrMenu';
+import { getQRMenuItems, createQRMenuItem, updateQRMenuItem, deleteQRMenuItem, getQRMenuCategories, createQRMenuCategory, updateQRMenuCategory, deleteQRMenuCategory, getCustomers, getCustomerDetail, adjustCustomerPoints, getCoupons, createCoupon, deleteCoupon } from '../api/qrMenu';
+import { BUSINESS_THEMES } from '../themes/themes';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { uploadImage } from '../api/products';
 import { getBotPublicSlug } from '../api/public';
+import { API_BASE } from '../api/config';
 import client from '../api/client';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
@@ -12,17 +14,76 @@ import ConfirmDialog from '../components/shared/ConfirmDialog';
 import {
   Plus, Search, Edit2, Trash2, Utensils, ImageUp, X, Copy,
   ExternalLink, Loader2, FolderPlus, Tag, Package, QrCode,
-  ClipboardList
+  ClipboardList, Palette, Award, Ticket, Users, Hash,
+  Gift, RotateCcw, Sparkles, Check, Percent
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const DIETARY_BADGES = [
-  { value: 'vegetarian', label: 'Vegetarian', emoji: '🥬', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  { value: 'vegan', label: 'Vegan', emoji: '🌱', color: 'bg-green-100 text-green-700 border-green-200' },
-  { value: 'spicy', label: 'Spicy', emoji: '🌶️', color: 'bg-red-100 text-red-700 border-red-200' },
-  { value: 'gluten-free', label: 'Gluten Free', emoji: '🌾', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  { value: 'popular', label: 'Popular', emoji: '⭐', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+const BUSINESS_BADGES = {
+  restaurant: [
+    { value: 'vegetarian', label: 'Vegetarian', emoji: '🥬', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    { value: 'vegan', label: 'Vegan', emoji: '🌱', color: 'bg-green-100 text-green-700 border-green-200' },
+    { value: 'spicy', label: 'Spicy', emoji: '🌶️', color: 'bg-red-100 text-red-700 border-red-200' },
+    { value: 'gluten-free', label: 'Gluten Free', emoji: '🌾', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+    { value: 'popular', label: 'Popular', emoji: '⭐', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    { value: 'new', label: 'New', emoji: '🆕', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+  ],
+  cafe: [
+    { value: 'hot', label: 'Hot', emoji: '☕', color: 'bg-red-100 text-red-700 border-red-200' },
+    { value: 'iced', label: 'Iced', emoji: '🧊', color: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
+    { value: 'vegan', label: 'Vegan', emoji: '🌱', color: 'bg-green-100 text-green-700 border-green-200' },
+    { value: 'popular', label: 'Popular', emoji: '⭐', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    { value: 'new', label: 'New', emoji: '🆕', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+    { value: 'seasonal', label: 'Seasonal', emoji: '🍂', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  ],
+  bakery: [
+    { value: 'new', label: 'New', emoji: '🆕', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+    { value: 'fresh', label: 'Fresh', emoji: '🔥', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+    { value: 'vegan', label: 'Vegan', emoji: '🌱', color: 'bg-green-100 text-green-700 border-green-200' },
+    { value: 'popular', label: 'Popular', emoji: '⭐', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    { value: 'limited', label: 'Limited', emoji: '⏳', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+    { value: 'seasonal', label: 'Seasonal', emoji: '🎂', color: 'bg-pink-100 text-pink-700 border-pink-200' },
+  ],
+  salon: [
+    { value: 'popular', label: 'Popular', emoji: '⭐', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    { value: 'new', label: 'New', emoji: '🆕', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+    { value: 'express', label: 'Express', emoji: '⚡', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+    { value: 'relaxing', label: 'Relaxing', emoji: '💆', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+    { value: 'premium', label: 'Premium', emoji: '👑', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  ],
+  retail: [
+    { value: 'new', label: 'New', emoji: '🆕', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+    { value: 'sale', label: 'Sale', emoji: '🔥', color: 'bg-red-100 text-red-700 border-red-200' },
+    { value: 'popular', label: 'Popular', emoji: '⭐', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    { value: 'limited', label: 'Limited', emoji: '📦', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+    { value: 'premium', label: 'Premium', emoji: '👑', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  ],
+  custom: [
+    { value: 'popular', label: 'Popular', emoji: '⭐', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+    { value: 'new', label: 'New', emoji: '🆕', color: 'bg-sky-100 text-sky-700 border-sky-200' },
+    { value: 'sale', label: 'Sale', emoji: '🔥', color: 'bg-red-100 text-red-700 border-red-200' },
+    { value: 'limited', label: 'Limited', emoji: '⏳', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+    { value: 'premium', label: 'Premium', emoji: '👑', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  ],
+};
+
+const BUSINESS_MODES = [
+  { value: 'restaurant', label: 'Restaurant', emoji: '🍽️', description: 'Table ordering with dine-in experience' },
+  { value: 'cafe', label: 'Café', emoji: '☕', description: 'Table or walk-in token ordering' },
+  { value: 'bakery', label: 'Bakery', emoji: '🎂', description: 'Walk-in token queue with product showcase' },
+  { value: 'salon', label: 'Salon/Spa', emoji: '💆', description: 'Service menu with appointment slots' },
+  { value: 'retail', label: 'Retail', emoji: '🛍️', description: 'Product catalog with walk-in token queue' },
+  { value: 'custom', label: 'Custom', emoji: '⚙️', description: 'Fully customized for your business' },
 ];
+
+const LABEL_DEFAULTS = {
+  restaurant: { section_name: 'QR Menu', table_name: 'Table', menu_section_title: 'Menu Items', categories_label: 'Categories', add_to_order: 'Add to Order', cart_title: 'Your Order', checkout_hint: 'Share with staff', closed_message: 'We\'re Closed', welcome_message: 'Welcome!' },
+  cafe: { section_name: 'Digital Menu', table_name: 'Seat', menu_section_title: 'Our Menu', categories_label: 'Categories', add_to_order: 'Add to Order', cart_title: 'Your Order', checkout_hint: 'Show at counter', closed_message: 'We\'re Closed', welcome_message: 'Welcome!' },
+  bakery: { section_name: 'Menu', table_name: 'Queue', menu_section_title: 'Our Products', categories_label: 'Categories', add_to_order: 'Add to Cart', cart_title: 'Your Cart', checkout_hint: 'Show at counter', closed_message: 'Back Soon!', welcome_message: 'Welcome!' },
+  salon: { section_name: 'Services', table_name: 'Slot', menu_section_title: 'Our Services', categories_label: 'Service Types', add_to_order: 'Book Now', cart_title: 'Your Booking', checkout_hint: 'Check in at desk', closed_message: 'Back Soon!', welcome_message: 'Welcome!' },
+  retail: { section_name: 'Products', table_name: 'Counter', menu_section_title: 'Our Products', categories_label: 'Categories', add_to_order: 'Add to Cart', cart_title: 'Your Cart', checkout_hint: 'Show at counter', closed_message: 'We\'re Closed', welcome_message: 'Welcome!' },
+  custom: { section_name: '', table_name: '', menu_section_title: '', categories_label: '', add_to_order: '', cart_title: '', checkout_hint: '', closed_message: '', welcome_message: '' },
+};
 
 function compressImage(file) {
   return new Promise((resolve) => {
@@ -59,7 +120,7 @@ function getItemImageUrls(image_url, botId) {
   return [`${API_BASE}/telegram/file/${encodeURIComponent(image_url)}?bot_id=${botId}`];
 }
 
-function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selectedBotId }) {
+function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selectedBotId, badgeOptions }) {
   const [formData, setFormData] = useState({
     name: item?.name || '',
     description: item?.description || '',
@@ -81,6 +142,10 @@ function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selected
   });
   const [uploading, setUploading] = useState(false);
   const fileInputRef = null;
+  const [variants, setVariants] = useState(item?.data?.variants || []);
+  const [addons, setAddons] = useState(item?.data?.addons || []);
+  const [showVariants, setShowVariants] = useState(false);
+  const [showAddons, setShowAddons] = useState(false);
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -156,13 +221,21 @@ function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selected
     const imageUrl = images.length > 0
       ? JSON.stringify(images.map(img => ({ file_id: img.file_id, type: 'photo' })))
       : null;
-    onSubmit({
+    const payload = {
       ...formData,
       bot_id: Number(selectedBotId),
       price: Number(formData.price),
       category_id: formData.category_id ? Number(formData.category_id) : null,
       image_url: imageUrl,
-    });
+    };
+    const hasVariants = variants.length > 0 && variants.some(v => v.options?.length > 0);
+    const hasAddons = addons.length > 0;
+    if (hasVariants || hasAddons) {
+      payload.data = {};
+      if (hasVariants) payload.data.variants = variants;
+      if (hasAddons) payload.data.addons = addons;
+    }
+    onSubmit(payload);
   };
 
   return (
@@ -414,10 +487,193 @@ function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selected
           />
         </div>
 
+        {/* Variants Section */}
+        <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowVariants(!showVariants)}
+            className="w-full flex items-center justify-between p-3 hover:bg-gray-100/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              <span className="text-sm font-bold text-gray-700">Variants</span>
+              {variants.length > 0 && <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-md">{variants.filter(v => v.options?.length > 0).length} groups</span>}
+            </div>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showVariants ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          {showVariants && (
+            <div className="px-3 pb-3 border-t border-gray-100 pt-2 space-y-3">
+              {variants.map((vg, vi) => (
+                <div key={vi} className="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={vg.group}
+                      onChange={(e) => {
+                        const next = [...variants];
+                        next[vi] = { ...next[vi], group: e.target.value };
+                        setVariants(next);
+                      }}
+                      placeholder="e.g. Size"
+                      className="flex-1 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                    <label className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={vg.required !== false}
+                        onChange={(e) => {
+                          const next = [...variants];
+                          next[vi] = { ...next[vi], required: e.target.checked };
+                          setVariants(next);
+                        }}
+                        className="rounded"
+                      />
+                      Required
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setVariants(prev => prev.filter((_, i) => i !== vi))}
+                      className="p-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all flex-shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {(vg.options || []).map((opt, oi) => (
+                    <div key={oi} className="flex items-center gap-2 ml-2">
+                      <input
+                        type="text"
+                        value={opt.label}
+                        onChange={(e) => {
+                          const next = [...variants];
+                          next[vi].options[oi] = { ...next[vi].options[oi], label: e.target.value };
+                          setVariants(next);
+                        }}
+                        placeholder="Option name"
+                        className="flex-1 px-2 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-xs outline-none focus:ring-2 focus:ring-orange-500"
+                      />
+                      <div className="relative flex-shrink-0">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold">+</span>
+                        <input
+                          type="number"
+                          value={opt.price_add ?? ''}
+                          onChange={(e) => {
+                            const next = [...variants];
+                            next[vi].options[oi] = { ...next[vi].options[oi], price_add: Number(e.target.value) };
+                            setVariants(next);
+                          }}
+                          placeholder="0"
+                          className="w-20 pl-4 pr-2 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-xs outline-none focus:ring-2 focus:ring-orange-500"
+                        />
+                      </div>
+                      <span className="text-[10px] text-gray-400 font-bold flex-shrink-0">MMK</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...variants];
+                          next[vi].options = next[vi].options.filter((_, i) => i !== oi);
+                          setVariants(next);
+                        }}
+                        className="p-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all flex-shrink-0"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = [...variants];
+                      next[vi].options = [...(next[vi].options || []), { label: '', price_add: 0 }];
+                      setVariants(next);
+                    }}
+                    className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 ml-2"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Option
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setVariants(prev => [...prev, { group: '', required: true, options: [{ label: '', price_add: 0 }] }])}
+                className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs font-bold text-gray-500 hover:text-orange-600 hover:border-orange-300 transition-all flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Variant Group
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Addons Section */}
+        <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowAddons(!showAddons)}
+            className="w-full flex items-center justify-between p-3 hover:bg-gray-100/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="3"/></svg>
+              <span className="text-sm font-bold text-gray-700">Add-ons</span>
+              {addons.length > 0 && <span className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-md">{addons.length} items</span>}
+            </div>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showAddons ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          {showAddons && (
+            <div className="px-3 pb-3 border-t border-gray-100 pt-2 space-y-2">
+              {addons.map((ad, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={ad.label}
+                    onChange={(e) => {
+                      const next = [...addons];
+                      next[i] = { ...next[i], label: e.target.value };
+                      setAddons(next);
+                    }}
+                    placeholder="e.g. Extra Shot"
+                    className="flex-1 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                  <div className="relative flex-shrink-0">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold">+</span>
+                    <input
+                      type="number"
+                      value={ad.price_add ?? ''}
+                      onChange={(e) => {
+                        const next = [...addons];
+                        next[i] = { ...next[i], price_add: Number(e.target.value) };
+                        setAddons(next);
+                      }}
+                      placeholder="0"
+                      className="w-20 pl-4 pr-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-orange-500"
+                    />
+                  </div>
+                  <span className="text-[10px] text-gray-400 font-bold flex-shrink-0">MMK</span>
+                  <button
+                    type="button"
+                    onClick={() => setAddons(prev => prev.filter((_, j) => j !== i))}
+                    className="p-1 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all flex-shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setAddons(prev => [...prev, { label: '', price_add: 0 }])}
+                className="w-full py-2 border-2 border-dashed border-gray-200 rounded-xl text-xs font-bold text-gray-500 hover:text-orange-600 hover:border-orange-300 transition-all flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Add-on
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="space-y-2">
           <label className="text-sm font-bold text-gray-700 ml-1">Dietary Labels</label>
           <div className="flex flex-wrap gap-2">
-            {DIETARY_BADGES.map(badge => (
+            {(badgeOptions || []).map(badge => (
               <button
                 key={badge.value}
                 type="button"
@@ -491,6 +747,25 @@ export default function QRMenuAdmin() {
   const [showBannerSection, setShowBannerSection] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const bannerFileRef = useRef(null);
+  const [businessMode, setBusinessMode] = useState('restaurant');
+  const [qrLabels, setQrLabels] = useState({});
+  const [dualModeEnabled, setDualModeEnabled] = useState(false);
+  const [showLabelsSection, setShowLabelsSection] = useState(false);
+  const [orderFlowMode, setOrderFlowMode] = useState('postpaid');
+  const [qrLanding, setQrLanding] = useState({});
+  const [showLandingSection, setShowLandingSection] = useState(false);
+  const [qrTheme, setQrTheme] = useState('restaurant');
+  const [showThemeSection, setShowThemeSection] = useState(false);
+  const [themeColors, setThemeColors] = useState({});
+  const [pointsSettings, setPointsSettings] = useState({});
+  const [showPointsSection, setShowPointsSection] = useState(false);
+  const [showCouponSection, setShowCouponSection] = useState(false);
+  const [showCustomerSection, setShowCustomerSection] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  // Coupon form state
+  const [couponForm, setCouponForm] = useState({ code: '', type: 'percentage', value: '', usage_limit: '0', min_order: '0', expires_at: '' });
+  const [showCouponModal, setShowCouponModal] = useState(false);
 
   const { data: items, isLoading } = useQuery({
     queryKey: ['qr-menu', selectedBotId],
@@ -521,10 +796,31 @@ export default function QRMenuAdmin() {
 
   const shopSettingsBlock = contentBlocks?.find(b => b.key === 'shop_settings');
   useEffect(() => {
-    if (shopSettingsBlock?.content_data?.payment_mode) {
-      setPaymentMode(shopSettingsBlock.content_data.payment_mode);
+    if (shopSettingsBlock?.content_data) {
+      const cd = shopSettingsBlock.content_data;
+      if (cd.payment_mode) setPaymentMode(cd.payment_mode);
+      if (cd.business_mode) setBusinessMode(cd.business_mode);
+      if (cd.qr_labels) setQrLabels(cd.qr_labels);
+      if (cd.dual_mode_enabled !== undefined) setDualModeEnabled(cd.dual_mode_enabled);
+      if (cd.order_flow_mode) setOrderFlowMode(cd.order_flow_mode);
+      if (cd.qr_landing) setQrLanding(cd.qr_landing);
+      if (cd.qr_theme) setQrTheme(cd.qr_theme);
+      if (cd.qr_theme_colors) setThemeColors(cd.qr_theme_colors);
+      if (cd.points_settings) setPointsSettings(cd.points_settings);
     }
   }, [shopSettingsBlock]);
+
+  const { data: customersList } = useQuery({
+    queryKey: ['qr-customers', selectedBotId, customerSearch],
+    queryFn: () => getCustomers(selectedBotId, customerSearch),
+    enabled: !!selectedBotId && showCustomerSection,
+  });
+
+  const { data: coupons } = useQuery({
+    queryKey: ['qr-coupons', selectedBotId],
+    queryFn: () => getCoupons(selectedBotId),
+    enabled: !!selectedBotId && showCouponSection,
+  });
 
   const bannerMutation = useMutation({
     mutationFn: (data) => updateContentBlock(selectedBotId, 'menu_banners', data),
@@ -558,6 +854,20 @@ export default function QRMenuAdmin() {
   const removeBanner = (index) => {
     const newBanners = menuBanners.filter((_, i) => i !== index).map((b, i) => ({ ...b, order: i }));
     bannerMutation.mutate({ banners: newBanners });
+  };
+
+  const shopSettingsMutation = useMutation({
+    mutationFn: (data) => updateContentBlock(selectedBotId, 'shop_settings', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['content-blocks', selectedBotId]);
+      addToast('Settings saved');
+    },
+    onError: () => addToast('Failed to save settings', 'error'),
+  });
+
+  const saveShopSettings = (updates) => {
+    const current = shopSettingsBlock?.content_data || {};
+    shopSettingsMutation.mutate({ ...current, ...updates });
   };
 
   const paymentModeMutation = useMutation({
@@ -622,10 +932,11 @@ export default function QRMenuAdmin() {
     queryKey: ['bot-info', selectedBotId],
     queryFn: () => client.get('/bots/' + selectedBotId).then(res => res.data),
     enabled: !!selectedBotId,
-    onSuccess: (data) => {
-      if (data?.is_open !== undefined) setShopOpen(data.is_open);
-    },
   });
+
+  useEffect(() => {
+    if (botInfo?.is_open !== undefined) setShopOpen(botInfo.is_open);
+  }, [botInfo]);
 
   const toggleShop = async () => {
     setTogglingShop(true);
@@ -736,6 +1047,17 @@ export default function QRMenuAdmin() {
             <span className="hidden sm:inline">Orders</span>
           </button>
           <button
+            onClick={() => { setShowCustomerSection(!showCustomerSection); setShowQrSettings(false); }}
+            className={`flex-1 sm:flex-none px-4 py-2.5 border rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95 font-bold text-sm ${
+              showCustomerSection
+                ? 'bg-violet-50 border-violet-200 text-violet-700'
+                : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            <span className="hidden sm:inline">Customers</span>
+          </button>
+          <button
             onClick={() => setShowQrSettings(true)}
             className="flex-1 sm:flex-none px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-2xl shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2 active:scale-95 font-bold text-sm"
           >
@@ -826,7 +1148,8 @@ export default function QRMenuAdmin() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6 lg:gap-8">
           {filteredItems.map(item => {
-            const itemBadges = DIETARY_BADGES.filter(b => item.badges?.includes(b.value));
+            const activeBadges = BUSINESS_BADGES[businessMode] || BUSINESS_BADGES.restaurant;
+            const itemBadges = activeBadges.filter(b => item.badges?.includes(b.value));
             const itemImages = getItemImageUrls(item.image_url, selectedBotId);
             return (
               <motion.div
@@ -910,6 +1233,53 @@ export default function QRMenuAdmin() {
         </div>
       )}
 
+      {/* Customers Section */}
+      {showCustomerSection && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-gray-900">Customers</h3>
+              <button
+                onClick={() => setShowCustomerSection(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by phone or name..."
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+              />
+            </div>
+          </div>
+          <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
+            {!customersList || customersList.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No customers found</p>
+            ) : (
+              customersList.map(c => (
+                <div key={c.id} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{c.name || 'Unknown'}</p>
+                      <p className="text-xs text-gray-500">{c.phone}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-violet-600">{c.points_balance} pts</p>
+                      <p className="text-xs text-gray-500">{c.total_orders} orders</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       <AnimatePresence>
         {isModalOpen && (
           <>
@@ -931,6 +1301,7 @@ export default function QRMenuAdmin() {
                 item={editingItem}
                 categories={categories}
                 selectedBotId={selectedBotId}
+                badgeOptions={BUSINESS_BADGES[businessMode] || BUSINESS_BADGES.restaurant}
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={(data) => {
                   if (editingItem) {
@@ -941,6 +1312,157 @@ export default function QRMenuAdmin() {
                 }}
                 isLoading={createMutation.isPending || updateMutation.isPending}
               />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Coupon Create Modal */}
+      <AnimatePresence>
+        {showCouponModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCouponModal(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[85svh] overflow-y-auto md:max-w-lg md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px] md:shadow-2xl"
+            >
+              <div className="p-5">
+                <div className="flex justify-center mb-4 md:hidden">
+                  <div className="w-10 h-1 bg-gray-200 rounded-full" />
+                </div>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
+                      <Ticket className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-900">New Coupon</h2>
+                  </div>
+                  <button onClick={() => setShowCouponModal(false)} className="p-2 bg-gray-100 rounded-full">
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 mb-1 block">Coupon Code</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponForm.code}
+                        onChange={(e) => setCouponForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                        placeholder="e.g. WELCOME10"
+                        className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none uppercase"
+                      />
+                      <button
+                        onClick={() => setCouponForm(f => ({ ...f, code: Math.random().toString(36).substring(2, 8).toUpperCase() }))}
+                        className="px-3 py-2 bg-gray-100 border border-gray-200 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-200 transition-all"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 mb-1 block">Discount Type</label>
+                    <div className="flex gap-2">
+                      {[
+                        { value: 'percentage', label: '% Off', icon: Percent },
+                        { value: 'fixed', label: 'Fixed', icon: Hash },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setCouponForm(f => ({ ...f, type: opt.value }))}
+                          className={`flex-1 p-2.5 rounded-xl border-2 text-center transition-all flex items-center justify-center gap-1.5 ${
+                            couponForm.type === opt.value
+                              ? 'border-violet-500 bg-violet-50'
+                              : 'border-gray-100 bg-white'
+                          }`}
+                        >
+                          <opt.icon className={`w-4 h-4 ${couponForm.type === opt.value ? 'text-violet-600' : 'text-gray-400'}`} />
+                          <span className={`text-sm font-bold ${couponForm.type === opt.value ? 'text-violet-700' : 'text-gray-600'}`}>{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 mb-1 block">
+                      {couponForm.type === 'percentage' ? 'Discount %' : 'Discount Amount (MMK)'}
+                    </label>
+                    <input
+                      type="number"
+                      value={couponForm.value}
+                      onChange={(e) => setCouponForm(f => ({ ...f, value: e.target.value }))}
+                      placeholder={couponForm.type === 'percentage' ? '10' : '5000'}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Usage Limit</label>
+                      <select
+                        value={couponForm.usage_limit}
+                        onChange={(e) => setCouponForm(f => ({ ...f, usage_limit: e.target.value }))}
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                      >
+                        <option value="0">Unlimited</option>
+                        <option value="10">10 uses</option>
+                        <option value="50">50 uses</option>
+                        <option value="100">100 uses</option>
+                        <option value="500">500 uses</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 mb-1 block">Min. Order</label>
+                      <input
+                        type="number"
+                        value={couponForm.min_order}
+                        onChange={(e) => setCouponForm(f => ({ ...f, min_order: e.target.value }))}
+                        placeholder="0"
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 mb-1 block">Expiry Date</label>
+                    <input
+                      type="date"
+                      value={couponForm.expires_at}
+                      onChange={(e) => setCouponForm(f => ({ ...f, expires_at: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!couponForm.code || !couponForm.value) { addToast('Code and value required', 'error'); return; }
+                      try {
+                        await createCoupon({
+                          bot_id: selectedBotId,
+                          code: couponForm.code,
+                          type: couponForm.type,
+                          value: Number(couponForm.value),
+                          usage_limit: Number(couponForm.usage_limit),
+                          min_order: Number(couponForm.min_order),
+                          expires_at: couponForm.expires_at || null,
+                        });
+                        queryClient.invalidateQueries(['qr-coupons', selectedBotId]);
+                        addToast('Coupon created');
+                        setShowCouponModal(false);
+                      } catch (e) {
+                        addToast(e.response?.data?.detail || 'Failed to create coupon', 'error');
+                      }
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-violet-500 to-indigo-500 text-white rounded-2xl font-bold hover:from-violet-600 hover:to-indigo-600 transition-all active:scale-[0.97]"
+                  >
+                    Create Coupon
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </>
         )}
@@ -1014,6 +1536,161 @@ export default function QRMenuAdmin() {
                 </div>
 
                 <div className="space-y-4">
+                  {/* Business Mode */}
+                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                    <p className="text-xs font-bold text-gray-500 mb-3">Business Type</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {BUSINESS_MODES.map(mode => (
+                        <button
+                          key={mode.value}
+                          onClick={() => {
+                            setBusinessMode(mode.value);
+                            const defaults = LABEL_DEFAULTS[mode.value] || {};
+                            setQrLabels(prev => ({ ...prev, ...defaults }));
+                            saveShopSettings({ business_mode: mode.value, qr_labels: { ...qrLabels, ...defaults } });
+                          }}
+                          className={`p-2.5 rounded-xl border-2 text-center transition-all ${
+                            businessMode === mode.value
+                              ? 'border-violet-500 bg-violet-50 shadow-sm'
+                              : 'border-gray-100 bg-white hover:border-gray-200'
+                          }`}
+                        >
+                          <span className="text-xl block">{mode.emoji}</span>
+                          <span className="text-[10px] font-bold mt-0.5 block leading-tight">{mode.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 italic mt-2">
+                      {BUSINESS_MODES.find(m => m.value === businessMode)?.description}
+                    </p>
+                  </div>
+
+                  {/* Visual Theme */}
+                  <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+                    <button
+                      onClick={() => setShowThemeSection(!showThemeSection)}
+                      className="w-full flex items-center justify-between p-4 hover:bg-gray-100/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Palette className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-bold text-gray-700">Visual Theme</span>
+                      </div>
+                      <svg className={`w-4 h-4 text-gray-400 transition-transform ${showThemeSection ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    {showThemeSection && (
+                      <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+                        <div className="grid grid-cols-3 gap-2">
+                          {Object.values(BUSINESS_THEMES).map(theme => (
+                            <button
+                              key={theme.id}
+                              onClick={() => {
+                                setQrTheme(theme.id);
+                                saveShopSettings({ qr_theme: theme.id });
+                              }}
+                              className={`p-2.5 rounded-xl border-2 text-center transition-all ${
+                                qrTheme === theme.id
+                                  ? 'border-violet-500 bg-violet-50 shadow-sm'
+                                  : 'border-gray-100 bg-white hover:border-gray-200'
+                              }`}
+                            >
+                              <div className="h-6 rounded-lg mb-1.5" style={{ background: theme.preview }} />
+                              <span className="text-[10px] font-bold block leading-tight">{theme.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                        {qrTheme === 'custom' && (
+                          <div className="space-y-2 pt-2 border-t border-gray-200">
+                            <p className="text-[10px] font-bold text-gray-500">Custom Colors</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {['primary', 'secondary', 'accent', 'background'].map(key => (
+                                <div key={key}>
+                                  <label className="text-[9px] font-bold text-gray-400 block mb-0.5 capitalize">{key}</label>
+                                  <input
+                                    type="color"
+                                    value={themeColors[key] || BUSINESS_THEMES.custom[key] || '#4f46e5'}
+                                    onChange={(e) => {
+                                      const next = { ...themeColors, [key]: e.target.value };
+                                      setThemeColors(next);
+                                      saveShopSettings({ qr_theme_colors: next });
+                                    }}
+                                    className="w-full h-8 rounded-lg border border-gray-200 cursor-pointer"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Custom Labels */}
+                  <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+                    <button
+                      onClick={() => setShowLabelsSection(!showLabelsSection)}
+                      className="w-full flex items-center justify-between p-4 hover:bg-gray-100/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                        <span className="text-sm font-bold text-gray-700">Custom Labels</span>
+                      </div>
+                      <svg className={`w-4 h-4 text-gray-400 transition-transform ${showLabelsSection ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    {showLabelsSection && (
+                      <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+                        {[
+                          { key: 'section_name', label: 'Section Name', placeholder: 'e.g. Digital Menu' },
+                          { key: 'table_name', label: 'Table/Slot Name', placeholder: 'e.g. Table' },
+                          { key: 'menu_section_title', label: 'Menu Section Title', placeholder: 'e.g. Menu Items' },
+                          { key: 'categories_label', label: 'Categories Label', placeholder: 'e.g. Categories' },
+                          { key: 'add_to_order', label: 'Add to Order Button', placeholder: 'e.g. Add to Order' },
+                          { key: 'cart_title', label: 'Cart Title', placeholder: 'e.g. Your Order' },
+                          { key: 'checkout_hint', label: 'Checkout Hint Text', placeholder: 'e.g. Share with staff' },
+                          { key: 'closed_message', label: 'Closed Message', placeholder: 'e.g. We\'re Closed' },
+                          { key: 'welcome_message', label: 'Welcome Message', placeholder: 'e.g. Welcome!' },
+                        ].map(field => (
+                          <div key={field.key}>
+                            <label className="text-[11px] font-bold text-gray-500 mb-1 block">{field.label}</label>
+                            <input
+                              type="text"
+                              value={qrLabels[field.key] || ''}
+                              onChange={(e) => {
+                                const newLabels = { ...qrLabels, [field.key]: e.target.value };
+                                setQrLabels(newLabels);
+                                saveShopSettings({ qr_labels: newLabels });
+                              }}
+                              placeholder={field.placeholder}
+                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dual Mode Toggle */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Dual Mode</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Let customers choose between Table or Token on scan
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setDualModeEnabled(!dualModeEnabled);
+                        saveShopSettings({ dual_mode_enabled: !dualModeEnabled });
+                      }}
+                      className={`relative w-14 h-7 rounded-full transition-all ${
+                        dualModeEnabled ? 'bg-violet-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-all ${
+                        dualModeEnabled ? 'left-7' : 'left-0.5'
+                      }`} />
+                    </button>
+                  </div>
+
                   {/* Open/Close Shop */}
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
                     <div>
@@ -1039,46 +1716,412 @@ export default function QRMenuAdmin() {
                     </button>
                   </div>
 
-                  {/* Payment Mode */}
+                  {/* Order Flow Mode */}
                   <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <p className="text-xs font-bold text-gray-500 mb-3">Payment Mode</p>
-                    <div className="relative bg-white rounded-xl p-1 border border-gray-200 shadow-sm flex">
-                      <div className={`absolute top-1 bottom-1 rounded-lg transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-sm ${
-                        paymentMode === 'prepaid' ? 'left-1 right-[50%] bg-gradient-to-r from-orange-500 to-amber-500' : 'left-[50%] right-1 bg-gradient-to-r from-violet-500 to-indigo-500'
-                      }`} />
-                      <button
-                        onClick={() => { setPaymentMode('prepaid'); paymentModeMutation.mutate('prepaid'); }}
-                        disabled={paymentModeMutation.isPending}
-                        className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
-                          paymentMode === 'prepaid' ? 'text-white' : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2"/>
-                          <circle cx="12" cy="12" r="4"/>
-                        </svg>
-                        Prepaid
-                        <span className="text-[10px] opacity-80 font-medium hidden sm:inline">(Pay First)</span>
-                      </button>
-                      <button
-                        onClick={() => { setPaymentMode('postpaid'); paymentModeMutation.mutate('postpaid'); }}
-                        disabled={paymentModeMutation.isPending}
-                        className={`relative z-10 flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
-                          paymentMode === 'postpaid' ? 'text-white' : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                          <path d="M12 6v6l4 2"/>
-                        </svg>
-                        Postpaid
-                        <span className="text-[10px] opacity-80 font-medium hidden sm:inline">(Pay Later)</span>
-                      </button>
+                    <p className="text-xs font-bold text-gray-500 mb-3">Order Flow Mode</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { value: 'prepaid', label: 'Prepaid', icon: '💳', desc: 'Pay first, then serve' },
+                        { value: 'postpaid', label: 'Postpaid', icon: '⏰', desc: 'Order now, pay later' },
+                        { value: 'browse_only', label: 'Browse Only', icon: '👁️', desc: 'Menu viewing only' },
+                        { value: 'token_browse', label: 'Token + Browse', icon: '🎫', desc: 'Get token, pre-select' },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            setOrderFlowMode(opt.value);
+                            if (opt.value === 'prepaid' || opt.value === 'postpaid') {
+                              setPaymentMode(opt.value);
+                              paymentModeMutation.mutate(opt.value);
+                            }
+                            saveShopSettings({ order_flow_mode: opt.value, payment_mode: opt.value === 'prepaid' || opt.value === 'postpaid' ? opt.value : paymentMode });
+                          }}
+                          className={`p-3 rounded-xl border-2 text-center transition-all ${
+                            orderFlowMode === opt.value
+                              ? 'border-violet-500 bg-violet-50 shadow-sm'
+                              : 'border-gray-100 bg-white hover:border-gray-200'
+                          }`}
+                        >
+                          <span className="text-xl block">{opt.icon}</span>
+                          <span className="text-[11px] font-bold mt-1 block leading-tight">{opt.label}</span>
+                          <span className="text-[9px] text-gray-400 mt-0.5 block">{opt.desc}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
 
+                  {/* Landing Page */}
+                  <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+                    <button
+                      onClick={() => setShowLandingSection(!showLandingSection)}
+                      className="w-full flex items-center justify-between p-4 hover:bg-gray-100/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M9 21V9"/></svg>
+                        <span className="text-sm font-bold text-gray-700">Landing Page</span>
+                      </div>
+                      <svg className={`w-4 h-4 text-gray-400 transition-transform ${showLandingSection ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    {showLandingSection && (
+                      <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-500 mb-1 block">Welcome Message</label>
+                          <input
+                            type="text"
+                            value={qrLanding?.welcome_message || ''}
+                            onChange={(e) => {
+                              const next = { ...qrLanding, welcome_message: e.target.value };
+                              setQrLanding(next);
+                              saveShopSettings({ qr_landing: next });
+                            }}
+                            placeholder="Welcome! Browse our menu below"
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-500 mb-1 block">Announcement</label>
+                          <input
+                            type="text"
+                            value={qrLanding?.announcement || ''}
+                            onChange={(e) => {
+                              const next = { ...qrLanding, announcement: e.target.value };
+                              setQrLanding(next);
+                              saveShopSettings({ qr_landing: next });
+                            }}
+                            placeholder="Today's Special: 10% off all drinks!"
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                          />
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">Show announcement</span>
+                            <button
+                              onClick={() => {
+                                const next = { ...qrLanding, announcement_enabled: !qrLanding?.announcement_enabled };
+                                setQrLanding(next);
+                                saveShopSettings({ qr_landing: next });
+                              }}
+                              className={`relative w-11 h-6 rounded-full transition-all ${
+                                qrLanding?.announcement_enabled ? 'bg-violet-500' : 'bg-gray-300'
+                              }`}
+                            >
+                              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${
+                                qrLanding?.announcement_enabled ? 'left-5' : 'left-0.5'
+                              }`} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[11px] font-bold text-gray-500">Operating Hours</label>
+                            <button
+                              onClick={() => {
+                                const next = { ...qrLanding, hours_enabled: !qrLanding?.hours_enabled };
+                                setQrLanding(next);
+                                saveShopSettings({ qr_landing: next });
+                              }}
+                              className={`relative w-11 h-6 rounded-full transition-all ${
+                                qrLanding?.hours_enabled ? 'bg-violet-500' : 'bg-gray-300'
+                              }`}
+                            >
+                              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all ${
+                                qrLanding?.hours_enabled ? 'left-5' : 'left-0.5'
+                              }`} />
+                            </button>
+                          </div>
+                          {qrLanding?.hours_enabled && (
+                            <div className="flex flex-col gap-2 mt-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-gray-400 w-16">Mon-Fri</span>
+                                <input
+                                  type="time"
+                                  value={qrLanding?.hours_weekday_open || '09:00'}
+                                  onChange={(e) => {
+                                    const next = { ...qrLanding, hours_weekday_open: e.target.value };
+                                    setQrLanding(next);
+                                    saveShopSettings({ qr_landing: next });
+                                  }}
+                                  className="flex-1 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+                                />
+                                <span className="text-xs text-gray-400">to</span>
+                                <input
+                                  type="time"
+                                  value={qrLanding?.hours_weekday_close || '21:00'}
+                                  onChange={(e) => {
+                                    const next = { ...qrLanding, hours_weekday_close: e.target.value };
+                                    setQrLanding(next);
+                                    saveShopSettings({ qr_landing: next });
+                                  }}
+                                  className="flex-1 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-gray-400 w-16">Weekend</span>
+                                <input
+                                  type="time"
+                                  value={qrLanding?.hours_weekend_open || '10:00'}
+                                  onChange={(e) => {
+                                    const next = { ...qrLanding, hours_weekend_open: e.target.value };
+                                    setQrLanding(next);
+                                    saveShopSettings({ qr_landing: next });
+                                  }}
+                                  className="flex-1 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+                                />
+                                <span className="text-xs text-gray-400">to</span>
+                                <input
+                                  type="time"
+                                  value={qrLanding?.hours_weekend_close || '22:00'}
+                                  onChange={(e) => {
+                                    const next = { ...qrLanding, hours_weekend_close: e.target.value };
+                                    setQrLanding(next);
+                                    saveShopSettings({ qr_landing: next });
+                                  }}
+                                  className="flex-1 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-500 mb-1 block">Social Links</label>
+                          <div className="space-y-2">
+                            <input
+                              type="url"
+                              value={qrLanding?.social_facebook || ''}
+                              onChange={(e) => {
+                                const next = { ...qrLanding, social_facebook: e.target.value };
+                                setQrLanding(next);
+                                saveShopSettings({ qr_landing: next });
+                              }}
+                              placeholder="Facebook URL"
+                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                            />
+                            <input
+                              type="url"
+                              value={qrLanding?.social_instagram || ''}
+                              onChange={(e) => {
+                                const next = { ...qrLanding, social_instagram: e.target.value };
+                                setQrLanding(next);
+                                saveShopSettings({ qr_landing: next });
+                              }}
+                              placeholder="Instagram URL"
+                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                            />
+                            <input
+                              type="tel"
+                              value={qrLanding?.social_phone || ''}
+                              onChange={(e) => {
+                                const next = { ...qrLanding, social_phone: e.target.value };
+                                setQrLanding(next);
+                                saveShopSettings({ qr_landing: next });
+                              }}
+                              placeholder="Phone number"
+                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Points & Rewards */}
+                  <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+                    <button
+                      onClick={() => setShowPointsSection(!showPointsSection)}
+                      className="w-full flex items-center justify-between p-4 hover:bg-gray-100/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Award className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-bold text-gray-700">Points & Rewards</span>
+                      </div>
+                      <svg className={`w-4 h-4 text-gray-400 transition-transform ${showPointsSection ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    {showPointsSection && (
+                      <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-gray-700">Enable Points</span>
+                          <button
+                            onClick={() => {
+                              const next = { ...pointsSettings, enabled: !pointsSettings.enabled };
+                              setPointsSettings(next);
+                              saveShopSettings({ points_settings: next });
+                            }}
+                            className={`relative w-14 h-7 rounded-full transition-all ${pointsSettings.enabled ? 'bg-violet-500' : 'bg-gray-300'}`}
+                          >
+                            <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-all ${pointsSettings.enabled ? 'left-7' : 'left-0.5'}`} />
+                          </button>
+                        </div>
+                        {pointsSettings.enabled && (
+                          <>
+                            <div>
+                              <label className="text-[11px] font-bold text-gray-500 mb-1 block">Earn Rate</label>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400">Every</span>
+                                <input
+                                  type="number"
+                                  value={pointsSettings.earn_per || ''}
+                                  onChange={(e) => {
+                                    const next = { ...pointsSettings, earn_per: Number(e.target.value) };
+                                    setPointsSettings(next);
+                                    saveShopSettings({ points_settings: next });
+                                  }}
+                                  placeholder="1000"
+                                  className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-violet-500 outline-none"
+                                />
+                                <span className="text-xs text-gray-400">MMK =</span>
+                                <input
+                                  type="number"
+                                  value={pointsSettings.earn_rate || ''}
+                                  onChange={(e) => {
+                                    const next = { ...pointsSettings, earn_rate: Number(e.target.value) };
+                                    setPointsSettings(next);
+                                    saveShopSettings({ points_settings: next });
+                                  }}
+                                  placeholder="1"
+                                  className="w-16 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-violet-500 outline-none"
+                                />
+                                <span className="text-xs text-gray-400">pt(s)</span>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-bold text-gray-500 mb-1 block">Redemption Rate</label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  value={pointsSettings.redeem_points || ''}
+                                  onChange={(e) => {
+                                    const next = { ...pointsSettings, redeem_points: Number(e.target.value) };
+                                    setPointsSettings(next);
+                                    saveShopSettings({ points_settings: next });
+                                  }}
+                                  placeholder="100"
+                                  className="w-16 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-violet-500 outline-none"
+                                />
+                                <span className="text-xs text-gray-400">pts =</span>
+                                <input
+                                  type="number"
+                                  value={pointsSettings.redeem_value || ''}
+                                  onChange={(e) => {
+                                    const next = { ...pointsSettings, redeem_value: Number(e.target.value) };
+                                    setPointsSettings(next);
+                                    saveShopSettings({ points_settings: next });
+                                  }}
+                                  placeholder="1000"
+                                  className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-violet-500 outline-none"
+                                />
+                                <span className="text-xs text-gray-400">MMK</span>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-bold text-gray-500 mb-1 block">Min. Redeem Points</label>
+                              <input
+                                type="number"
+                                value={pointsSettings.min_redeem || ''}
+                                onChange={(e) => {
+                                  const next = { ...pointsSettings, min_redeem: Number(e.target.value) };
+                                  setPointsSettings(next);
+                                  saveShopSettings({ points_settings: next });
+                                }}
+                                placeholder="50"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-bold text-gray-500 mb-1 block">Welcome Bonus (points)</label>
+                              <input
+                                type="number"
+                                value={pointsSettings.welcome_bonus || ''}
+                                onChange={(e) => {
+                                  const next = { ...pointsSettings, welcome_bonus: Number(e.target.value) };
+                                  setPointsSettings(next);
+                                  saveShopSettings({ points_settings: next });
+                                }}
+                                placeholder="0"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Coupons */}
+                  <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+                    <button
+                      onClick={() => setShowCouponSection(!showCouponSection)}
+                      className="w-full flex items-center justify-between p-4 hover:bg-gray-100/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Ticket className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-bold text-gray-700">Coupons</span>
+                      </div>
+                      <svg className={`w-4 h-4 text-gray-400 transition-transform ${showCouponSection ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    {showCouponSection && (
+                      <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-500">{coupons?.length || 0} coupon(s)</span>
+                          <button
+                            onClick={() => {
+                              setCouponForm({ code: '', type: 'percentage', value: '', usage_limit: '0', min_order: '0', expires_at: '' });
+                              setShowCouponModal(true);
+                            }}
+                            className="px-3 py-1.5 bg-violet-500 text-white rounded-lg text-xs font-bold hover:bg-violet-600 transition-all flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" />
+                            New Coupon
+                          </button>
+                        </div>
+                        {(!coupons || coupons.length === 0) ? (
+                          <p className="text-xs text-gray-400 text-center py-4">No coupons yet</p>
+                        ) : (
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {coupons.map(c => (
+                              <div key={c.id} className="flex items-center justify-between bg-white rounded-xl p-3 border border-gray-100">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-gray-900">{c.code}</span>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                                      c.type === 'percentage' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                                    }`}>
+                                      {c.type === 'percentage' ? `${c.value}%` : `${Number(c.value).toLocaleString()} MMK`}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className={`text-[10px] font-bold ${
+                                      !c.is_active ? 'text-rose-500' :
+                                      c.expires_at && new Date(c.expires_at) < new Date() ? 'text-amber-500' :
+                                      c.usage_limit > 0 && c.used_count >= c.usage_limit ? 'text-amber-500' :
+                                      'text-emerald-500'
+                                    }`}>
+                                      {!c.is_active ? 'Inactive' :
+                                       c.expires_at && new Date(c.expires_at) < new Date() ? 'Expired' :
+                                       c.usage_limit > 0 && c.used_count >= c.usage_limit ? 'Used up' : 'Active'}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400">{c.used_count}/{c.usage_limit || '∞'} used</span>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm('Delete this coupon?')) return;
+                                    try { await deleteCoupon(c.id, selectedBotId); queryClient.invalidateQueries(['qr-coupons', selectedBotId]); addToast('Coupon deleted'); }
+                                    catch { addToast('Failed to delete coupon', 'error'); }
+                                  }}
+                                  className="p-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all flex-shrink-0"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* QR Menu URL */}
-                  <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
                     <p className="text-xs font-bold text-gray-500 mb-2">QR Menu URL</p>
                     {qrMenuUrl ? (
                       <div className="space-y-3">
@@ -1107,7 +2150,6 @@ export default function QRMenuAdmin() {
                     )}
                   </div>
                 </div>
-              </div>
             </motion.div>
           </>
         )}

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
-import { THEMES, DEFAULT_THEME } from '../themes/themes';
+import { THEMES, DEFAULT_THEME, BUSINESS_THEMES } from '../themes/themes';
+import { identifyCustomer, redeemPoints, validateCoupon } from '../api/qrMenu';
 
 import { API_BASE } from '../api/config';
 
@@ -24,23 +25,74 @@ const BADGE_STYLES = {
   vegetarian:{cls:'badge-veg',label:'🥬 Veg'},
   vegan:{cls:'badge-veg',label:'🌱 Vegan'},
   'gluten-free':{cls:'badge-gf',label:'🌾 GF'},
+  new:{cls:'badge-new',label:'🆕 New'},
+  hot:{cls:'badge-hot',label:'☕ Hot'},
+  iced:{cls:'badge-iced',label:'🧊 Iced'},
+  seasonal:{cls:'badge-seasonal',label:'🍂 Seasonal'},
+  fresh:{cls:'badge-fresh',label:'🔥 Fresh'},
+  limited:{cls:'badge-limited',label:'⏳ Limited'},
+  sale:{cls:'badge-sale',label:'🔥 Sale'},
+  express:{cls:'badge-express',label:'⚡ Express'},
+  relaxing:{cls:'badge-relaxing',label:'💆 Relaxing'},
+  premium:{cls:'badge-premium',label:'👑 Premium'},
 };
 
 function formatPrice(n) { if (n == null || isNaN(n)) return '0'; return Number(n).toLocaleString(); }
 
-function DetailModal({ item, shop, orderItems, onAddToOrder, onClose }) {
+function getCartKey(item, variants, addons) {
+  const v = variants && Object.keys(variants).length > 0 ? JSON.stringify(variants) : '';
+  const a = addons && addons.length > 0 ? JSON.stringify(addons) : '';
+  if (!v && !a) return String(item.id);
+  return `${item.id}_${v}_${a}`;
+}
+
+function calcItemPrice(item, variants, addons) {
+  const base = Number(item.price) || 0;
+  const vExt = variants ? Object.values(variants).reduce((s, v) => s + (Number(v.price_add) || 0), 0) : 0;
+  const aExt = addons ? addons.reduce((s, a) => s + (Number(a.price_add) || 0), 0) : 0;
+  return base + vExt + aExt;
+}
+
+function hasVariants(item) {
+  return item.data?.variants?.length > 0;
+}
+
+function hasAddons(item) {
+  return item.data?.addons?.length > 0;
+}
+
+function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, addToOrderLabel, isBrowseOnly, shopPhone }) {
   const [qty, setQty] = useState(1);
   const [imgIdx, setImgIdx] = useState(0);
+  const [selectedVariants, setSelectedVariants] = useState({});
+  const [selectedAddons, setSelectedAddons] = useState([]);
   const images = getItemImageUrls(item.image_url, shop?.id);
   const badges = item.badges || [];
-  const existing = orderItems.find(oi => oi.item.id === item.id);
-  const existingQty = existing ? existing.qty : 0;
+  const variants = item.data?.variants || [];
+  const addons = item.data?.addons || [];
+  const hasExtras = variants.length > 0 || addons.length > 0;
+
+  const unitPrice = useMemo(() => calcItemPrice(item, selectedVariants, selectedAddons), [item, selectedVariants, selectedAddons]);
+  const lineTotal = unitPrice * qty;
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
+
+  const toggleAddon = (addon) => {
+    setSelectedAddons(prev => {
+      const ex = prev.find(a => a.label === addon.label);
+      if (ex) return prev.filter(a => a.label !== addon.label);
+      return [...prev, addon];
+    });
+  };
+
+  const handleAdd = () => {
+    if (qty < 1) return;
+    onAddToOrder(item, qty, selectedVariants, selectedAddons);
+  };
 
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -86,35 +138,98 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose }) {
           )}
           <h2 className="modal-name">{item.name}</h2>
           {item.description && <p className="modal-desc">{item.description}</p>}
-          <div className="modal-price">{formatPrice(item.price)} <span>K</span></div>
-          {existingQty > 0 && (
-            <div className="modal-in-cart">× {existingQty} in your order</div>
-          )}
-          <div className="modal-qty-row">
-            <span className="modal-qty-label">Quantity</span>
-            <div className="modal-qty-ctrl">
-              <button className="modal-qty-btn" onClick={() => { if (qty > 1) setQty(q => q - 1); }}>−</button>
-              <span className="modal-qty-num">{qty}</span>
-              <button className="modal-qty-btn" onClick={() => setQty(q => q + 1)}>+</button>
+
+          {/* Variant groups */}
+          {variants.map((vg, gi) => (
+            <div key={gi} className="modal-extras-section">
+              <div className="modal-extras-label">{vg.name}{vg.required ? ' *' : ''}</div>
+              <div className="modal-variant-options">
+                {vg.options.map((opt, oi) => {
+                  const isSelected = selectedVariants[vg.name]?.label === opt.label;
+                  return (
+                    <button key={oi}
+                      className={`modal-extras-btn ${isSelected ? 'active' : ''}`}
+                      onClick={() => setSelectedVariants(prev => ({ ...prev, [vg.name]: opt }))}>
+                      <span className="modal-extras-btn-label">{opt.label}</span>
+                      {Number(opt.price_add) > 0 && <span className="modal-extras-btn-price">+{formatPrice(opt.price_add)} K</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-          <button className="modal-add-btn" onClick={() => onAddToOrder(item, qty)}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
-            <span>{existingQty > 0 ? `Add ${qty} more` : 'Add to order'} · {formatPrice(Number(item.price) * qty)} K</span>
-          </button>
+          ))}
+
+          {/* Addons */}
+          {addons.length > 0 && (
+            <div className="modal-extras-section">
+              <div className="modal-extras-label">Add-ons</div>
+              <div className="modal-variant-options">
+                {addons.map((addon, i) => {
+                  const isSelected = selectedAddons.some(a => a.label === addon.label);
+                  return (
+                    <button key={i}
+                      className={`modal-extras-btn ${isSelected ? 'active' : ''}`}
+                      onClick={() => toggleAddon(addon)}>
+                      <span className="modal-extras-btn-label">
+                        {isSelected ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="4"/></svg>}
+                        {addon.label}
+                      </span>
+                      {Number(addon.price_add) > 0 && <span className="modal-extras-btn-price">+{formatPrice(addon.price_add)} K</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="modal-price">{formatPrice(unitPrice)} <span>K</span></div>
+          {hasExtras && unitPrice !== Number(item.price) && (
+            <div className="modal-price-breakdown">
+              Base {formatPrice(item.price)} K
+              {Object.values(selectedVariants).filter(v => Number(v.price_add) > 0).map((v, i) => (
+                <span key={i}> + {v.label} {formatPrice(v.price_add)} K</span>
+              ))}
+              {selectedAddons.filter(a => Number(a.price_add) > 0).map((a, i) => (
+                <span key={i}> + {a.label} {formatPrice(a.price_add)} K</span>
+              ))}
+            </div>
+          )}
+
+          {!isBrowseOnly && (
+            <>
+              <div className="modal-qty-row">
+                <span className="modal-qty-label">Quantity</span>
+                <div className="modal-qty-ctrl">
+                  <button className="modal-qty-btn" onClick={() => { if (qty > 1) setQty(q => q - 1); }}>−</button>
+                  <span className="modal-qty-num">{qty}</span>
+                  <button className="modal-qty-btn" onClick={() => setQty(q => q + 1)}>+</button>
+                </div>
+              </div>
+              <button className="modal-add-btn" onClick={handleAdd}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+                <span>{addToOrderLabel || 'Add to order'} · {formatPrice(lineTotal)} K</span>
+              </button>
+            </>
+          )}
+          {isBrowseOnly && (
+            <a href={`tel:${shopPhone || ''}`} className="modal-add-btn" style={{textDecoration:'none',marginTop:16}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+              <span>Call to Order</span>
+            </a>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRemoveItem, onClearAll, onClose, paymentMode, onProceed }) {
+function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRemoveItem, onClearAll, onClose, paymentMode, onProceed, cartTitle, checkoutHint, orderFlowMode }) {
   return (
     <div className="cart-sheet-wrap">
       <div className="cart-sheet-bg" onClick={() => { if (orderCount === 0) onClose(); }}></div>
       <div className="cart-sheet-panel">
         <div className="cart-sheet-header">
-          <h2 className="cart-sheet-title">🧾 Your Order</h2>
+          <h2 className="cart-sheet-title">{cartTitle || 'Your Order'}</h2>
           <button onClick={onClose} className="cart-sheet-x">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
@@ -127,19 +242,34 @@ function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRe
             </div>
           ) : orderItems.map(oi => {
             const imgs = getItemImageUrls(oi.item.image_url, shop?.id);
+            const itemUnitPrice = calcItemPrice(oi.item, oi.variants, oi.addons);
             return (
-              <div key={oi.item.id} className="cart-sheet-item">
+              <div key={oi.cartKey || oi.item.id} className="cart-sheet-item">
                 <div className="cart-item-thumb">
                   {imgs[0] ? <img src={imgs[0]} alt={oi.item.name} /> : '🍽️'}
                 </div>
                 <div className="cart-item-info">
                   <div className="cart-item-name">{oi.item.name}</div>
-                  <div className="cart-item-price">{formatPrice(oi.item.price)} K each</div>
+                  {oi.variants && Object.keys(oi.variants).length > 0 && (
+                    <div className="cart-item-extras">
+                      {Object.entries(oi.variants).map(([groupName, opt]) => (
+                        <span key={groupName} className="cart-item-extra">{groupName}: {opt.label}</span>
+                      ))}
+                    </div>
+                  )}
+                  {oi.addons && oi.addons.length > 0 && (
+                    <div className="cart-item-extras">
+                      {oi.addons.map(a => (
+                        <span key={a.label} className="cart-item-extra">+ {a.label}{Number(a.price_add) > 0 ? ` (${formatPrice(a.price_add)} K)` : ''}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="cart-item-price">{formatPrice(itemUnitPrice)} K each</div>
                 </div>
                 <div className="cart-item-qty">
-                  <button className="ciq-btn" onClick={() => onUpdateQty(oi.item.id, oi.qty - 1)}>−</button>
+                  <button className="ciq-btn" onClick={() => onUpdateQty(oi.cartKey || oi.item.id, oi.qty - 1)}>−</button>
                   <span className="ciq-num">{oi.qty}</span>
-                  <button className="ciq-btn" onClick={() => onUpdateQty(oi.item.id, oi.qty + 1)}>+</button>
+                  <button className="ciq-btn" onClick={() => onUpdateQty(oi.cartKey || oi.item.id, oi.qty + 1)}>+</button>
                 </div>
               </div>
             );
@@ -153,7 +283,7 @@ function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRe
             </div>
             <div className="cart-sheet-actions">
               <button className="cs-btn cs-btn-secondary" onClick={onClearAll}>Clear</button>
-              {paymentMode === 'prepaid' ? (
+              {(orderFlowMode || paymentMode) === 'prepaid' ? (
                 <button className="cs-btn cs-btn-primary" onClick={onProceed}>
                   Proceed
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -162,7 +292,7 @@ function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRe
                 <button className="cs-btn cs-btn-primary" onClick={onClose}>Done</button>
               )}
             </div>
-            <p className="cart-sheet-hint">Share this list with the restaurant staff</p>
+            <p className="cart-sheet-hint">{checkoutHint || 'Share this list with the restaurant staff'}</p>
           </div>
         )}
       </div>
@@ -170,7 +300,7 @@ function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRe
   );
 }
 
-function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, onSubmitOrder, tableProp }) {
+function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, onSubmitOrder, tableProp, customerId, customerPoints, pointsSettings, netTotal, couponDiscount, pointsDiscount, appliedCoupon, couponInput, setCouponInput, handleApplyCoupon, checkingCoupon, pointsToRedeem, setPointsToRedeem, handleRedeemPoints, redeemingPoints, tokenNumber }) {
   const [step, setStep] = useState('form');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -247,8 +377,10 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
       const items = orderItems.map(oi => ({
         item_id: oi.item.id,
         name: oi.item.name,
-        price: oi.item.price,
+        price: calcItemPrice(oi.item, oi.variants, oi.addons),
         quantity: oi.qty,
+        variants: oi.variants || {},
+        addons: oi.addons || [],
       }));
 
       const res = await fetch(`${API_BASE}/public/create-order`, {
@@ -259,10 +391,16 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
           customer_name: 'Walk-in Customer',
           phone: '-',
           items,
-          total_amount: orderTotal,
+          total_amount: netTotal,
           payment_proof: paymentProof,
           payment_method: selectedPayment.name || 'prepaid',
-          notes: tableProp ? `Table ${tableProp}` : 'QR Menu - Prepaid',
+          notes: tableProp ? `Table ${tableProp}` : tokenNumber ? `Token #${tokenNumber}` : 'QR Menu - Prepaid',
+          customer_id: customerId || undefined,
+          points_earned: 0,
+          points_redeemed: pointsDiscount > 0 ? pointsToRedeem : 0,
+          points_discount: pointsDiscount,
+          coupon_code: appliedCoupon?.code || '',
+          coupon_discount: couponDiscount,
         }),
       });
       const data = await res.json();
@@ -286,7 +424,13 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
         <div className="modal-sheet" style={{padding: '32px 20px 24px', textAlign: 'center'}}>
           <div className="checkout-done-icon">✅</div>
           <h2 style={{fontSize:22,fontWeight:800,margin:'12px 0 4px'}}>Order Placed!</h2>
-          <p style={{fontSize:14,color:'#888',marginBottom:16}}>Order #{done.order_number}</p>
+          <p style={{fontSize:14,color:'#888',marginBottom:8}}>Order #{done.order_number}</p>
+          {customerId && pointsSettings?.enabled && (
+            <p style={{fontSize:13,color:'#059669',fontWeight:600,marginBottom:16}}>
+              ⭐ +{Math.max(1, Math.floor(netTotal / (Number(pointsSettings.earn_per) || 1000) * (Number(pointsSettings.earn_rate) || 1)))} points earned!
+            </p>
+          )}
+
 
           <div onClick={() => setShowDoneDetail(!showDoneDetail)} style={{cursor:'pointer',background:'#f9fafb',borderRadius:16,padding:'12px 16px',marginBottom:16,textAlign:'left'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
@@ -381,12 +525,104 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
                   <img src={getPaymentQrUrl(selectedPayment)} alt="Payment QR" className="checkout-qr" />
                 )}
               </div>
-              <div className="checkout-total-row">
-                <span>Total Amount</span>
-                <span className="font-bold">{formatPrice(orderTotal)} K</span>
+              {/* Coupon */}
+              {!appliedCoupon?.code && !appliedCoupon?.error && (
+                <details style={{margin:'12px 0'}}>
+                  <summary style={{fontSize:13,color:'#6b7280',cursor:'pointer',fontWeight:600}}>🎟️ Have a coupon?</summary>
+                  <div style={{display:'flex',gap:8,marginTop:8}}>
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                      placeholder="Enter code"
+                      style={{flex:1,padding:'10px 12px',border:'2px solid #e5e7eb',borderRadius:10,fontSize:13,outline:'none'}}
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={checkingCoupon || !couponInput.trim()}
+                      style={{
+                        padding:'10px 16px',border:'none',borderRadius:10,
+                        background:'var(--theme-primary, #4f46e5)',color:'#fff',
+                        fontSize:13,fontWeight:700,cursor:'pointer',
+                        opacity: checkingCoupon || !couponInput.trim() ? 0.5 : 1,
+                      }}
+                    >
+                      {checkingCoupon ? '...' : 'Apply'}
+                    </button>
+                  </div>
+                </details>
+              )}
+              {appliedCoupon?.code && (
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'#ecfdf5',borderRadius:10,padding:'10px 12px',margin:'12px 0'}}>
+                  <span style={{fontSize:13,fontWeight:600,color:'#059669'}}>🎟️ {appliedCoupon.code}</span>
+                  <span style={{fontSize:13,fontWeight:700,color:'#059669'}}>-{formatPrice(couponDiscount)} K</span>
+                </div>
+              )}
+              {appliedCoupon?.error && (
+                <div style={{background:'#fef2f2',borderRadius:10,padding:'10px 12px',margin:'12px 0',fontSize:13,color:'#dc2626',fontWeight:500}}>
+                  {appliedCoupon.error}
+                </div>
+              )}
+
+              {/* Points */}
+              {customerId && pointsSettings?.enabled && customerPoints > 0 && !pointsDiscount > 0 && (
+                <div style={{background:'#fffbeb',borderRadius:10,padding:'12px',margin:'12px 0'}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                    <span style={{fontSize:13,fontWeight:600,color:'#92400e'}}>⭐ Points Balance: {customerPoints} pts</span>
+                  </div>
+                  <div style={{display:'flex',gap:8}}>
+                    <input
+                      type="number"
+                      value={pointsToRedeem || ''}
+                      onChange={(e) => setPointsToRedeem(Math.min(Number(e.target.value) || 0, customerPoints))}
+                      placeholder="Points to use"
+                      style={{flex:1,padding:'10px 12px',border:'2px solid #e5e7eb',borderRadius:10,fontSize:13,outline:'none'}}
+                    />
+                    <button
+                      onClick={handleRedeemPoints}
+                      disabled={redeemingPoints || !pointsToRedeem || pointsToRedeem < (Number(pointsSettings.min_redeem) || 50)}
+                      style={{
+                        padding:'10px 16px',border:'none',borderRadius:10,
+                        background:'#f59e0b',color:'#fff',
+                        fontSize:13,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',
+                        opacity: redeemingPoints || !pointsToRedeem || pointsToRedeem < (Number(pointsSettings.min_redeem) || 50) ? 0.5 : 1,
+                      }}
+                    >
+                      {redeemingPoints ? '...' : 'Use Points'}
+                    </button>
+                  </div>
+                  {pointsToRedeem > 0 && pointsToRedeem < (Number(pointsSettings.min_redeem) || 50) && (
+                    <p style={{fontSize:11,color:'#dc2626',marginTop:4}}>Minimum {Number(pointsSettings.min_redeem) || 50} points to redeem</p>
+                  )}
+                </div>
+              )}
+
+              {/* Discounted total */}
+              <div style={{borderTop:'1px solid #e5e7eb',paddingTop:12,marginTop:12}}>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#6b7280',marginBottom:4}}>
+                  <span>Subtotal</span>
+                  <span>{formatPrice(orderTotal)} K</span>
+                </div>
+                {couponDiscount > 0 && (
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'#059669',marginBottom:4}}>
+                    <span>Coupon Discount</span>
+                    <span>-{formatPrice(couponDiscount)} K</span>
+                  </div>
+                )}
+                {pointsDiscount > 0 && (
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'#f59e0b',marginBottom:4}}>
+                    <span>Points Discount</span>
+                    <span>-{formatPrice(pointsDiscount)} K</span>
+                  </div>
+                )}
+                <div className="checkout-total-row" style={{marginTop:4}}>
+                  <span>Total Amount</span>
+                  <span className="font-bold">{formatPrice(netTotal)} K</span>
+                </div>
               </div>
               <p style={{fontSize:13,color:'#6b7280',margin:'8px 0 12px',lineHeight:1.5}}>
-                Please transfer {formatPrice(orderTotal)} MMK to {selectedPayment?.name || ''} {selectedPayment?.payment_number || ''} and upload screenshot
+                Please transfer {formatPrice(netTotal)} MMK to {selectedPayment?.name || ''} {selectedPayment?.payment_number || ''} and upload screenshot
               </p>
               <div className="checkout-field">
                 <label>Payment Proof (screenshot) <span className="text-rose-500">*</span></label>
@@ -422,10 +658,31 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   const [orderItems, setOrderItems] = useState([]);
   const [bannerSlide, setBannerSlide] = useState(0);
   const [wasEverOpen, setWasEverOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [tokenMode, setTokenMode] = useState(false);
+  const [tokenNumber, setTokenNumber] = useState(null);
+  const [showTokenCard, setShowTokenCard] = useState(false);
+  const [assigningToken, setAssigningToken] = useState(false);
+  const [customerId, setCustomerId] = useState(null);
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerPoints, setCustomerPoints] = useState(0);
+  const [showPhonePrompt, setShowPhonePrompt] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
+  const [identifyingPhone, setIdentifyingPhone] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponInput, setCouponInput] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [checkingCoupon, setCheckingCoupon] = useState(false);
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
+  const [pointsDiscount, setPointsDiscount] = useState(0);
+  const [redeemingPoints, setRedeemingPoints] = useState(false);
   const bannerTouchRef = useRef(null);
   const searchRef = useRef(null);
   const catScrollRef = useRef(null);
   const catDrag = useRef({ isDown: false, startX: 0, scrollLeft: 0 });
+
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const isTokenUrlMode = urlParams.get('mode') === 'token';
 
   const handleCatMouseDown = (e) => {
     catDrag.current.isDown = true;
@@ -474,7 +731,159 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
     if (data && isOpen) setWasEverOpen(true);
   }, [data, isOpen]);
 
-  // Banner slideshow
+  const businessMode = data?.business_mode || 'restaurant';
+  const qrLabels = data?.qr_labels || {};
+  const dualModeEnabled = data?.dual_mode_enabled || false;
+  const orderFlowMode = data?.order_flow_mode || 'postpaid';
+  const qrLanding = data?.qr_landing || {};
+  const isBrowseOnly = orderFlowMode === 'browse_only';
+
+  const qrTheme = data?.qr_theme;
+  const qrThemeColors = data?.qr_theme_colors || {};
+  const pointsSettings = data?.points_settings || {};
+
+  // Build CSS from business theme if set
+  const activeBusinessTheme = BUSINESS_THEMES[qrTheme] || null;
+  let businessCss = {};
+  if (activeBusinessTheme) {
+    const c = { ...activeBusinessTheme, ...qrThemeColors };
+    businessCss = {
+      '--theme-primary': c.primary,
+      '--theme-primary-light': c.primary + '22',
+      '--theme-primary-shadow': c.primary + '33',
+      '--theme-primary-shadow-lg': c.primary + '44',
+      '--theme-header': `linear-gradient(135deg, ${c.primary}, ${c.secondary})`,
+      '--theme-btn': `linear-gradient(to right, ${c.primary}, ${c.secondary})`,
+      '--theme-btn-hover': `linear-gradient(to right, ${c.primary}dd, ${c.secondary}dd)`,
+      '--theme-btn-text': '#ffffff',
+      '--theme-price': c.primary,
+      '--theme-filter-active': c.primary,
+      '--theme-card-bg': c.card || '#ffffff',
+      '--theme-card-border': '#f3f4f6',
+      '--theme-bg': c.background || '#f9fafb',
+      '--theme-header-text': '#ffffff',
+      '--theme-header-muted': 'rgba(255,255,255,0.8)',
+      '--theme-accent-amber': c.accent,
+      '--theme-accent-rose': '#f43f5e',
+      '--theme-accent-emerald': '#10b981',
+    };
+  }
+  const finalThemeCss = { ...(theme?.css || {}), ...businessCss };
+
+  // Auto-identify returning customer from localStorage
+  useEffect(() => {
+    if (data && shop?.id) {
+      const stored = localStorage.getItem(`qr_customer_${shop.id}`);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setCustomerPhone(parsed.phone);
+          setCustomerId(parsed.id);
+          setCustomerPoints(parsed.points || 0);
+        } catch {}
+      }
+    }
+  }, [data, shop?.id]);
+
+  const labels = {
+    section_name: qrLabels?.section_name || 'QR Menu',
+    table_name: qrLabels?.table_name || 'Table',
+    menu_section_title: qrLabels?.menu_section_title || 'Menu Items',
+    categories_label: qrLabels?.categories_label || 'Categories',
+    add_to_order: qrLabels?.add_to_order || 'Add to Order',
+    cart_title: qrLabels?.cart_title || 'Your Order',
+    checkout_hint: qrLabels?.checkout_hint || 'Share with staff',
+    closed_message: qrLabels?.closed_message || "We're Closed",
+    welcome_message: qrLanding?.welcome_message || qrLabels?.welcome_message || 'Welcome!',
+  };
+
+  async function doAssignToken() {
+    if (!slug) return;
+    setAssigningToken(true);
+    try {
+      const res = await fetch(`${API_BASE}/public/qr-menu/${slug}/assign-token`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to assign token');
+      const result = await res.json();
+      setTokenNumber(result.token_number);
+      setShowTokenCard(true);
+      setShowWelcome(false);
+    } catch {
+      // silently fail - token assignment is best-effort
+    } finally {
+      setAssigningToken(false);
+    }
+  }
+
+  useEffect(() => {
+    if (data && !isLoading && !error) {
+      if (isTokenUrlMode) {
+        setTokenMode(true);
+        doAssignToken();
+      } else if (dualModeEnabled && !tableProp) {
+        setShowWelcome(true);
+      }
+    }
+  }, [data, isLoading, error, dualModeEnabled, tableProp, isTokenUrlMode, slug]);
+
+  const dismissTokenCard = () => {
+    setShowTokenCard(false);
+  };
+
+  const handleIdentifyPhone = async () => {
+    if (!phoneInput.trim() || !shop?.id) return;
+    setIdentifyingPhone(true);
+    try {
+      const result = await identifyCustomer(phoneInput.trim(), shop.id, '');
+      setCustomerId(result.customer_id);
+      setCustomerPhone(result.phone);
+      setCustomerPoints(result.points || 0);
+      localStorage.setItem(`qr_customer_${shop.id}`, JSON.stringify({ id: result.customer_id, phone: result.phone, points: result.points || 0 }));
+      setShowPhonePrompt(false);
+    } catch {
+      // silently fail — customer can still browse
+    } finally {
+      setIdentifyingPhone(false);
+    }
+  };
+
+  const handleSkipPhone = () => {
+    setShowPhonePrompt(false);
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim() || !shop?.id) return;
+    setCheckingCoupon(true);
+    try {
+      const result = await validateCoupon(couponInput.trim(), orderTotal, shop.id);
+      if (result.valid) {
+        setAppliedCoupon({ code: result.coupon_code, type: result.coupon_type, discount: result.discount });
+        setCouponDiscount(result.discount);
+        setCouponInput('');
+      } else {
+        setAppliedCoupon({ error: result.message });
+        setCouponDiscount(0);
+      }
+    } catch {
+      setAppliedCoupon({ error: 'Failed to validate coupon' });
+    } finally {
+      setCheckingCoupon(false);
+    }
+  };
+
+  const handleRedeemPoints = async () => {
+    if (!customerId || !shop?.id) return;
+    setRedeemingPoints(true);
+    try {
+      const result = await redeemPoints(customerId, pointsToRedeem, orderTotal, shop.id);
+      setPointsDiscount(result.discount);
+      setPointsToRedeem(result.points_used);
+    } catch {
+      setPointsDiscount(0);
+    } finally {
+      setRedeemingPoints(false);
+    }
+  };
+
   const banners = data?.banners || [];
   useEffect(() => {
     if (banners.length <= 1) return;
@@ -509,24 +918,29 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   const popular = useMemo(() => items.filter(i => (i.badges || []).includes('popular')), [items]);
 
   const orderCount = useMemo(() => orderItems.reduce((s, oi) => s + oi.qty, 0), [orderItems]);
-  const orderTotal = useMemo(() => orderItems.reduce((s, oi) => s + oi.qty * Number(oi.item.price), 0), [orderItems]);
+  const orderTotal = useMemo(() => orderItems.reduce((s, oi) => {
+    return s + oi.qty * calcItemPrice(oi.item, oi.variants, oi.addons);
+  }, 0), [orderItems]);
 
-  const addToOrder = useCallback((item, qty) => {
+  const netTotal = Math.max(0, orderTotal - couponDiscount - pointsDiscount);
+
+  const addToOrder = useCallback((item, qty, selectedVariants = {}, selectedAddons = []) => {
     if (closedWhileBrowsing) return;
+    const cartKey = getCartKey(item, selectedVariants, selectedAddons);
     setOrderItems(prev => {
-      const ex = prev.find(oi => oi.item.id === item.id);
-      if (ex) return prev.map(oi => oi.item.id === item.id ? { ...oi, qty: oi.qty + qty } : oi);
-      return [...prev, { item, qty }];
+      const ex = prev.find(oi => oi.cartKey === cartKey);
+      if (ex) return prev.map(oi => oi.cartKey === cartKey ? { ...oi, qty: oi.qty + qty } : oi);
+      return [...prev, { cartKey, item, qty, variants: selectedVariants, addons: selectedAddons }];
     });
     setSelectedItem(null);
   }, [closedWhileBrowsing]);
 
   const updateQty = useCallback((id, qty) => {
-    if (qty <= 0) { setOrderItems(prev => prev.filter(oi => oi.item.id !== id)); return; }
-    setOrderItems(prev => prev.map(oi => oi.item.id === id ? { ...oi, qty } : oi));
+    if (qty <= 0) { setOrderItems(prev => prev.filter(oi => (oi.cartKey || oi.item.id) !== id)); return; }
+    setOrderItems(prev => prev.map(oi => (oi.cartKey || oi.item.id) === id ? { ...oi, qty } : oi));
   }, []);
 
-  const removeItem = useCallback((id) => setOrderItems(prev => prev.filter(oi => oi.item.id !== id)), []);
+  const removeItem = useCallback((id) => setOrderItems(prev => prev.filter(oi => (oi.cartKey || oi.item.id) !== id)), []);
   const clearAll = useCallback(() => setOrderItems([]), []);
 
   const catById = useMemo(() => {
@@ -575,8 +989,8 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
 
           <div className="qr-closed-divider" />
 
-          <h2 className="qr-closed-heading">We're Currently Closed</h2>
-          <p className="qr-closed-desc">The restaurant is currently closed. Please check back later during operating hours.</p>
+          <h2 className="qr-closed-heading">{labels.closed_message || "We're Currently Closed"}</h2>
+          <p className="qr-closed-desc">We're currently closed. Please check back later during operating hours.</p>
 
           <div className="qr-closed-info">
             <div className="qr-closed-info-item">
@@ -629,6 +1043,127 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
     );
   }
 
+  // Welcome Screen (Dual Mode)
+  if (showWelcome) {
+    return (
+      <div className="qr-page" style={finalThemeCss}>
+        <div className="qr-welcome-wrap">
+          <div className="qr-welcome-inner">
+            <div className="qr-welcome-brand">
+              {shop?.profile_picture ? (
+                <img src={shop.profile_picture} alt="" className="qr-welcome-avatar" />
+              ) : (
+                <div className="qr-welcome-avatar qr-welcome-avatar-fallback">🏪</div>
+              )}
+            </div>
+            <h1 className="qr-welcome-name">{shop?.bot_full_name}</h1>
+            <p className="qr-welcome-msg">{labels.welcome_message}</p>
+            <p className="qr-welcome-subtitle">How would you like to order?</p>
+            <div className="qr-welcome-choices">
+              <button className="qr-welcome-btn" onClick={() => {
+                setShowWelcome(false);
+                if (pointsSettings?.enabled && !customerId) setShowPhonePrompt(true);
+              }}>
+                <span className="qr-welcome-btn-icon">🪑</span>
+                <span className="qr-welcome-btn-label">Take a {labels.table_name}</span>
+                <span className="qr-welcome-btn-desc">Dine in & order</span>
+              </button>
+              <button
+                className="qr-welcome-btn qr-welcome-btn-secondary"
+                onClick={doAssignToken}
+                disabled={assigningToken}
+              >
+                <span className="qr-welcome-btn-icon">🎫</span>
+                <span className="qr-welcome-btn-label">Get a Token</span>
+                <span className="qr-welcome-btn-desc">Walk-in queue</span>
+              </button>
+            </div>
+            {assigningToken && <p className="qr-welcome-loading">Getting your token...</p>}
+          </div>
+        </div>
+        <style>{`
+          *, *::before, *::after { box-sizing: border-box; }
+          body { margin: 0; }
+          .qr-page { min-height: 100vh; background: var(--theme-bg, #f7f5f0); font-family: system-ui,-apple-system,sans-serif; }
+          .qr-welcome-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+          .qr-welcome-inner { text-align: center; max-width: 380px; width: 100%; }
+          .qr-welcome-brand { margin-bottom: 16px; }
+          .qr-welcome-avatar { width: 80px; height: 80px; border-radius: 20px; object-fit: cover; box-shadow: 0 4px 20px var(--theme-primary-shadow, rgba(79,70,229,0.2)); }
+          .qr-welcome-avatar-fallback { background: linear-gradient(135deg, var(--theme-primary, #4f46e5), #7c3aed); display: flex; align-items: center; justify-content: center; font-size: 32px; width: 80px; height: 80px; border-radius: 20px; margin: 0 auto; }
+          .qr-welcome-name { font-size: 24px; font-weight: 800; color: #1a1a1a; margin: 0 0 4px; }
+          .qr-welcome-msg { font-size: 15px; color: #666; margin: 0 0 24px; }
+          .qr-welcome-subtitle { font-size: 13px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 16px; }
+          .qr-welcome-choices { display: flex; flex-direction: column; gap: 12px; }
+          .qr-welcome-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 20px; border: 2px solid var(--theme-primary, #4f46e5); border-radius: 20px; background: var(--theme-primary-light, #eef2ff); cursor: pointer; transition: all 0.2s; }
+          .qr-welcome-btn:active { transform: scale(0.97); }
+          .qr-welcome-btn-secondary { background: #fff; border-color: #e5e7eb; }
+          .qr-welcome-btn-secondary:active { border-color: var(--theme-primary, #4f46e5); }
+          .qr-welcome-btn-icon { font-size: 36px; line-height: 1; }
+          .qr-welcome-btn-label { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+          .qr-welcome-btn-desc { font-size: 12px; color: #888; }
+          .qr-welcome-loading { margin-top: 16px; font-size: 13px; color: var(--theme-primary, #4f46e5); font-weight: 600; }
+          @media (min-width: 640px) {
+            .qr-welcome-choices { flex-direction: row; }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Phone Prompt Screen (for points/coupon identification)
+  if (showPhonePrompt) {
+    return (
+      <div className="qr-page" style={finalThemeCss}>
+        <div className="qr-welcome-wrap">
+          <div className="qr-welcome-inner">
+            <div className="qr-welcome-brand">
+              {shop?.profile_picture ? (
+                <img src={shop.profile_picture} alt="" className="qr-welcome-avatar" />
+              ) : (
+                <div className="qr-welcome-avatar qr-welcome-avatar-fallback">📱</div>
+              )}
+            </div>
+            <h1 className="qr-welcome-name" style={{fontSize:20}}>{shop?.bot_full_name}</h1>
+            <p className="qr-welcome-msg">Enter your phone number to earn points & use coupons</p>
+
+            <div style={{display:'flex',flexDirection:'column',gap:12,maxWidth:300,margin:'0 auto'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,background:'#fff',border:'2px solid #e5e7eb',borderRadius:14,padding:'4px 14px'}}>
+                <span style={{fontSize:16,fontWeight:700,color:'#6b7280'}}>+95</span>
+                <input
+                  type="tel"
+                  value={phoneInput}
+                  onChange={(e) => setPhoneInput(e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={(e) => e.key === 'Enter' && handleIdentifyPhone()}
+                  placeholder="9XXXXXXXXX"
+                  style={{flex:1,border:'none',outline:'none',fontSize:16,padding:'12px 0',background:'transparent'}}
+                  autoFocus
+                />
+              </div>
+              <button
+                onClick={handleIdentifyPhone}
+                disabled={identifyingPhone || phoneInput.length < 6}
+                style={{
+                  width:'100%',padding:'14px',border:'none',borderRadius:14,
+                  background:'linear-gradient(135deg, var(--theme-primary, #4f46e5), var(--theme-btn-hover, #4338ca))',
+                  color:'#fff',fontSize:15,fontWeight:700,cursor:'pointer',
+                  opacity: identifyingPhone || phoneInput.length < 6 ? 0.5 : 1,
+                }}
+              >
+                {identifyingPhone ? 'Please wait...' : 'Continue'}
+              </button>
+              <button
+                onClick={handleSkipPhone}
+                style={{background:'none',border:'none',color:'#9ca3af',fontSize:13,cursor:'pointer',padding:'8px'}}
+              >
+                Skip (browse as guest)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const planBanner = (() => {
     const p = shop?.plan_name?.toLowerCase();
     if (p !== 'free' && p !== 'basic') return null;
@@ -646,7 +1181,7 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   })();
 
   return (
-    <div className="qr-page" style={theme.css}>
+    <div className="qr-page" style={finalThemeCss}>
       {planBanner}
       <div className="qr-container">
         {/* Hero */}
@@ -699,19 +1234,95 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
                 <span className="qr-hero-badge"><i className="ti ti-clock"></i> Open now</span>
               </div>
             </div>
-            <button className={`qr-hero-orders-btn ${orderCount > 0 ? 'visible' : ''}`} onClick={() => setShowCart(true)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
-              <span>{orderCount > 0 ? `${formatPrice(orderTotal)} K` : 'Orders'}</span>
-              {orderCount > 0 && <span className="qr-hero-order-count">{orderCount}</span>}
-            </button>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              {pointsSettings?.enabled && customerId && customerPoints > 0 && (
+                <span style={{
+                  display:'flex',alignItems:'center',gap:4,
+                  background:'rgba(255,255,255,0.18)',backdropFilter:'blur(8px)',
+                  border:'1px solid rgba(255,255,255,0.25)',
+                  color:'#fff',padding:'6px 10px',borderRadius:12,
+                  fontSize:12,fontWeight:600,whiteSpace:'nowrap',
+                }}>
+                  ⭐ {customerPoints}
+                </span>
+              )}
+              {tokenMode && tokenNumber && (
+                <span style={{
+                  display:'flex',alignItems:'center',gap:4,
+                  background:'rgba(255,255,255,0.18)',backdropFilter:'blur(8px)',
+                  border:'1px solid rgba(255,255,255,0.25)',
+                  color:'#fff',padding:'6px 10px',borderRadius:12,
+                  fontSize:12,fontWeight:600,whiteSpace:'nowrap',
+                }}>
+                  🎫 #{String(tokenNumber).padStart(3,'0')}
+                </span>
+              )}
+              <button className={`qr-hero-orders-btn ${orderCount > 0 && !isBrowseOnly ? 'visible' : ''}`} onClick={() => setShowCart(true)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+                <span>{orderCount > 0 ? `${formatPrice(orderTotal)} K` : 'Orders'}</span>
+                {orderCount > 0 && <span className="qr-hero-order-count">{orderCount}</span>}
+              </button>
+            </div>
           </div>
           <div className="qr-hero-content">
             <div className="qr-hero-meta">
               {shop.location && <span className="qr-hero-badge"><i className="ti ti-map-pin"></i> {shop.location}</span>}
               {shop.description && <span className="qr-hero-badge"><i className="ti ti-info-circle"></i> Dine in & Takeaway</span>}
+              {qrLanding?.hours_enabled && (() => {
+                const now = new Date();
+                const day = now.getDay();
+                const hh = String(now.getHours()).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                const cur = `${hh}:${mm}`;
+                const hoursStr = (day === 0 || day === 6) ? qrLanding.hours_weekend : qrLanding.hours_weekday;
+                if (!hoursStr) return null;
+                const [open, close] = hoursStr.split('-').map(s => s.trim());
+                const isOpenNow = open && close && cur >= open && cur <= close;
+                return (
+                  <span className="qr-hero-badge" style={{color: isOpenNow ? '#4ade80' : '#f87171'}}>
+                    <i className="ti ti-clock"></i>
+                    {hoursStr}
+                    <span style={{fontSize:10,opacity:0.7}}>({isOpenNow ? 'Open now' : 'Closed'})</span>
+                  </span>
+                );
+              })()}
+              {qrLanding?.facebook_url && (
+                <a href={qrLanding.facebook_url} target="_blank" rel="noopener noreferrer" className="qr-hero-badge" style={{color:'#1877f2',textDecoration:'none'}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  Facebook
+                </a>
+              )}
+              {qrLanding?.instagram_url && (
+                <a href={qrLanding.instagram_url} target="_blank" rel="noopener noreferrer" className="qr-hero-badge" style={{textDecoration:'none'}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                  Instagram
+                </a>
+              )}
+              {qrLanding?.phone && (
+                <a href={`tel:${qrLanding.phone}`} className="qr-hero-badge" style={{textDecoration:'none'}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+                  {qrLanding.phone}
+                </a>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Welcome message banner */}
+        {qrLanding?.welcome_message && !qrLanding?.announcement_enabled && (
+          <div className="qr-announcement" style={{background:'#f0fdf4',borderBottom:'1px solid #bbf7d0'}}>
+            <div className="qr-announcement-icon">👋</div>
+            <div className="qr-announcement-text">{qrLanding.welcome_message}</div>
+          </div>
+        )}
+
+        {/* Announcement banner */}
+        {qrLanding?.announcement_enabled && qrLanding?.announcement_text && (
+          <div className="qr-announcement">
+            <div className="qr-announcement-icon">📢</div>
+            <div className="qr-announcement-text">{qrLanding.announcement_text}</div>
+          </div>
+        )}
 
         {/* Search */}
         <div className="qr-search-wrap">
@@ -768,7 +1379,7 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
         {/* Menu items */}
         <div>
           <div className="qr-section-header">
-            <span className="qr-section-title">{searchQ ? `Results for "${searchQ}"` : activeCat === 'all' ? 'All Items' : catById[activeCat]?.name || 'Items'}</span>
+            <span className="qr-section-title">{searchQ ? `Results for "${searchQ}"` : activeCat === 'all' ? labels.menu_section_title : catById[activeCat]?.name || 'Items'}</span>
             <div className="flex items-center gap-2">
               <span className="qr-section-count">{filtered.length} items</span>
               <div className="flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
@@ -791,7 +1402,9 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
               {filtered.map(item => {
                 const imgs = getItemImageUrls(item.image_url, shop?.id);
                 const badges = item.badges || [];
-                const inOrder = orderItems.find(oi => oi.item.id === item.id);
+                const inOrderTotal = orderItems.filter(oi => oi.item.id === item.id).reduce((s, oi) => s + oi.qty, 0);
+                const inOrderNoVariant = hasVariants(item) ? null : orderItems.find(oi => oi.item.id === item.id && !oi.variants?.length);
+                const itemUnitPrice = Number(item.price);
                 return (
                   <div key={item.id} className="qr-item" onClick={() => setSelectedItem(item)}>
                     <div className="qr-item-thumb">{imgs[0] ? <img src={imgs[0]} alt={item.name} /> : '🍽️'}</div>
@@ -806,22 +1419,36 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
                       {item.description && <div className="qr-item-desc">{item.description}</div>}
                       <div className="qr-item-bottom">
                         <div className="qr-item-price">{formatPrice(item.price)} <span>K</span></div>
-                        {inOrder && <span className="qr-item-in-cart">× {inOrder.qty}</span>}
+                        {inOrderTotal > 0 && <span className="qr-item-in-cart">× {inOrderTotal}</span>}
                       </div>
                     </div>
-                    {inOrder ? (
-                      <div className="qr-item-qty-ctrl">
-                        <button className="qr-item-qty-btn" onClick={(e) => { e.stopPropagation(); updateQty(item.id, inOrder.qty - 1); }}>
+                    {inOrderTotal > 0 && !inOrderNoVariant ? (
+                      <div className="qr-item-qty-ctrl" onClick={(e) => e.stopPropagation()}>
+                        <button className="qr-item-qty-btn" onClick={() => { const first = orderItems.find(oi => oi.item.id === item.id); if (first) updateQty(first.cartKey || first.item.id, first.qty - 1); }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/></svg>
                         </button>
-                        <span className="qr-item-qty-num">{inOrder.qty}</span>
-                        <button className="qr-item-qty-btn" onClick={(e) => { e.stopPropagation(); addToOrder(item, 1); }}>
+                        <span className="qr-item-qty-num">{inOrderTotal}</span>
+                        <button className="qr-item-qty-btn" onClick={() => setSelectedItem(item)}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        </button>
+                      </div>
+                    ) : inOrderNoVariant ? (
+                      <div className="qr-item-qty-ctrl" onClick={(e) => e.stopPropagation()}>
+                        <button className="qr-item-qty-btn" onClick={() => updateQty(item.id, inOrderNoVariant.qty - 1)}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/></svg>
+                        </button>
+                        <span className="qr-item-qty-num">{inOrderTotal}</span>
+                        <button className="qr-item-qty-btn" onClick={() => { if (hasVariants(item)) setSelectedItem(item); else addToOrder(item, 1); }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
                         </button>
                       </div>
                     ) : (
-                      <button className="qr-item-add" onClick={(e) => { e.stopPropagation(); addToOrder(item, 1); }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                      <button className="qr-item-add" onClick={(e) => { e.stopPropagation(); if (hasVariants(item)) setSelectedItem(item); else addToOrder(item, 1); }}>
+                        {hasVariants(item) ? (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                        ) : (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        )}
                       </button>
                     )}
                   </div>
@@ -833,7 +1460,8 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
               {filtered.map((item, index) => {
                 const imgs = getItemImageUrls(item.image_url, shop?.id);
                 const badges = item.badges || [];
-                const inOrder = orderItems.find(oi => oi.item.id === item.id);
+                const inOrderTotal = orderItems.filter(oi => oi.item.id === item.id).reduce((s, oi) => s + oi.qty, 0);
+                const inOrderNoVariant = hasVariants(item) ? null : orderItems.find(oi => oi.item.id === item.id && !oi.variants?.length);
                 const isUnavailable = item.is_available === false;
                 return (
                   <div key={item.id} className="qr-grid-card" onClick={() => setSelectedItem(item)}>
@@ -869,19 +1497,23 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
                       <div className="qr-grid-bottom">
                         <div className="qr-grid-price">{formatPrice(item.price)} <span>K</span></div>
                         <div onClick={(e) => e.stopPropagation()}>
-                          {inOrder ? (
+                          {inOrderTotal > 0 ? (
                             <div className="qr-grid-qty-ctrl">
-                              <button className="qr-grid-qty-btn" onClick={(e) => { e.stopPropagation(); updateQty(item.id, inOrder.qty - 1); }}>
+                              <button className="qr-grid-qty-btn" onClick={() => { const first = orderItems.find(oi => oi.item.id === item.id); if (first) updateQty(first.cartKey || first.item.id, first.qty - 1); }}>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/></svg>
                               </button>
-                              <span className="qr-grid-qty-num">{inOrder.qty}</span>
-                              <button className="qr-grid-qty-btn" onClick={(e) => { e.stopPropagation(); addToOrder(item, 1); }}>
+                              <span className="qr-grid-qty-num">{inOrderTotal}</span>
+                              <button className="qr-grid-qty-btn" onClick={() => { if (hasVariants(item)) setSelectedItem(item); else addToOrder(item, 1); }}>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
                               </button>
                             </div>
                           ) : (
-                            <button className="qr-grid-add" onClick={(e) => { e.stopPropagation(); addToOrder(item, 1); }}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                            <button className="qr-grid-add" onClick={(e) => { if (hasVariants(item)) setSelectedItem(item); else addToOrder(item, 1); }}>
+                              {hasVariants(item) ? (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                              ) : (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                              )}
                             </button>
                           )}
                         </div>
@@ -895,10 +1527,20 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
         </div>
       </div>
 
+      {/* Call staff button (browse only mode) */}
+      {isBrowseOnly && (
+        <div className="qr-browse-only-bar">
+          <a href={`tel:${qrLanding?.phone || shop?.phone || ''}`} className="qr-call-staff-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+            Call to Order
+          </a>
+        </div>
+      )}
+
       {/* Modals */}
       <AnimatePresence>
         {selectedItem && (
-          <DetailModal item={selectedItem} shop={shop} orderItems={orderItems} onAddToOrder={addToOrder} onClose={() => setSelectedItem(null)} />
+          <DetailModal item={selectedItem} shop={shop} orderItems={orderItems} onAddToOrder={addToOrder} onClose={() => setSelectedItem(null)} addToOrderLabel={labels.add_to_order} isBrowseOnly={isBrowseOnly} shopPhone={qrLanding?.phone || ''} />
         )}
       </AnimatePresence>
 
@@ -906,7 +1548,8 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
         {showCart && (
           <CartSheet orderItems={orderItems} orderCount={orderCount} orderTotal={orderTotal} shop={shop}
             onUpdateQty={updateQty} onRemoveItem={removeItem} onClearAll={clearAll}
-            onClose={() => setShowCart(false)} paymentMode={paymentMode}
+            onClose={() => setShowCart(false)} paymentMode={paymentMode} orderFlowMode={orderFlowMode}
+            cartTitle={labels.cart_title} checkoutHint={labels.checkout_hint}
             onProceed={() => { setShowCart(false); setShowCheckout(true); }} />
         )}
       </AnimatePresence>
@@ -916,8 +1559,61 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
           <CheckoutFlow orderItems={orderItems} orderTotal={orderTotal} shop={shop}
             paymentMethods={paymentMethods}
             tableProp={tableProp}
+            customerId={customerId}
+            customerPoints={customerPoints}
+            pointsSettings={pointsSettings}
+            netTotal={netTotal}
+            couponDiscount={couponDiscount}
+            pointsDiscount={pointsDiscount}
+            appliedCoupon={appliedCoupon}
+            couponInput={couponInput}
+            setCouponInput={setCouponInput}
+            handleApplyCoupon={handleApplyCoupon}
+            checkingCoupon={checkingCoupon}
+            pointsToRedeem={pointsToRedeem}
+            setPointsToRedeem={setPointsToRedeem}
+            handleRedeemPoints={handleRedeemPoints}
+            redeemingPoints={redeemingPoints}
+            tokenNumber={tokenNumber}
             onBack={() => { setShowCheckout(false); setShowCart(true); }}
             onSubmitOrder={() => { setShowCheckout(false); setOrderItems([]); }} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showTokenCard && tokenNumber && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="modal-overlay"
+            onClick={() => setShowTokenCard(false)}
+          >
+            <motion.div
+              initial={{ y: 100, opacity: 0, scale: 0.8 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 100, opacity: 0, scale: 0.8 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+              className="modal-sheet token-card-sheet"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="token-card-body">
+                <div className="token-card-icon">🎫</div>
+                <p className="token-card-label">Your Token Number</p>
+                <div className="token-card-number">#{String(tokenNumber).padStart(3, '0')}</div>
+                <p className="token-card-hint">Show this number at the counter</p>
+                <button
+                  className="modal-add-btn token-card-btn"
+                  onClick={() => {
+                    setShowTokenCard(false);
+                    if (pointsSettings?.enabled && !customerId) setShowPhonePrompt(true);
+                  }}
+                >
+                  Browse Menu →
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1093,6 +1789,35 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
         .modal-add-btn { width: 100%; padding: 16px; background: var(--theme-btn, var(--theme-primary, #1a1a2e)); color: var(--theme-btn-text, #fff); border: none; border-radius: 16px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .modal-add-btn:active { opacity: 0.85; }
 
+        /* Modal extras (variants/addons) */
+        .modal-extras-section { margin-top: 16px; }
+        .modal-extras-label { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 8px; }
+        .modal-variant-options { display: flex; flex-wrap: wrap; gap: 8px; }
+        .modal-extras-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 12px; background: #fafafa; cursor: pointer; transition: all 0.15s; flex: 1; min-width: 120px; font-size: 13px; }
+        .modal-extras-btn:active { transform: scale(0.97); }
+        .modal-extras-btn.active { border-color: var(--theme-primary, #1a1a2e); background: var(--theme-primary-light, #eef2ff); }
+        .modal-extras-btn-label { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #1a1a1a; }
+        .modal-extras-btn-label svg { flex-shrink: 0; }
+        .modal-extras-btn-price { font-size: 12px; font-weight: 700; color: var(--theme-primary, #1a1a2e); white-space: nowrap; }
+        .modal-price-breakdown { font-size: 11px; color: #9ca3af; margin-top: 2px; line-height: 1.5; }
+
+        /* Cart item extras */
+        .cart-item-extras { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+        .cart-item-extra { font-size: 11px; color: #6b7280; background: #f3f4f6; padding: 1px 6px; border-radius: 4px; }
+
+        /* Announcement banner */
+        .qr-announcement { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #fefce8; border-bottom: 1px solid #fde68a; font-size: 13px; color: #92400e; line-height: 1.4; }
+        .qr-announcement-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
+        .qr-announcement-text { flex: 1; }
+        @media (min-width: 640px) { .qr-announcement { padding: 10px 32px; } }
+        @media (min-width: 1024px) { .qr-announcement { padding: 10px 48px; } }
+        @media (min-width: 1200px) { .qr-announcement { padding: 10px 52px; } }
+
+        /* Browse only call staff */
+        .qr-browse-only-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; padding: 12px 16px; background: linear-gradient(transparent, rgba(255,255,255,0.95) 30%); pointer-events: none; display: flex; justify-content: center; }
+        .qr-call-staff-btn { display: flex; align-items: center; gap: 10px; padding: 16px 32px; background: var(--theme-btn, var(--theme-primary, #1a1a2e)); color: var(--theme-btn-text, #fff); border: none; border-radius: 16px; font-size: 16px; font-weight: 700; cursor: pointer; pointer-events: all; text-decoration: none; box-shadow: 0 4px 20px rgba(0,0,0,0.2); transition: transform 0.15s; }
+        .qr-call-staff-btn:active { transform: scale(0.97); }
+
         /* Cart sheet */
         .cart-sheet-wrap { position: fixed; inset: 0; z-index: 150; display: flex; justify-content: flex-end; }
         .cart-sheet-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.55); }
@@ -1219,6 +1944,26 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
         .checkout-order-btn { flex: 2; padding: 14px; border: none; border-radius: 14px; background: var(--theme-btn, var(--theme-primary, #1a1a2e)); color: var(--theme-btn-text, #fff); font-size: 14px; font-weight: 700; cursor: pointer; }
         .checkout-order-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .checkout-done-icon { font-size: 56px; margin-bottom: 8px; }
+        .token-card-sheet { text-align: center; }
+        .token-card-body { padding: 40px 20px; display: flex; flex-direction: column; align-items: center; }
+        .token-card-icon { font-size: 56px; margin-bottom: 12px; animation: tokenBounce 0.6s ease-out; }
+        .token-card-label { font-size: 14px; font-weight: 600; color: #888; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .token-card-number { font-size: 56px; font-weight: 900; color: var(--theme-primary, #4f46e5); letter-spacing: 4px; margin: 0 0 12px; line-height: 1; }
+        .token-card-hint { font-size: 13px; color: #aaa; margin: 0 0 24px; }
+        .token-card-btn { max-width: 280px; margin: 0 auto; }
+        @keyframes tokenBounce { 0% { transform: scale(0); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+
+        /* Dynamic badge styles */
+        .badge-new { background: #e0f2fe; color: #0369a1; }
+        .badge-hot { background: #fee2e2; color: #b91c1c; }
+        .badge-iced { background: #cffafe; color: #0e7490; }
+        .badge-seasonal { background: #fef3c7; color: #b45309; }
+        .badge-fresh { background: #ffedd5; color: #c2410c; }
+        .badge-limited { background: #f3e8ff; color: #7e22ce; }
+        .badge-sale { background: #fee2e2; color: #dc2626; }
+        .badge-express { background: #fef3c7; color: #d97706; }
+        .badge-relaxing { background: #e0e7ff; color: #4338ca; }
+        .badge-premium { background: #f3e8ff; color: #7c3aed; }
 
         /* Closed page */
         .qr-page-closed { min-height: 100vh; background: linear-gradient(160deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%); display: flex; align-items: center; justify-content: center; padding: 24px; position: relative; overflow: hidden; font-family: system-ui,-apple-system,sans-serif; }
