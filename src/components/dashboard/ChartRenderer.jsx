@@ -86,7 +86,7 @@ export default function ChartRenderer({
 
   return (
     <>
-      <div ref={chartWrapperRef} className="h-[220px] sm:h-[280px] lg:h-[360px] w-full" onMouseMove={handleChartPointerMove} onMouseLeave={handleChartPointerLeave}>
+      <div ref={chartWrapperRef} className="h-[220px] sm:h-[280px] lg:h-[360px] w-full min-w-0" onMouseMove={handleChartPointerMove} onMouseLeave={handleChartPointerLeave}>
         {chartLoading ? (
           <LoadingSkeleton className="w-full h-full" />
         ) : chartType === 'pie' ? (
