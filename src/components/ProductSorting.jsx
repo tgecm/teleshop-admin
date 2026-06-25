@@ -8,6 +8,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { X, Loader2, GripVertical, Tag, Package, Edit2 } from 'lucide-react';
+import CachedImage from '../components/shared/CachedImage';
 import { updateProductSortOrder, updateCategory, getImageUrl } from '../api/products';
 import { useToastStore } from '../store/toastStore';
 
@@ -39,7 +40,7 @@ function SortableItem({ product, botId }) {
       </button>
       <div className="w-12 h-12 rounded-lg bg-gray-50 overflow-hidden flex-shrink-0 border border-gray-100">
         {product.image_url ? (
-          <img
+          <CachedImage
             src={getImageUrl(product.image_url, botId)}
             alt={product.name}
             className="w-full h-full object-cover"

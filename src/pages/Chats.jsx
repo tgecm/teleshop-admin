@@ -364,28 +364,32 @@ export default function Chats() {
     queryKey: ['chats', selectedBotId],
     queryFn: () => getChats(Number(selectedBotId)),
     enabled: !!selectedBotId,
-    refetchInterval: 3000,
+    refetchInterval: 15000,
+    placeholderData: (prev) => prev,
   });
 
   const { data: messages = [] } = useQuery({
     queryKey: ['chatMessages', selectedBotId, selectedUser],
     queryFn: () => getChatMessages(selectedUser, Number(selectedBotId)),
     enabled: !!selectedBotId && !!selectedUser,
-    refetchInterval: 3000,
+    refetchInterval: 15000,
+    placeholderData: (prev) => prev,
   });
 
   const { data: webVisitors = [] } = useQuery({
     queryKey: ['webVisitors', selectedBotId],
     queryFn: () => getWebVisitors(Number(selectedBotId)),
     enabled: !!selectedBotId && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
-    refetchInterval: 3000,
+    refetchInterval: 15000,
+    placeholderData: (prev) => prev,
   });
 
   const { data: webMessages = [] } = useQuery({
     queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor],
     queryFn: () => getWebVisitorMessages(selectedVisitor, Number(selectedBotId)),
     enabled: !!selectedBotId && !!selectedVisitor && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
-    refetchInterval: 3000,
+    refetchInterval: 15000,
+    placeholderData: (prev) => prev,
   });
 
   // Apply local unread overrides on top of server data

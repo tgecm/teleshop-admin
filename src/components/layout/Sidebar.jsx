@@ -33,6 +33,33 @@ import { getQRMenuPendingCount } from '../../api/orders';
 import BotSwitcher from '../shared/BotSwitcher';
 import ConfirmDialog from '../shared/ConfirmDialog';
 
+const pageModules = {
+  '/dashboard': () => import('../../pages/Dashboard'),
+  '/orders': () => import('../../pages/Orders'),
+  '/products': () => import('../../pages/Products'),
+  '/customers': () => import('../../pages/Customers'),
+  '/chats': () => import('../../pages/Chats'),
+  '/broadcast': () => import('../../pages/Broadcast'),
+  '/commands': () => import('../../pages/Commands'),
+  '/payments': () => import('../../pages/Payments'),
+  '/settings': () => import('../../pages/Settings'),
+  '/customization': () => import('../../pages/Customization'),
+  '/bot-customization': () => import('../../pages/BotCustomization'),
+  '/newsfeed': () => import('../../pages/NewsfeedAdmin'),
+  '/faqs': () => import('../../pages/FAQs'),
+  '/subscription': () => import('../../pages/Subscription'),
+  '/staff-accounts': () => import('../../pages/StaffAccounts'),
+  '/send-message': () => import('../../pages/SendMessage'),
+  '/subscribers': () => import('../../pages/Subscribers'),
+  '/qr-menu': () => import('../../pages/QRMenuAdmin'),
+  '/qr-menu/tables': () => import('../../pages/QRMenuTables'),
+  '/qr-menu/orders': () => import('../../pages/QRMenuOrders'),
+};
+
+function prefetchPage(path) {
+  if (pageModules[path]) pageModules[path]().catch(() => {});
+}
+
 export default function Sidebar({ mobileOpen, onMobileClose }) {
   const { user, logout, isStaff } = useAuthStore();
   const { bots, selectedBotId } = useBotStore();
@@ -45,21 +72,21 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
     queryKey: ['unreadCount', selectedBotId],
     queryFn: () => getUnreadCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
-    refetchInterval: 3000,
+    refetchInterval: 15000,
   });
 
   const { data: pendingOrders } = useQuery({
     queryKey: ['pendingOrderCount', selectedBotId],
     queryFn: () => getPendingOrderCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
-    refetchInterval: 3000,
+    refetchInterval: 15000,
   });
 
   const { data: qrPendingOrders } = useQuery({
     queryKey: ['qr-pending-orders-count', selectedBotId],
     queryFn: () => getQRMenuPendingCount(selectedBotId),
     enabled: !!selectedBotId,
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   const navItems = [
@@ -100,6 +127,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             to={to}
             data-haptic
             onClick={onMobileClose}
+            onMouseEnter={() => prefetchPage(to)}
             className={({ isActive }) => `
               flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
               ${isActive
@@ -127,6 +155,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             <div className="bg-indigo-50/40 border border-indigo-100 rounded-xl p-1 space-y-0.5">
               {qrMenuItems.map(({ to, icon: Icon, label }) => (
                 <NavLink key={to} to={to} data-haptic onClick={onMobileClose}
+                  onMouseEnter={() => prefetchPage(to)}
                   className={({ isActive }) => `
                     flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-lg text-xs lg:text-sm font-medium transition-all
                     ${isActive ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900 border border-transparent'}
@@ -152,6 +181,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             <div className="bg-indigo-50/40 border border-indigo-100 rounded-xl p-1 space-y-0.5">
               {telegramItems.map(({ to, icon: Icon, label }) => (
                 <NavLink key={to} to={to} data-haptic onClick={onMobileClose}
+                  onMouseEnter={() => prefetchPage(to)}
                   className={({ isActive }) => `
                     flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-lg text-xs lg:text-sm font-medium transition-all
                     ${isActive ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900 border border-transparent'}
@@ -168,6 +198,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
           {!isStaff && (
             <>
               <NavLink to="/faqs" data-haptic onClick={onMobileClose}
+                onMouseEnter={() => prefetchPage('/faqs')}
                 className={({ isActive }) => `
                   flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
                   ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
@@ -177,6 +208,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                 <span>FAQs</span>
               </NavLink>
               <NavLink to="/subscription" data-haptic onClick={onMobileClose}
+                onMouseEnter={() => prefetchPage('/subscription')}
                 className={({ isActive }) => `
                   flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
                   ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
@@ -190,6 +222,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
         {/* Settings */}
           <NavLink to="/settings" data-haptic onClick={onMobileClose}
+            onMouseEnter={() => prefetchPage('/settings')}
             className={({ isActive }) => `
               flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
               ${isActive ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
