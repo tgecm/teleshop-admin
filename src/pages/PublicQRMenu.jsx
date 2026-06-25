@@ -682,7 +682,9 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   const catDrag = useRef({ isDown: false, startX: 0, scrollLeft: 0 });
 
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const isTokenUrlMode = urlParams.get('mode') === 'token';
+  const qParamStr = urlParams.get('q') || '';
+  const qParams = qParamStr ? new URLSearchParams(qParamStr) : new URLSearchParams();
+  const isTokenUrlMode = urlParams.get('mode') === 'token' || qParams.get('mode') === 'token';
 
   const handleCatMouseDown = (e) => {
     catDrag.current.isDown = true;
@@ -1255,6 +1257,17 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
                   fontSize:12,fontWeight:600,whiteSpace:'nowrap',
                 }}>
                   🎫 #{String(tokenNumber).padStart(3,'0')}
+                </span>
+              )}
+              {tableProp && !tokenMode && (
+                <span style={{
+                  display:'flex',alignItems:'center',gap:4,
+                  background:'rgba(255,255,255,0.18)',backdropFilter:'blur(8px)',
+                  border:'1px solid rgba(255,255,255,0.25)',
+                  color:'#fff',padding:'6px 10px',borderRadius:12,
+                  fontSize:12,fontWeight:600,whiteSpace:'nowrap',
+                }}>
+                  🪑 Table {tableProp}
                 </span>
               )}
               <button className={`qr-hero-orders-btn ${orderCount > 0 && !isBrowseOnly ? 'visible' : ''}`} onClick={() => setShowCart(true)}>

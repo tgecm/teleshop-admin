@@ -727,6 +727,72 @@ function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selected
   );
 }
 
+function DebouncedSettingsInput({ value: initialValue, onSave, placeholder, type = 'text', className = '' }) {
+  const [localValue, setLocalValue] = useState(initialValue);
+  const [status, setStatus] = useState('idle');
+  const timerRef = useRef(null);
+  const pendingRef = useRef(false);
+  const onSaveRef = useRef(onSave);
+  const valRef = useRef(initialValue);
+
+  onSaveRef.current = onSave;
+
+  useEffect(() => {
+    if (!pendingRef.current) setLocalValue(initialValue);
+  }, [initialValue]);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  const borderClass = status === 'typing' || status === 'saving' ? 'border-blue-400'
+    : status === 'saved' ? 'border-green-500'
+    : status === 'failed' ? 'border-red-500'
+    : 'border-gray-200';
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setLocalValue(val);
+    valRef.current = val;
+    setStatus('typing');
+    pendingRef.current = true;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(async () => {
+      timerRef.current = null;
+      setStatus('saving');
+      try {
+        await onSaveRef.current(valRef.current);
+        setStatus('saved');
+        pendingRef.current = false;
+        setTimeout(() => setStatus('idle'), 2000);
+      } catch {
+        setStatus('failed');
+        pendingRef.current = false;
+      }
+    }, 1000);
+  };
+
+  return (
+    <div>
+      <input
+        type={type}
+        value={localValue}
+        onChange={handleChange}
+        placeholder={placeholder}
+        className={`bg-white border rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all ${className} ${borderClass}`}
+      />
+      {status !== 'idle' && (
+        <div className="mt-0.5">
+          {status === 'typing' && <span className="text-blue-500 text-xs">Unsaved...</span>}
+          {status === 'saving' && <span className="text-blue-500 text-xs">Saving...</span>}
+          {status === 'saved' && <span className="text-green-500 text-xs">Saved</span>}
+          {status === 'failed' && <span className="text-red-500 text-xs">Failed</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function QRMenuAdmin() {
   const { selectedBotId } = useBotStore();
   const { addToast } = useToastStore();
@@ -865,9 +931,12 @@ export default function QRMenuAdmin() {
     onError: () => addToast('Failed to save settings', 'error'),
   });
 
-  const saveShopSettings = (updates) => {
-    const current = shopSettingsBlock?.content_data || {};
-    shopSettingsMutation.mutate({ ...current, ...updates });
+  const saveShopSettings = (getUpdates) => {
+    const cached = queryClient.getQueryData(['content-blocks', selectedBotId]);
+    const block = cached?.find(b => b.key === 'shop_settings');
+    const current = block?.content_data || {};
+    const updates = typeof getUpdates === 'function' ? getUpdates(current) : getUpdates;
+    return shopSettingsMutation.mutateAsync({ ...current, ...updates });
   };
 
   const paymentModeMutation = useMutation({
@@ -1651,16 +1720,11 @@ export default function QRMenuAdmin() {
                         ].map(field => (
                           <div key={field.key}>
                             <label className="text-[11px] font-bold text-gray-500 mb-1 block">{field.label}</label>
-                            <input
-                              type="text"
+                            <DebouncedSettingsInput
                               value={qrLabels[field.key] || ''}
-                              onChange={(e) => {
-                                const newLabels = { ...qrLabels, [field.key]: e.target.value };
-                                setQrLabels(newLabels);
-                                saveShopSettings({ qr_labels: newLabels });
-                              }}
+                              onSave={(val) => saveShopSettings((c) => ({ qr_labels: { ...(c.qr_labels || {}), [field.key]: val } }))}
                               placeholder={field.placeholder}
-                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                              className="w-full px-3 py-2"
                             />
                           </div>
                         ))}
@@ -1766,31 +1830,21 @@ export default function QRMenuAdmin() {
                       <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
                         <div>
                           <label className="text-[11px] font-bold text-gray-500 mb-1 block">Welcome Message</label>
-                          <input
-                            type="text"
+                          <DebouncedSettingsInput
                             value={qrLanding?.welcome_message || ''}
-                            onChange={(e) => {
-                              const next = { ...qrLanding, welcome_message: e.target.value };
-                              setQrLanding(next);
-                              saveShopSettings({ qr_landing: next });
-                            }}
+                            onSave={(val) => saveShopSettings((c) => ({ qr_landing: { ...(c.qr_landing || {}), welcome_message: val } }))}
                             placeholder="Welcome! Browse our menu below"
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                            className="w-full px-3 py-2"
                           />
                         </div>
 
                         <div>
                           <label className="text-[11px] font-bold text-gray-500 mb-1 block">Announcement</label>
-                          <input
-                            type="text"
+                          <DebouncedSettingsInput
                             value={qrLanding?.announcement || ''}
-                            onChange={(e) => {
-                              const next = { ...qrLanding, announcement: e.target.value };
-                              setQrLanding(next);
-                              saveShopSettings({ qr_landing: next });
-                            }}
+                            onSave={(val) => saveShopSettings((c) => ({ qr_landing: { ...(c.qr_landing || {}), announcement: val } }))}
                             placeholder="Today's Special: 10% off all drinks!"
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                            className="w-full px-3 py-2"
                           />
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-xs text-gray-500">Show announcement</span>
@@ -1833,50 +1887,34 @@ export default function QRMenuAdmin() {
                             <div className="flex flex-col gap-2 mt-2">
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-bold text-gray-400 w-16">Mon-Fri</span>
-                                <input
+                                <DebouncedSettingsInput
                                   type="time"
                                   value={qrLanding?.hours_weekday_open || '09:00'}
-                                  onChange={(e) => {
-                                    const next = { ...qrLanding, hours_weekday_open: e.target.value };
-                                    setQrLanding(next);
-                                    saveShopSettings({ qr_landing: next });
-                                  }}
-                                  className="flex-1 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+                                  onSave={(val) => saveShopSettings((c) => ({ qr_landing: { ...(c.qr_landing || {}), hours_weekday_open: val } }))}
+                                  className="flex-1 px-2 py-1.5 rounded-lg text-xs"
                                 />
                                 <span className="text-xs text-gray-400">to</span>
-                                <input
+                                <DebouncedSettingsInput
                                   type="time"
                                   value={qrLanding?.hours_weekday_close || '21:00'}
-                                  onChange={(e) => {
-                                    const next = { ...qrLanding, hours_weekday_close: e.target.value };
-                                    setQrLanding(next);
-                                    saveShopSettings({ qr_landing: next });
-                                  }}
-                                  className="flex-1 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+                                  onSave={(val) => saveShopSettings((c) => ({ qr_landing: { ...(c.qr_landing || {}), hours_weekday_close: val } }))}
+                                  className="flex-1 px-2 py-1.5 rounded-lg text-xs"
                                 />
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-bold text-gray-400 w-16">Weekend</span>
-                                <input
+                                <DebouncedSettingsInput
                                   type="time"
                                   value={qrLanding?.hours_weekend_open || '10:00'}
-                                  onChange={(e) => {
-                                    const next = { ...qrLanding, hours_weekend_open: e.target.value };
-                                    setQrLanding(next);
-                                    saveShopSettings({ qr_landing: next });
-                                  }}
-                                  className="flex-1 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+                                  onSave={(val) => saveShopSettings((c) => ({ qr_landing: { ...(c.qr_landing || {}), hours_weekend_open: val } }))}
+                                  className="flex-1 px-2 py-1.5 rounded-lg text-xs"
                                 />
                                 <span className="text-xs text-gray-400">to</span>
-                                <input
+                                <DebouncedSettingsInput
                                   type="time"
                                   value={qrLanding?.hours_weekend_close || '22:00'}
-                                  onChange={(e) => {
-                                    const next = { ...qrLanding, hours_weekend_close: e.target.value };
-                                    setQrLanding(next);
-                                    saveShopSettings({ qr_landing: next });
-                                  }}
-                                  className="flex-1 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-violet-500 outline-none"
+                                  onSave={(val) => saveShopSettings((c) => ({ qr_landing: { ...(c.qr_landing || {}), hours_weekend_close: val } }))}
+                                  className="flex-1 px-2 py-1.5 rounded-lg text-xs"
                                 />
                               </div>
                             </div>
@@ -1886,38 +1924,26 @@ export default function QRMenuAdmin() {
                         <div>
                           <label className="text-[11px] font-bold text-gray-500 mb-1 block">Social Links</label>
                           <div className="space-y-2">
-                            <input
+                            <DebouncedSettingsInput
                               type="url"
                               value={qrLanding?.social_facebook || ''}
-                              onChange={(e) => {
-                                const next = { ...qrLanding, social_facebook: e.target.value };
-                                setQrLanding(next);
-                                saveShopSettings({ qr_landing: next });
-                              }}
+                              onSave={(val) => saveShopSettings((c) => ({ qr_landing: { ...(c.qr_landing || {}), social_facebook: val } }))}
                               placeholder="Facebook URL"
-                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                              className="w-full px-3 py-2"
                             />
-                            <input
+                            <DebouncedSettingsInput
                               type="url"
                               value={qrLanding?.social_instagram || ''}
-                              onChange={(e) => {
-                                const next = { ...qrLanding, social_instagram: e.target.value };
-                                setQrLanding(next);
-                                saveShopSettings({ qr_landing: next });
-                              }}
+                              onSave={(val) => saveShopSettings((c) => ({ qr_landing: { ...(c.qr_landing || {}), social_instagram: val } }))}
                               placeholder="Instagram URL"
-                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                              className="w-full px-3 py-2"
                             />
-                            <input
+                            <DebouncedSettingsInput
                               type="tel"
                               value={qrLanding?.social_phone || ''}
-                              onChange={(e) => {
-                                const next = { ...qrLanding, social_phone: e.target.value };
-                                setQrLanding(next);
-                                saveShopSettings({ qr_landing: next });
-                              }}
+                              onSave={(val) => saveShopSettings((c) => ({ qr_landing: { ...(c.qr_landing || {}), social_phone: val } }))}
                               placeholder="Phone number"
-                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+                              className="w-full px-3 py-2"
                             />
                           </div>
                         </div>
@@ -1958,28 +1984,20 @@ export default function QRMenuAdmin() {
                               <label className="text-[11px] font-bold text-gray-500 mb-1 block">Earn Rate</label>
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-gray-400">Every</span>
-                                <input
+                                <DebouncedSettingsInput
                                   type="number"
                                   value={pointsSettings.earn_per || ''}
-                                  onChange={(e) => {
-                                    const next = { ...pointsSettings, earn_per: Number(e.target.value) };
-                                    setPointsSettings(next);
-                                    saveShopSettings({ points_settings: next });
-                                  }}
+                                  onSave={(val) => saveShopSettings((c) => ({ points_settings: { ...(c.points_settings || {}), earn_per: Number(val) } }))}
                                   placeholder="1000"
-                                  className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-violet-500 outline-none"
+                                  className="w-20 px-2 py-1.5 rounded-lg text-sm text-center"
                                 />
                                 <span className="text-xs text-gray-400">MMK =</span>
-                                <input
+                                <DebouncedSettingsInput
                                   type="number"
                                   value={pointsSettings.earn_rate || ''}
-                                  onChange={(e) => {
-                                    const next = { ...pointsSettings, earn_rate: Number(e.target.value) };
-                                    setPointsSettings(next);
-                                    saveShopSettings({ points_settings: next });
-                                  }}
+                                  onSave={(val) => saveShopSettings((c) => ({ points_settings: { ...(c.points_settings || {}), earn_rate: Number(val) } }))}
                                   placeholder="1"
-                                  className="w-16 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-violet-500 outline-none"
+                                  className="w-16 px-2 py-1.5 rounded-lg text-sm text-center"
                                 />
                                 <span className="text-xs text-gray-400">pt(s)</span>
                               </div>
@@ -1987,58 +2005,42 @@ export default function QRMenuAdmin() {
                             <div>
                               <label className="text-[11px] font-bold text-gray-500 mb-1 block">Redemption Rate</label>
                               <div className="flex items-center gap-2">
-                                <input
+                                <DebouncedSettingsInput
                                   type="number"
                                   value={pointsSettings.redeem_points || ''}
-                                  onChange={(e) => {
-                                    const next = { ...pointsSettings, redeem_points: Number(e.target.value) };
-                                    setPointsSettings(next);
-                                    saveShopSettings({ points_settings: next });
-                                  }}
+                                  onSave={(val) => saveShopSettings((c) => ({ points_settings: { ...(c.points_settings || {}), redeem_points: Number(val) } }))}
                                   placeholder="100"
-                                  className="w-16 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-violet-500 outline-none"
+                                  className="w-16 px-2 py-1.5 rounded-lg text-sm text-center"
                                 />
                                 <span className="text-xs text-gray-400">pts =</span>
-                                <input
+                                <DebouncedSettingsInput
                                   type="number"
                                   value={pointsSettings.redeem_value || ''}
-                                  onChange={(e) => {
-                                    const next = { ...pointsSettings, redeem_value: Number(e.target.value) };
-                                    setPointsSettings(next);
-                                    saveShopSettings({ points_settings: next });
-                                  }}
+                                  onSave={(val) => saveShopSettings((c) => ({ points_settings: { ...(c.points_settings || {}), redeem_value: Number(val) } }))}
                                   placeholder="1000"
-                                  className="w-20 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-violet-500 outline-none"
+                                  className="w-20 px-2 py-1.5 rounded-lg text-sm text-center"
                                 />
                                 <span className="text-xs text-gray-400">MMK</span>
                               </div>
                             </div>
                             <div>
                               <label className="text-[11px] font-bold text-gray-500 mb-1 block">Min. Redeem Points</label>
-                              <input
+                              <DebouncedSettingsInput
                                 type="number"
                                 value={pointsSettings.min_redeem || ''}
-                                onChange={(e) => {
-                                  const next = { ...pointsSettings, min_redeem: Number(e.target.value) };
-                                  setPointsSettings(next);
-                                  saveShopSettings({ points_settings: next });
-                                }}
+                                onSave={(val) => saveShopSettings((c) => ({ points_settings: { ...(c.points_settings || {}), min_redeem: Number(val) } }))}
                                 placeholder="50"
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                                className="w-full px-3 py-2"
                               />
                             </div>
                             <div>
                               <label className="text-[11px] font-bold text-gray-500 mb-1 block">Welcome Bonus (points)</label>
-                              <input
+                              <DebouncedSettingsInput
                                 type="number"
                                 value={pointsSettings.welcome_bonus || ''}
-                                onChange={(e) => {
-                                  const next = { ...pointsSettings, welcome_bonus: Number(e.target.value) };
-                                  setPointsSettings(next);
-                                  saveShopSettings({ points_settings: next });
-                                }}
+                                onSave={(val) => saveShopSettings((c) => ({ points_settings: { ...(c.points_settings || {}), welcome_bonus: Number(val) } }))}
                                 placeholder="0"
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                                className="w-full px-3 py-2"
                               />
                             </div>
                           </>
