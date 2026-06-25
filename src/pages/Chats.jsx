@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { getChats, getChatMessages, sendChatMessage, deleteChat, markChatRead, markChatUnread,
   getWebVisitors, getWebVisitorMessages, sendWebVisitorMessage, deleteWebVisitor, toggleWebVisitorAI,
   markWebVisitorRead, markWebVisitorUnread } from '../api/chats';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
-import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
 import {
   Search,
@@ -360,47 +359,60 @@ export default function Chats() {
   const [uploading, setUploading] = useState(false);
   const [unreadOverrides, setUnreadOverrides] = useState({});
 
-  const { data: chats = [], isLoading } = useQuery({
+  const prevChatsRef = useRef([]);
+  const prevMessagesRef = useRef([]);
+  const prevWebVisitorsRef = useRef([]);
+  const prevWebMessagesRef = useRef([]);
+
+  const { data: chats = [], isFetching } = useQuery({
     queryKey: ['chats', selectedBotId],
     queryFn: () => getChats(Number(selectedBotId)),
     enabled: !!selectedBotId,
     refetchInterval: 15000,
-    placeholderData: (prev) => prev,
+    placeholderData: keepPreviousData,
   });
+  if (chats.length > 0) prevChatsRef.current = chats;
+  const stableChats = isFetching && chats.length === 0 ? prevChatsRef.current : chats;
 
   const { data: messages = [] } = useQuery({
     queryKey: ['chatMessages', selectedBotId, selectedUser],
     queryFn: () => getChatMessages(selectedUser, Number(selectedBotId)),
     enabled: !!selectedBotId && !!selectedUser,
     refetchInterval: 15000,
-    placeholderData: (prev) => prev,
+    placeholderData: keepPreviousData,
   });
+  if (messages.length > 0) prevMessagesRef.current = messages;
+  const stableMessages = isFetching && messages.length === 0 ? prevMessagesRef.current : messages;
 
   const { data: webVisitors = [] } = useQuery({
     queryKey: ['webVisitors', selectedBotId],
     queryFn: () => getWebVisitors(Number(selectedBotId)),
     enabled: !!selectedBotId && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
     refetchInterval: 15000,
-    placeholderData: (prev) => prev,
+    placeholderData: keepPreviousData,
   });
+  if (webVisitors.length > 0) prevWebVisitorsRef.current = webVisitors;
+  const stableWebVisitors = isFetching && webVisitors.length === 0 ? prevWebVisitorsRef.current : webVisitors;
 
   const { data: webMessages = [] } = useQuery({
     queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor],
     queryFn: () => getWebVisitorMessages(selectedVisitor, Number(selectedBotId)),
     enabled: !!selectedBotId && !!selectedVisitor && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
     refetchInterval: 15000,
-    placeholderData: (prev) => prev,
+    placeholderData: keepPreviousData,
   });
+  if (webMessages.length > 0) prevWebMessagesRef.current = webMessages;
+  const stableWebMessages = isFetching && webMessages.length === 0 ? prevWebMessagesRef.current : webMessages;
 
   // Apply local unread overrides on top of server data
   const displayedChats = useMemo(() =>
-    chats.map(c => ({ ...c, unread_count: unreadOverrides[c.user_id] ?? c.unread_count })),
-    [chats, unreadOverrides]
+    stableChats.map(c => ({ ...c, unread_count: unreadOverrides[c.user_id] ?? c.unread_count })),
+    [stableChats, unreadOverrides]
   );
 
   const displayedWebVisitors = useMemo(() =>
-    webVisitors.map(v => ({ ...v, unread_count: unreadOverrides[v.visitor_id] ?? v.unread_count })),
-    [webVisitors, unreadOverrides]
+    stableWebVisitors.map(v => ({ ...v, unread_count: unreadOverrides[v.visitor_id] ?? v.unread_count })),
+    [stableWebVisitors, unreadOverrides]
   );
 
   const sendMutation = useMutation({
@@ -461,9 +473,13 @@ export default function Chats() {
         setUnreadOverrides(prev => ({ ...prev, [key]: vars.markAsRead ? 0 : 1 }));
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
-      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
+    onSuccess: (_data, vars) => {
+      // Only invalidate for server-side mutations (markAsRead=true calls the API).
+      // Mark as Unread is local-only — invalidating would refetch server data and race against the local override.
+      if (vars.markAsRead) {
+        queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+        queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
+      }
     },
     onError: (err) => {
       console.error('Mark read/unread failed:', err);
@@ -627,8 +643,6 @@ export default function Chats() {
       }
     }
   };
-
-  if (isLoading) return <LoadingSkeleton type="list" count={5} />;
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
@@ -1111,7 +1125,7 @@ export default function Chats() {
 
               <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-5 py-4 space-y-3 min-h-0 [overflow-wrap:anywhere]">
                 {(() => {
-                  const msgs = selectedVisitor ? webMessages : messages;
+                  const msgs = selectedVisitor ? stableWebMessages : stableMessages;
                   return msgs.length === 0 ? (
                     <div className="flex items-center justify-center h-full">
                       <p className="text-sm text-gray-400">No messages yet</p>

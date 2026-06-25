@@ -54,6 +54,7 @@ const pageModules = {
   '/qr-menu': () => import('../../pages/QRMenuAdmin'),
   '/qr-menu/tables': () => import('../../pages/QRMenuTables'),
   '/qr-menu/orders': () => import('../../pages/QRMenuOrders'),
+  '/qr-menu/dashboard': () => import('../../pages/QRMenuDashboard'),
 };
 
 function prefetchPage(path) {
@@ -104,6 +105,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
   ];
 
   const qrMenuItems = [
+    { to: '/qr-menu/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/qr-menu', icon: Utensils, label: 'Menu' },
     { to: '/qr-menu/tables', icon: QrCode, label: 'Tables' },
     { to: '/qr-menu/orders', icon: ClipboardList, label: 'Orders' },
@@ -131,7 +133,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             className={({ isActive }) => `
               flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
               ${isActive
-                ? 'bg-indigo-50 text-indigo-600 shadow-sm border border-indigo-100'
+                ? 'bg-indigo-100 text-indigo-700 shadow-sm border border-indigo-300 font-semibold'
                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
             `}
           >
@@ -154,11 +156,11 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             </p>
             <div className="bg-indigo-50/40 border border-indigo-100 rounded-xl p-1 space-y-0.5">
               {qrMenuItems.map(({ to, icon: Icon, label }) => (
-                <NavLink key={to} to={to} data-haptic onClick={onMobileClose}
+                <NavLink key={to} to={to} end={to === '/qr-menu'} data-haptic onClick={onMobileClose}
                   onMouseEnter={() => prefetchPage(to)}
                   className={({ isActive }) => `
                     flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-lg text-xs lg:text-sm font-medium transition-all
-                    ${isActive ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900 border border-transparent'}
+                    ${isActive ? 'bg-indigo-100 text-indigo-700 shadow-sm border border-indigo-300 font-semibold' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900 border border-transparent'}
                   `}
                 >
                   <Icon className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
@@ -184,7 +186,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                   onMouseEnter={() => prefetchPage(to)}
                   className={({ isActive }) => `
                     flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-lg text-xs lg:text-sm font-medium transition-all
-                    ${isActive ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900 border border-transparent'}
+                    ${isActive ? 'bg-indigo-100 text-indigo-700 shadow-sm border border-indigo-300 font-semibold' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900 border border-transparent'}
                   `}
                 >
                   <Icon className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />

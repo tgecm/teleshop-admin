@@ -54,3 +54,6 @@ export const createCoupon = (data) =>
 
 export const deleteCoupon = (couponId, botId) =>
   client.delete(`/admin/qr-menu/coupons/${couponId}`, { params: { bot_id: botId } }).then(r => r.data);
+
+export const getQRMenuStats = ({ bot_id, days, start_date, end_date }) =>
+  client.get(`/qr-menu/${bot_id}/stats`, { params: { days, start_date, end_date } }).then(r => r.data);
