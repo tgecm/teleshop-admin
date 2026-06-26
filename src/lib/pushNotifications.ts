@@ -37,11 +37,10 @@ export async function registerFCMToken(): Promise<void> {
       permStatus = await PushNotifications.requestPermissions();
       debugLog(`permission result: ${permStatus.receive} (took ${Date.now() - prev}ms)`);
     }
-    if (permStatus.receive !== 'granted') {
-      debugLog('permission not granted, skipping register');
-      return;
-    }
 
+    // Always register for FCM token regardless of notification permission.
+    // On Android 13+, notification permission is only needed to display notifications,
+    // not to obtain an FCM token.
     debugLog('calling PushNotifications.register()...');
     let prev = Date.now();
     await PushNotifications.register();
