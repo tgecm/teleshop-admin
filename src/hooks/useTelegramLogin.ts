@@ -8,7 +8,7 @@ const TIMEOUT_SECONDS = 300;
 
 export function useTelegramLogin() {
   const { loginWithTelegramToken, tgLoggedIn } = useTelegramAuth();
-  const [status, setStatus] = useState<TelegramLoginStatus>(tgLoggedIn ? 'confirmed' : 'idle');
+  const [status, setStatus] = useState<TelegramLoginStatus>('idle');
   const [botUsername, setBotUsername] = useState<string | null>(null);
   const [loginUrl, setLoginUrl] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(TIMEOUT_SECONDS);
@@ -29,12 +29,12 @@ export function useTelegramLogin() {
 
   const reset = useCallback(() => {
     cleanup();
-    setStatus(tgLoggedIn ? 'confirmed' : 'idle');
+    setStatus('idle');
     setBotUsername(null);
     setLoginUrl(null);
     setTimeLeft(TIMEOUT_SECONDS);
     tokenRef.current = null;
-  }, [cleanup, tgLoggedIn]);
+  }, [cleanup]);
 
   useEffect(() => {
     return cleanup;
