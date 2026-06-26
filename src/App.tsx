@@ -141,6 +141,10 @@ function PublicRoute() {
   if (qrMenu) {
     return <Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} /></Suspense>;
   }
+  const tokenDash = pathname.match(/^(.+)-token-dashboard$/);
+  if (tokenDash) {
+    return <Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={tokenDash[1]} table="" forceDashboard /></Suspense>;
+  }
   return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={pathname} /></Suspense>;
 }
 
