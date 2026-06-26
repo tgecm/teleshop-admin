@@ -15,7 +15,7 @@ import {
   Plus, Search, Edit2, Trash2, Utensils, ImageUp, X, Copy,
   ExternalLink, Loader2, FolderPlus, Tag, Package, QrCode,
   ClipboardList, Palette, Award, Ticket, Users, Hash,
-  Gift, RotateCcw, Sparkles, Check, Percent
+  Gift, RotateCcw, Sparkles, Check, Percent, User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -829,6 +829,10 @@ export default function QRMenuAdmin() {
   const [showCustomerSection, setShowCustomerSection] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerDetail, setCustomerDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [adjustPointsAmount, setAdjustPointsAmount] = useState('');
+  const [adjustingPoints, setAdjustingPoints] = useState(false);
   // Coupon form state
   const [couponForm, setCouponForm] = useState({ code: '', type: 'percentage', value: '', usage_limit: '0', min_order: '0', expires_at: '' });
   const [showCouponModal, setShowCouponModal] = useState(false);
@@ -1334,7 +1338,24 @@ export default function QRMenuAdmin() {
               <p className="text-sm text-gray-400 text-center py-8">No customers found</p>
             ) : (
               customersList.map(c => (
-                <div key={c.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div
+                  key={c.id}
+                  onClick={async () => {
+                    setSelectedCustomer(c);
+                    setCustomerDetail(null);
+                    setAdjustPointsAmount('');
+                    setDetailLoading(true);
+                    try {
+                      const detail = await getCustomerDetail(c.id, selectedBotId);
+                      setCustomerDetail(detail);
+                    } catch (e) {
+                      addToast('Failed to load customer detail', 'error');
+                    } finally {
+                      setDetailLoading(false);
+                    }
+                  }}
+                  className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-bold text-gray-900">{c.name || 'Unknown'}</p>
@@ -1534,6 +1555,177 @@ export default function QRMenuAdmin() {
                     Create Coupon
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Customer Detail Modal */}
+      <AnimatePresence>
+        {selectedCustomer && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedCustomer(null)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[60] max-h-[85svh] overflow-y-auto md:max-w-lg md:mx-auto md:top-1/2 md:-translate-y-1/2 md:bottom-auto md:max-h-[90vh] md:rounded-[32px] md:shadow-2xl"
+            >
+              <div className="p-5">
+                <div className="flex justify-center mb-4 md:hidden">
+                  <div className="w-10 h-1 bg-gray-200 rounded-full" />
+                </div>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-900">Customer Detail</h2>
+                  </div>
+                  <button onClick={() => setSelectedCustomer(null)} className="p-2 bg-gray-100 rounded-full">
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+
+                {detailLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
+                  </div>
+                ) : customerDetail ? (
+                  <>
+                    {/* Customer Info */}
+                    <div className="bg-gray-50 rounded-2xl p-4 mb-5">
+                      <p className="text-sm font-bold text-gray-900 mb-1">{customerDetail.name || 'Unknown'}</p>
+                      <p className="text-sm text-gray-500 mb-3">{customerDetail.phone}</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-white rounded-xl p-3 text-center">
+                          <p className="text-lg font-bold text-amber-500">{customerDetail.points_balance ?? 0}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Points</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-3 text-center">
+                          <p className="text-lg font-bold text-violet-600">{customerDetail.total_orders ?? 0}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Orders</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-3 text-center">
+                          <p className="text-lg font-bold text-green-600">{(customerDetail.total_spent ?? 0).toLocaleString()}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Spent</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Order History */}
+                    <div className="mb-5">
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Order History</h3>
+                      {customerDetail.orders && customerDetail.orders.length > 0 ? (
+                        <div className="space-y-2">
+                          {customerDetail.orders.map((order, idx) => (
+                            <div key={order.id || idx} className="flex items-center justify-between bg-gray-50 rounded-xl p-3">
+                              <div className="flex items-center gap-2.5">
+                                <span className="text-base">{order.channel === 'store' ? '\u{1F3EA}' : '\u{1F4F1}'}</span>
+                                <div>
+                                  <p className="text-sm font-bold text-gray-900">{Number(order.total).toLocaleString()} MMK</p>
+                                  <p className="text-[10px] text-gray-400">{new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                                </div>
+                              </div>
+                              <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                {order.channel === 'store' ? 'Store' : 'Online'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-400 text-center py-4">No orders yet</p>
+                      )}
+                    </div>
+
+                    {/* Adjust Points */}
+                    <div>
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Adjust Points</h3>
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          onClick={async () => {
+                            setAdjustingPoints(true);
+                            try {
+                              await adjustCustomerPoints(customerDetail.id, selectedBotId, 100, 'Admin adjustment +100');
+                              queryClient.invalidateQueries(['qr-customers', selectedBotId]);
+                              const updated = await getCustomerDetail(customerDetail.id, selectedBotId);
+                              setCustomerDetail(updated);
+                              addToast('Added 100 points');
+                            } catch (e) {
+                              addToast(e.response?.data?.detail || 'Failed to adjust points', 'error');
+                            } finally {
+                              setAdjustingPoints(false);
+                            }
+                          }}
+                          disabled={adjustingPoints}
+                          className="flex-1 py-2.5 bg-emerald-50 text-emerald-700 font-bold text-sm rounded-xl border border-emerald-200 hover:bg-emerald-100 transition-all active:scale-[0.97] disabled:opacity-50"
+                        >
+                          +100
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setAdjustingPoints(true);
+                            try {
+                              await adjustCustomerPoints(customerDetail.id, selectedBotId, -100, 'Admin adjustment -100');
+                              queryClient.invalidateQueries(['qr-customers', selectedBotId]);
+                              const updated = await getCustomerDetail(customerDetail.id, selectedBotId);
+                              setCustomerDetail(updated);
+                              addToast('Deducted 100 points');
+                            } catch (e) {
+                              addToast(e.response?.data?.detail || 'Failed to adjust points', 'error');
+                            } finally {
+                              setAdjustingPoints(false);
+                            }
+                          }}
+                          disabled={adjustingPoints}
+                          className="flex-1 py-2.5 bg-red-50 text-red-700 font-bold text-sm rounded-xl border border-red-200 hover:bg-red-100 transition-all active:scale-[0.97] disabled:opacity-50"
+                        >
+                          -100
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={adjustPointsAmount}
+                          onChange={(e) => setAdjustPointsAmount(e.target.value)}
+                          placeholder="Custom amount..."
+                          className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none"
+                        />
+                        <button
+                          onClick={async () => {
+                            const amount = parseInt(adjustPointsAmount);
+                            if (isNaN(amount) || amount === 0) { addToast('Enter a valid amount', 'error'); return; }
+                            setAdjustingPoints(true);
+                            try {
+                              await adjustCustomerPoints(customerDetail.id, selectedBotId, amount, `Admin adjustment ${amount > 0 ? '+' : ''}${amount}`);
+                              queryClient.invalidateQueries(['qr-customers', selectedBotId]);
+                              const updated = await getCustomerDetail(customerDetail.id, selectedBotId);
+                              setCustomerDetail(updated);
+                              addToast(`Adjusted ${amount > 0 ? '+' : ''}${amount} points`);
+                              setAdjustPointsAmount('');
+                            } catch (e) {
+                              addToast(e.response?.data?.detail || 'Failed to adjust points', 'error');
+                            } finally {
+                              setAdjustingPoints(false);
+                            }
+                          }}
+                          disabled={adjustingPoints || !adjustPointsAmount}
+                          className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 text-white font-bold text-sm rounded-xl hover:from-violet-600 hover:to-indigo-600 transition-all active:scale-[0.97] disabled:opacity-50"
+                        >
+                          {adjustingPoints ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : null}
               </div>
             </motion.div>
           </>
