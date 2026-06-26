@@ -679,7 +679,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     setError('');
     try {
       // Check stock before proceeding
-      const stockRes = await fetch(API_BASE + '/public/check-stock', {
+      const stockRes = await fetch('/public/check-stock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bot_id: shop.id, items: cartItems.map(i => ({ product_id: i.product_id, quantity: i.quantity })) }),
@@ -701,7 +701,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
         const fd = new FormData();
         fd.append('file', proofFile);
         fd.append('bot_id', shop.id);
-        const uploadRes = await fetch(API_BASE + '/public/upload/photo', {
+        const uploadRes = await fetch('/public/upload/photo', {
           method: 'POST',
           body: fd,
         });
@@ -718,7 +718,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
       // Save profile first (use uid from Firebase or JWT token for custom domain proxy auth)
       const profileUid = viewMode === 'guest' ? '' : (user?.uid || getUserIdFromToken() || '');
       if (profileUid) {
-        await fetch(API_BASE + '/api/customer-profile/save', {
+        await fetch('/api/customer-profile/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -785,13 +785,13 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
         body.payment_method = selectedPayment.name;
       }
 
-      const res = await fetch(API_BASE + '/public/create-order', {
+      const res = await fetch('/public/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to place order');
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || 'Failed to place order');
       if (viewMode === 'guest') {
         const cacheKey = 'guest_contact_' + shopSlug;
         try {
@@ -889,13 +889,13 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
                   setCouponLoading(true);
                   setCouponError('');
                   try {
-                    const res = await fetch(`${API_BASE}/public/coupon/validate`, {
+                    const res = await fetch('/public/coupon/validate', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ bot_id: shop.id, code: couponCode.trim(), cart_total: totalAmount }),
                     });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.detail || 'Invalid coupon');
+                    const data = await res.json().catch(() => null);
+                    if (!res.ok) throw new Error(data?.detail || 'Invalid coupon');
                     setCouponApplied(data);
                   } catch (err) {
                     setCouponError(err.message);
@@ -1127,7 +1127,7 @@ function RegisterModal({ shop, user, onClose, onSuccess }) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(API_BASE + '/website-customers/sync', {
+      const res = await fetch('/website-customers/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1309,7 +1309,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
     const customerUid = user?.uid
       || (tgToken ? (getUserIdFromToken() || '_') : '');
     if (!customerUid || !shopSlug || profileLoaded || !shop?.id) return;
-    fetch(`${API_BASE}/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
+    fetch(`/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
       .then(r => r.ok ? r.json() : {})
       .then(data => {
         if (data && data.display_name) {
@@ -1756,7 +1756,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       return;
     }
     if (!user) { setRegistered(null); return; }
-    fetch(API_BASE + '/public/check-customer?firebase_uid=' + encodeURIComponent(user.uid) + '&bot_id=' + shop.id)
+    fetch('/public/check-customer?firebase_uid=' + encodeURIComponent(user.uid) + '&bot_id=' + shop.id)
       .then(r => r.json())
       .then(d => setRegistered(d.registered))
       .catch(() => setRegistered(false));
@@ -2305,7 +2305,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   // Check stock for cart items when the cart opens
   useEffect(() => {
     if (!showCart || !shop?.id || cartItems.length === 0) { setOosMap({}); return; }
-    fetch(API_BASE + '/public/check-stock', {
+    fetch('/public/check-stock', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bot_id: shop.id, items: cartItems.map(i => ({ product_id: i.product_id, quantity: i.quantity })) }),
