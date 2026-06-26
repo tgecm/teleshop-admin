@@ -70,6 +70,8 @@ import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { requireFeature } from '../utils/plans';
 import Subscription from './Subscription';
+import { Capacitor } from '@capacitor/core';
+import { registerFCMToken } from '../lib/pushNotifications';
 
 export default function Settings() {
   const { isSuperadmin, user, isStaff } = useAuthStore();
@@ -1958,7 +1960,72 @@ function AppSettings() {
           Download Latest Version
         </a>
       </section>
+
+      {/* Push Notification Debug */}
+      <NotificationDebug />
     </div>
+  );
+}
+
+// ── Push Notification Debug ────────────────────────────────────
+function NotificationDebug() {
+  const [debugLog, setDebugLog] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('fcm_debug') || '[]'); } catch { return []; }
+  });
+  const [fcmToken, setFcmToken] = useState(localStorage.getItem('fcm_token') || '');
+  const refreshDebug = () => {
+    try { setDebugLog(JSON.parse(localStorage.getItem('fcm_debug') || '[]')); } catch { setDebugLog([]); }
+    setFcmToken(localStorage.getItem('fcm_token') || '');
+  };
+  return (
+    <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mt-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+            <span className="text-xs font-bold">!</span>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Push Notification Debug</h3>
+          </div>
+        </div>
+        <button onClick={refreshDebug}
+          className="text-xs px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium">
+          Refresh
+        </button>
+      </div>
+      <div className="mb-2">
+        <span className="text-[10px] font-bold text-gray-500 uppercase">Token: </span>
+        <span className="text-xs font-mono text-gray-700 break-all">{fcmToken ? fcmToken.slice(0, 40) + '...' : 'N/A'}</span>
+      </div>
+      <div className="mb-3 flex gap-2">
+        <button onClick={async () => {
+          if (Capacitor.isNativePlatform()) {
+            const { PushNotifications } = await import('@capacitor/push-notifications');
+            await PushNotifications.register();
+          }
+          refreshDebug();
+        }} className="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">
+          Register Token
+        </button>
+        <button onClick={() => {
+          localStorage.removeItem('fcm_token');
+          localStorage.removeItem('fcm_debug');
+          setFcmToken('');
+          setDebugLog([]);
+        }} className="text-xs px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-medium">
+          Clear
+        </button>
+      </div>
+      <div className="bg-gray-50 rounded-xl p-3 max-h-40 overflow-y-auto">
+        {debugLog.length === 0 ? (
+          <p className="text-xs text-gray-400">No log entries yet</p>
+        ) : (
+          debugLog.map((entry, i) => (
+            <p key={i} className="text-[10px] font-mono text-gray-600 leading-relaxed">{entry}</p>
+          ))
+        )}
+      </div>
+    </section>
   );
 }
 
