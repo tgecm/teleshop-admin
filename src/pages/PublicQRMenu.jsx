@@ -1068,6 +1068,7 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   // Welcome Screen (Dual Mode)
   if (showWelcome) {
     return (
+      <>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -1134,7 +1135,6 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
               whileTap={{ scale: 0.97 }}
               onClick={() => {
                 setUserDismissedWelcome(true);
-                if (pointsSettings?.enabled && !customerId) setShowPhonePrompt(true);
               }}
               className="flex-1 min-h-[160px] rounded-2xl border p-5 flex flex-col items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md"
               style={{
@@ -1223,6 +1223,15 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
           )}
         </motion.div>
       </motion.div>
+      {showQRSignIn && (
+        <QRSignInModal
+          slug={slug}
+          botUsername={shop?.bot_username}
+          onClose={() => setShowQRSignIn(false)}
+          onSuccess={handleQRSignInSuccess}
+        />
+      )}
+      </>
     );
   }
 
