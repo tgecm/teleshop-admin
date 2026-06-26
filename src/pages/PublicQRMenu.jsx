@@ -833,6 +833,10 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
           setShowQRSignIn(true);
         }
       }
+      if (isTokenUrlMode && dualModeEnabled && isQRAuthenticated()) {
+        setUserDismissedWelcome(true);
+        setShowQRDashboard(true);
+      }
     }
   }, [data, isLoading, error, isTokenUrlMode, slug]);
 
