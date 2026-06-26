@@ -3,6 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME, BUSINESS_THEMES } from '../themes/themes';
 import { identifyCustomer, redeemPoints, validateCoupon } from '../api/qrMenu';
+import QRCustomerDashboard from './QRCustomerDashboard';
+import QRSignInModal from '../components/QRMenu/QRSignInModal';
+import { isQRAuthenticated, clearQRLogin } from '../lib/qrAuth';
 
 import { API_BASE } from '../api/config';
 
@@ -663,6 +666,8 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   const [tokenNumber, setTokenNumber] = useState(null);
   const [showTokenCard, setShowTokenCard] = useState(false);
   const [assigningToken, setAssigningToken] = useState(false);
+  const [showQRDashboard, setShowQRDashboard] = useState(false);
+  const [showQRSignIn, setShowQRSignIn] = useState(false);
   const [customerId, setCustomerId] = useState(null);
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerPoints, setCustomerPoints] = useState(0);
@@ -822,14 +827,27 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   useEffect(() => {
     if (data && !isLoading && !error) {
       if (isTokenUrlMode && !dualModeEnabled) {
-        setTokenMode(true);
-        doAssignToken();
+        if (isQRAuthenticated()) {
+          setShowQRDashboard(true);
+        } else {
+          setShowQRSignIn(true);
+        }
       }
     }
   }, [data, isLoading, error, isTokenUrlMode, slug]);
 
   const dismissTokenCard = () => {
     setShowTokenCard(false);
+  };
+
+  const handleQRSignInSuccess = () => {
+    setShowQRSignIn(false);
+    setShowQRDashboard(true);
+  };
+
+  const handleQRDashboardSignOut = () => {
+    clearQRLogin();
+    setShowQRDashboard(false);
   };
 
   const handleIdentifyPhone = async () => {
@@ -1134,8 +1152,13 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
-              onClick={doAssignToken}
-              disabled={assigningToken}
+              onClick={() => {
+                if (isQRAuthenticated()) {
+                  setShowQRDashboard(true);
+                } else {
+                  setShowQRSignIn(true);
+                }
+              }}
               className="flex-1 min-h-[160px] rounded-2xl border p-5 flex flex-col items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md"
               style={{
                 background: 'rgba(255,255,255,0.08)',
@@ -1254,6 +1277,17 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // QR Customer Dashboard
+  if (showQRDashboard) {
+    return (
+      <QRCustomerDashboard
+        slug={slug}
+        shop={shop}
+        onSignOut={handleQRDashboardSignOut}
+      />
     );
   }
 
@@ -1727,6 +1761,15 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showQRSignIn && (
+        <QRSignInModal
+          slug={slug}
+          botUsername={shop?.bot_username}
+          onClose={() => setShowQRSignIn(false)}
+          onSuccess={handleQRSignInSuccess}
+        />
+      )}
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; }
