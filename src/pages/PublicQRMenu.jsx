@@ -842,6 +842,7 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
 
   const handleQRSignInSuccess = () => {
     setShowQRSignIn(false);
+    setUserDismissedWelcome(true);
     setShowQRDashboard(true);
   };
 
@@ -1154,6 +1155,7 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
               whileTap={{ scale: 0.97 }}
               onClick={() => {
                 if (isQRAuthenticated()) {
+                  setUserDismissedWelcome(true);
                   setShowQRDashboard(true);
                 } else {
                   setShowQRSignIn(true);
