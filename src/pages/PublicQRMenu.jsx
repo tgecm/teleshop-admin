@@ -651,7 +651,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
   );
 }
 
-export default function PublicQRMenu({ slug, table: tableProp }) {
+export default function PublicQRMenu({ slug, table: tableProp, forceDashboard }) {
   const [activeCat, setActiveCat] = useState('all');
   const [searchQ, setSearchQ] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
@@ -744,7 +744,7 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
   const orderFlowMode = data?.order_flow_mode || 'postpaid';
   const qrLanding = data?.qr_landing || {};
   const isBrowseOnly = orderFlowMode === 'browse_only';
-  const showWelcome = dualModeEnabled && !tableProp && !!data && !isLoading && !error && !userDismissedWelcome;
+  const showWelcome = !forceDashboard && dualModeEnabled && !tableProp && !!data && !isLoading && !error && !userDismissedWelcome;
 
   const qrTheme = data?.qr_theme;
   const qrThemeColors = data?.qr_theme_colors || {};
@@ -826,19 +826,21 @@ export default function PublicQRMenu({ slug, table: tableProp }) {
 
   useEffect(() => {
     if (data && !isLoading && !error) {
-      if (isTokenUrlMode && !dualModeEnabled) {
+      if (forceDashboard) {
+        if (isQRAuthenticated()) {
+          setShowQRDashboard(true);
+        } else {
+          setShowQRSignIn(true);
+        }
+      } else if (isTokenUrlMode && !dualModeEnabled) {
         if (isQRAuthenticated()) {
           setShowQRDashboard(true);
         } else {
           setShowQRSignIn(true);
         }
       }
-      if (isTokenUrlMode && dualModeEnabled && isQRAuthenticated()) {
-        setUserDismissedWelcome(true);
-        setShowQRDashboard(true);
-      }
     }
-  }, [data, isLoading, error, isTokenUrlMode, slug]);
+  }, [data, isLoading, error, isTokenUrlMode, slug, forceDashboard]);
 
   const dismissTokenCard = () => {
     setShowTokenCard(false);
