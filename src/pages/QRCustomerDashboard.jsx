@@ -5,8 +5,6 @@ import { useCartState } from '../context/CartContext';
 import { myanmarFormat } from '../utils/date';
 import { RichMessage } from '../components/chat/RichMessage';
 import { getPublicTopProducts } from '../api/public';
-import SearchableSelect from '../components/shared/SearchableSelect';
-import { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
 import { PaymentSelect, ContactInfoStep, CheckoutModal } from './PublicEcommerce';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -776,13 +774,6 @@ function ProfileTab({ slug, shop, customer, onSignOut }) {
   const [displayName, setDisplayName] = useState(customer?.name || '');
   const [phones, setPhones] = useState([customer?.phone || '']);
   const [emails, setEmails] = useState([customer?.email || '']);
-  const [telegram, setTelegram] = useState('');
-  const [viber, setViber] = useState('');
-  const [profileRegion, setProfileRegion] = useState('');
-  const [profileDistrict, setProfileDistrict] = useState('');
-  const [profileTownship, setProfileTownship] = useState('');
-  const [address, setAddress] = useState('');
-  const [notes, setNotes] = useState('');
 
   const addPhone = () => setPhones(prev => [...prev, '']);
   const removePhone = (idx) => { if (phones.length > 1) setPhones(prev => prev.filter((_, i) => i !== idx)); };
@@ -806,13 +797,6 @@ function ProfileTab({ slug, shop, customer, onSignOut }) {
           display_name: displayName.trim(),
           email: emails.filter(Boolean).map(e => e.trim()).join(', '),
           phone: phones.filter(Boolean).map(p => p.trim()).join(', '),
-          telegram_username: telegram.trim(),
-          viber_number: viber.trim(),
-          address: address.trim(),
-          notes: notes.trim(),
-          region: profileRegion,
-          district: profileDistrict,
-          township: profileTownship,
         }),
       });
       if (res.ok) {
@@ -918,59 +902,6 @@ function ProfileTab({ slug, shop, customer, onSignOut }) {
                 </div>
               ))}
             </div>
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Telegram Username</label>
-            <input type="text" value={telegram} onChange={e => setTelegram(e.target.value)}
-              placeholder="@username"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Viber Number</label>
-            <input type="tel" value={viber} onChange={e => setViber(e.target.value)}
-              placeholder="09xxxxxxxxx"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Region (တိုင်း/ပြည်နယ်)</label>
-            <SearchableSelect
-              value={profileRegion}
-              onChange={v => { setProfileRegion(v); setProfileDistrict(''); setProfileTownship(''); }}
-              options={REGION_NAMES}
-              placeholder="Select Region"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">District (ခရိုင်)</label>
-            <SearchableSelect
-              value={profileDistrict}
-              onChange={v => { setProfileDistrict(v); setProfileTownship(''); }}
-              options={getDistricts(profileRegion)}
-              placeholder="Select District"
-              disabled={!profileRegion}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Township (မြို့နယ်)</label>
-            <SearchableSelect
-              value={profileTownship}
-              onChange={setProfileTownship}
-              options={getTownships(profileRegion, profileDistrict)}
-              placeholder="Select Township"
-              disabled={!profileDistrict}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Full Address</label>
-            <textarea value={address} onChange={e => setAddress(e.target.value)} rows={3}
-              placeholder="Street, city, postal code..."
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Notes</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              placeholder="Any additional information..."
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
           </div>
           {saveError && (
             <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-2xl">
