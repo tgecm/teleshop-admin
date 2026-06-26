@@ -364,6 +364,8 @@ export default function App() {
               if (modeSlug) return <PublicEcommerce slug={modeSlug[1]} mode={modeSlug[2]} />;
               const qrMenu = publicSlug.match(/^(.+)-qr-menu(?:\/t(\d+))?$/);
               if (qrMenu) return <PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} />;
+              const tokenDash = publicSlug.match(/^(.+)-token-dashboard$/);
+              if (tokenDash) return <PublicQRMenu slug={tokenDash[1]} table="" forceDashboard />;
               return <PublicEcommerce slug={publicSlug} />;
             })()}
           </Suspense>
