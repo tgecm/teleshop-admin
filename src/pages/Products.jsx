@@ -16,7 +16,7 @@ import {
   Image as ImageIcon, ChevronRight, ChevronDown, AlertCircle, CheckCircle2,
   Loader2, FolderPlus, ImageUp, Palette, Copy, ArrowUpDown,
   Ticket, Percent, CalendarDays, Coins, Users, Truck, Download, Upload,
-  Settings, BadgeDollarSign
+  Settings, BadgeDollarSign, ClipboardList
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import townshipsData, { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
@@ -70,6 +70,9 @@ export default function Products() {
   const [showCouponMenu, setShowCouponMenu] = useState(false);
   const [showCouponManager, setShowCouponManager] = useState(false);
   const [showDeliveryFeeModal, setShowDeliveryFeeModal] = useState(false);
+  const [showCheckoutFieldsModal, setShowCheckoutFieldsModal] = useState(false);
+  const [checkoutFields, setCheckoutFields] = useState(null);
+  const [checkoutFieldsLoading, setCheckoutFieldsLoading] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('');
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('');
   const [deliveryFeeLoading, setDeliveryFeeLoading] = useState(false);
@@ -124,7 +127,10 @@ export default function Products() {
       setIsModalOpen(false);
       setEditingProduct(null);
     },
-    onError: () => addToast('Failed to update product', 'error'),
+    onError: (err) => {
+      console.error('[Product] Update failed:', err.response?.data || err.message);
+      addToast(err.response?.data?.detail || 'Failed to update product', 'error');
+    },
   });
 
   const deleteMutation = useMutation({
@@ -197,6 +203,47 @@ export default function Products() {
     }
   };
 
+  const fetchCheckoutFields = useCallback(async () => {
+    if (!selectedBotId) return;
+    try {
+      const res = await client.get(`/bots/${selectedBotId}/checkout-fields`);
+      setCheckoutFields(res.data || {});
+    } catch (e) {
+      console.error('Failed to load checkout fields:', e);
+    }
+  }, [selectedBotId]);
+
+  useEffect(() => {
+    if (showCheckoutFieldsModal) fetchCheckoutFields();
+  }, [showCheckoutFieldsModal, fetchCheckoutFields]);
+
+  const saveCheckoutFields = async () => {
+    if (!selectedBotId || !checkoutFields) return;
+    const enabledCount = Object.values(checkoutFields).filter(Boolean).length;
+    if (enabledCount < 2) {
+      addToast('At least 2 fields must be enabled', 'error');
+      return;
+    }
+    setCheckoutFieldsLoading(true);
+    try {
+      await client.put(`/bots/${selectedBotId}/checkout-fields`, checkoutFields);
+      addToast('Checkout fields saved');
+      setShowCheckoutFieldsModal(false);
+    } catch (e) {
+      console.error('Save checkout fields error:', e.response?.data || e.message);
+      addToast(e.response?.data?.detail || 'Failed to save checkout fields', 'error');
+    } finally {
+      setCheckoutFieldsLoading(false);
+    }
+  };
+
+  const toggleCheckoutField = (key) => {
+    setCheckoutFields(prev => {
+      if (!prev) return prev;
+      return { ...prev, [key]: !prev[key] };
+    });
+  };
+
   const fetchTownshipFees = useCallback(async () => {
     if (!selectedBotId) return;
     setTownshipFeesLoading(true);
@@ -215,13 +262,13 @@ export default function Products() {
   }, [showDeliveryFeeModal, fetchTownshipFees]);
 
   useEffect(() => {
-    if (isModalOpen || showCouponModal || showCouponManager || showDeliveryFeeModal) {
+    if (isModalOpen || showCouponModal || showCouponManager || showDeliveryFeeModal || showCheckoutFieldsModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [isModalOpen, showCouponModal, showCouponManager, showDeliveryFeeModal]);
+  }, [isModalOpen, showCouponModal, showCouponManager, showDeliveryFeeModal, showCheckoutFieldsModal]);
 
   const saveTownshipFee = async () => {
     if (!selectedBotId || !selectedTownship || !townshipFeeInput) return;
@@ -410,6 +457,13 @@ export default function Products() {
           >
             <Truck className="w-5 h-5" />
             <span className="hidden sm:inline font-bold">Delivery Fees</span>
+          </button>
+          <button
+            onClick={() => setShowCheckoutFieldsModal(true)}
+            className="p-2.5 bg-violet-600 text-white rounded-2xl shadow-lg hover:bg-violet-700 transition-all flex items-center gap-2 active:scale-95"
+          >
+            <ClipboardList className="w-5 h-5" />
+            <span className="hidden sm:inline font-bold">Profile Info</span>
           </button>
           </div>
         </div>
@@ -818,6 +872,64 @@ export default function Products() {
             })}
           </div>
         </section>
+      )}
+
+      {/* Checkout Fields Modal */}
+      {showCheckoutFieldsModal && checkoutFields && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowCheckoutFieldsModal(false)} />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-md p-3 sm:p-6 shadow-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-violet-100 rounded-full flex items-center justify-center">
+                    <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5 text-violet-600" />
+                  </div>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900">Checkout Profile Fields</h2>
+                </div>
+                <button onClick={() => setShowCheckoutFieldsModal(false)} className="p-1.5 sm:p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+                  <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">Toggle which fields customers must fill at checkout. At least 2 fields must be enabled.</p>
+
+              <div className="space-y-2">
+                {[
+                  { key: 'name', label: 'Full Name' },
+                  { key: 'phones', label: 'Phone Number' },
+                  { key: 'emails', label: 'Email Address' },
+                  { key: 'telegram', label: 'Telegram Username' },
+                  { key: 'viber', label: 'Viber Number' },
+                  { key: 'zone', label: 'Zone (Region, District, Township)' },
+                  { key: 'address', label: 'Delivery Address' },
+                  { key: 'notes', label: 'Notes' },
+                ].map(field => (
+                  <div key={field.key} className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-gray-50 transition-colors">
+                    <span className="text-sm font-medium text-gray-700">{field.label}</span>
+                    <button
+                      onClick={() => toggleCheckoutField(field.key)}
+                      className={`relative w-11 h-6 rounded-full transition-all duration-200 ${
+                        checkoutFields[field.key] ? 'bg-violet-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-200 ${
+                        checkoutFields[field.key] ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={saveCheckoutFields}
+                disabled={checkoutFieldsLoading}
+                className="mt-6 w-full py-2.5 sm:py-3 bg-violet-600 text-white rounded-xl font-bold text-sm sm:text-base hover:bg-violet-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {checkoutFieldsLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Settings'}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Coupon Create Modal */}

@@ -1,33 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase';
-import { useCartState } from '../context/CartContext';
-import { myanmarFormat } from '../utils/date';
 import { RichMessage } from '../components/chat/RichMessage';
-import { getPublicTopProducts } from '../api/public';
-import { PaymentSelect, ContactInfoStep, CheckoutModal } from './PublicEcommerce';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  ShoppingBag, Package, Clock, CheckCircle2, XCircle, ChevronRight,
-  MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
-  ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
-  CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw,
-  TrendingUp, Star, Ticket, ArrowRight, QrCode
+  Clock, Trash2, Loader2,
+  CheckCircle, X, MessageCircle, Send,
+  Ticket, QrCode
 } from 'lucide-react';
-import Receipt from '../components/orders/Receipt';
-import CustomerShopTab from '../components/CustomerShopTab';
-import NewsfeedFeed from '../components/NewsfeedFeed';
 import { useToastStore } from '../store/toastStore';
 import { API_BASE } from '../api/config';
-
-const FETCH_TIMEOUT_MS = 15000;
-
-function fetchWithTimeout(url, options, timeoutMs = FETCH_TIMEOUT_MS) {
-  return Promise.race([
-    fetch(url, options),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), timeoutMs)),
-  ]);
-}
 
 function makeCircularFavicon(url) {
   return new Promise((resolve) => {
@@ -63,55 +43,20 @@ function setPageMeta(title, pictureUrl) {
   }
 }
 
-function formatPrice(price) {
-  return Number(price).toLocaleString();
+function getVisitorId() {
+  let id = localStorage.getItem('qr_visitor_id');
+  if (!id) {
+    id = 'visitor_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+    localStorage.setItem('qr_visitor_id', id);
+  }
+  return id;
 }
 
-const statusConfig = {
-  pending: { label: 'Pending', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-400' },
-  processing: { label: 'Processing', icon: Package, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-400' },
-  confirmed: { label: 'Confirmed', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-400' },
-  delivered: { label: 'Delivered', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-400' },
-  cancelled: { label: 'Cancelled', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50 border-red-200', dot: 'bg-red-400' },
-};
-
-function authHeaders() {
-  const token = sessionStorage.getItem('qr_customer_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-function getToken() {
-  return sessionStorage.getItem('qr_customer_token');
-}
-
-function getCustomerId() {
-  return sessionStorage.getItem('qr_customer_id');
-}
-
-function linkifyText(text) {
-  const urlRegex = /(https?:\/\/[^\s<]+)|((?:www\.)[^\s<]+\.[^\s<]{2,})|([a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z]{2,})+(?:\/[^\s<]*)?)/gi;
-  const parts = text.split(urlRegex).filter(Boolean);
-  return parts.map((part, i) => {
-    if (part.match(/^https?:\/\//i)) {
-      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
-    }
-    if (part.match(/^www\./i)) {
-      return <a key={i} href={'https://' + part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
-    }
-    if (part.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/)) {
-      return <a key={i} href={'https://' + part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
-    }
-    return part;
-  });
-}
-
-export default function QRCustomerDashboard({ slug, shop, onSignOut: parentSignOut }) {
+export default function QRCustomerDashboard({ slug, shop }) {
   const { addToast } = useToastStore();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [dashboardData, setDashboardData] = useState(null);
-  const [dashboardLoading, setDashboardLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
+  const [myToken, setMyToken] = useState(() => localStorage.getItem('my_token'));
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([{ role: 'assistant', content: 'Hi! How can I help you today?' }]);
@@ -127,33 +72,19 @@ export default function QRCustomerDashboard({ slug, shop, onSignOut: parentSignO
   const shopName = shop?.bot_full_name || slug;
   const botId = shop?.id;
 
-  // Fetch dashboard data
-  useEffect(() => {
-    if (!slug || !getToken()) { setDashboardLoading(false); return; }
-    setDashboardLoading(true);
-    fetchWithTimeout(`${API_BASE}/public/qr-menu/${encodeURIComponent(slug)}/customer/dashboard`, { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data) setDashboardData(data);
-        setDashboardLoading(false);
-        setRefreshing(false);
-      })
-      .catch(() => { setDashboardLoading(false); setRefreshing(false); });
-  }, [slug, refreshKey]);
-
   // Set page meta
   useEffect(() => {
     if (shop?.bot_full_name) setPageMeta(shop.bot_full_name, shop.profile_picture);
   }, [shop]);
 
-  // Chat
+  // Chat - register and load messages
   useEffect(() => {
-    if (!chatOpen || !botId || !getCustomerId()) return;
-    const visitorId = getCustomerId();
+    if (!chatOpen || !botId) return;
+    const visitorId = getVisitorId();
     fetch(`${API_BASE}/public/visitor/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ visitor_id: visitorId, bot_id: botId, name: dashboardData?.customer?.name || 'QR Customer' }),
+      body: JSON.stringify({ visitor_id: visitorId, bot_id: botId, name: 'QR Customer' }),
     }).catch(() => {});
     fetch(`${API_BASE}/public/chat/${botId}/${encodeURIComponent(visitorId)}/messages`)
       .then(r => r.ok ? r.json() : [])
@@ -172,13 +103,13 @@ export default function QRCustomerDashboard({ slug, shop, onSignOut: parentSignO
         }
       })
       .catch(() => {});
-  }, [chatOpen, botId, dashboardData?.customer?.name]);
+  }, [chatOpen, botId, shop?.bot_full_name]);
 
   useEffect(() => {
-    if (!chatOpen || !botId || !getCustomerId()) return;
+    if (!chatOpen || !botId) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/public/chat/${botId}/${encodeURIComponent(getCustomerId())}/messages`);
+        const res = await fetch(`${API_BASE}/public/chat/${botId}/${encodeURIComponent(getVisitorId())}/messages`);
         if (!res.ok) return;
         const msgs = await res.json();
         if (!msgs.length) return;
@@ -217,7 +148,7 @@ export default function QRCustomerDashboard({ slug, shop, onSignOut: parentSignO
       const res = await fetch(`${API_BASE}/public/chat/${botId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, visitor_id: getCustomerId() }),
+        body: JSON.stringify({ message: msg, history, visitor_id: getVisitorId() }),
       });
       const d = await res.json();
       if (d.reply) setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
@@ -247,7 +178,7 @@ export default function QRCustomerDashboard({ slug, shop, onSignOut: parentSignO
       const res = await fetch(`${API_BASE}/public/chat/${botId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: actionMsg, history, visitor_id: getCustomerId() }),
+        body: JSON.stringify({ message: actionMsg, history, visitor_id: getVisitorId() }),
       });
       const d = await res.json();
       if (d.reply) setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
@@ -351,18 +282,15 @@ export default function QRCustomerDashboard({ slug, shop, onSignOut: parentSignO
     [chatMessages, handleAction, handleFormSubmit, handleFileUpload, handleContextMenu, copyMsg, copiedIndex, botId]
   );
 
-  const customerName = dashboardData?.customer?.name || 'QR Customer';
-  const stats = dashboardData?.stats;
-  const orders = dashboardData?.orders || [];
-
   const handleGetToken = async () => {
-    if (!slug || !getToken()) return;
+    if (!slug) return;
     try {
       const res = await fetch(`${API_BASE}/public/qr-menu/${encodeURIComponent(slug)}/assign-token`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
+        localStorage.setItem('my_token', data.token_number);
+        setMyToken(data.token_number);
         addToast(`Token #${data.token_number} assigned!`);
-        setRefreshKey(k => k + 1);
       } else {
         addToast('Failed to assign token', 'error');
       }
@@ -371,32 +299,36 @@ export default function QRCustomerDashboard({ slug, shop, onSignOut: parentSignO
     }
   };
 
-  const handleSignOut = async () => {
+  const handleDeleteToken = async () => {
+    if (!slug || !myToken || deleting) return;
+    setDeleting(true);
     try {
-      const token = sessionStorage.getItem('qr_customer_token');
-      const isTelegram = !!token;
-      if (isTelegram === false) {
-        await signOut(auth);
+      const res = await fetch(`${API_BASE}/public/qr-menu/${encodeURIComponent(slug)}/cancel-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token_number: myToken }),
+      });
+      if (res.ok) {
+        localStorage.removeItem('my_token');
+        setMyToken(null);
+        setDeleteConfirm(null);
+        addToast('Token #' + myToken + ' cancelled');
+        setRefreshKey(k => k + 1);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        addToast(err.detail || 'Failed to cancel token', 'error');
       }
-      sessionStorage.removeItem('qr_customer_token');
-      sessionStorage.removeItem('qr_customer_id');
-      sessionStorage.removeItem('qr_shop_slug');
-      parentSignOut?.();
-    } catch (err) {
-      console.error('Sign out failed:', err);
+    } catch (e) {
+      addToast('Failed to cancel token', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  if (dashboardLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-400 font-medium">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleTokenServed = () => {
+    localStorage.removeItem('my_token');
+    setMyToken(null);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -407,81 +339,71 @@ export default function QRCustomerDashboard({ slug, shop, onSignOut: parentSignO
             <div className="w-7 h-7 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
               <Ticket className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-white text-sm font-bold truncate">Hello, {customerName}!</h1>
+            <h1 className="text-white text-sm font-bold truncate">{shopName}</h1>
           </div>
-          <div className="flex items-center gap-1">
-            <button onClick={() => { setRefreshKey(k => k + 1); setRefreshing(true); }}
-              className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-            <button onClick={() => setChatOpen(true)}
-              className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all mr-1">
-              <MessageCircle className="w-4 h-4" />
-            </button>
-          </div>
+          <button onClick={() => setChatOpen(true)}
+            className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
+            <MessageCircle className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
-      {/* Tab Content */}
-      <main className="flex-1 overflow-y-auto pb-16">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.15 }}
-          >
-            {activeTab === 'overview' && (
-              <OverviewTab
-                slug={slug}
-                shop={shop}
-                stats={stats}
-                orders={orders}
-                onNavigate={setActiveTab}
-                onGetToken={handleGetToken}
-                shopName={shopName}
-              />
-            )}
-            {activeTab === 'orders' && <OrdersTab slug={slug} orders={orders} loading={dashboardLoading} />}
-            {activeTab === 'profile' && <ProfileTab slug={slug} shop={shop} customer={dashboardData?.customer} onSignOut={handleSignOut} />}
-          </motion.div>
-        </AnimatePresence>
+      {/* Queue Content */}
+      <main className="flex-1 overflow-y-auto">
+        <TokenQueueTab
+          slug={slug}
+          shop={shop}
+          myToken={myToken}
+          onGetToken={handleGetToken}
+          onDeleteToken={() => setDeleteConfirm(true)}
+          onTokenServed={handleTokenServed}
+        />
       </main>
 
-      {/* Bottom Tab Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-        <div className="max-w-[1600px] mx-auto flex px-4 md:px-8 xl:px-16">
-          {[
-            { id: 'overview', label: 'Home', icon: Home },
-            { id: 'orders', label: 'Orders', icon: Package },
-            { id: 'profile', label: 'Profile', icon: User },
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex flex-col items-center justify-center py-2 transition-all relative ${
-                  isActive ? 'text-indigo-600' : 'text-gray-400'
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="qrTabIndicator"
-                    className="absolute -top-0.5 left-1/4 right-1/4 h-0.5 bg-indigo-600 rounded-full"
-                  />
-                )}
-                <Icon className="w-5 h-5 mb-0.5" strokeWidth={isActive ? 2.5 : 1.8} />
-                <span className={`text-[10px] font-bold ${isActive ? 'text-indigo-600' : 'text-gray-400'}`}>
-                  {tab.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirm(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[32px] p-6 max-w-sm w-full text-center shadow-2xl"
+            >
+              <div className="w-14 h-14 bg-gradient-to-br from-rose-100 to-red-200 rounded-[20px] flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Trash2 className="w-7 h-7 text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Cancel Token?</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Do you want to cancel token <span className="font-bold text-gray-700">#{myToken}</span>?
+                This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl text-sm hover:bg-gray-200 transition-all active:scale-[0.98]"
+                >
+                  No, Keep It
+                </button>
+                <button
+                  onClick={handleDeleteToken}
+                  disabled={deleting}
+                  className="flex-1 py-3 bg-gradient-to-r from-rose-500 to-red-600 text-white font-bold rounded-2xl text-sm hover:from-rose-600 hover:to-red-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  {deleting ? 'Cancelling...' : 'Yes, Cancel'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Chat Panel */}
       {chatOpen && botId && (
@@ -533,405 +455,193 @@ export default function QRCustomerDashboard({ slug, shop, onSignOut: parentSignO
   );
 }
 
-/* ─── OVERVIEW TAB ─── */
-function OverviewTab({ slug, shop, stats, orders, onNavigate, onGetToken, shopName }) {
-  const statItems = [
-    { label: 'Total Orders', value: stats?.total_orders, icon: Package, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { label: 'Pending', value: stats?.pending, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Completed', value: stats?.completed, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Spent', value: stats?.total_spent ? formatPrice(stats.total_spent) : '0', icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
-  ];
+/* ─── TOKEN QUEUE TAB ─── */
+function TokenQueueTab({ slug, shop, myToken, onGetToken, onDeleteToken, onTokenServed }) {
+  const [queue, setQueue] = useState({ current: 0, next: 1, assigned: [] });
 
-  return (
-    <div className="px-4 md:px-8 xl:px-16 py-6 max-w-[1600px] mx-auto">
-      {/* Get Token Button */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <button
-          onClick={onGetToken}
-          className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-amber-200 hover:shadow-xl hover:from-amber-600 hover:to-orange-600 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
-        >
-          <Ticket className="w-6 h-6" />
-          Get a Token
-        </button>
-      </motion.div>
+  useEffect(() => {
+    if (!slug) return;
+    let mounted = true;
+    const poll = async () => {
+      try {
+        const r = await fetch(`${API_BASE}/public/qr-menu/${slug}/token-queue`);
+        if (!r.ok) return;
+        const d = await r.json();
+        if (mounted && d.token_queue) setQueue(d.token_queue);
+      } catch {}
+    };
+    poll();
+    const id = setInterval(poll, 2000);
+    return () => { mounted = false; clearInterval(id); };
+  }, [slug]);
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {statItems.map((s, i) => {
-          const Icon = s.icon;
-          return (
-            <motion.div
-              key={s.label}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className={`${s.bg} rounded-2xl p-4 shadow-sm border border-gray-100/50`}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Icon className={`w-4 h-4 ${s.color}`} strokeWidth={2.5} />
-                <span className="text-xs font-medium text-gray-500">{s.label}</span>
-              </div>
-              <p className={`text-2xl font-black ${s.color}`}>{s.value !== undefined && s.value !== null ? s.value : '—'}</p>
-            </motion.div>
-          );
-        })}
-      </div>
+  const current = queue.current || 0;
+  const assigned = queue.assigned || [];
+  const waiting = assigned.filter(t => t > current).length;
+  const served = assigned.filter(t => t <= current && t > 0).length;
+  const nextToken = Math.min(...assigned.filter(t => t > current));
+  const hasQueue = current > 0;
+  const hasNext = nextToken && nextToken !== Infinity;
+  const isLastToken = hasQueue && !hasNext && waiting === 0;
 
-      {/* Recent Orders */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-gray-900">Recent Orders</h3>
-          {orders.length > 0 && (
-            <button onClick={() => onNavigate('orders')} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors flex items-center gap-1">
-              View All <ArrowRight className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-        {orders.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
-            <Package className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-            <p className="text-sm text-gray-400 font-medium">No orders yet</p>
-            <p className="text-xs text-gray-300 mt-1">Get a token and place your first order</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {orders.slice(0, 5).map(order => {
-              const status = statusConfig[order.status] || statusConfig.pending;
-              const StatusIcon = status.icon;
-              return (
-                <div key={order.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl ${status.bg} flex items-center justify-center`}>
-                      <StatusIcon className={`w-5 h-5 ${status.color}`} strokeWidth={2} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-gray-900">#{order.order_number || order.id}</p>
-                      <p className="text-xs text-gray-400">{order.created_at ? myanmarFormat(order.created_at, 'MMM d, yyyy') : '—'}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black text-gray-900">{order.final_amount ? formatPrice(order.final_amount) : '—'} MMK</p>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${status.bg} ${status.color}`}>
-                      {status.label}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          onClick={() => onNavigate('orders')}
-          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left hover:shadow-md transition-all active:scale-[0.98]"
-        >
-          <Package className="w-6 h-6 text-indigo-600 mb-2" />
-          <p className="font-bold text-sm text-gray-900">My Orders</p>
-          <p className="text-xs text-gray-400 mt-0.5">View order history</p>
-        </button>
-        <button
-          onClick={() => onNavigate('profile')}
-          className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-left hover:shadow-md transition-all active:scale-[0.98]"
-        >
-          <User className="w-6 h-6 text-amber-600 mb-2" />
-          <p className="font-bold text-sm text-gray-900">Profile</p>
-          <p className="text-xs text-gray-400 mt-0.5">Manage your details</p>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ─── ORDERS TAB ─── */
-function OrdersTab({ slug, orders, loading }) {
-  const [expandedId, setExpandedId] = useState(null);
-
-  if (loading) {
-    return (
-      <div className="px-4 md:px-8 xl:px-16 py-12 flex justify-center max-w-[1600px] mx-auto">
-        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-      </div>
-    );
-  }
-
-  if (orders.length === 0) {
-    return (
-      <div className="px-4 md:px-8 xl:px-16 py-16 text-center max-w-[1600px] mx-auto">
-        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Package className="w-10 h-10 text-gray-300" />
-        </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-1">No orders yet</h3>
-        <p className="text-sm text-gray-400 mb-6">Your QR menu orders will appear here.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="px-4 md:px-8 xl:px-16 py-6 space-y-3 max-w-[1600px] mx-auto">
-      <h2 className="text-lg font-bold text-gray-900 mb-1">My Orders</h2>
-      {orders.map(order => {
-        const status = statusConfig[order.status] || statusConfig.pending;
-        const StatusIcon = status.icon;
-        const isExpanded = expandedId === order.id;
-        return (
-          <motion.div
-            key={order.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
-          >
-            <button
-              onClick={() => setExpandedId(isExpanded ? null : order.id)}
-              className="w-full p-4 text-left active:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-mono font-bold text-gray-400">#{order.order_number || order.id}</span>
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${status.bg} ${status.color}`}>
-                  <StatusIcon className="w-3.5 h-3.5" strokeWidth={2.5} />
-                  <span className="text-[10px] font-bold">{status.label}</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-gray-900">
-                    {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {order.created_at ? myanmarFormat(order.created_at, 'MMM d, yyyy') : '—'}
-                  </p>
-                  {order.token_number && (
-                    <p className="text-xs font-bold text-amber-600 mt-0.5">Token #{order.token_number}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-black text-gray-900">
-                    {order.final_amount ? formatPrice(order.final_amount) : '—'} MMK
-                  </span>
-                  <ChevronRight className={`w-4 h-4 text-gray-300 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                </div>
-              </div>
-            </button>
-            <AnimatePresence>
-              {isExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="border-t border-gray-50"
-                >
-                  <div className="p-4 space-y-3 bg-gray-50/50">
-                    {order.items?.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-3">
-                        {item.image_url && (
-                          <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0">
-                            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
-                          {item.variant_label && <p className="text-[10px] text-gray-400 truncate">{item.variant_label}</p>}
-                          <p className="text-xs text-gray-400">
-                            {item.quantity ? `x${item.quantity}` : ''} {item.price ? `${formatPrice(item.price)} MMK` : ''}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    {order.customer_notes && (
-                      <div className="text-xs text-gray-500 bg-white rounded-xl p-3 border border-gray-100">
-                        <span className="font-bold text-gray-700">Note:</span> {order.customer_notes}
-                      </div>
-                    )}
-                    {order.channel && (
-                      <div className="text-xs text-gray-400">
-                        Channel: <span className="font-bold text-gray-600">{order.channel === 'token' ? 'Token Queue' : 'Table'}</span>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ─── PROFILE TAB ─── */
-function ProfileTab({ slug, shop, customer, onSignOut }) {
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState('');
-
-  const [displayName, setDisplayName] = useState(customer?.name || '');
-  const [phones, setPhones] = useState([customer?.phone || '']);
-  const [emails, setEmails] = useState([customer?.email || '']);
-
-  const addPhone = () => setPhones(prev => [...prev, '']);
-  const removePhone = (idx) => { if (phones.length > 1) setPhones(prev => prev.filter((_, i) => i !== idx)); };
-  const addEmail = () => setEmails(prev => [...prev, '']);
-  const removeEmail = (idx) => { if (emails.length > 1) setEmails(prev => prev.filter((_, i) => i !== idx)); };
-
-  const handleSave = async () => {
-    if (!displayName.trim() || !phones[0]?.trim() || !emails[0]?.trim()) return;
-    setSaving(true);
-    setSaved(false);
-    setSaveError('');
-    try {
-      let botId = shop?.id;
-      if (!botId) throw new Error('Shop not found');
-      const res = await fetch(`${API_BASE}/api/customer-profile/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({
-          bot_id: botId,
-          uid: getCustomerId(),
-          display_name: displayName.trim(),
-          email: emails.filter(Boolean).map(e => e.trim()).join(', '),
-          phone: phones.filter(Boolean).map(p => p.trim()).join(', '),
-        }),
-      });
-      if (res.ok) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
-      } else {
-        const errText = await res.text().catch(() => '');
-        setSaveError(errText || 'Save failed. Please try again later.');
-      }
-    } catch (err) {
-      setSaveError('Failed to save. Please check your connection and try again.');
-    } finally {
-      setSaving(false);
+  // Auto-clear when token is served
+  useEffect(() => {
+    if (myToken && current > parseInt(myToken)) {
+      onTokenServed?.();
     }
-  };
+  }, [current, myToken, onTokenServed]);
+
+  const myTokenNum = myToken ? parseInt(myToken) : null;
+  const myPosition = myTokenNum ? assigned.indexOf(myTokenNum) + 1 : null;
+  const isBeingServed = myTokenNum && current === myTokenNum;
+  const isAlreadyServed = myTokenNum && current > myTokenNum;
+
+  if (!hasQueue && !myToken) {
+    return (
+      <div className="px-4 py-12 text-center">
+        <div className="w-20 h-20 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-4">
+          <QrCode className="w-10 h-10 text-purple-400" />
+        </div>
+        <div className="text-7xl font-black text-purple-300 mb-3">#000</div>
+        <p className="text-base font-bold text-gray-800">No active queue</p>
+        <p className="text-sm text-gray-400 mt-1">Get a token to join the queue</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="px-4 md:px-8 xl:px-16 py-6 space-y-5 max-w-[1600px] mx-auto">
-      {/* User Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
-            <User className="w-8 h-8 text-indigo-400" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-lg font-bold text-gray-900 truncate">{displayName || 'User'}</h3>
-            {customer?.phone && (
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <Phone className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-sm text-gray-500 truncate">{customer.phone}</span>
-              </div>
-            )}
-            {customer?.email && (
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <Mail className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-sm text-gray-500 truncate">{customer.email}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Contact Information */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
-      >
-        <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <Phone className="w-4 h-4 text-gray-400" />
-          Contact Information
-        </h4>
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Full Name *</label>
-            <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Phone Numbers *</label>
-            <div className="space-y-2">
-              {phones.map((phone, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <input type="tel" value={phone} onChange={e => {
-                    const next = [...phones]; next[idx] = e.target.value; setPhones(next);
-                  }} placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone"}
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-                  {idx === 0 ? (
-                    <button onClick={addPhone} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button onClick={() => removePhone(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Email Addresses *</label>
-            <div className="space-y-2">
-              {emails.map((email, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <input type="email" value={email} onChange={e => {
-                    const next = [...emails]; next[idx] = e.target.value; setEmails(next);
-                  }} placeholder={idx === 0 ? "your@email.com" : "Additional email"}
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-                  {idx === 0 ? (
-                    <button onClick={addEmail} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button onClick={() => removeEmail(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-          {saveError && (
-            <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-2xl">
-              <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <p className="text-xs font-medium text-rose-700">{saveError}</p>
-            </div>
-          )}
+    <div className="px-4 py-6">
+      {/* Get a Token Button (when no token) */}
+      {!myToken && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
           <button
-            onClick={handleSave}
-            disabled={saving || !displayName.trim() || !phones[0]?.trim() || !emails[0]?.trim()}
-            className={`w-full py-3 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
-              saved ? 'bg-emerald-500 text-white' : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
-            } disabled:opacity-50`}
+            onClick={onGetToken}
+            className="w-full py-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-amber-200 hover:shadow-xl hover:from-amber-600 hover:to-orange-600 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
           >
-            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : saved ? <><CheckCircle2 className="w-4 h-4" /> Saved!</> : 'Save Profile'}
+            <Ticket className="w-6 h-6" />
+            Get a Token
           </button>
+        </motion.div>
+      )}
+
+      {/* User's own token card */}
+      {myToken && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mb-6"
+        >
+          <div
+            onClick={() => {
+              if (isBeingServed || isAlreadyServed) return;
+              onDeleteToken?.();
+            }}
+            className={`w-full p-6 rounded-2xl text-center transition-all ${
+              isBeingServed
+                ? 'bg-gradient-to-br from-emerald-500 to-green-600'
+                : isAlreadyServed
+                  ? 'bg-gradient-to-br from-gray-400 to-gray-500'
+                  : 'bg-gradient-to-br from-indigo-600 to-purple-600 cursor-pointer hover:shadow-xl active:scale-[0.98]'
+            } shadow-lg`}
+          >
+            <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-2">
+              {isBeingServed ? 'Being Served Now' : isAlreadyServed ? 'Served' : 'Your Token'}
+            </p>
+            <div className="text-6xl font-black text-white leading-none mb-2">
+              #{String(myToken).padStart(3, '0')}
+            </div>
+            {myPosition && !isBeingServed && !isAlreadyServed && (
+              <p className="text-sm text-white/80 font-medium">
+                {myPosition === 1 ? "You're next!" : `${myPosition - 1} ahead of you`}
+              </p>
+            )}
+            {!isBeingServed && !isAlreadyServed && (
+              <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold">
+                <Trash2 className="w-3 h-3" />
+                Tap to cancel
+              </div>
+            )}
+            {isBeingServed && (
+              <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold">
+                <Clock className="w-3 h-3" />
+                Cannot cancel — being served
+              </div>
+            )}
+            {isAlreadyServed && (
+              <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold">
+                <CheckCircle className="w-3 h-3" />
+                Thank you!
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Queue status */}
+      {hasQueue && (
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            {shop?.profile_picture && (
+              <img src={shop.profile_picture} alt="" className="w-7 h-7 rounded-lg object-cover" />
+            )}
+            <span className="text-sm font-bold text-gray-500">{shop?.bot_full_name || 'Shop'}</span>
+          </div>
+
+          <div className="mb-8">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Now Serving</p>
+            <div className="relative inline-block">
+              <div className="absolute inset-0 rounded-full border-2 border-purple-400 opacity-30 animate-ping" />
+              <div className="text-8xl font-black text-gray-900 leading-none relative">
+                #{String(current).padStart(3, '0')}
+              </div>
+            </div>
+            <div className="inline-flex items-center gap-1.5 mt-4 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-bold text-emerald-700">Being served now</span>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Up Next</p>
+            <div className="text-5xl font-black text-purple-500 leading-none">
+              {isLastToken ? '—' : hasNext ? `#${String(nextToken).padStart(3, '0')}` : '—'}
+            </div>
+            {isLastToken ? (
+              <div className="inline-flex items-center gap-1.5 mt-2 px-4 py-1.5 rounded-full bg-yellow-50 border border-yellow-200">
+                <span className="text-xs font-bold text-yellow-700">🎉 Almost done!</span>
+              </div>
+            ) : hasNext ? (
+              <div className="inline-flex items-center gap-1.5 mt-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-200">
+                <span className="text-xs font-bold text-orange-700">⏳ Please get ready</span>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-center gap-6 py-3 px-6 bg-gray-50 rounded-2xl border border-gray-100 max-w-xs mx-auto">
+            <div className="text-center">
+              <p className="text-xs text-gray-400 font-medium">Waiting</p>
+              <p className="text-lg font-black text-gray-800">{waiting}</p>
+            </div>
+            <div className="w-px h-8 bg-gray-200" />
+            <div className="text-center">
+              <p className="text-xs text-gray-400 font-medium">Served</p>
+              <p className="text-lg font-black text-gray-800">{served}</p>
+            </div>
+          </div>
         </div>
-      </motion.div>
+      )}
 
-      <button
-        onClick={onSignOut}
-        className="w-full py-3 bg-rose-50 border border-rose-200 text-rose-600 font-bold rounded-2xl text-sm hover:bg-rose-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-      >
-        <LogOut className="w-4 h-4" />
-        Sign Out
-      </button>
-
-      <p className="text-[10px] text-gray-400 text-center pb-4">
-        Powered by Telegram E-Commerce Platform
-      </p>
+      {!hasQueue && myToken && (
+        <div className="text-center py-8">
+          <div className="text-7xl font-black text-purple-300 mb-3">#000</div>
+          <p className="text-base font-bold text-gray-800">No active queue</p>
+          <p className="text-sm text-gray-400 mt-1">The queue will start soon</p>
+        </div>
+      )}
     </div>
   );
 }

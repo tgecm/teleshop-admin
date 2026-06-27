@@ -569,7 +569,8 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   );
 }
 
-export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm }) {
+export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm, checkoutFields }) {
+  const cFields = checkoutFields || { name: false, phones: false, emails: false, telegram: false, viber: false, zone: false, address: false, notes: false };
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -613,6 +614,15 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     const total = couponApplied ? effectiveTotal : totalAmount;
     let fee = 0;
 
+    // Only apply delivery fee if at least one cart product has it enabled
+    const anyProductHasFee = cartItems?.some(item =>
+      products?.find(p => p.id === item.product_id)?.apply_delivery_fee === true
+    );
+    if (!anyProductHasFee) {
+      setDeliveryFeeAmount(0);
+      return;
+    }
+
     // Match zone fee by Region + District + Township (all 3 required to avoid duplicate names)
     if (zoneFees.length > 0 && contactForm.region && contactForm.district && contactForm.township) {
       const match = zoneFees.find(zf =>
@@ -636,7 +646,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     }
 
     setDeliveryFeeAmount(fee);
-  }, [deliveryFee, freeDeliveryThreshold, deliveryFees, totalAmount, couponApplied, effectiveTotal, zoneFees, contactForm.region, contactForm.district, contactForm.township]);
+  }, [deliveryFee, freeDeliveryThreshold, deliveryFees, totalAmount, couponApplied, effectiveTotal, zoneFees, contactForm.region, contactForm.district, contactForm.township, cartItems, products]);
 
   const handleProofFile = (e) => {
     const file = e.target.files?.[0];
@@ -670,16 +680,16 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
   };
 
   const handleSubmit = async () => {
-    if (!contactForm.name.trim()) { setError('Name is required'); return; }
-    if (!contactForm.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
-    if (!contactForm.emails[0]?.trim()) { setError('At least one email is required'); return; }
-    if (!contactForm.address.trim()) { setError('Delivery address is required'); return; }
+    if (cFields.name && !contactForm.name.trim()) { setError('Name is required'); return; }
+    if (cFields.phones && !contactForm.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
+    if (cFields.emails && !contactForm.emails[0]?.trim()) { setError('At least one email is required'); return; }
+    if (cFields.address && !contactForm.address.trim()) { setError('Delivery address is required'); return; }
     if ((viewMode === 'ecommerce' || viewMode === 'guest') && !proofFile && selectedPayment?.id !== 'cod') { setError('Payment proof screenshot is required'); return; }
     setLoading(true);
     setError('');
     try {
       // Check stock before proceeding
-      const stockRes = await fetch('/public/check-stock', {
+      const stockRes = await fetch(API_BASE + '/public/check-stock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bot_id: shop.id, items: cartItems.map(i => ({ product_id: i.product_id, quantity: i.quantity })) }),
@@ -701,7 +711,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
         const fd = new FormData();
         fd.append('file', proofFile);
         fd.append('bot_id', shop.id);
-        const uploadRes = await fetch('/public/upload/photo', {
+        const uploadRes = await fetch(API_BASE + '/public/upload/photo', {
           method: 'POST',
           body: fd,
         });
@@ -718,7 +728,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
       // Save profile first (use uid from Firebase or JWT token for custom domain proxy auth)
       const profileUid = viewMode === 'guest' ? '' : (user?.uid || getUserIdFromToken() || '');
       if (profileUid) {
-        await fetch('/api/customer-profile/save', {
+        await fetch(API_BASE + '/api/customer-profile/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -764,17 +774,26 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
               if (o) { const v = o.values.find(vv => String(vv.id) === String(valId)); if (v) variantParts.push(`${o.name}: ${v.label}`); }
             });
           }
+          // Use latest price from server products array
+          const currentProduct = products.find(p => p.id === i.product_id);
+          const currentPrice = currentProduct ? Number(currentProduct.price) : i.price;
           return {
             product_id: i.product_id,
             name: i.name,
-            price: i.price,
+            price: currentPrice,
             quantity: i.quantity,
             selected_color: i.selected_color,
             selected_options: i.selected_options,
             variant_label: variantParts.join(', '),
           };
         }),
-        total_amount: couponApplied ? effectiveTotal : totalAmount,
+        total_amount: (() => {
+          const latestTotal = cartItems.reduce((sum, i) => {
+            const p = products.find(pp => pp.id === i.product_id);
+            return sum + (p ? Number(p.price) : i.price) * i.quantity;
+          }, 0);
+          return couponApplied ? latestTotal - couponApplied.discount : latestTotal;
+        })(),
         delivery_fee: deliveryFeeAmount,
         coupon_code: couponApplied?.code || '',
       };
@@ -785,7 +804,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
         body.payment_method = selectedPayment.name;
       }
 
-      const res = await fetch('/public/create-order', {
+      const res = await fetch(API_BASE + '/public/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -889,7 +908,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
                   setCouponLoading(true);
                   setCouponError('');
                   try {
-                    const res = await fetch('/public/coupon/validate', {
+                    const res = await fetch(API_BASE + '/public/coupon/validate', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ bot_id: shop.id, code: couponCode.trim(), cart_total: totalAmount }),
@@ -1127,7 +1146,7 @@ function RegisterModal({ shop, user, onClose, onSuccess }) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/website-customers/sync', {
+      const res = await fetch(API_BASE + '/website-customers/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1300,16 +1319,25 @@ export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled }) {
   );
 }
 
-export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode, shop, shopSlug }) {
+export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode, shop, shopSlug, showZoneFields = true, checkoutFields }) {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [error, setError] = useState('');
+
+  const fields = checkoutFields || { name: false, phones: false, emails: false, telegram: false, viber: false, zone: false, address: false, notes: false };
+
+  // Clear zone fields when hidden to avoid stale data in order
+  useEffect(() => {
+    if (!showZoneFields && (form.region || form.district || form.township)) {
+      setForm(p => ({ ...p, region: '', district: '', township: '' }));
+    }
+  }, [showZoneFields]);
 
   useEffect(() => {
     const tgToken = localStorage.getItem('telegram_token');
     const customerUid = user?.uid
       || (tgToken ? (getUserIdFromToken() || '_') : '');
     if (!customerUid || !shopSlug || profileLoaded || !shop?.id) return;
-    fetch(`/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
+    fetch(API_BASE + `/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
       .then(r => r.ok ? r.json() : {})
       .then(data => {
         if (data && data.display_name) {
@@ -1369,10 +1397,11 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
   const removeEmail = (idx) => setForm(p => ({ ...p, emails: p.emails.filter((_, i) => i !== idx) }));
 
   const handleNext = () => {
-    if (!form.name.trim()) { setError('Name is required'); return; }
-    if (!form.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
-    if (!form.emails[0]?.trim()) { setError('At least one email is required'); return; }
-    if (!form.address.trim()) { setError('Delivery address is required'); return; }
+    if (fields.name && !form.name.trim()) { setError('Name is required'); return; }
+    if (fields.phones && !form.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
+    if (fields.emails && !form.emails[0]?.trim()) { setError('At least one email is required'); return; }
+    if (fields.zone && showZoneFields && (!form.region || !form.district || !form.township)) { setError('Please select Region, District and Township'); return; }
+    if (fields.address && !form.address.trim()) { setError('Delivery address is required'); return; }
     onNext(form);
   };
 
@@ -1393,13 +1422,13 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Full Name *</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Full Name {fields.name ? '*' : '(optional)'}</label>
             <input type="text" value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Phone Numbers *</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Phone Numbers {fields.phones ? '*' : '(optional)'}</label>
             <div className="space-y-2">
               {form.phones.map((phone, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -1421,7 +1450,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Email Addresses *</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Email Addresses {fields.emails ? '*' : '(optional)'}</label>
             <div className="space-y-2">
               {form.emails.map((email, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -1443,51 +1472,85 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Telegram Username</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Telegram Username (optional)</label>
             <input type="text" value={form.telegram} onChange={e => setForm(p => ({...p, telegram: e.target.value}))}
               placeholder="@username"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Viber Number</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Viber Number (optional)</label>
             <input type="tel" value={form.viber} onChange={e => setForm(p => ({...p, viber: e.target.value}))}
               placeholder="09xxxxxxxxx"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
 
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်)</label>
-            <SearchableSelect
-              value={form.region}
-              onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
-              options={REGION_NAMES}
-              placeholder="Select Region"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">District (ခရိုင်)</label>
-            <SearchableSelect
-              value={form.district}
-              onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
-              options={getDistricts(form.region)}
-              placeholder="Select District"
-              disabled={!form.region}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်)</label>
-            <SearchableSelect
-              value={form.township}
-              onChange={v => setForm(p => ({ ...p, township: v }))}
-              options={getTownships(form.region, form.district)}
-              placeholder="Select Township"
-              disabled={!form.district}
-            />
-          </div>
+          {showZoneFields ? (
+            fields.zone ? (<>
+              <div>
+                <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်) *</label>
+                <SearchableSelect
+                  value={form.region}
+                  onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
+                  options={REGION_NAMES}
+                  placeholder="Select Region"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 font-medium mb-1 block">District (ခရိုင်)</label>
+                <SearchableSelect
+                  value={form.district}
+                  onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
+                  options={getDistricts(form.region)}
+                  placeholder="Select District"
+                  disabled={!form.region}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်)</label>
+                <SearchableSelect
+                  value={form.township}
+                  onChange={v => setForm(p => ({ ...p, township: v, township: v }))}
+                  options={getTownships(form.region, form.district)}
+                  placeholder="Select Township"
+                  disabled={!form.district}
+                />
+              </div>
+            </>) : (<>
+              <div>
+                <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်) (optional)</label>
+                <SearchableSelect
+                  value={form.region}
+                  onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
+                  options={REGION_NAMES}
+                  placeholder="Select Region"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 font-medium mb-1 block">District (ခရိုင်) (optional)</label>
+                <SearchableSelect
+                  value={form.district}
+                  onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
+                  options={getDistricts(form.region)}
+                  placeholder="Select District"
+                  disabled={!form.region}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်) (optional)</label>
+                <SearchableSelect
+                  value={form.township}
+                  onChange={v => setForm(p => ({ ...p, township: v }))}
+                  options={getTownships(form.region, form.district)}
+                  placeholder="Select Township"
+                  disabled={!form.district}
+                />
+              </div>
+            </>)
+          ) : null}
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Delivery Address *</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Delivery Address {fields.address ? '*' : '(optional)'}</label>
             <textarea value={form.address} onChange={e => setForm(p => ({...p, address: e.target.value}))} rows={2}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
           </div>
@@ -1706,7 +1769,16 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   useAuthTokenFromUrl();
 
   const cart = useCartState(shop?.id, slug || shop?.public_slug || shop?.bot_username || '', user, viewMode);
-  const { items: cartItems, cartCount, totalAmount, loading: cartLoading, addItem, updateQty, removeItem, clearCart } = cart;
+  const { items: cartItems, cartCount, totalAmount, loading: cartLoading, addItem, updateQty, removeItem, clearCart, syncPrices } = cart;
+
+  // Only show region/district/township when at least one cart product has delivery fee enabled
+  const contactShowZoneFields = cartItems.some(item =>
+    products.find(p => p.id === item.product_id)?.apply_delivery_fee === true
+  );
+
+  useEffect(() => {
+    if (products.length > 0) syncPrices(products);
+  }, [products, syncPrices]);
 
   const crossSellProducts = useMemo(() => {
     if (!cartItems.length || !products.length) return [];
@@ -1756,7 +1828,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       return;
     }
     if (!user) { setRegistered(null); return; }
-    fetch('/public/check-customer?firebase_uid=' + encodeURIComponent(user.uid) + '&bot_id=' + shop.id)
+    fetch(API_BASE + '/public/check-customer?firebase_uid=' + encodeURIComponent(user.uid) + '&bot_id=' + shop.id)
       .then(r => r.json())
       .then(d => setRegistered(d.registered))
       .catch(() => setRegistered(false));
@@ -2305,7 +2377,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   // Check stock for cart items when the cart opens
   useEffect(() => {
     if (!showCart || !shop?.id || cartItems.length === 0) { setOosMap({}); return; }
-    fetch('/public/check-stock', {
+    fetch(API_BASE + '/public/check-stock', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bot_id: shop.id, items: cartItems.map(i => ({ product_id: i.product_id, quantity: i.quantity })) }),
@@ -3203,6 +3275,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             viewMode={viewMode}
             shop={shop}
             shopSlug={slug || shop?.public_slug || shop?.bot_username || ''}
+            showZoneFields={contactShowZoneFields}
+            checkoutFields={data?.checkout_fields}
           />
         )}
       </AnimatePresence>
@@ -3223,6 +3297,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             deliverySettings={data?.delivery_settings || {}}
             deliveryFees={data?.delivery_fees || []}
             contactForm={contactForm}
+            checkoutFields={data?.checkout_fields}
             onClose={() => { setCheckoutOpen(false); setSelectedPaymentMethod(null); }}
             onOrderPlaced={handleOrderPlaced}
           />

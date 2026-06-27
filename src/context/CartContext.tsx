@@ -20,6 +20,7 @@ export interface CartState {
   updateQty: (productId: number, delta: number) => void;
   removeItem: (productId: number) => void;
   clearCart: () => void;
+  syncPrices: (products: { id: number; price: number }[]) => void;
 }
 
 const CART_KEY = 'ecommerce_cart';
@@ -190,5 +191,21 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0);
   const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  return { items, cartCount, totalAmount, loading, addItem, updateQty, removeItem, clearCart };
+  const syncPrices = useCallback((products: { id: number; price: number }[]) => {
+    setItems(prev => {
+      let changed = false;
+      const updated = prev.map(item => {
+        const product = products.find(p => p.id === item.product_id);
+        if (product && Number(product.price) !== Number(item.price)) {
+          changed = true;
+          return { ...item, price: Number(product.price) };
+        }
+        return item;
+      });
+      if (changed && shopSlug) saveToLS(shopSlug, viewMode, updated);
+      return changed ? updated : prev;
+    });
+  }, [shopSlug, viewMode]);
+
+  return { items, cartCount, totalAmount, loading, addItem, updateQty, removeItem, clearCart, syncPrices };
 }

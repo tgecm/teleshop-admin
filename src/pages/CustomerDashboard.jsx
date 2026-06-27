@@ -1017,7 +1017,11 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   const [oosMap, setOosMap] = useState({});
   const effectiveShop = shopData?.shop || shop;
   const cart = useCartState(effectiveShop?.id, shopSlug, user, 'ecommerce');
-  const { items: cartItems, cartCount, totalAmount, loading, removeItem: removeContextItem, updateQty, clearCart } = cart;
+  const { items: cartItems, cartCount, totalAmount, loading, removeItem: removeContextItem, updateQty, clearCart, syncPrices } = cart;
+
+  useEffect(() => {
+    if (products.length > 0) syncPrices(products);
+  }, [products, syncPrices]);
 
   const removeItem = (productId) => {
     removeContextItem(productId);
@@ -1135,7 +1139,11 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   const products = shopData?.products || [];
   const deliverySettings = shopData?.delivery_settings || {};
   const deliveryFees = shopData?.delivery_fees || [];
+  const checkoutFields = shopData?.checkout_fields || null;
   const codEnabled = !!(shopData?.cod_enabled);
+  const contactShowZoneFields = cartItems.some(item =>
+    products.find(p => p.id === item.product_id)?.apply_delivery_fee === true
+  );
 
   return (
     <>
@@ -1230,6 +1238,8 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
             viewMode="ecommerce"
             shop={effectiveShop}
             shopSlug={shopSlug}
+            showZoneFields={contactShowZoneFields}
+            checkoutFields={checkoutFields}
           />
         )}
       </AnimatePresence>
@@ -1250,6 +1260,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
             deliverySettings={deliverySettings}
             deliveryFees={deliveryFees}
             contactForm={contactForm}
+            checkoutFields={checkoutFields}
             onClose={() => { setCheckoutOpen(false); setSelectedPayment(null); }}
             onOrderPlaced={handleOrderPlacedCallback}
           />
