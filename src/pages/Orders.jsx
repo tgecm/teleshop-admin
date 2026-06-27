@@ -668,12 +668,80 @@ export default function Orders() {
 }
 
 function ShopInfoModal({ open, onClose, settings, onSave, isPending }) {
+  const { addToast } = useToastStore();
   const [tagline, setTagline] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [website, setWebsite] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
+
+  const emojiRanges = [
+    [0x1F000, 0x1FFFF], [0x2600, 0x27BF], [0x2300, 0x23FF],
+    [0x2700, 0x27BF], [0xFE00, 0xFE0F], [0x200D, 0x200D],
+    [0x1F600, 0x1F64F], [0x1F300, 0x1F5FF], [0x1F680, 0x1F6FF],
+    [0x1F900, 0x1F9FF], [0x1FA00, 0x1FAFF], [0x1FB00, 0x1FBFF],
+  ];
+  const hasEmoji = (str) => {
+    for (let i = 0; i < str.length; i++) {
+      const code = str.codePointAt(i);
+      if (!code) continue;
+      if (emojiRanges.some(([lo, hi]) => code >= lo && code <= hi)) return true;
+      if (code > 0xFFFF) i++; // skip trailing surrogate
+    }
+    return false;
+  };
+  const stripEmojis = (value, setter) => {
+    if (!hasEmoji(value)) { setter(value); return; }
+    addToast('Emojis not allowed', 'error');
+    let cleaned = '';
+    for (let i = 0; i < value.length; i++) {
+      const code = value.codePointAt(i);
+      if (!code) continue;
+      const isEmoji = emojiRanges.some(([lo, hi]) => code >= lo && code <= hi);
+      if (code > 0xFFFF) i++; // skip trailing surrogate
+      if (isEmoji) continue;
+      cleaned += value[i];
+    }
+    setter(cleaned);
+  };
+
+  const handlePaste = (e, setter) => {
+    const text = e.clipboardData.getData('text');
+    if (hasEmoji(text)) {
+      e.preventDefault();
+      addToast('Emojis not allowed', 'error');
+      let cleaned = '';
+      for (let i = 0; i < text.length; i++) {
+        const code = text.codePointAt(i);
+        if (!code) continue;
+        const isEmoji = emojiRanges.some(([lo, hi]) => code >= lo && code <= hi);
+        if (code > 0xFFFF) i++;
+        if (isEmoji) continue;
+        cleaned += text[i];
+      }
+      setter(cleaned);
+    }
+  };
+
+  // Safety net: strip any emojis that slip through from restricted fields
+  const cleanEmojiField = (val, setter) => {
+    if (!val || !hasEmoji(val)) return;
+    addToast('Emojis not allowed', 'error');
+    let cleaned = '';
+    for (let i = 0; i < val.length; i++) {
+      const code = val.codePointAt(i);
+      if (!code) continue;
+      const isEmoji = emojiRanges.some(([lo, hi]) => code >= lo && code <= hi);
+      if (code > 0xFFFF) i++;
+      if (isEmoji) continue;
+      cleaned += val[i];
+    }
+    setter(cleaned);
+  };
+  useEffect(() => { cleanEmojiField(email, setEmail); }, [email]);
+  useEffect(() => { cleanEmojiField(website, setWebsite); }, [website]);
+  useEffect(() => { cleanEmojiField(address, setAddress); }, [address]);
 
   useEffect(() => {
     if (open) {
@@ -727,28 +795,28 @@ function ShopInfoModal({ open, onClose, settings, onSave, isPending }) {
           </div>
           <div>
             <label className="block text-[10px] sm:text-xs font-bold text-gray-500 mb-1 sm:mb-1.5">Phone</label>
-            <input value={phone} onChange={e => setPhone(e.target.value)}
+            <input value={phone} onChange={e => stripEmojis(e.target.value, setPhone)}
               placeholder="09xxxxxxxxx"
               className="w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
             />
           </div>
           <div>
             <label className="block text-[10px] sm:text-xs font-bold text-gray-500 mb-1 sm:mb-1.5">Email</label>
-            <input value={email} onChange={e => setEmail(e.target.value)}
+            <input value={email} onChange={e => stripEmojis(e.target.value, setEmail)} onPaste={e => handlePaste(e, setEmail)}
               placeholder="shop@example.com"
               className="w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
             />
           </div>
           <div>
             <label className="block text-[10px] sm:text-xs font-bold text-gray-500 mb-1 sm:mb-1.5">Website</label>
-            <input value={website} onChange={e => setWebsite(e.target.value)}
+            <input value={website} onChange={e => stripEmojis(e.target.value, setWebsite)} onPaste={e => handlePaste(e, setWebsite)}
               placeholder="https://example.com"
               className="w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
             />
           </div>
           <div>
             <label className="block text-[10px] sm:text-xs font-bold text-gray-500 mb-1 sm:mb-1.5">Address</label>
-            <textarea value={address} onChange={e => setAddress(e.target.value)}
+            <textarea value={address} onChange={e => stripEmojis(e.target.value, setAddress)} onPaste={e => handlePaste(e, setAddress)}
               placeholder="Shop address"
               rows={2} maxLength={80}
               className="w-full px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all resize-none"

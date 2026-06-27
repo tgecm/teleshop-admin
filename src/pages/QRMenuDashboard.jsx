@@ -87,12 +87,10 @@ export default function QRMenuDashboard() {
 
   const totalRevenue = stats?.total_revenue || 0;
   const totalOrders = stats?.total_orders || 0;
-  const totalCustomers = stats?.total_customers || 0;
   const pendingOrders = stats?.pending_orders || 0;
   const todayRevenue = stats?.today_revenue || 0;
   const monthlyRevenue = stats?.monthly_revenue || 0;
   const itemsSold = stats?.items_sold || 0;
-  const avgOrderValue = stats?.avg_order_value || 0;
   const ordersByDay = stats?.orders_by_day || [];
   const topItems = stats?.top_items || [];
 
@@ -175,24 +173,22 @@ export default function QRMenuDashboard() {
         </motion.div>
       )}
 
-      <motion.div variants={containerVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
+      <motion.div variants={containerVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
         {isLoading
-          ? Array(4).fill(0).map((_, i) => (<motion.div key={i} variants={itemVariants}><LoadingSkeleton className="h-28 md:h-32" /></motion.div>))
+          ? Array(3).fill(0).map((_, i) => (<motion.div key={i} variants={itemVariants}><LoadingSkeleton className="h-28 md:h-32" /></motion.div>))
           : [
               { title: 'QR Revenue', value: `${totalRevenue.toLocaleString()} MMK`, icon: DollarSign, color: 'indigo' },
               { title: 'QR Orders', value: totalOrders, icon: ShoppingBag, color: 'emerald' },
-              { title: 'QR Customers', value: totalCustomers, icon: Users, color: 'rose' },
               { title: 'Pending QR', value: pendingOrders, icon: Clock, color: 'amber' },
             ].map((card) => (
               <motion.div key={card.title} variants={itemVariants}><StatCard {...card} /></motion.div>
             ))}
       </motion.div>
 
-      <motion.div variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
+      <motion.div variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
         <MiniMetric icon={ShoppingBag} label="Items Sold" value={itemsSold} color="indigo" />
         <MiniMetric icon={Zap} label="Today's Revenue" value={`${todayRevenue.toLocaleString()} MMK`} color="emerald" />
         <MiniMetric icon={TrendingUp} label="Monthly Revenue" value={`${monthlyRevenue.toLocaleString()} MMK`} sub={`${totalRevenue.toLocaleString()} MMK total`} color="amber" />
-        <MiniMetric icon={DollarSign} label="Avg Order Value" value={`${avgOrderValue.toLocaleString()} MMK`} color="purple" />
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">

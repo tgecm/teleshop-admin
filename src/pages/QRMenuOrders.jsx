@@ -5,6 +5,7 @@ import { useToastStore } from '../store/toastStore';
 import { getQRMenuOrders, getQRMenuPendingCount } from '../api/orders';
 import { updateOrder } from '../api/orders';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
+import { API_BASE } from '../api/config';
 import { Loader2, Package, X } from 'lucide-react';
 
 export default function QRMenuOrders() {
