@@ -344,6 +344,30 @@ function blobToDataUrl(blob) {
   });
 }
 
+function renderSvgTextLine(text, fontSize, fontFamily, color) {
+  if (!text) return null;
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    const font = `${fontSize}px ${fontFamily}`;
+    ctx.font = font;
+    const metrics = ctx.measureText(text);
+    const w = Math.ceil(metrics.width) + 4;
+    const h = Math.ceil(fontSize * 1.5);
+    canvas.width = Math.ceil(w * 2);
+    canvas.height = Math.ceil(h * 2);
+    ctx.scale(2, 2);
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 2, h / 2);
+    return { url: canvas.toDataURL(), w, h };
+  } catch {
+    return null;
+  }
+}
+
 function renderEmoji(emoji, size = 16) {
   try {
     const scale = 2;
@@ -388,7 +412,7 @@ async function getBotLogoDataUrl(logoUrl) {
 
 function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minRows, invoiceNumber, receiptNumber, type = 'receipt', receiptSettings = {}) {
   const isInvoice = type === 'invoice';
-  const { tagline: shopTagline = 'Your Trusted Online Store', phone: svgPhone = 'Phone', email: svgEmail = 'Email', website: svgWebsite = 'Website', address: svgAddress = 'Address', notes: svgNotes = '', botLogo = '', emojis = {} } = receiptSettings;
+  const { tagline: shopTagline = 'Your Trusted Online Store', phone: svgPhone = 'Phone', email: svgEmail = 'Email', website: svgWebsite = 'Website', address: svgAddress = 'Address', notes: svgNotes = '', botLogo = '', emojis = {}, taglineImg = null, notesImg = null, notesImg2 = null } = receiptSettings;
   const W = 800;
   const PAD = 40;
   const CW = W - PAD * 2;
@@ -508,7 +532,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
 
     <!-- Shop info -->
     <text x="140" y="22" fill="${MB}" font-size="24" font-weight="700" class="r">${sName}</text>
-    <text x="140" y="44" fill="${TM}" font-size="13">${esc(shopTagline)}</text>
+    ${taglineImg ? `<image href="${esc(taglineImg.url)}" x="140" y="${44 - taglineImg.h + 4}" width="${taglineImg.w}" height="${taglineImg.h}"/>` : `<text x="140" y="44" fill="${TM}" font-size="13">${esc(shopTagline)}</text>`}
 
     <!-- Contacts -->
     ${emojis.phone ? `<image href="${esc(emojis.phone)}" x="132" y="56" width="16" height="16"/>` : `<text x="140" y="68" fill="${TM}" font-size="12">📞</text>`}
@@ -652,7 +676,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   <!-- ============ FOOTER (y=${FTR_Y}) ============ -->
   <g transform="translate(${PAD}, ${FTR_Y})">
     <line x1="0" y1="0" x2="${CW}" y2="0" stroke="${BL}" stroke-width="1"/>
-    ${svgNotes ? `<text x="0" y="24" fill="${TM}" font-size="10">${esc(svgNotes.slice(0, 100))}</text>${svgNotes.length > 100 ? `<text x="0" y="38" fill="${TM}" font-size="10">${esc(svgNotes.slice(100))}</text>` : ''}` : ''}
+    ${svgNotes && notesImg ? `<image href="${esc(notesImg.url)}" x="0" y="${24 - notesImg.h + 4}" width="${notesImg.w}" height="${notesImg.h}"/>${svgNotes.length > 100 && notesImg2 ? `<image href="${esc(notesImg2.url)}" x="0" y="${38 - notesImg2.h + 4}" width="${notesImg2.w}" height="${notesImg2.h}"/>` : svgNotes.length > 100 ? `<text x="0" y="38" fill="${TM}" font-size="10">${esc(svgNotes.slice(100))}</text>` : ''}` : svgNotes ? `<text x="0" y="24" fill="${TM}" font-size="10">${esc(svgNotes.slice(0, 100))}</text>${svgNotes.length > 100 ? `<text x="0" y="38" fill="${TM}" font-size="10">${esc(svgNotes.slice(100))}</text>` : ''}` : ''}
   </g>
 
   <!-- ============ WEBSITE BAR ============ -->
@@ -735,7 +759,11 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
         card: renderEmoji('\u{1F4B3}'),
         money: renderEmoji('\u{1F4B0}'),
       };
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: svgBotLogo, emojis });
+      // Render tagline and notes text to canvas (handles emoji rendering for SVG)
+      const taglineImg = tagline ? renderSvgTextLine(tagline, 13, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
+      const notesImg = shopNotes ? renderSvgTextLine(shopNotes.slice(0, 100), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
+      const notesImg2 = shopNotes && shopNotes.length > 100 ? renderSvgTextLine(shopNotes.slice(100, 200), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: svgBotLogo, emojis, taglineImg, notesImg, notesImg2 });
       const fileName = `${receiptType}-${order.order_number || order.id}`;
 
       // Try server-side PNG conversion (server can also fetch logo)
@@ -746,7 +774,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       } catch (serverErr) {
         console.warn('PNG conversion server error, falling back to SVG:', serverErr);
         // Rebuild SVG with best-effort logo for fallback
-        const fallbackSvg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo });
+        const fallbackSvg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo, taglineImg, notesImg, notesImg2 });
         const svgBlob = new Blob([fallbackSvg], { type: 'image/svg+xml' });
         await downloadBlob(svgBlob, `${fileName}.svg`);
       }
