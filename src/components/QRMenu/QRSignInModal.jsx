@@ -25,7 +25,7 @@ export default function QRSignInModal({ slug, onClose, onSuccess, botUsername: p
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState('');
   const { status, timeLeft, loginUrl, botUsername, initLogin, reset } = useTelegramLogin();
-  const { telegramToken } = useTelegramAuth();
+  const { telegramToken, logoutTelegram } = useTelegramAuth();
   const telegramLoginInitiated = useRef(false);
   const exchangingRef = useRef(false);
 
@@ -76,6 +76,26 @@ export default function QRSignInModal({ slug, onClose, onSuccess, botUsername: p
   };
 
   const handleTelegramLogin = () => {
+    // If already have a Telegram JWT, try exchange directly (handles retry after failure)
+    const tToken = localStorage.getItem('telegram_token');
+    if (tToken && slug) {
+      setSigningIn(true);
+      setError('');
+      qrExchangeTelegramToken(slug, tToken)
+        .then((result) => {
+          storeQRLogin(result.token, result.customer_id, result.user);
+          onSuccess?.();
+        })
+        .catch((err) => {
+          setError(err.message || 'Telegram sign-in failed');
+          setSigningIn(false);
+          // Clear telegram auth so user can re-initiate fresh login
+          logoutTelegram?.();
+          telegramLoginInitiated.current = false;
+          exchangingRef.current = false;
+        });
+      return;
+    }
     telegramLoginInitiated.current = true;
     initLogin(propBotUsername);
   };

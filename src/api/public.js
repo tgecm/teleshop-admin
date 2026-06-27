@@ -44,7 +44,7 @@ export const deleteBotDomainItem = (botId, domainId) =>
   client.delete(`/bots/${botId}/domains/${domainId}`).then(res => res.data);
 
 export const getPublicShopByDomain = () =>
-  fetch('/public/shop-by-domain').then(res => {
+  fetch(API_BASE + '/public/shop-by-domain').then(res => {
     if (!res.ok) throw new Error('Shop not found for this domain');
     return res.json();
   });

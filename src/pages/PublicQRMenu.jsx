@@ -217,7 +217,7 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, addToOrder
           {isBrowseOnly && (
             <a href={`tel:${shopPhone || ''}`} className="modal-add-btn" style={{textDecoration:'none',marginTop:16}}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
-              <span>Call to Order</span>
+              <span>{shopPhone ? `Call ${shopPhone}` : 'Call to Order'}</span>
             </a>
           )}
         </div>
@@ -744,7 +744,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
   const orderFlowMode = data?.order_flow_mode || 'postpaid';
   const qrLanding = data?.qr_landing || {};
   const isBrowseOnly = orderFlowMode === 'browse_only';
-  const showWelcome = !forceDashboard && dualModeEnabled && !tableProp && !!data && !isLoading && !error && !userDismissedWelcome;
+  const showWelcome = !forceDashboard && !showQRDashboard && dualModeEnabled && !tableProp && isTokenUrlMode && !!data && !isLoading && !error && !userDismissedWelcome;
 
   const qrTheme = data?.qr_theme;
   const qrThemeColors = data?.qr_theme_colors || {};
@@ -832,8 +832,12 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
         } else {
           setShowQRSignIn(true);
         }
-      } else if (isTokenUrlMode && !dualModeEnabled) {
+      } else if (isTokenUrlMode) {
         if (isQRAuthenticated()) {
+          const dashUrl = '/' + slug + '-token-dashboard';
+          if (window.location.pathname !== dashUrl) {
+            window.history.replaceState(null, '', dashUrl);
+          }
           setShowQRDashboard(true);
         } else {
           setShowQRSignIn(true);
@@ -849,6 +853,10 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
   const handleQRSignInSuccess = () => {
     setShowQRSignIn(false);
     setUserDismissedWelcome(true);
+    const dashUrl = '/' + slug + '-token-dashboard';
+    if (window.location.pathname !== dashUrl) {
+      window.history.replaceState(null, '', dashUrl);
+    }
     setShowQRDashboard(true);
   };
 
@@ -1141,7 +1149,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => {
-                setUserDismissedWelcome(true);
+                window.location.href = '/' + slug + '-qr-menu';
               }}
               className="flex-1 min-h-[160px] rounded-2xl border p-5 flex flex-col items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md"
               style={{
@@ -1162,6 +1170,10 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
               onClick={() => {
                 if (isQRAuthenticated()) {
                   setUserDismissedWelcome(true);
+                  const dashUrl = '/' + slug + '-token-dashboard';
+                  if (window.location.pathname !== dashUrl) {
+                    window.history.replaceState(null, '', dashUrl);
+                  }
                   setShowQRDashboard(true);
                 } else {
                   setShowQRSignIn(true);
@@ -1453,10 +1465,10 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
                   Instagram
                 </a>
               )}
-              {qrLanding?.phone && (
-                <a href={`tel:${qrLanding.phone}`} className="qr-hero-badge" style={{textDecoration:'none'}}>
+              {qrLanding?.social_phone && (
+                <a href={`tel:${qrLanding.social_phone}`} className="qr-hero-badge" style={{textDecoration:'none'}}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
-                  {qrLanding.phone}
+                  {qrLanding.social_phone}
                 </a>
               )}
             </div>
@@ -1682,12 +1694,12 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
         </div>
       </div>
 
-      {/* Call staff button (browse only mode) */}
+        {/* Call staff button (browse only mode) */}
       {isBrowseOnly && (
         <div className="qr-browse-only-bar">
-          <a href={`tel:${qrLanding?.phone || shop?.phone || ''}`} className="qr-call-staff-btn">
+          <a href={`tel:${qrLanding?.social_phone || shop?.phone || ''}`} className="qr-call-staff-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
-            Call to Order
+            {qrLanding?.social_phone || shop?.phone ? `Call ${qrLanding?.social_phone || shop?.phone}` : 'Call to Order'}
           </a>
         </div>
       )}
@@ -1695,7 +1707,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
       {/* Modals */}
       <AnimatePresence>
         {selectedItem && (
-          <DetailModal item={selectedItem} shop={shop} orderItems={orderItems} onAddToOrder={addToOrder} onClose={() => setSelectedItem(null)} addToOrderLabel={labels.add_to_order} isBrowseOnly={isBrowseOnly} shopPhone={qrLanding?.phone || ''} />
+          <DetailModal item={selectedItem} shop={shop} orderItems={orderItems} onAddToOrder={addToOrder} onClose={() => setSelectedItem(null)} addToOrderLabel={labels.add_to_order} isBrowseOnly={isBrowseOnly} shopPhone={qrLanding?.social_phone || ''} />
         )}
       </AnimatePresence>
 

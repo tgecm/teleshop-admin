@@ -57,6 +57,7 @@ const QRMenuOrders = React.lazy(() => import('./pages/QRMenuOrders'));
 const QRMenuTables = React.lazy(() => import('./pages/QRMenuTables'));
 const QRMenuDashboard = React.lazy(() => import('./pages/QRMenuDashboard'));
 const PublicQRMenu = React.lazy(() => import('./pages/PublicQRMenu'));
+const LiveTokenDisplay = React.lazy(() => import('./pages/LiveTokenDisplay'));
 
 const ADMIN_PATHS = new Set([
   'login', 'manage-web-panel', 'dashboard', 'orders', 'products', 'customers',
@@ -144,6 +145,10 @@ function PublicRoute() {
   const tokenDash = pathname.match(/^(.+)-token-dashboard$/);
   if (tokenDash) {
     return <Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={tokenDash[1]} table="" forceDashboard /></Suspense>;
+  }
+  const tokenDisplay = pathname.match(/^(.+)-token-display$/);
+  if (tokenDisplay) {
+    return <Suspense fallback={<SuspenseFallback />}><LiveTokenDisplay slug={tokenDisplay[1]} /></Suspense>;
   }
   return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={pathname} /></Suspense>;
 }
@@ -366,6 +371,8 @@ export default function App() {
               if (qrMenu) return <PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} />;
               const tokenDash = publicSlug.match(/^(.+)-token-dashboard$/);
               if (tokenDash) return <PublicQRMenu slug={tokenDash[1]} table="" forceDashboard />;
+              const tokenDisplay = publicSlug.match(/^(.+)-token-display$/);
+              if (tokenDisplay) return <LiveTokenDisplay slug={tokenDisplay[1]} />;
               return <PublicEcommerce slug={publicSlug} />;
             })()}
           </Suspense>
