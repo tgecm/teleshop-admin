@@ -827,21 +827,15 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
   useEffect(() => {
     if (data && !isLoading && !error) {
       if (forceDashboard) {
-        if (isQRAuthenticated()) {
-          setShowQRDashboard(true);
-        } else {
-          setShowQRSignIn(true);
-        }
+        setShowQRDashboard(true);
+        setUserDismissedWelcome(true);
       } else if (isTokenUrlMode) {
-        if (isQRAuthenticated()) {
-          const dashUrl = '/' + slug + '-token-dashboard';
-          if (window.location.pathname !== dashUrl) {
-            window.history.replaceState(null, '', dashUrl);
-          }
-          setShowQRDashboard(true);
-        } else {
-          setShowQRSignIn(true);
+        const dashUrl = '/' + slug + '-token-dashboard';
+        if (window.location.pathname !== dashUrl) {
+          window.history.replaceState(null, '', dashUrl);
         }
+        setShowQRDashboard(true);
+        setUserDismissedWelcome(true);
       }
     }
   }, [data, isLoading, error, isTokenUrlMode, slug, forceDashboard]);
