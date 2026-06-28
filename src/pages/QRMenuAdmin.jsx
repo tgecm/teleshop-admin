@@ -730,47 +730,52 @@ function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selected
 function DebouncedSettingsInput({ value: initialValue, onSave, placeholder, type = 'text', className = '' }) {
   const [localValue, setLocalValue] = useState(initialValue);
   const [status, setStatus] = useState('idle');
-  const timerRef = useRef(null);
-  const pendingRef = useRef(false);
-  const onSaveRef = useRef(onSave);
+  const savingRef = useRef(false);
   const valRef = useRef(initialValue);
+  const onSaveRef = useRef(onSave);
 
   onSaveRef.current = onSave;
 
   useEffect(() => {
-    if (!pendingRef.current) setLocalValue(initialValue);
+    if (!savingRef.current) setLocalValue(initialValue);
   }, [initialValue]);
 
-  useEffect(() => {
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, []);
-
-  const borderClass = status === 'typing' || status === 'saving' ? 'border-blue-400'
-    : status === 'saved' ? 'border-green-500'
-    : status === 'failed' ? 'border-red-500'
-    : 'border-gray-200';
+  const doSave = async (val) => {
+    savingRef.current = true;
+    setStatus('saving');
+    try {
+      await onSaveRef.current(val);
+      setStatus('saved');
+      savingRef.current = false;
+      setTimeout(() => setStatus('idle'), 2000);
+    } catch {
+      setStatus('failed');
+      savingRef.current = false;
+    }
+  };
 
   const handleChange = (e) => {
     const val = e.target.value;
     setLocalValue(val);
     valRef.current = val;
-    setStatus('typing');
-    pendingRef.current = true;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(async () => {
-      timerRef.current = null;
-      setStatus('saving');
-      try {
-        await onSaveRef.current(valRef.current);
-        setStatus('saved');
-        pendingRef.current = false;
-        setTimeout(() => setStatus('idle'), 2000);
-      } catch {
-        setStatus('failed');
-        pendingRef.current = false;
-      }
-    }, 1000);
   };
+
+  const handleBlur = () => {
+    if (String(valRef.current) !== String(initialValue)) {
+      doSave(valRef.current);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur();
+    }
+  };
+
+  const borderClass = status === 'saving' ? 'border-blue-400'
+    : status === 'saved' ? 'border-green-500'
+    : status === 'failed' ? 'border-red-500'
+    : 'border-gray-200';
 
   return (
     <div>
@@ -778,6 +783,8 @@ function DebouncedSettingsInput({ value: initialValue, onSave, placeholder, type
         type={type}
         value={localValue}
         onChange={handleChange}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className={`bg-white border rounded-xl text-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all ${className} ${borderClass}`}
       />
@@ -928,10 +935,6 @@ export default function QRMenuAdmin() {
 
   const shopSettingsMutation = useMutation({
     mutationFn: (data) => updateContentBlock(selectedBotId, 'shop_settings', data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['content-blocks', selectedBotId]);
-      addToast('Settings saved');
-    },
     onError: () => addToast('Failed to save settings', 'error'),
   });
 
@@ -940,7 +943,13 @@ export default function QRMenuAdmin() {
     const block = cached?.find(b => b.key === 'shop_settings');
     const current = block?.content_data || {};
     const updates = typeof getUpdates === 'function' ? getUpdates(current) : getUpdates;
-    return shopSettingsMutation.mutateAsync({ ...current, ...updates });
+    const next = { ...current, ...updates };
+    // Update cache directly to avoid disruptive refetch
+    queryClient.setQueryData(['content-blocks', selectedBotId], (old) => {
+      if (!old) return old;
+      return old.map(b => b.key === 'shop_settings' ? { ...b, content_data: next } : b);
+    });
+    return shopSettingsMutation.mutateAsync(next);
   };
 
   const paymentModeMutation = useMutation({

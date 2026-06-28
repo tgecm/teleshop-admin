@@ -1423,6 +1423,19 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
                 <span>{orderCount > 0 ? `${formatPrice(orderTotal)} K` : 'Orders'}</span>
                 {orderCount > 0 && <span className="qr-hero-order-count">{orderCount}</span>}
               </button>
+              <a href={'/' + slug + '-qr-dashboard'}
+                style={{
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  background:'rgba(255,255,255,0.18)',backdropFilter:'blur(8px)',
+                  border:'1px solid rgba(255,255,255,0.25)',
+                  color:'#fff',width:36,height:36,borderRadius:12,
+                  fontSize:12,fontWeight:600,whiteSpace:'nowrap',
+                }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </a>
             </div>
           </div>
           <div className="qr-hero-content">

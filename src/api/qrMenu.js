@@ -57,3 +57,29 @@ export const deleteCoupon = (couponId, botId) =>
 
 export const getQRMenuStats = ({ bot_id, days, start_date, end_date }) =>
   client.get(`/qr-menu/${bot_id}/stats`, { params: { days, start_date, end_date } }).then(r => r.data);
+
+function getQRAuthHeaders() {
+  const token = sessionStorage.getItem('qr_customer_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export const getQRPointsHistory = (slug) =>
+  client.get(`/public/qr-menu/${slug}/customer/points-history`, { headers: getQRAuthHeaders() }).then(r => r.data);
+
+export const getQRCustomerDashboard = (slug) =>
+  client.get(`/public/qr-menu/${slug}/customer/dashboard`, { headers: getQRAuthHeaders() }).then(r => r.data);
+
+export const getQRCustomerOrders = (slug, limit = 50, offset = 0) =>
+  client.get(`/public/qr-menu/${slug}/customer/orders`, {
+    headers: getQRAuthHeaders(),
+    params: { limit, offset },
+  }).then(r => r.data);
+
+export const saveQRCustomerCart = (slug, items) =>
+  client.post(`/public/qr-menu/${slug}/customer/cart`, { items }, { headers: getQRAuthHeaders() }).then(r => r.data);
+
+export const getQRCustomerCart = (slug) =>
+  client.get(`/public/qr-menu/${slug}/customer/cart`, { headers: getQRAuthHeaders() }).then(r => r.data);
+
+export const clearQRCustomerCart = (slug) =>
+  client.post(`/public/qr-menu/${slug}/customer/cart/clear`, {}, { headers: getQRAuthHeaders() }).then(r => r.data);

@@ -57,6 +57,7 @@ const QRMenuOrders = React.lazy(() => import('./pages/QRMenuOrders'));
 const QRMenuTables = React.lazy(() => import('./pages/QRMenuTables'));
 const QRMenuDashboard = React.lazy(() => import('./pages/QRMenuDashboard'));
 const PublicQRMenu = React.lazy(() => import('./pages/PublicQRMenu'));
+const QRMenuCustomerDashboard = React.lazy(() => import('./pages/QRMenuCustomerDashboard'));
 const LiveTokenDisplay = React.lazy(() => import('./pages/LiveTokenDisplay'));
 
 const ADMIN_PATHS = new Set([
@@ -67,6 +68,12 @@ const ADMIN_PATHS = new Set([
   'qr-menu/tables',
   'qr-menu/dashboard',
 ]);
+
+function RequireSuperadmin({ children }) {
+  const { user } = useAuthStore();
+  if (!user?.is_superadmin) return <Navigate to="/dashboard" replace />;
+  return children;
+}
 
 const PUBLIC_DOMAIN = 'telegramecommerce.shop';
 
@@ -137,6 +144,10 @@ function PublicRoute() {
   const modeMatch = pathname.match(/^(.+)\/(telegram|ecommerce|guest)$/);
   if (modeMatch) {
     return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={modeMatch[1]} mode={modeMatch[2]} /></Suspense>;
+  }
+  const qrDashboard = pathname.match(/^(.+)-qr-dashboard$/);
+  if (qrDashboard) {
+    return <Suspense fallback={<SuspenseFallback />}><QRMenuCustomerDashboard slug={qrDashboard[1]} /></Suspense>;
   }
   const qrMenu = pathname.match(/^(.+)-qr-menu(?:\/t(\d+))?$/);
   if (qrMenu) {
@@ -368,6 +379,8 @@ export default function App() {
               if (modeSlug) return <PublicEcommerce slug={modeSlug[1]} mode={modeSlug[2]} />;
               const qrMenu = publicSlug.match(/^(.+)-qr-menu(?:\/t(\d+))?$/);
               if (qrMenu) return <PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} />;
+              const qrDash = publicSlug.match(/^(.+)-qr-dashboard$/);
+              if (qrDash) return <QRMenuCustomerDashboard slug={qrDash[1]} />;
               const tokenDash = publicSlug.match(/^(.+)-token-dashboard$/);
               if (tokenDash) return <PublicQRMenu slug={tokenDash[1]} table="" forceDashboard />;
               const tokenDisplay = publicSlug.match(/^(.+)-token-display$/);
@@ -444,10 +457,10 @@ export default function App() {
                   <Route path="send-message" element={<SendMessage />} />
                   <Route path="subscribers" element={<Subscribers />} />
                   <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
-                  <Route path="qr-menu/dashboard" element={<PermissionGuard><PlanGate><QRMenuDashboard /></PlanGate></PermissionGuard>} />
-                  <Route path="qr-menu" element={<PermissionGuard><PlanGate><QRMenuAdmin /></PlanGate></PermissionGuard>} />
-                  <Route path="qr-menu/orders" element={<PermissionGuard><PlanGate><QRMenuOrders /></PlanGate></PermissionGuard>} />
-                  <Route path="qr-menu/tables" element={<PermissionGuard><PlanGate><QRMenuTables /></PlanGate></PermissionGuard>} />
+                  <Route path="qr-menu/dashboard" element={<RequireSuperadmin><PermissionGuard><PlanGate><QRMenuDashboard /></PlanGate></PermissionGuard></RequireSuperadmin>} />
+                  <Route path="qr-menu" element={<RequireSuperadmin><PermissionGuard><PlanGate><QRMenuAdmin /></PlanGate></PermissionGuard></RequireSuperadmin>} />
+                  <Route path="qr-menu/orders" element={<RequireSuperadmin><PermissionGuard><PlanGate><QRMenuOrders /></PlanGate></PermissionGuard></RequireSuperadmin>} />
+                  <Route path="qr-menu/tables" element={<RequireSuperadmin><PermissionGuard><PlanGate><QRMenuTables /></PlanGate></PermissionGuard></RequireSuperadmin>} />
                   <Route path="staff-accounts" element={<PlanGate><StaffAccounts /></PlanGate>} />
                   <Route path="more" element={<Navigate to="/broadcast" replace />} />
                   <Route path="newsfeed" element={<PermissionGuard><PlanGate><NewsfeedAdmin /></PlanGate></PermissionGuard>} />
