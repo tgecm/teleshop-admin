@@ -59,7 +59,7 @@ export async function qrSignInWithGoogle(slug: string): Promise<{
   return resp.json();
 }
 
-export async function qrExchangeTelegramToken(slug: string, telegramToken: string): Promise<{
+export async function qrExchangeTelegramToken(slug: string, telegramToken: string, chatId?: number | null): Promise<{
   token: string;
   customer_id: number;
   user: { id: string; name: string; photo_url: string };
@@ -67,7 +67,7 @@ export async function qrExchangeTelegramToken(slug: string, telegramToken: strin
   const resp = await fetch(`${API_BASE}/public/qr-menu/auth/telegram-exchange`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: telegramToken, shop_slug: slug }),
+    body: JSON.stringify({ token: telegramToken, shop_slug: slug, chat_id: chatId || null }),
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: 'Telegram sign-in failed' }));
