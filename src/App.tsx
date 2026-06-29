@@ -69,12 +69,6 @@ const ADMIN_PATHS = new Set([
   'qr-menu/dashboard',
 ]);
 
-function RequireSuperadmin({ children }) {
-  const { user } = useAuthStore();
-  if (!user?.is_superadmin) return <Navigate to="/dashboard" replace />;
-  return children;
-}
-
 const PUBLIC_DOMAIN = 'telegramecommerce.shop';
 
 function isCustomDomain() {
@@ -457,10 +451,10 @@ export default function App() {
                   <Route path="send-message" element={<SendMessage />} />
                   <Route path="subscribers" element={<Subscribers />} />
                   <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
-                  <Route path="qr-menu/dashboard" element={<RequireSuperadmin><PermissionGuard><PlanGate><QRMenuDashboard /></PlanGate></PermissionGuard></RequireSuperadmin>} />
-                  <Route path="qr-menu" element={<RequireSuperadmin><PermissionGuard><PlanGate><QRMenuAdmin /></PlanGate></PermissionGuard></RequireSuperadmin>} />
-                  <Route path="qr-menu/orders" element={<RequireSuperadmin><PermissionGuard><PlanGate><QRMenuOrders /></PlanGate></PermissionGuard></RequireSuperadmin>} />
-                  <Route path="qr-menu/tables" element={<RequireSuperadmin><PermissionGuard><PlanGate><QRMenuTables /></PlanGate></PermissionGuard></RequireSuperadmin>} />
+                  <Route path="qr-menu/dashboard" element={<PermissionGuard><PlanGate><QRMenuDashboard /></PlanGate></PermissionGuard>} />
+                  <Route path="qr-menu" element={<PermissionGuard><PlanGate><QRMenuAdmin /></PlanGate></PermissionGuard>} />
+                  <Route path="qr-menu/orders" element={<PermissionGuard><PlanGate><QRMenuOrders /></PlanGate></PermissionGuard>} />
+                  <Route path="qr-menu/tables" element={<PermissionGuard><PlanGate><QRMenuTables /></PlanGate></PermissionGuard>} />
                   <Route path="staff-accounts" element={<PlanGate><StaffAccounts /></PlanGate>} />
                   <Route path="more" element={<Navigate to="/broadcast" replace />} />
                   <Route path="newsfeed" element={<PermissionGuard><PlanGate><NewsfeedAdmin /></PlanGate></PermissionGuard>} />

@@ -149,9 +149,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
           </NavLink>
         ))}
 
-        {/* QR Menu Section — superadmin only */}
-        {user?.is_superadmin && (
-          <div className="pt-3">
+        {/* QR Menu Section — available to all users (Pro & Business plans only) */}
+        <div className="pt-3">
             <p className="px-2.5 pb-1.5 text-[10px] font-bold text-indigo-500 uppercase tracking-wider flex items-center gap-1">
               <Utensils className="w-3 h-3" /> QR Menu
             </p>
@@ -175,7 +174,6 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
               ))}
             </div>
           </div>
-        )}
 
         {/* Telegram E-commerce Section */}
           <div className="pt-3">

@@ -597,6 +597,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState(0);
   const [deliveryFeeAmount, setDeliveryFeeAmount] = useState(0);
   const [zoneFees, setZoneFees] = useState([]);
+  const [deliveryFeeMode, setDeliveryFeeMode] = useState('flat');
 
   const effectiveTotal = couponApplied ? totalAmount - couponApplied.discount : totalAmount;
 
@@ -604,6 +605,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     if (deliverySettings?.delivery_fee != null) {
       setDeliveryFee(Number(deliverySettings.delivery_fee) || 0);
       setFreeDeliveryThreshold(Number(deliverySettings.free_delivery_threshold) || 0);
+      setDeliveryFeeMode(deliverySettings.delivery_fee_mode || 'flat');
     }
     if (deliveryFees) {
       setZoneFees(deliveryFees);
@@ -623,21 +625,21 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
       return;
     }
 
-    // Match zone fee by Region + District + Township (all 3 required to avoid duplicate names)
-    if (zoneFees.length > 0 && contactForm.region && contactForm.district && contactForm.township) {
-      const match = zoneFees.find(zf =>
-        zf.region?.toLowerCase() === contactForm.region.toLowerCase() &&
-        zf.district?.toLowerCase() === contactForm.district.toLowerCase() &&
-        zf.township?.toLowerCase() === contactForm.township.toLowerCase()
-      );
-      if (match && Number(match.fee) > 0) {
-        fee = Number(match.fee);
-      }
-    }
-
-    // Fallback to flat delivery fee if no zone match
-    if (fee === 0 && deliveryFee > 0) {
+    if (deliveryFeeMode === 'flat') {
+      // Flat fee mode: apply the flat delivery fee directly
       fee = deliveryFee;
+    } else {
+      // Zone mode: match by Region + District + Township
+      if (zoneFees.length > 0 && contactForm.region && contactForm.district && contactForm.township) {
+        const match = zoneFees.find(zf =>
+          zf.region?.toLowerCase() === contactForm.region.toLowerCase() &&
+          zf.district?.toLowerCase() === contactForm.district.toLowerCase() &&
+          zf.township?.toLowerCase() === contactForm.township.toLowerCase()
+        );
+        if (match && Number(match.fee) > 0) {
+          fee = Number(match.fee);
+        }
+      }
     }
 
     // Free delivery threshold
@@ -646,7 +648,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     }
 
     setDeliveryFeeAmount(fee);
-  }, [deliveryFee, freeDeliveryThreshold, deliveryFees, totalAmount, couponApplied, effectiveTotal, zoneFees, contactForm.region, contactForm.district, contactForm.township, cartItems, products]);
+  }, [deliveryFee, freeDeliveryThreshold, deliveryFees, totalAmount, couponApplied, effectiveTotal, zoneFees, contactForm.region, contactForm.district, contactForm.township, cartItems, products, deliveryFeeMode]);
 
   const handleProofFile = (e) => {
     const file = e.target.files?.[0];
@@ -1771,8 +1773,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const cart = useCartState(shop?.id, slug || shop?.public_slug || shop?.bot_username || '', user, viewMode);
   const { items: cartItems, cartCount, totalAmount, loading: cartLoading, addItem, updateQty, removeItem, clearCart, syncPrices } = cart;
 
-  // Only show region/district/township when at least one cart product has delivery fee enabled
-  const contactShowZoneFields = cartItems.some(item =>
+  // Only show region/district/township when shop is in zone mode and at least one cart product has delivery fee enabled
+  const contactShowZoneFields = data?.delivery_settings?.delivery_fee_mode === 'zone' && cartItems.some(item =>
     products.find(p => p.id === item.product_id)?.apply_delivery_fee === true
   );
 
