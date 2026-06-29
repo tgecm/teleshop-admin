@@ -75,6 +75,7 @@ export default function Products() {
   const [checkoutFieldsLoading, setCheckoutFieldsLoading] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('');
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('');
+  const [deliveryFeeMode, setDeliveryFeeMode] = useState('flat');
   const [deliveryFeeLoading, setDeliveryFeeLoading] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
@@ -176,6 +177,7 @@ export default function Products() {
       const res = await client.get(`/bots/${selectedBotId}/delivery-settings`);
       setDeliveryFee(String(res.data.delivery_fee || ''));
       setFreeDeliveryThreshold(String(res.data.free_delivery_threshold || ''));
+      setDeliveryFeeMode(res.data.delivery_fee_mode || 'flat');
     } catch (e) {
       console.error('Failed to load delivery settings:', e);
     }
@@ -192,6 +194,7 @@ export default function Products() {
       await client.put(`/bots/${selectedBotId}/delivery-settings`, {
         delivery_fee: Number(deliveryFee) || 0,
         free_delivery_threshold: Number(freeDeliveryThreshold) || 0,
+        delivery_fee_mode: deliveryFeeMode,
       });
       addToast('Delivery settings saved');
       setShowDeliveryFeeModal(false);
@@ -615,152 +618,171 @@ export default function Products() {
                   </div>
                   <h2 className="text-base sm:text-lg font-bold text-gray-900">Delivery Fee Settings</h2>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium ${deliveryFeeMode === 'zone' ? 'text-emerald-600' : 'text-gray-400'}`}>Zone</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={deliveryFeeMode === 'flat'}
+                      onChange={() => setDeliveryFeeMode(deliveryFeeMode === 'flat' ? 'zone' : 'flat')}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
+                  </label>
+                  <span className={`text-xs font-medium ${deliveryFeeMode === 'flat' ? 'text-emerald-600' : 'text-gray-400'}`}>Flat</span>
+                </div>
                 <button onClick={() => setShowDeliveryFeeModal(false)} className="p-1.5 sm:p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
                   <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
                 </button>
               </div>
 
-              <div className="space-y-3 sm:space-y-4 pb-3 sm:pb-4 border-b border-gray-100">
-                <div>
-                  <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Delivery Fee (MMK)</label>
-                  <input
-                    type="number"
-                    value={deliveryFee}
-                    onChange={(e) => setDeliveryFee(e.target.value)}
-                    placeholder="e.g. 5000"
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm"
-                  />
-                  <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Flat fee added at checkout if any product has delivery fee enabled</p>
-                </div>
-                <div>
-                  <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Free Delivery if spent this amount (MMK)</label>
-                  <input
-                    type="number"
-                    value={freeDeliveryThreshold}
-                    onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
-                    placeholder="e.g. 50000"
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm"
-                  />
-                  <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Delivery fee is waived when cart total reaches or exceeds this amount</p>
-                </div>
-              </div>
-
-              {/* CSV Import Section */}
-              <div className="mt-3 sm:mt-5 pt-3 sm:pt-4 border-t border-gray-100">
-                <div className="flex gap-2">
-                  <button
-                    onClick={downloadCsvTemplate}
-                    className="flex-1 py-2 sm:py-2.5 bg-gray-100 rounded-xl font-medium text-xs sm:text-sm text-gray-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
-                  >
-                    <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    Download CSV
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={importingCsv}
-                    className="flex-1 py-2 sm:py-2.5 bg-emerald-100 rounded-xl font-medium text-xs sm:text-sm text-emerald-700 hover:bg-emerald-200 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 sm:gap-2"
-                  >
-                    <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    {importingCsv ? 'Importing...' : 'Import CSV'}
-                  </button>
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv,.xlsx"
-                  onChange={handleCsvImport}
-                  className="hidden"
-                />
-                <p className="text-[10px] sm:text-xs text-gray-400 italic mt-1.5 sm:mt-2 text-center leading-relaxed">Delivery Fees ဟာ ဒေသပေါ်မူတည်ပြီး မတူညီကြတာကြောင့် ကိုယ်နေတဲ့မြို့ပေါ်မူတည်ပြီး ကိုယ်တိုင် သတ်မှတ်ပေးပါနော်။ Excel Template ကို Download ရယူကာ သက်ဆိုင်ရာမြို့များရဲ့ Delivery Fees များကို ဖြည့်သွင်းပြီး Import CSV မှ တစ်ဆင့် ပြန်လည်ထည့်သွင်းပေးပါ။</p>
-              </div>
-
-              {/* Zone-based Delivery Fees */}
-              <div className="mt-3 sm:mt-5">
-                <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-2 sm:mb-3">Zone-based Delivery Fees</h3>
-
-                <div className="space-y-2 sm:space-y-3">
+              {deliveryFeeMode === 'flat' && (
+                <div className="space-y-3 sm:space-y-4 pb-3 sm:pb-4 border-b border-gray-100">
                   <div>
-                    <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Region (တိုင်း/ပြည်နယ်)</label>
-                    <SearchableSelect
-                      value={selectedRegion}
-                      onChange={handleRegionChange}
-                      options={REGION_NAMES}
-                      placeholder="Select Region"
+                    <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Delivery Fee (MMK)</label>
+                    <input
+                      type="number"
+                      value={deliveryFee}
+                      onChange={(e) => setDeliveryFee(e.target.value)}
+                      placeholder="e.g. 5000"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm"
                     />
+                    <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Flat fee added at checkout if any product has delivery fee enabled</p>
                   </div>
-
                   <div>
-                    <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">District (ခရိုင်)</label>
-                    <SearchableSelect
-                      value={selectedDistrict}
-                      onChange={handleDistrictChange}
-                      options={getDistricts(selectedRegion)}
-                      placeholder="Select District"
-                      disabled={!selectedRegion}
+                    <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Free Delivery if spent this amount (MMK)</label>
+                    <input
+                      type="number"
+                      value={freeDeliveryThreshold}
+                      onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
+                      placeholder="e.g. 50000"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm"
                     />
+                    <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Delivery fee is waived when cart total reaches or exceeds this amount</p>
                   </div>
+                </div>
+              )}
 
-                  <div>
-                    <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Township (မြို့နယ်)</label>
-                    <SearchableSelect
-                      value={selectedTownship}
-                      onChange={setSelectedTownship}
-                      options={getTownships(selectedRegion, selectedDistrict)}
-                      placeholder="Select Township"
-                      disabled={!selectedDistrict}
-                    />
-                  </div>
-
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-1">
-                      <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Delivery Fee (MMK)</label>
-                      <input
-                        type="number"
-                        value={townshipFeeInput}
-                        onChange={(e) => setTownshipFeeInput(e.target.value)}
-                        placeholder="e.g. 3000"
-                        disabled={!selectedTownship}
-                        className="w-full px-2.5 sm:px-3 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm disabled:opacity-50"
-                      />
+              {deliveryFeeMode === 'zone' && (
+                <>
+                  {/* CSV Import Section */}
+                  <div className="mt-3 sm:mt-5 pt-3 sm:pt-4 border-t border-gray-100">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={downloadCsvTemplate}
+                        className="flex-1 py-2 sm:py-2.5 bg-gray-100 rounded-xl font-medium text-xs sm:text-sm text-gray-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
+                      >
+                        <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        Download CSV
+                      </button>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={importingCsv}
+                        className="flex-1 py-2 sm:py-2.5 bg-emerald-100 rounded-xl font-medium text-xs sm:text-sm text-emerald-700 hover:bg-emerald-200 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 sm:gap-2"
+                      >
+                        <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        {importingCsv ? 'Importing...' : 'Import CSV'}
+                      </button>
                     </div>
-                    <button
-                      onClick={saveTownshipFee}
-                      disabled={!selectedTownship || !townshipFeeInput || savingTownshipFee}
-                      className="px-3 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 rounded-xl font-bold text-xs sm:text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50 h-[36px] sm:h-[42px]"
-                    >
-                      {savingTownshipFee ? 'Saving...' : 'Add'}
-                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv,.xlsx"
+                      onChange={handleCsvImport}
+                      className="hidden"
+                    />
+                    <p className="text-[10px] sm:text-xs text-gray-400 italic mt-1.5 sm:mt-2 text-center leading-relaxed">Delivery Fees ဟာ ဒေသပေါ်မူတည်ပြီး မတူညီကြတာကြောင့် ကိုယ်နေတဲ့မြို့ပေါ်မူတည်ပြီး ကိုယ်တိုင် သတ်မှတ်ပေးပါနော်။ Excel Template ကို Download ရယူကာ သက်ဆိုင်ရာမြို့များရဲ့ Delivery Fees များကို ဖြည့်သွင်းပြီး Import CSV မှ တစ်ဆင့် ပြန်လည်ထည့်သွင်းပေးပါ။</p>
                   </div>
-                </div>
 
-                {/* Saved township fees list */}
-                {townshipFeesLoading ? (
-                  <div className="text-center py-3 sm:py-4 text-xs sm:text-sm text-gray-400">Loading...</div>
-                ) : townshipFees.length > 0 ? (
-                  <div className="mt-3 sm:mt-4 space-y-1.5 sm:space-y-2 max-h-40 sm:max-h-48 overflow-y-auto">
-                    {townshipFees.map((tf) => (
-                      <div key={tf.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-2.5 sm:px-3 py-2 sm:py-2.5">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{tf.township}</p>
-                          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{tf.region} &gt; {tf.district}</p>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 ml-2 shrink-0">
-                          <span className="text-xs sm:text-sm font-bold text-emerald-600">{Number(tf.fee).toLocaleString()} MMK</span>
-                          <button
-                            onClick={() => deleteTownshipFee(tf.id)}
-                            disabled={deletingTownshipFeeId === tf.id}
-                            className="p-1 sm:p-1.5 bg-white rounded-lg border border-gray-200 text-red-400 hover:text-red-600 hover:border-red-200 transition-all disabled:opacity-50"
-                          >
-                            <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                          </button>
-                        </div>
+                  {/* Zone-based Delivery Fees */}
+                  <div className="mt-3 sm:mt-5">
+                    <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-2 sm:mb-3">Zone-based Delivery Fees</h3>
+
+                    <div className="space-y-2 sm:space-y-3">
+                      <div>
+                        <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Region (တိုင်း/ပြည်နယ်)</label>
+                        <SearchableSelect
+                          value={selectedRegion}
+                          onChange={handleRegionChange}
+                          options={REGION_NAMES}
+                          placeholder="Select Region"
+                        />
                       </div>
-                    ))}
+
+                      <div>
+                        <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">District (ခရိုင်)</label>
+                        <SearchableSelect
+                          value={selectedDistrict}
+                          onChange={handleDistrictChange}
+                          options={getDistricts(selectedRegion)}
+                          placeholder="Select District"
+                          disabled={!selectedRegion}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Township (မြို့နယ်)</label>
+                        <SearchableSelect
+                          value={selectedTownship}
+                          onChange={setSelectedTownship}
+                          options={getTownships(selectedRegion, selectedDistrict)}
+                          placeholder="Select Township"
+                          disabled={!selectedDistrict}
+                        />
+                      </div>
+
+                      <div className="flex gap-2 items-end">
+                        <div className="flex-1">
+                          <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Delivery Fee (MMK)</label>
+                          <input
+                            type="number"
+                            value={townshipFeeInput}
+                            onChange={(e) => setTownshipFeeInput(e.target.value)}
+                            placeholder="e.g. 3000"
+                            disabled={!selectedTownship}
+                            className="w-full px-2.5 sm:px-3 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm disabled:opacity-50"
+                          />
+                        </div>
+                        <button
+                          onClick={saveTownshipFee}
+                          disabled={!selectedTownship || !townshipFeeInput || savingTownshipFee}
+                          className="px-3 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 rounded-xl font-bold text-xs sm:text-sm text-white hover:bg-emerald-700 transition-all disabled:opacity-50 h-[36px] sm:h-[42px]"
+                        >
+                          {savingTownshipFee ? 'Saving...' : 'Add'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Saved township fees list */}
+                    {townshipFeesLoading ? (
+                      <div className="text-center py-3 sm:py-4 text-xs sm:text-sm text-gray-400">Loading...</div>
+                    ) : townshipFees.length > 0 ? (
+                      <div className="mt-3 sm:mt-4 space-y-1.5 sm:space-y-2 max-h-40 sm:max-h-48 overflow-y-auto">
+                        {townshipFees.map((tf) => (
+                          <div key={tf.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-2.5 sm:px-3 py-2 sm:py-2.5">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{tf.township}</p>
+                              <p className="text-[10px] sm:text-xs text-gray-500 truncate">{tf.region} &gt; {tf.district}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 sm:gap-2 ml-2 shrink-0">
+                              <span className="text-xs sm:text-sm font-bold text-emerald-600">{Number(tf.fee).toLocaleString()} MMK</span>
+                              <button
+                                onClick={() => deleteTownshipFee(tf.id)}
+                                disabled={deletingTownshipFeeId === tf.id}
+                                className="p-1 sm:p-1.5 bg-white rounded-lg border border-gray-200 text-red-400 hover:text-red-600 hover:border-red-200 transition-all disabled:opacity-50"
+                              >
+                                <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-center py-3 sm:py-4 text-xs sm:text-sm text-gray-400">No township fees set yet</p>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-center py-3 sm:py-4 text-xs sm:text-sm text-gray-400">No township fees set yet</p>
-                )}
-              </div>
+                </>
+              )}
 
               <div className="sticky bottom-0 mt-10 sm:mt-12 pt-4 sm:pt-5 border-t border-gray-100 flex gap-2 sm:gap-3 bg-white">
                 <button
@@ -1383,7 +1405,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     price: product?.price || '',
     original_price: product?.original_price || '',
     category_id: product?.category_id || '',
-    delivery_type: product?.delivery_type || '',
+    apply_delivery_fee: product?.apply_delivery_fee || false,
     cost_price: product?.cost_price || '',
     show_on_telegram: product?.show_on_telegram !== undefined ? product.show_on_telegram : true,
     show_on_website: product?.show_on_website !== undefined ? product.show_on_website : true,
@@ -1570,12 +1592,11 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
       if (colors.length > 0) specs.colors = colors;
       if (options.length > 0) specs.options = options;
     }
-    const { delivery_type, cost_price, ...rest } = formData;
+    const { cost_price, ...rest } = formData;
     onSubmit({
       ...rest,
       cost_price: cost_price ? Number(cost_price) : null,
-      apply_delivery_fee: delivery_type === 'flat' || delivery_type === 'zone',
-      delivery_type,
+      apply_delivery_fee: formData.apply_delivery_fee || false,
       price: Number(formData.price),
       original_price: promotion && formData.original_price ? Number(formData.original_price) : null,
       stock_quantity: stockOption === 'unlimited' ? null : stockOption === 'out' ? 0 : Number(customStock),
@@ -1806,36 +1827,21 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
           />
         </div>
 
-        {/* Delivery fee type */}
-        <div className="p-3 bg-gray-50 rounded-xl space-y-3">
+        {/* Delivery fee toggle */}
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
           <div className="flex items-center gap-2">
             <Truck className="w-4 h-4 text-gray-500" />
-            <p className="text-sm font-semibold text-gray-700">Delivery fee type</p>
+            <p className="text-sm font-semibold text-gray-700">Delivery Fees</p>
           </div>
-          <div className="flex items-center justify-between pl-1">
-            <p className="text-sm text-gray-600">Flat Fees</p>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.delivery_type === 'flat'}
-                onChange={() => setFormData({ ...formData, delivery_type: formData.delivery_type === 'flat' ? '' : 'flat' })}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
-            </label>
-          </div>
-          <div className="flex items-center justify-between pl-1">
-            <p className="text-sm text-gray-600">Zone-based Fees</p>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.delivery_type === 'zone'}
-                onChange={() => setFormData({ ...formData, delivery_type: formData.delivery_type === 'zone' ? '' : 'zone' })}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
-            </label>
-          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.apply_delivery_fee}
+              onChange={(e) => setFormData({ ...formData, apply_delivery_fee: e.target.checked })}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-emerald-500 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" />
+          </label>
         </div>
 
         <div className="space-y-3">
