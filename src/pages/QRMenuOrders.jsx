@@ -143,6 +143,15 @@ export default function QRMenuOrders() {
                         {order.payment_method && order.payment_method !== 'prepaid' && (
                           <p className="text-gray-500 text-xs">💳 {order.payment_method}</p>
                         )}
+                        {(() => {
+                          try {
+                            const bs = typeof order.buyer_snapshot === 'string' ? JSON.parse(order.buyer_snapshot) : order.buyer_snapshot;
+                            if (bs?.points_redeemed) {
+                              return <p className="text-xs font-semibold text-amber-600">⭐ {bs.points_redeemed} pts used</p>;
+                            }
+                          } catch {}
+                          return null;
+                        })()}
                         {order.payment_proof_messages && order.payment_proof_messages.length > 0 && (
                           <div className="flex gap-2 overflow-x-auto pb-1">
                             {(() => {

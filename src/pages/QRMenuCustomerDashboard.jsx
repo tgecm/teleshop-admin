@@ -222,6 +222,7 @@ export default function QRMenuCustomerDashboard({ slug }) {
   const [searchQ, setSearchQ] = useState('');
   const [activeCat, setActiveCat] = useState('all');
   const [orderSuccess, setOrderSuccess] = useState(null);
+  const [expandedOrder, setExpandedOrder] = useState(null);
 
   // ── Telegram login (direct polling, bypasses ecommerce tgLoggedIn) ──
   const [tgStatus, setTgStatus] = useState('idle');
@@ -516,31 +517,55 @@ export default function QRMenuCustomerDashboard({ slug }) {
         </div>
       ) : (
         <div className="space-y-1.5">
-          {recentOrders.slice(0, 10).map((order, i) => {
-            const orderItemsData = (typeof order.items === 'string' ? JSON.parse(order.items) : order.items) || [];
-            const itemCount = Array.isArray(orderItemsData) ? orderItemsData.reduce((s, oi) => s + (oi.quantity || oi.qty || 1), 0) : 0;
-            const statusColors = {
-              pending: 'bg-amber-100 text-amber-700',
-              confirmed: 'bg-blue-100 text-blue-700',
-              processing: 'bg-indigo-100 text-indigo-700',
-              shipped: 'bg-purple-100 text-purple-700',
-              delivered: 'bg-emerald-100 text-emerald-700',
-              cancelled: 'bg-red-100 text-red-700',
-            };
-            return (
-              <div key={order.id || i} className="bg-white rounded-xl px-3.5 py-3 shadow-sm">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-semibold text-xs text-gray-800">#{order.order_number || order.id}</span>
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${statusColors[order.status] || 'bg-gray-100 text-gray-600'}`}>{order.status || 'Unknown'}</span>
+            {recentOrders.slice(0, 10).map((order, i) => {
+              const orderItemsData = (typeof order.items === 'string' ? JSON.parse(order.items) : order.items) || [];
+              const itemCount = Array.isArray(orderItemsData) ? orderItemsData.reduce((s, oi) => s + (oi.quantity || oi.qty || 1), 0) : 0;
+              const statusColors = {
+                pending: 'bg-amber-100 text-amber-700',
+                pending_review: 'bg-amber-100 text-amber-700',
+                confirmed: 'bg-blue-100 text-blue-700',
+                processing: 'bg-indigo-100 text-indigo-700',
+                shipped: 'bg-purple-100 text-purple-700',
+                delivered: 'bg-emerald-100 text-emerald-700',
+                cancelled: 'bg-red-100 text-red-700',
+              };
+              const isExpanded = expandedOrder === order.id;
+              return (
+                <div key={order.id || i}>
+                  <div onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
+                    className="bg-white rounded-xl px-3.5 py-3 shadow-sm active:scale-[0.99] transition-all cursor-pointer">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-xs text-gray-800">#{order.order_number || order.id}</span>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${statusColors[order.status] || 'bg-gray-100 text-gray-600'}`}>{order.status || 'Unknown'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+                      <span className="font-semibold text-gray-800">{formatPrice(order.total_amount || order.final_amount)} K</span>
+                    </div>
+                    {order.created_at && <p className="text-[10px] text-gray-300 mt-0.5">{new Date(order.created_at).toLocaleDateString()}</p>}
+                  </div>
+                  {isExpanded && (
+                    <div className="mx-2 mb-1.5 p-3 bg-gray-50 rounded-xl border border-gray-100 text-xs space-y-2">
+                      {orderItemsData.map((item, j) => (
+                        <div key={j} className="flex justify-between text-gray-600">
+                          <span><span className="font-bold text-gray-800">{item.quantity || item.qty}x</span> {item.name}</span>
+                          <span className="font-bold text-gray-700">{formatPrice(item.price)} K</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-1.5">
+                        <span>Total</span>
+                        <span>{formatPrice(order.total_amount || order.final_amount)} K</span>
+                      </div>
+                      {order.created_at && (
+                        <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                          <span>🕐</span> {new Date(order.created_at).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-400">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
-                  <span className="font-semibold text-gray-800">{formatPrice(order.total_amount || order.final_amount)} K</span>
-                </div>
-                {order.created_at && <p className="text-[10px] text-gray-300 mt-0.5">{new Date(order.created_at).toLocaleDateString()}</p>}
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       )}
     </div>

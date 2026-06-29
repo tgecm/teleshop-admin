@@ -10,6 +10,7 @@ let lastBackendErrorTime = 0;
 let consecutiveErrors = 0;
 
 client.interceptors.request.use((config) => {
+  if (config.headers.Authorization) return config;
   const token = useAuthStore.getState().token || localStorage.getItem('telegram_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
