@@ -85,7 +85,7 @@ import {
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
   ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
   CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw,
-  TrendingUp, Star
+  TrendingUp, Star, Award
 } from 'lucide-react';
 import Receipt from '../components/orders/Receipt';
 import CustomerShopTab from '../components/CustomerShopTab';
@@ -133,6 +133,8 @@ export default function CustomerDashboard({ shopSlug }) {
   const [orderStats, setOrderStats] = useState(null);
   const [customerOrders, setCustomerOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [customerPoints, setCustomerPoints] = useState(null);
+  const [pointsHistory, setPointsHistory] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -212,6 +214,44 @@ export default function CustomerDashboard({ shopSlug }) {
       .then(data => { setCustomerOrders(Array.isArray(data) ? data : []); setOrdersLoading(false); })
       .catch(() => { setCustomerOrders([]); setOrdersLoading(false); });
   }, [uid, shopSlug, refreshKey]);
+
+  // Fetch customer points balance
+  useEffect(() => {
+    if (!uid || !shopSlug || !shopData?.shop?.id) return;
+    const ptsSettings = shopData?.ecommerce_points_settings;
+    if (!ptsSettings?.enabled) { setCustomerPoints(null); return; }
+    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/points?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setCustomerPoints(d); })
+      .catch(() => {});
+  }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled]);
+
+  // Fetch points history
+  useEffect(() => {
+    if (!uid || !shopSlug || !shopData?.shop?.id) { setPointsHistory(null); return; }
+    const ptsSettings = shopData?.ecommerce_points_settings;
+    if (!ptsSettings?.enabled) { setPointsHistory(null); return; }
+    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/points/history?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setPointsHistory(d); })
+      .catch(() => {});
+  }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled]);
+
+  // Claim welcome bonus if not yet claimed
+  useEffect(() => {
+    if (!uid || !shopData?.shop?.id || !customerPoints) return;
+    const ptsSettings = shopData?.ecommerce_points_settings;
+    if (!ptsSettings?.enabled || !ptsSettings?.welcome_bonus || customerPoints?.welcome_bonus_claimed) return;
+    fetch(`${API_BASE}/customer/claim-welcome-bonus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firebase_uid: uid, bot_id: shopData.shop.id }),
+    }).then(r => r.json()).then(result => {
+      if (result.success && !result.claimed && result.points > 0) {
+        setCustomerPoints(prev => prev ? { ...prev, points_balance: (prev.points_balance || 0) + result.points, welcome_bonus_claimed: true } : prev);
+      }
+    }).catch(() => {});
+  }, [uid, shopData?.shop?.id, customerPoints?.welcome_bonus_claimed]);
 
   // Chat: register visitor + load existing messages on open
   useEffect(() => {
@@ -487,7 +527,7 @@ export default function CustomerDashboard({ shopSlug }) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.15 }}
           >
-            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} orderStats={orderStats} banners={shopData?.banners || []} />}
+            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} orderStats={orderStats} banners={shopData?.banners || []} points={customerPoints} pointsSettings={shopData?.ecommerce_points_settings} />}
             {activeTab === 'shop' && <CustomerShopTab shopSlug={shopSlug} shop={shopData?.shop} user={user} />}
             {activeTab === 'newsfeed' && (
               <div className="pb-20">
@@ -504,6 +544,7 @@ export default function CustomerDashboard({ shopSlug }) {
             )}
             {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} />}
             {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} />}
+            {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} />}
             {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
           </motion.div>
         </AnimatePresence>
@@ -518,6 +559,7 @@ export default function CustomerDashboard({ shopSlug }) {
             { id: 'newsfeed', label: 'Newsfeed', icon: Newspaper },
             { id: 'orders', label: 'Orders', icon: Package },
             { id: 'cart', label: 'Cart', icon: ShoppingCart },
+            { id: 'points', label: 'Points', icon: Award },
             { id: 'profile', label: 'Profile', icon: User },
           ].map(tab => {
             const Icon = tab.icon;
@@ -602,7 +644,7 @@ export default function CustomerDashboard({ shopSlug }) {
 }
 
 /* ─── OVERVIEW TAB ─── */
-function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate, shop, orderStats, banners }) {
+function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate, shop, orderStats, banners, points, pointsSettings }) {
   const { cartCount } = useCartState(shop?.id, shopSlug, user, 'ecommerce');
   const [shopBio, setShopBio] = useState('');
   const [bannerIndex, setBannerIndex] = useState(0);
@@ -721,7 +763,7 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
                 <Icon className={`w-4 h-4 ${s.color}`} strokeWidth={2.5} />
                 <span className="text-xs font-medium text-gray-500">{s.label}</span>
               </div>
-              <p className={`text-2xl font-black ${s.color}`}>{s.value !== undefined && s.value !== null ? s.value : '—'}</p>
+              <p className={`text-2xl font-black ${s.color}`}>{s.value !== undefined && s.value !== null ? s.value + (s.suffix || '') : '—'}</p>
             </motion.div>
           );
         })}
@@ -828,6 +870,103 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
     </div>
   </div>
   </div>
+  );
+}
+
+/* ─── POINTS TAB ─── */
+function PointsTab({ points, pointsHistory, pointsSettings }) {
+  if (!pointsSettings?.enabled) {
+    return (
+      <div className="px-4 md:px-8 xl:px-16 py-16 text-center max-w-[1600px] mx-auto">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Award className="w-10 h-10 text-gray-300" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 mb-1">Points not available</h3>
+        <p className="text-sm text-gray-400">This shop has not enabled the points system.</p>
+      </div>
+    );
+  }
+
+  const data = pointsHistory || points || {};
+  const balance = data.points_balance || 0;
+  const totalEarned = data.total_earned || 0;
+  const totalRedeemed = data.total_redeemed || 0;
+  const transactions = data.transactions || [];
+  const formatPrice = (n) => Number(n || 0).toLocaleString();
+
+  return (
+    <div className="px-4 md:px-8 xl:px-16 py-6 space-y-3 max-w-[1600px] mx-auto">
+      {/* Points Balance Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-5 text-white text-center shadow-lg"
+      >
+        <Award className="w-6 h-6 mx-auto mb-1.5 text-yellow-200" />
+        <div className="text-3xl font-bold mb-0.5">{balance}</div>
+        <div className="text-amber-100 text-xs">Points Balance</div>
+        <div className="flex justify-center gap-5 mt-3 text-[10px]">
+          <div><span className="font-semibold text-white">+{totalEarned}</span> <span className="text-amber-200">Earned</span></div>
+          <div><span className="font-semibold text-white">{totalRedeemed}</span> <span className="text-amber-200">Redeemed</span></div>
+        </div>
+      </motion.div>
+
+      {/* How Points Work */}
+      {pointsSettings && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100"
+        >
+          <h3 className="font-semibold text-xs text-gray-700 mb-1.5">How Points Work</h3>
+          <p className="text-[11px] text-gray-500 leading-relaxed">
+            Earn <span className="font-semibold text-amber-600">{pointsSettings.earn_rate || 1} point{(pointsSettings.earn_rate || 1) > 1 ? 's' : ''}</span> for every{' '}
+            {formatPrice(pointsSettings.earn_per || 1000)} K spent.
+            {pointsSettings.redeem_points ? (
+              <> Redeem <span className="font-semibold text-amber-600">{pointsSettings.redeem_points} points</span> for{' '}
+              {formatPrice(pointsSettings.redeem_value || 1000)} K discount.</>
+            ) : ''}
+          </p>
+        </motion.div>
+      )}
+
+      {/* Points History */}
+      <h3 className="font-semibold text-xs text-gray-700">Points History</h3>
+      {transactions.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-6 bg-white rounded-xl shadow-sm border border-gray-100"
+        >
+          <Award className="w-8 h-8 mx-auto mb-1.5 opacity-50 text-gray-300" />
+          <p className="text-xs text-gray-400">No points activity yet</p>
+          <p className="text-[10px] mt-0.5 text-gray-300">Place an order to start earning points!</p>
+        </motion.div>
+      ) : (
+        <div className="space-y-1.5">
+          {transactions.map((tx, i) => (
+            <motion.div
+              key={tx.id || i}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+              className="bg-white rounded-xl px-3.5 py-3 shadow-sm border border-gray-100 flex items-center gap-2.5"
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${tx.type === 'earn' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                {tx.type === 'earn' ? <Plus className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-gray-800">{tx.description || (tx.type === 'earn' ? 'Points earned' : 'Points redeemed')}</div>
+                <div className="text-[10px] text-gray-400">{tx.created_at ? new Date(tx.created_at).toLocaleDateString() : ''}</div>
+              </div>
+              <div className={`font-semibold text-xs ${tx.type === 'earn' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {tx.type === 'earn' ? '+' : '-'}{tx.points} pts
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1009,6 +1148,8 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
 function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   const [shopData, setShopData] = useState(null);
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
+  const [customerPoints, setCustomerPoints] = useState(null);
+  const cartUid = user?.uid || getUserIdFromToken() || '';
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -1018,10 +1159,21 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   const effectiveShop = shopData?.shop || shop;
   const cart = useCartState(effectiveShop?.id, shopSlug, user, 'ecommerce');
   const { items: cartItems, cartCount, totalAmount, loading, removeItem: removeContextItem, updateQty, clearCart, syncPrices } = cart;
+  const products = shopData?.products || [];
 
   useEffect(() => {
     if (products.length > 0) syncPrices(products);
   }, [products, syncPrices]);
+
+  useEffect(() => {
+    if (!cartUid || !shopSlug || !shopData?.shop?.id) return;
+    const pts = shopData?.ecommerce_points_settings;
+    if (!pts?.enabled) { setCustomerPoints(null); return; }
+    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(cartUid)}/points?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setCustomerPoints(d); })
+      .catch(() => {});
+  }, [cartUid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled]);
 
   const removeItem = (productId) => {
     removeContextItem(productId);
@@ -1136,12 +1288,11 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
 
   // totalAmount from cart context
 
-  const products = shopData?.products || [];
   const deliverySettings = shopData?.delivery_settings || {};
   const deliveryFees = shopData?.delivery_fees || [];
   const checkoutFields = shopData?.checkout_fields || null;
   const codEnabled = !!(shopData?.cod_enabled);
-  const contactShowZoneFields = cartItems.some(item =>
+  const contactShowZoneFields = deliverySettings?.delivery_fee_mode === 'zone' && cartItems.some(item =>
     products.find(p => p.id === item.product_id)?.apply_delivery_fee === true
   );
 
@@ -1261,6 +1412,9 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
             deliveryFees={deliveryFees}
             contactForm={contactForm}
             checkoutFields={checkoutFields}
+            pointsSettings={shopData?.ecommerce_points_settings}
+            customerPoints={customerPoints?.points_balance}
+            customerUid={cartUid}
             onClose={() => { setCheckoutOpen(false); setSelectedPayment(null); }}
             onOrderPlaced={handleOrderPlacedCallback}
           />

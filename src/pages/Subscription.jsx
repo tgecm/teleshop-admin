@@ -30,7 +30,7 @@ import { QRCodeSVG } from 'qrcode.react';
 const PLAN_RANK = { free: 0, basic: 1, standard: 2, pro: 3, business: 4 };
 
 export default function Subscription() {
-  const { selectedBotId } = useSelectedBot();
+  const { selectedBotId, selectedBot } = useSelectedBot();
   const queryClient = useQueryClient();
   const { addToast } = useToastStore();
   const [planBilling, setPlanBilling] = useState({});
@@ -178,6 +178,8 @@ export default function Subscription() {
 
   const handleUpgradeClick = (planKey) => {
     if (cooldown > 0) return;
+    if (!selectedBot) { addToast('No bot selected. Please select a bot from the admin panel first.', 'error'); return; }
+    if (!bot) { addToast('Bot data not loaded', 'error'); return; }
     setPendingPlanKey(planKey);
     pendingPlanRef.current = planKey;
     setDiscountCodeInput('');
@@ -283,10 +285,7 @@ export default function Subscription() {
 
     pollRef.current = setInterval(async () => {
       try {
-        const fresh = await queryClient.fetchQuery({
-          queryKey: ['bots', selectedBotId],
-          queryFn: () => getBot(selectedBotId),
-        });
+        const fresh = await getBot(selectedBotId);
         if (fresh?.plan_name?.toLowerCase() === orderData.planName?.toLowerCase()) {
           clearInterval(pollRef.current);
           clearInterval(timerRef.current);

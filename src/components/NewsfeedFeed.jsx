@@ -70,6 +70,7 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
 
   // Back button: close photo viewer first, then newsfeed
   useEffect(() => {
+    if (inline) return;
     window.history.pushState(null, '');
     const onPopState = () => {
       if (pvStateRef.current !== null) {
@@ -85,7 +86,7 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
       window.removeEventListener('popstate', onPopState);
       if (!newsfeedClosing.current) window.history.back();
     };
-  }, [onClose]);
+  }, [onClose, inline]);
 
   const handleTopicChange = (topic) => {
     if (topic === selectedTopic) return;
