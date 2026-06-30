@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, deleteCategory, getImageUrl, uploadImage } from '../api/products';
 import client from '../api/client';
 import { createCoupon, getCoupons, deleteCoupon } from '../api/coupons';
+import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import { downloadBlob } from '../utils/download';
@@ -16,7 +17,7 @@ import {
   Image as ImageIcon, ChevronRight, ChevronDown, AlertCircle, CheckCircle2,
   Loader2, FolderPlus, ImageUp, Palette, Copy, ArrowUpDown,
   Ticket, Percent, CalendarDays, Coins, Users, Truck, Download, Upload,
-  Settings, BadgeDollarSign, ClipboardList
+  Settings, BadgeDollarSign, ClipboardList, Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import townshipsData, { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
@@ -87,6 +88,10 @@ export default function Products() {
   const [deletingTownshipFeeId, setDeletingTownshipFeeId] = useState(null);
   const [importingCsv, setImportingCsv] = useState(false);
   const fileInputRef = useRef(null);
+  const [showPointsModal, setShowPointsModal] = useState(false);
+  const [pointsSettings, setPointsSettings] = useState({});
+  const [showPointsSection, setShowPointsSection] = useState(false);
+  const [savingPoints, setSavingPoints] = useState(false);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', selectedBotId],
@@ -216,6 +221,18 @@ export default function Products() {
     }
   }, [selectedBotId]);
 
+  const fetchPointsSettings = useCallback(async () => {
+    if (!selectedBotId) return;
+    try {
+      const blocks = await getContentBlocks({ bot_id: Number(selectedBotId) });
+      const block = blocks?.find(b => b.key === 'ecommerce_points_settings');
+      const data = block?.content_data || {};
+      setPointsSettings(data);
+    } catch (e) {
+      console.error('Failed to load points settings:', e);
+    }
+  }, [selectedBotId]);
+
   useEffect(() => {
     if (showCheckoutFieldsModal) fetchCheckoutFields();
   }, [showCheckoutFieldsModal, fetchCheckoutFields]);
@@ -237,6 +254,21 @@ export default function Products() {
       addToast(e.response?.data?.detail || 'Failed to save checkout fields', 'error');
     } finally {
       setCheckoutFieldsLoading(false);
+    }
+  };
+
+  const savePointsSettings = async () => {
+    if (!selectedBotId) return;
+    setSavingPoints(true);
+    try {
+      await updateContentBlock(selectedBotId, 'ecommerce_points_settings', pointsSettings);
+      addToast('Points & Rewards settings saved');
+      setShowPointsModal(false);
+    } catch (e) {
+      console.error('Save points settings error:', e.response?.data || e.message);
+      addToast(e.response?.data?.detail || 'Failed to save points settings', 'error');
+    } finally {
+      setSavingPoints(false);
     }
   };
 
@@ -265,13 +297,20 @@ export default function Products() {
   }, [showDeliveryFeeModal, fetchTownshipFees]);
 
   useEffect(() => {
-    if (isModalOpen || showCouponModal || showCouponManager || showDeliveryFeeModal || showCheckoutFieldsModal) {
+    if (showPointsModal) {
+      fetchPointsSettings();
+      setShowPointsSection(false);
+    }
+  }, [showPointsModal, fetchPointsSettings]);
+
+  useEffect(() => {
+    if (isModalOpen || showCouponModal || showCouponManager || showDeliveryFeeModal || showCheckoutFieldsModal || showPointsModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [isModalOpen, showCouponModal, showCouponManager, showDeliveryFeeModal, showCheckoutFieldsModal]);
+  }, [isModalOpen, showCouponModal, showCouponManager, showDeliveryFeeModal, showCheckoutFieldsModal, showPointsModal]);
 
   const saveTownshipFee = async () => {
     if (!selectedBotId || !selectedTownship || !townshipFeeInput) return;
@@ -467,6 +506,13 @@ export default function Products() {
           >
             <ClipboardList className="w-5 h-5" />
             <span className="hidden sm:inline font-bold">Profile Info</span>
+          </button>
+          <button
+            onClick={() => setShowPointsModal(true)}
+            className="p-2.5 bg-amber-500 text-white rounded-2xl shadow-lg hover:bg-amber-600 transition-all flex items-center gap-2 active:scale-95"
+          >
+            <Award className="w-5 h-5" />
+            <span className="hidden sm:inline font-bold">Points & Rewards</span>
           </button>
           </div>
         </div>
@@ -949,6 +995,147 @@ export default function Products() {
               >
                 {checkoutFieldsLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Settings'}
               </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Points & Rewards Modal */}
+      {showPointsModal && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowPointsModal(false)} />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-md p-3 sm:p-6 shadow-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                    <Award className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+                  </div>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900">Points & Rewards</h2>
+                </div>
+                <button onClick={() => setShowPointsModal(false)} className="p-1.5 sm:p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
+                  <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">Configure the points & rewards system for your ecommerce store. Customers earn points when they place orders and can redeem them for discounts.</p>
+
+              {/* Enable Points */}
+              <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden mb-3">
+                <button
+                  onClick={() => setShowPointsSection(!showPointsSection)}
+                  className="w-full flex items-center justify-between p-4 hover:bg-gray-100/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Award className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-bold text-gray-700">Points & Rewards</span>
+                  </div>
+                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${showPointsSection ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                {showPointsSection && (
+                  <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-gray-700">Enable Points</span>
+                      <button
+                        onClick={() => {
+                          setPointsSettings(prev => ({ ...prev, enabled: !prev.enabled }));
+                        }}
+                        className={`relative w-14 h-7 rounded-full transition-all ${pointsSettings.enabled ? 'bg-amber-500' : 'bg-gray-300'}`}
+                      >
+                        <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-all ${pointsSettings.enabled ? 'left-7' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                    {pointsSettings.enabled && (
+                      <>
+                        {/* Earn Rate */}
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-500 mb-1 block">Earn Rate</label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400">Every</span>
+                            <input
+                              type="number"
+                              value={pointsSettings.earn_per ?? ''}
+                              onChange={(e) => setPointsSettings(prev => ({ ...prev, earn_per: Number(e.target.value) }))}
+                              placeholder="1000"
+                              className="w-20 px-2 py-1.5 rounded-lg text-sm text-center border border-gray-200 bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                            />
+                            <span className="text-xs text-gray-400">MMK =</span>
+                            <input
+                              type="number"
+                              value={pointsSettings.earn_rate ?? ''}
+                              onChange={(e) => setPointsSettings(prev => ({ ...prev, earn_rate: Number(e.target.value) }))}
+                              placeholder="1"
+                              className="w-16 px-2 py-1.5 rounded-lg text-sm text-center border border-gray-200 bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                            />
+                            <span className="text-xs text-gray-400">pt(s)</span>
+                          </div>
+                        </div>
+                        {/* Redemption Rate */}
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-500 mb-1 block">Redemption Rate</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              value={pointsSettings.redeem_points ?? ''}
+                              onChange={(e) => setPointsSettings(prev => ({ ...prev, redeem_points: Number(e.target.value) }))}
+                              placeholder="100"
+                              className="w-16 px-2 py-1.5 rounded-lg text-sm text-center border border-gray-200 bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                            />
+                            <span className="text-xs text-gray-400">pts =</span>
+                            <input
+                              type="number"
+                              value={pointsSettings.redeem_value ?? ''}
+                              onChange={(e) => setPointsSettings(prev => ({ ...prev, redeem_value: Number(e.target.value) }))}
+                              placeholder="1000"
+                              className="w-20 px-2 py-1.5 rounded-lg text-sm text-center border border-gray-200 bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                            />
+                            <span className="text-xs text-gray-400">MMK</span>
+                          </div>
+                        </div>
+                        {/* Min. Redeem Points */}
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-500 mb-1 block">Min. Redeem Points</label>
+                          <input
+                            type="number"
+                            value={pointsSettings.min_redeem ?? ''}
+                            onChange={(e) => setPointsSettings(prev => ({ ...prev, min_redeem: Number(e.target.value) }))}
+                            placeholder="50"
+                            className="w-full px-3 py-2 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                          />
+                        </div>
+                        {/* Welcome Bonus */}
+                        <div>
+                          <label className="text-[11px] font-bold text-gray-500 mb-1 block">Welcome Bonus (points)</label>
+                          <input
+                            type="number"
+                            value={pointsSettings.welcome_bonus ?? ''}
+                            onChange={(e) => setPointsSettings(prev => ({ ...prev, welcome_bonus: Number(e.target.value) }))}
+                            placeholder="0"
+                            className="w-full px-3 py-2 border border-gray-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Cancel / Save buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowPointsModal(false)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={savePointsSettings}
+                  disabled={savingPoints}
+                  className="flex-[2] py-3 bg-amber-500 text-white font-bold rounded-2xl hover:bg-amber-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm"
+                >
+                  {savingPoints ? <Loader2 className="w-4 h-4 animate-spin" /> : <Award className="w-4 h-4" />}
+                  Save Settings
+                </button>
+              </div>
             </div>
           </div>
         </>

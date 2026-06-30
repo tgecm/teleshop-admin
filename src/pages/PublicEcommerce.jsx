@@ -6,7 +6,7 @@ import {
   ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
   Minus, Plus, Trash2, LogOut, CheckCircle, CheckCircle2, Loader2, User,
-  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard
+  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard, Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -569,7 +569,7 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   );
 }
 
-export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm, checkoutFields }) {
+export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm, checkoutFields, pointsSettings, customerPoints, customerUid }) {
   const cFields = checkoutFields || { name: false, phones: false, emails: false, telegram: false, viber: false, zone: false, address: false, notes: false };
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
@@ -583,6 +583,10 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const { addToast } = useToastStore();
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
+  const [pointsDiscount, setPointsDiscount] = useState(0);
+  const [redeemingPoints, setRedeemingPoints] = useState(false);
+  const [isPointsPayment, setIsPointsPayment] = useState(false);
 
   const handleCopy = async (text) => {
     try {
@@ -593,45 +597,40 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     }
   };
 
-  const [deliveryFee, setDeliveryFee] = useState(0);
-  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState(0);
-  const [deliveryFeeAmount, setDeliveryFeeAmount] = useState(0);
-  const [zoneFees, setZoneFees] = useState([]);
-  const [deliveryFeeMode, setDeliveryFeeMode] = useState('flat');
-
   const effectiveTotal = couponApplied ? totalAmount - couponApplied.discount : totalAmount;
 
-  useEffect(() => {
-    if (deliverySettings?.delivery_fee != null) {
-      setDeliveryFee(Number(deliverySettings.delivery_fee) || 0);
-      setFreeDeliveryThreshold(Number(deliverySettings.free_delivery_threshold) || 0);
-      setDeliveryFeeMode(deliverySettings.delivery_fee_mode || 'flat');
-    }
-    if (deliveryFees) {
-      setZoneFees(deliveryFees);
-    }
-  }, [deliverySettings, deliveryFees]);
-
-  useEffect(() => {
+  const deliveryFeeAmount = useMemo(() => {
     const total = couponApplied ? effectiveTotal : totalAmount;
     let fee = 0;
 
     // Only apply delivery fee if at least one cart product has it enabled
-    const anyProductHasFee = cartItems?.some(item =>
-      products?.find(p => p.id === item.product_id)?.apply_delivery_fee === true
-    );
+    const hasFeeProduct = (p) => p?.apply_delivery_fee === true;
+    const cartProductIds = cartItems?.map(i => i.product_id) || [];
+    const matchedProducts = products?.filter(p => cartProductIds.includes(p.id)) || [];
+    const typeChecked = products?.filter(p => cartProductIds.includes(String(p.id)) || cartProductIds.includes(Number(p.id))) || [];
+    const anyProductHasFee = matchedProducts.some(hasFeeProduct);
     if (!anyProductHasFee) {
-      setDeliveryFeeAmount(0);
-      return;
+      console.log('[DF] no match', {
+        cartProductIds,
+        cartItemTypes: cartProductIds.map(id => typeof id),
+        productsIds: products?.map(p => p.id),
+        productTypes: products?.map(p => typeof p.id),
+        matchedAll: typeChecked.some(hasFeeProduct),
+        matchedProducts: matchedProducts.map(p => ({ id: p.id, adf: p.apply_delivery_fee })),
+        deliverySettings,
+      });
+      return 0;
     }
 
-    if (deliveryFeeMode === 'flat') {
-      // Flat fee mode: apply the flat delivery fee directly
-      fee = deliveryFee;
+    const mode = deliverySettings?.delivery_fee_mode || 'flat';
+
+    if (mode === 'flat') {
+      fee = Number(deliverySettings?.delivery_fee) || 0;
     } else {
       // Zone mode: match by Region + District + Township
-      if (zoneFees.length > 0 && contactForm.region && contactForm.district && contactForm.township) {
-        const match = zoneFees.find(zf =>
+      const zFees = deliveryFees || [];
+      if (zFees.length > 0 && contactForm.region && contactForm.district && contactForm.township) {
+        const match = zFees.find(zf =>
           zf.region?.toLowerCase() === contactForm.region.toLowerCase() &&
           zf.district?.toLowerCase() === contactForm.district.toLowerCase() &&
           zf.township?.toLowerCase() === contactForm.township.toLowerCase()
@@ -643,12 +642,13 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     }
 
     // Free delivery threshold
-    if (fee > 0 && freeDeliveryThreshold > 0 && total >= freeDeliveryThreshold) {
+    const threshold = Number(deliverySettings?.free_delivery_threshold) || 0;
+    if (fee > 0 && threshold > 0 && total >= threshold) {
       fee = 0;
     }
 
-    setDeliveryFeeAmount(fee);
-  }, [deliveryFee, freeDeliveryThreshold, deliveryFees, totalAmount, couponApplied, effectiveTotal, zoneFees, contactForm.region, contactForm.district, contactForm.township, cartItems, products, deliveryFeeMode]);
+    return fee;
+  }, [deliverySettings, deliveryFees, totalAmount, couponApplied, effectiveTotal, contactForm.region, contactForm.district, contactForm.township, cartItems, products]);
 
   const handleProofFile = (e) => {
     const file = e.target.files?.[0];
@@ -681,12 +681,50 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     reader.readAsDataURL(file);
   };
 
+  const ptsEnabled = pointsSettings?.enabled && customerPoints != null;
+  const redeemPtsRate = Number(pointsSettings?.redeem_points) || 100;
+  const redeemVal = Number(pointsSettings?.redeem_value) || 1000;
+  const pointsMmkVal = customerPoints ? Math.floor((customerPoints / redeemPtsRate) * redeemVal) : 0;
+  const ptsNeededForFull = totalAmount > 0 ? Math.ceil((totalAmount / redeemVal) * redeemPtsRate) : 0;
+  const effectivePts = Math.min(customerPoints || 0, ptsNeededForFull);
+  const ptsDisc = isPointsPayment ? Math.min(pointsMmkVal, totalAmount) : pointsDiscount;
+  const ptsTotal = isPointsPayment ? Math.max(0, totalAmount - ptsDisc) : (couponApplied ? effectiveTotal : totalAmount) - pointsDiscount;
+
+  const handleRedeemPoints = async () => {
+    const minRedeem = Number(pointsSettings?.min_redeem) || 50;
+    if (!customerUid || pointsToRedeem < minRedeem) return;
+    setRedeemingPoints(true);
+    try {
+      const res = await fetch(API_BASE + '/customer/redeem-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firebase_uid: customerUid,
+          bot_id: shop.id,
+          points_to_use: pointsToRedeem,
+          order_total: totalAmount,
+        }),
+      });
+      const result = await res.json();
+      if (result.discount !== undefined) {
+        setPointsDiscount(result.discount);
+        setPointsToRedeem(result.points_used || 0);
+      }
+    } catch (e) {
+      console.error('Redeem points error:', e);
+    }
+    setRedeemingPoints(false);
+  };
+
   const handleSubmit = async () => {
     if (cFields.name && !contactForm.name.trim()) { setError('Name is required'); return; }
     if (cFields.phones && !contactForm.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
     if (cFields.emails && !contactForm.emails[0]?.trim()) { setError('At least one email is required'); return; }
     if (cFields.address && !contactForm.address.trim()) { setError('Delivery address is required'); return; }
-    if ((viewMode === 'ecommerce' || viewMode === 'guest') && !proofFile && selectedPayment?.id !== 'cod') { setError('Payment proof screenshot is required'); return; }
+    if (cFields.telegram && !contactForm.telegram.trim()) { setError('Telegram username is required'); return; }
+    if (cFields.viber && !contactForm.viber.trim()) { setError('Viber number is required'); return; }
+    if (cFields.notes && !contactForm.notes.trim()) { setError('Notes is required'); return; }
+    if ((viewMode === 'ecommerce' || viewMode === 'guest') && !proofFile && selectedPayment?.id !== 'cod' && !isPointsPayment) { setError('Payment proof screenshot is required'); return; }
     setLoading(true);
     setError('');
     try {
@@ -798,10 +836,16 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
         })(),
         delivery_fee: deliveryFeeAmount,
         coupon_code: couponApplied?.code || '',
+        points_earned: 0,
+        points_redeemed: isPointsPayment ? effectivePts : (pointsDiscount > 0 ? pointsToRedeem : 0),
+        points_discount: isPointsPayment ? ptsDisc : pointsDiscount,
       };
+      if (customerUid) body.firebase_uid = customerUid;
       if (paymentProof) body.payment_proof = paymentProof;
       if (selectedPayment?.id === 'cod') {
         body.payment_method = 'COD';
+      } else if (isPointsPayment) {
+        body.payment_method = 'Points';
       } else if (selectedPayment?.name) {
         body.payment_method = selectedPayment.name;
       }
@@ -867,13 +911,25 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
               <span className="font-semibold">-{formatPrice(couponApplied.discount)} MMK</span>
             </div>
           )}
+          {pointsDiscount > 0 && !isPointsPayment && (
+            <div className="flex justify-between text-sm py-1 text-amber-600">
+              <span>Points Discount</span>
+              <span className="font-semibold">-{formatPrice(pointsDiscount)} MMK</span>
+            </div>
+          )}
+          {isPointsPayment && (
+            <div className="flex justify-between text-sm py-1 text-amber-600">
+              <span>Pay with Points ({formatPrice(effectivePts)} pts)</span>
+              <span className="font-semibold">-{formatPrice(ptsDisc)} MMK</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm py-1 text-gray-600">
             <span>Delivery Fee</span>
             <span>{deliveryFeeAmount > 0 ? `${formatPrice(deliveryFeeAmount)} MMK` : 'Free'}</span>
           </div>
           <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-bold text-gray-900">
             <span>Total</span>
-            <span>{formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount)} MMK</span>
+            <span>{formatPrice((isPointsPayment ? ptsTotal : (couponApplied ? effectiveTotal : totalAmount) - pointsDiscount) + deliveryFeeAmount)} MMK</span>
           </div>
           {couponApplied?.discount > 0 && (
             <p className="text-[10px] text-emerald-500 font-medium text-center mt-1">
@@ -881,6 +937,63 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
             </p>
           )}
         </div>
+
+        {/* Points & Rewards */}
+        {ptsEnabled && (
+          <div className="bg-amber-50 rounded-2xl p-4 mb-4 border border-amber-200">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Award className="w-4 h-4 text-amber-500" />
+              <span className="text-xs font-bold text-amber-700">Points Balance: {customerPoints} pts</span>
+            </div>
+            {isPointsPayment ? (
+              <div className="space-y-1">
+                <p className="text-[11px] text-amber-600">
+                  <strong>{customerPoints} Points</strong> = {formatPrice(pointsMmkVal)} MMK
+                </p>
+                {customerPoints < Number(pointsSettings?.min_redeem || 50) ? (
+                  <p className="text-[11px] text-rose-600 font-medium">Minimum {pointsSettings?.min_redeem || 50} points required</p>
+                ) : ptsTotal > 0 ? (
+                  <p className="text-[11px] text-rose-600 font-medium">Not enough points — need {formatPrice(ptsNeededForFull - (customerPoints || 0))} more pts</p>
+                ) : (
+                  <p className="text-[11px] text-emerald-600 font-medium">Points cover the full order!</p>
+                )}
+                <button onClick={() => { setIsPointsPayment(false); setPointsDiscount(0); setPointsToRedeem(0); }}
+                  className="text-[11px] text-amber-600 underline mt-1">Cancel points payment</button>
+              </div>
+            ) : pointsDiscount > 0 ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] text-amber-600 font-medium">Points discount: {formatPrice(pointsDiscount)} MMK</p>
+                  <p className="text-[10px] text-amber-500">{pointsToRedeem} pts used</p>
+                </div>
+                <button onClick={() => { setPointsDiscount(0); setPointsToRedeem(0); }}
+                  className="text-[10px] text-rose-500 underline">Cancel</button>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex gap-1.5">
+                  <input type="number" min={Number(pointsSettings?.min_redeem) || 50} max={customerPoints}
+                    value={pointsToRedeem || ''}
+                    onChange={(e) => setPointsToRedeem(Math.min(Number(e.target.value) || 0, customerPoints))}
+                    placeholder={`Min ${pointsSettings?.min_redeem || 50}`}
+                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-amber-300 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white" />
+                  <button onClick={handleRedeemPoints}
+                    disabled={redeemingPoints || pointsToRedeem < (Number(pointsSettings?.min_redeem) || 50)}
+                    className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 disabled:opacity-50 transition-all">
+                    {redeemingPoints ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Redeem'}
+                  </button>
+                </div>
+                {pointsToRedeem > 0 && pointsToRedeem < (Number(pointsSettings?.min_redeem) || 50) && (
+                  <p className="text-[10px] text-rose-600">Minimum {pointsSettings?.min_redeem || 50} points to redeem</p>
+                )}
+                {customerPoints >= Number(pointsSettings?.min_redeem || 50) && pointsMmkVal >= totalAmount && (
+                  <button onClick={() => setIsPointsPayment(true)}
+                    className="text-[11px] text-amber-600 underline mt-0.5">Or pay all with points</button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Coupon */}
         <div className="mb-6">
@@ -1404,6 +1517,9 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
     if (fields.emails && !form.emails[0]?.trim()) { setError('At least one email is required'); return; }
     if (fields.zone && showZoneFields && (!form.region || !form.district || !form.township)) { setError('Please select Region, District and Township'); return; }
     if (fields.address && !form.address.trim()) { setError('Delivery address is required'); return; }
+    if (fields.telegram && !form.telegram.trim()) { setError('Telegram username is required'); return; }
+    if (fields.viber && !form.viber.trim()) { setError('Viber number is required'); return; }
+    if (fields.notes && !form.notes.trim()) { setError('Notes is required'); return; }
     onNext(form);
   };
 
@@ -1424,13 +1540,13 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Full Name {fields.name ? '*' : '(optional)'}</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Full Name {fields.name ? '*' : ''}</label>
             <input type="text" value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Phone Numbers {fields.phones ? '*' : '(optional)'}</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Phone Numbers {fields.phones ? '*' : ''}</label>
             <div className="space-y-2">
               {form.phones.map((phone, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -1452,7 +1568,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Email Addresses {fields.emails ? '*' : '(optional)'}</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Email Addresses {fields.emails ? '*' : ''}</label>
             <div className="space-y-2">
               {form.emails.map((email, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -1474,14 +1590,14 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Telegram Username (optional)</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Telegram Username {fields.telegram ? '*' : ''}</label>
             <input type="text" value={form.telegram} onChange={e => setForm(p => ({...p, telegram: e.target.value}))}
               placeholder="@username"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Viber Number (optional)</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Viber Number {fields.viber ? '*' : ''}</label>
             <input type="tel" value={form.viber} onChange={e => setForm(p => ({...p, viber: e.target.value}))}
               placeholder="09xxxxxxxxx"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
@@ -1512,7 +1628,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်)</label>
                 <SearchableSelect
                   value={form.township}
-                  onChange={v => setForm(p => ({ ...p, township: v, township: v }))}
+                  onChange={v => setForm(p => ({ ...p, township: v }))}
                   options={getTownships(form.region, form.district)}
                   placeholder="Select Township"
                   disabled={!form.district}
@@ -1520,7 +1636,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
               </div>
             </>) : (<>
               <div>
-                <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်) (optional)</label>
+                <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်)</label>
                 <SearchableSelect
                   value={form.region}
                   onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
@@ -1529,7 +1645,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 />
               </div>
               <div>
-                <label className="text-xs text-gray-500 font-medium mb-1 block">District (ခရိုင်) (optional)</label>
+                <label className="text-xs text-gray-500 font-medium mb-1 block">District (ခရိုင်)</label>
                 <SearchableSelect
                   value={form.district}
                   onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
@@ -1539,7 +1655,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 />
               </div>
               <div>
-                <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်) (optional)</label>
+                <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်)</label>
                 <SearchableSelect
                   value={form.township}
                   onChange={v => setForm(p => ({ ...p, township: v }))}
@@ -1552,13 +1668,13 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
           ) : null}
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Delivery Address {fields.address ? '*' : '(optional)'}</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Delivery Address {fields.address ? '*' : ''}</label>
             <textarea value={form.address} onChange={e => setForm(p => ({...p, address: e.target.value}))} rows={2}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
           </div>
 
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Notes (optional)</label>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Notes {fields.notes ? '*' : ''}</label>
             <input type="text" value={form.notes} onChange={e => setForm(p => ({...p, notes: e.target.value}))}
               placeholder="Any special requests?"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
