@@ -887,11 +887,10 @@ function PointsTab({ points, pointsHistory, pointsSettings }) {
     );
   }
 
-  const data = pointsHistory || points || {};
-  const balance = data.points_balance || 0;
-  const totalEarned = data.total_earned || 0;
-  const totalRedeemed = data.total_redeemed || 0;
-  const transactions = data.transactions || [];
+  const balance = points?.points_balance ?? pointsHistory?.points_balance ?? 0;
+  const totalEarned = points?.total_points_earned ?? pointsHistory?.total_earned ?? 0;
+  const totalRedeemed = pointsHistory?.total_redeemed ?? 0;
+  const transactions = pointsHistory?.transactions ?? [];
   const formatPrice = (n) => Number(n || 0).toLocaleString();
 
   return (
@@ -1292,9 +1291,10 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
   const deliveryFees = shopData?.delivery_fees || [];
   const checkoutFields = shopData?.checkout_fields || null;
   const codEnabled = !!(shopData?.cod_enabled);
-  const contactShowZoneFields = deliverySettings?.delivery_fee_mode === 'zone' && cartItems.some(item =>
-    products.find(p => p.id === item.product_id)?.apply_delivery_fee === true
-  );
+  const contactShowZoneFields = deliverySettings?.delivery_fee_mode === 'zone' && cartItems.some(item => {
+    const pid = Number(item.product_id);
+    return products.some(p => Number(p.id) === pid && p.apply_delivery_fee === true);
+  });
 
   return (
     <>
