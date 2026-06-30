@@ -407,6 +407,12 @@ export default function Orders() {
                       <span className="text-gray-500">Payment Method</span>
                       <span className="font-bold text-gray-900 capitalize">{selectedOrder.payment_method || 'Cash'}</span>
                     </div>
+                    {selectedOrder.buyer_snapshot?.points_redeemed > 0 && (
+                      <div className="flex items-center justify-between text-xs md:text-sm">
+                        <span className="text-gray-500">Points Used</span>
+                        <span className="font-bold text-gray-900">{selectedOrder.buyer_snapshot.points_redeemed} pts = {Number(selectedOrder.buyer_snapshot.points_discount || 0).toLocaleString()} MMK off</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-2 md:pt-3 border-t border-gray-100">

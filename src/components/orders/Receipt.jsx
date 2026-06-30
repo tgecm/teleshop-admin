@@ -435,6 +435,8 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const phone = esc(order.buyer_snapshot?.phone || '—');
   const email = esc(order.buyer_snapshot?.email || '—');
   const addr = esc(order.buyer_snapshot?.address || '—');
+  const cNotes = esc(order.buyer_snapshot?.notes || '');
+  const notesY = cNotes ? 140 : 0;
   const cAddr = esc(order.buyer_snapshot?.address || '……………………………………');
   const cPhone = esc(order.buyer_snapshot?.phone || '……………………………………');
   const cEmail = esc(order.buyer_snapshot?.email || '……………………………………');
@@ -450,7 +452,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const HDR_Y = 40;
   const HDR_H = 170;
   const MID_Y = HDR_Y + HDR_H + 5;
-  const MID_END = MID_Y + 12 + 118 + 6 + 12;
+  const MID_END = MID_Y + 12 + (cNotes ? 140 : 118) + 6 + 12;
   const TBL_BAR = MID_END + 6;
   const TBL_H = 28;
   const ROW_H = 30;
@@ -618,6 +620,10 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     <text x="0" y="118" fill="${TD}" font-size="12" font-weight="600">Address</text>
     <text x="60" y="118" fill="${TM}" font-size="12">:</text>
     <text x="70" y="118" fill="${TM}" font-size="12">${addr}</text>
+    ${cNotes ? `
+    <text x="0" y="140" fill="${TD}" font-size="12" font-weight="600">Notes</text>
+    <text x="60" y="140" fill="${TM}" font-size="12">:</text>
+    <text x="70" y="140" fill="${TM}" font-size="12">${cNotes}</text>` : ''}
   </g>
 
   <!-- Vertical divider -->
@@ -931,6 +937,11 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                         <div style={s.fieldItem}>
                           <span style={s.fieldLabel}>Address</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{order.buyer_snapshot?.address || '—'}</span>
                         </div>
+                        {order.buyer_snapshot?.notes ? (
+                        <div style={s.fieldItem}>
+                          <span style={s.fieldLabel}>Notes</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{order.buyer_snapshot.notes}</span>
+                        </div>
+                        ) : null}
                       </div>
                       <div style={s.midCol}>
                         <div style={s.sectionTitle}><span>🧾</span> {isInv ? 'ORDER DETAILS' : 'PAYMENT DETAILS'}</div>

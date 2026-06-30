@@ -603,31 +603,13 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     const total = couponApplied ? effectiveTotal : totalAmount;
     let fee = 0;
 
-    // Only apply delivery fee if at least one cart product has it enabled
-    const hasFeeProduct = (p) => p?.apply_delivery_fee === true;
-    const cartProductIds = cartItems?.map(i => i.product_id) || [];
-    const matchedProducts = products?.filter(p => cartProductIds.includes(p.id)) || [];
-    const typeChecked = products?.filter(p => cartProductIds.includes(String(p.id)) || cartProductIds.includes(Number(p.id))) || [];
-    const anyProductHasFee = matchedProducts.some(hasFeeProduct);
-    if (!anyProductHasFee) {
-      console.log('[DF] no match', {
-        cartProductIds,
-        cartItemTypes: cartProductIds.map(id => typeof id),
-        productsIds: products?.map(p => p.id),
-        productTypes: products?.map(p => typeof p.id),
-        matchedAll: typeChecked.some(hasFeeProduct),
-        matchedProducts: matchedProducts.map(p => ({ id: p.id, adf: p.apply_delivery_fee })),
-        deliverySettings,
-      });
-      return 0;
-    }
-
     const mode = deliverySettings?.delivery_fee_mode || 'flat';
 
     if (mode === 'flat') {
+      // Flat fee applies globally regardless of per-product flags
       fee = Number(deliverySettings?.delivery_fee) || 0;
     } else {
-      // Zone mode: match by Region + District + Township
+      // Zone mode: if zone fees are configured and region/district/township match, apply the fee
       const zFees = deliveryFees || [];
       if (zFees.length > 0 && contactForm.region && contactForm.district && contactForm.township) {
         const match = zFees.find(zf =>
@@ -1890,9 +1872,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const { items: cartItems, cartCount, totalAmount, loading: cartLoading, addItem, updateQty, removeItem, clearCart, syncPrices } = cart;
 
   // Only show region/district/township when shop is in zone mode and at least one cart product has delivery fee enabled
-  const contactShowZoneFields = data?.delivery_settings?.delivery_fee_mode === 'zone' && cartItems.some(item =>
-    products.find(p => p.id === item.product_id)?.apply_delivery_fee === true
-  );
+  const contactShowZoneFields = data?.delivery_settings?.delivery_fee_mode === 'zone';
 
   useEffect(() => {
     if (products.length > 0) syncPrices(products);
