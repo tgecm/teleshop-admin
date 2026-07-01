@@ -827,6 +827,21 @@ export default function Products() {
                       <p className="text-center py-3 sm:py-4 text-xs sm:text-sm text-gray-400">No township fees set yet</p>
                     )}
                   </div>
+
+                  {/* Free delivery threshold */}
+                  <div className="mt-4 sm:mt-6 pt-4 sm:pt-5 border-t border-gray-100">
+                    <div>
+                      <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Free Delivery if spent this amount (MMK)</label>
+                      <input
+                        type="number"
+                        value={freeDeliveryThreshold}
+                        onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
+                        placeholder="e.g. 50000"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs sm:text-sm"
+                      />
+                      <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Delivery fee is waived when cart total reaches or exceeds this amount</p>
+                    </div>
+                  </div>
                 </>
               )}
 
