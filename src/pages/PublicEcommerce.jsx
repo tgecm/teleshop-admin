@@ -1497,7 +1497,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
     if (fields.name && !form.name.trim()) { setError('Name is required'); return; }
     if (fields.phones && !form.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
     if (fields.emails && !form.emails[0]?.trim()) { setError('At least one email is required'); return; }
-    if (fields.zone && showZoneFields && (!form.region || !form.district || !form.township)) { setError('Please select Region, District and Township'); return; }
+    if (showZoneFields && (!form.region || !form.district || !form.township)) { setError('Please select Region, District and Township'); return; }
     if (fields.address && !form.address.trim()) { setError('Delivery address is required'); return; }
     if (fields.telegram && !form.telegram.trim()) { setError('Telegram username is required'); return; }
     if (fields.viber && !form.viber.trim()) { setError('Viber number is required'); return; }
@@ -1585,8 +1585,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
 
-          {showZoneFields ? (
-            fields.zone ? (<>
+          {showZoneFields && (<>
               <div>
                 <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်) *</label>
                 <SearchableSelect
@@ -1616,38 +1615,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                   disabled={!form.district}
                 />
               </div>
-            </>) : (<>
-              <div>
-                <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်)</label>
-                <SearchableSelect
-                  value={form.region}
-                  onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
-                  options={REGION_NAMES}
-                  placeholder="Select Region"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 font-medium mb-1 block">District (ခရိုင်)</label>
-                <SearchableSelect
-                  value={form.district}
-                  onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
-                  options={getDistricts(form.region)}
-                  placeholder="Select District"
-                  disabled={!form.region}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်)</label>
-                <SearchableSelect
-                  value={form.township}
-                  onChange={v => setForm(p => ({ ...p, township: v }))}
-                  options={getTownships(form.region, form.district)}
-                  placeholder="Select Township"
-                  disabled={!form.district}
-                />
-              </div>
-            </>)
-          ) : null}
+            </>)}
 
           <div>
             <label className="text-xs text-gray-500 font-medium mb-1 block">Delivery Address {fields.address ? '*' : ''}</label>

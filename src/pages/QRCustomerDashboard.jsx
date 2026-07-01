@@ -292,7 +292,8 @@ export default function QRCustomerDashboard({ slug, shop }) {
         setMyToken(data.token_number);
         addToast(`Token #${data.token_number} assigned!`);
       } else {
-        addToast('Failed to assign token', 'error');
+        const errData = await res.json().catch(() => ({}));
+        addToast(errData.detail || 'Failed to assign token', 'error');
       }
     } catch (e) {
       addToast('Failed to assign token', 'error');
@@ -505,6 +506,19 @@ function TokenQueueTab({ slug, shop, myToken, onGetToken, onDeleteToken, onToken
         <div className="text-7xl font-black text-purple-300 mb-3">#000</div>
         <p className="text-base font-bold text-gray-800">No active queue</p>
         <p className="text-sm text-gray-400 mt-1">Get a token to join the queue</p>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-6"
+        >
+          <button
+            onClick={onGetToken}
+            className="w-full py-5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-amber-200 hover:shadow-xl hover:from-amber-600 hover:to-orange-600 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+          >
+            <Ticket className="w-6 h-6" />
+            Get a Token
+          </button>
+        </motion.div>
       </div>
     );
   }

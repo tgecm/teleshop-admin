@@ -2,13 +2,20 @@
   "permissions": {
     "allow": [
       "Bash(*)",
-      "Read(//home/meriko/VPS/**)"
+      "Read(/home/meriko/VPS/**)"
     ],
     "additionalDirectories": [
-      "/home/meriko/VPS/backend-api",
       "/tmp",
-      "/home/meriko/VPS/MyanMyanPay",
       "/home/meriko/VPS/temp"
     ]
+  },
+  "notes": {
+    "frontend": "Frontend is on GitHub and edited on the local device.",
+    "backend": "Backend is on the VPS.",
+    "ssh": "ssh root@139.180.156.116",
+    "files": {
+      "Teleshop.py": "/opt/teleshop/Teleshop.py",
+      "backend.py": "/root/teleshop-api/backend.py"
+    }
   }
 }

@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
-import { getBotPublicSlug } from '../api/public';
+import { getBotPublicSlug, listBotDomains } from '../api/public';
 import { downloadBlob } from '../utils/download';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Plus, Copy, Download, Trash2, QrCode, ExternalLink, Pen, SkipForward, RotateCcw, Ticket, ChevronLeft } from 'lucide-react';
@@ -24,6 +24,7 @@ export default function QRMenuTables() {
     queryKey: ['content-blocks', selectedBotId],
     queryFn: () => getContentBlocks({ bot_id: selectedBotId }),
     enabled: !!selectedBotId,
+    refetchInterval: mode === 'token' ? 5000 : false,
   });
 
   const { data: publicSlug } = useQuery({
@@ -31,6 +32,14 @@ export default function QRMenuTables() {
     queryFn: () => getBotPublicSlug(selectedBotId),
     enabled: !!selectedBotId,
   });
+
+  const { data: domains = [] } = useQuery({
+    queryKey: ['bot-domains', selectedBotId],
+    queryFn: () => listBotDomains(selectedBotId),
+    enabled: !!selectedBotId,
+  });
+
+  const customDomain = domains.find(d => d.verified && d.enabled)?.domain || null;
 
   const tableLinksBlock = contentBlocks?.find(b => b.key === 'qr_table_links');
   const tables = tableLinksBlock?.content_data?.tables || [];
@@ -75,15 +84,20 @@ export default function QRMenuTables() {
     setEditValue(table.name || '');
   };
 
+  const baseUrl = useMemo(() => {
+    if (customDomain) return `https://${customDomain}`;
+    return 'https://telegramecommerce.shop';
+  }, [customDomain]);
+
   const getTableUrl = useCallback((number) => {
     if (!publicSlug?.slug) return '';
-    return `https://telegramecommerce.shop/${publicSlug.slug}-qr-menu/t${number}`;
-  }, [publicSlug]);
+    return `${baseUrl}/${publicSlug.slug}-qr-menu/t${number}`;
+  }, [publicSlug, baseUrl]);
 
   const getTokenUrl = useCallback(() => {
     if (!publicSlug?.slug) return '';
-    return `https://telegramecommerce.shop/${publicSlug.slug}-qr-menu?mode=token`;
-  }, [publicSlug]);
+    return `${baseUrl}/${publicSlug.slug}-qr-menu?mode=token`;
+  }, [publicSlug, baseUrl]);
 
   const setQrRef = (number, node) => {
     if (node) qrRefs.current[number] = node;
@@ -105,24 +119,6 @@ export default function QRMenuTables() {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, out.width, out.height);
     ctx.drawImage(canvas, padding, padding);
-
-    const cx = out.width / 2;
-    const cy = out.height / 2;
-    const r = 22;
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(number), cx, cy);
 
     const blob = await new Promise(resolve => out.toBlob(resolve));
     if (blob) await downloadBlob(blob, `${label.toLowerCase()}-qr.png`);
@@ -307,22 +303,17 @@ export default function QRMenuTables() {
                       </div>
                     </div>
 
-                    <div className="relative flex justify-center mb-4">
-                      <div className="relative inline-block">
+                    <div className="flex justify-center mb-4">
+                      <div className="inline-block">
                         {url && (
                           <QRCodeCanvas
                             ref={(node) => setQrRef(table.number, node)}
                             value={url}
                             size={180}
-                            level="L"
+                            level="M"
                             includeMargin
                           />
                         )}
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border-2 border-gray-100">
-                            <span className="font-bold text-base text-gray-900">{table.number}</span>
-                          </div>
-                        </div>
                       </div>
                     </div>
 
@@ -459,19 +450,14 @@ export default function QRMenuTables() {
               <h3 className="font-bold text-gray-900 mb-3">Token QR Code</h3>
               <p className="text-xs text-gray-400 mb-4">Customers scan this to get a token</p>
               <div className="flex flex-col items-center">
-                <div className="relative inline-block mb-4">
+                <div className="inline-block mb-4">
                   <QRCodeCanvas
                     ref={(node) => setQrRef('token', node)}
                     value={getTokenUrl()}
                     size={180}
-                    level="L"
+                    level="M"
                     includeMargin
                   />
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border-2 border-gray-100">
-                      <Ticket className="w-5 h-5 text-violet-600" />
-                    </div>
-                  </div>
                 </div>
                 <div className="flex gap-3 w-full max-w-sm">
                   <button
