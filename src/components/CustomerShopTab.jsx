@@ -53,7 +53,7 @@ const COLOR_NAMES = {
   '#FFA500': 'Orange', '#FFC0CB': 'Pink', '#A52A2A': 'Brown', '#F5F5DC': 'Beige',
 };
 
-export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecommerce' }) {
+export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecommerce', onNavigate }) {
   const { items: cartItems, addItem, updateQty } = useCartState(shop?.id, shopSlug, user, viewMode);
 
   const { data, isLoading } = useQuery({
@@ -95,6 +95,7 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
     const item = cartItems.find(i => i.product_id === productId);
     return item ? item.quantity : 0;
   };
+  const totalCartQty = cartItems.reduce((s, i) => s + (i.quantity || 0), 0);
 
   if (isLoading) {
     return (
@@ -260,6 +261,15 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
           />
         )}
       </AnimatePresence>
+
+      {/* Floating cart button */}
+      {totalCartQty > 0 && (
+        <button onClick={() => onNavigate?.('cart')}
+          className="fixed bottom-24 right-5 z-40 flex items-center gap-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white pl-4 pr-5 py-3 rounded-full shadow-lg shadow-indigo-600/30 hover:shadow-xl hover:scale-105 active:scale-95 transition-all">
+          <ShoppingCart className="w-5 h-5" />
+          <span className="text-sm font-bold">{totalCartQty}</span>
+        </button>
+      )}
     </div>
   );
 }

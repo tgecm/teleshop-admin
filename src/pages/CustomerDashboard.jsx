@@ -528,7 +528,7 @@ export default function CustomerDashboard({ shopSlug }) {
             transition={{ duration: 0.15 }}
           >
             {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} orderStats={orderStats} banners={shopData?.banners || []} points={customerPoints} pointsSettings={shopData?.ecommerce_points_settings} />}
-            {activeTab === 'shop' && <CustomerShopTab shopSlug={shopSlug} shop={shopData?.shop} user={user} />}
+            {activeTab === 'shop' && <CustomerShopTab shopSlug={shopSlug} shop={shopData?.shop} user={user} onNavigate={setActiveTab} />}
             {activeTab === 'newsfeed' && (
               <div className="pb-20">
                 <NewsfeedFeed

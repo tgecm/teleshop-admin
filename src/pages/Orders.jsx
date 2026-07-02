@@ -407,12 +407,29 @@ export default function Orders() {
                       <span className="text-gray-500">Payment Method</span>
                       <span className="font-bold text-gray-900 capitalize">{selectedOrder.payment_method || 'Cash'}</span>
                     </div>
+                    {Number(selectedOrder.delivery_fee) > 0 && (
+                      <div className="flex items-center justify-between text-xs md:text-sm">
+                        <span className="text-gray-500">Delivery Fee</span>
+                        <span className="font-bold text-gray-900">+ {Number(selectedOrder.delivery_fee).toLocaleString()} MMK</span>
+                      </div>
+                    )}
                     {selectedOrder.buyer_snapshot?.points_redeemed > 0 && (
                       <div className="flex items-center justify-between text-xs md:text-sm">
                         <span className="text-gray-500">Points Used</span>
-                        <span className="font-bold text-gray-900">{selectedOrder.buyer_snapshot.points_redeemed} pts = {Number(selectedOrder.buyer_snapshot.points_discount || 0).toLocaleString()} MMK off</span>
+                        <span className="font-bold text-emerald-600">{selectedOrder.buyer_snapshot.points_redeemed} pts = {Number(selectedOrder.buyer_snapshot.points_discount || 0).toLocaleString()} MMK off</span>
                       </div>
                     )}
+                    {(() => {
+                      const delFee = Number(selectedOrder.delivery_fee) || 0;
+                      const ptsDisc = Number(selectedOrder.buyer_snapshot?.points_discount || 0);
+                      const totalToPay = (selectedOrder.total_amount || 0) + delFee - ptsDisc;
+                      return (
+                        <div className="flex items-center justify-between text-xs md:text-sm pt-1.5 border-t border-dashed border-gray-200">
+                          <span className="text-gray-700 font-bold">Total Amount</span>
+                          <span className="font-bold text-indigo-600">{totalToPay.toLocaleString()} MMK</span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="pt-2 md:pt-3 border-t border-gray-100">

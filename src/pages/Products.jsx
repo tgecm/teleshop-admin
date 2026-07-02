@@ -467,7 +467,7 @@ export default function Products() {
             {showCouponMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowCouponMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 min-w-[180px] overflow-hidden">
+                <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 min-w-[180px] overflow-hidden">
                   <button
                     onClick={() => { setShowCouponMenu(false); setShowCouponModal(true); }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
