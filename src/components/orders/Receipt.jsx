@@ -348,6 +348,29 @@ function _he(s) {
   for (let i = 0; i < s.length; i++) { const c = s.codePointAt(i); if (c && _ie(c)) return true; if (c && c > 0xFFFF) i++; }
   return false;
 }
+function _se(text) {
+  if (!text) return [];
+  const segments = []; let buf = '';
+  for (let i = 0; i < text.length; i++) {
+    const cp = text.codePointAt(i); if (!cp) continue;
+    const cl = cp > 0xFFFF ? 2 : 1;
+    if (_ie(cp)) { if (buf) { segments.push({t:buf,e:false}); buf=''; } segments.push({t:String.fromCodePoint(cp),e:true}); }
+    else { buf += String.fromCodePoint(cp); }
+    if (cl > 1) i++;
+  }
+  if (buf) segments.push({t:buf,e:false});
+  return segments;
+}
+function _isSimpleText(text) {
+  for (let i = 0; i < text.length; i++) {
+    const cp = text.codePointAt(i); if (!cp) continue;
+    if (_ie(cp)) continue;
+    if (cp <= 0x024F) continue; // Basic Latin + Latin-1 Supplement + Latin Extended-A/B
+    if (cp >= 0x1E00 && cp <= 0x1EFF) continue; // Latin Extended Additional
+    return false; // Contains non-Latin, non-emoji character → needs SVG text element
+  }
+  return true;
+}
 function _rte(text, fontSize, fontFamily, color) {
   try {
     const dpr = 2;
@@ -375,9 +398,14 @@ function _rte(text, fontSize, fontFamily, color) {
 function _st(raw, x, y, fs, fill, ff, attrs) {
   if (!raw) return '';
   if (!_he(raw)) return `<text x="${x}" y="${y}" fill="${fill}" font-size="${fs}"${attrs}>${esc(raw)}</text>`;
-  const ri = _rte(raw, fs, ff, fill);
-  if (ri) return `<image href="${ri.url}" x="${x}" y="${y - ri.h + 4}" width="${ri.w}" height="${ri.h}"/>`;
-  // Fallback: segment-by-segment
+  // Text with only Latin + emoji: use canvas rendering (good for emoji-only content)
+  if (_isSimpleText(raw)) {
+    const ri = _rte(raw, fs, ff, fill);
+    if (ri) return `<image href="${ri.url}" x="${x}" y="${y - ri.h + 4}" width="${ri.w}" height="${ri.h}"/>`;
+  }
+  // Mixed text (Burmese + emoji etc): segment and render separately
+  // Non-emoji parts use SVG <text> (server renders via Noto Sans Myanmar),
+  // emoji parts use canvas-rendered images
   const segs = _se(raw); let r=''; let cx=x;
   for (const s of segs) {
     if (s.e) { const u=renderEmoji(s.t,fs); if(u) r+=`<image href="${u}" x="${cx}" y="${y-fs+2}" width="${fs}" height="${fs}"/>`; cx+=fs; }
@@ -486,7 +514,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const phoneRaw = order.buyer_snapshot?.phone || '—';
   const emailRaw = order.buyer_snapshot?.email || '—';
   const addrRaw = order.buyer_snapshot?.address || '—';
-  const cNotesRaw = order.buyer_snapshot?.notes || '';
+  const cNotesRaw = order.notes || order.buyer_snapshot?.notes || order.shipping_address?.notes || '';
   const cName = esc(cNameRaw);
   const phone = esc(phoneRaw);
   const email = esc(emailRaw);

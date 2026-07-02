@@ -23,6 +23,7 @@ import {
   Utensils,
   ClipboardList,
   QrCode,
+  TrendingUp,
   X
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -42,6 +43,7 @@ const pageModules = {
   '/broadcast': () => import('../../pages/Broadcast'),
   '/commands': () => import('../../pages/Commands'),
   '/payments': () => import('../../pages/Payments'),
+  '/profit': () => import('../../pages/Profit'),
   '/settings': () => import('../../pages/Settings'),
   '/customization': () => import('../../pages/Customization'),
   '/bot-customization': () => import('../../pages/BotCustomization'),
@@ -92,6 +94,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/profit', icon: TrendingUp, label: 'Profit' },
     ...(user?.is_superadmin ? [{ to: '/send-message', icon: Mail, label: 'Send Message' }] : []),
     ...(user?.is_superadmin ? [{ to: '/subscribers', icon: Users, label: 'Subscribers' }] : []),
     { to: '/orders', icon: Package, label: 'Orders' },

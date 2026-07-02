@@ -86,7 +86,7 @@ export default function QRMenuTables() {
 
   const baseUrl = useMemo(() => {
     if (customDomain) return `https://${customDomain}`;
-    return 'https://telegramecommerce.shop';
+    return 'https://www.telegramecommerce.shop';
   }, [customDomain]);
 
   const getTableUrl = useCallback((number) => {

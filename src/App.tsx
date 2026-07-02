@@ -56,13 +56,14 @@ const QRMenuAdmin = React.lazy(() => import('./pages/QRMenuAdmin'));
 const QRMenuOrders = React.lazy(() => import('./pages/QRMenuOrders'));
 const QRMenuTables = React.lazy(() => import('./pages/QRMenuTables'));
 const QRMenuDashboard = React.lazy(() => import('./pages/QRMenuDashboard'));
+const Profit = React.lazy(() => import('./pages/Profit'));
 const PublicQRMenu = React.lazy(() => import('./pages/PublicQRMenu'));
 const QRMenuCustomerDashboard = React.lazy(() => import('./pages/QRMenuCustomerDashboard'));
 const LiveTokenDisplay = React.lazy(() => import('./pages/LiveTokenDisplay'));
 
 const ADMIN_PATHS = new Set([
   'login', 'manage-web-panel', 'dashboard', 'orders', 'products', 'customers',
-  'broadcast', 'commands', 'payments', 'subscription', 'settings',
+  'broadcast', 'commands', 'payments', 'profit', 'subscription', 'settings',
   'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'subscribers', 'faqs', 'staff-accounts', 'qr-menu', 'qr-menu-orders',
   'qr-menu/orders',
   'qr-menu/tables',
@@ -442,6 +443,7 @@ export default function App() {
                   <Route path="broadcast" element={<PermissionGuard><PlanGate><Broadcast /></PlanGate></PermissionGuard>} />
                   <Route path="commands" element={<PermissionGuard><PlanGate><Commands /></PlanGate></PermissionGuard>} />
                   <Route path="payments" element={<PermissionGuard><PlanGate><Payments /></PlanGate></PermissionGuard>} />
+                  <Route path="profit" element={<PermissionGuard><PlanGate><Profit /></PlanGate></PermissionGuard>} />
                   <Route path="subscription" element={<PermissionGuard><Subscription /></PermissionGuard>} />
                   <Route path="settings" element={<PermissionGuard><PlanGate><Settings /></PlanGate></PermissionGuard>} />
                   <Route path="chats" element={<PermissionGuard><PlanGate><Chats /></PlanGate></PermissionGuard>} />

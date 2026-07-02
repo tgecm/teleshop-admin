@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getStats, getOrdersByDay, getTopProducts, getUsersByDay, getProfitSummary } from '../api/stats';
+import { getStats, getOrdersByDay, getTopProducts, getUsersByDay } from '../api/stats';
 import { getImageUrl, getProducts } from '../api/products';
 import { getOrders } from '../api/orders';
 import { getUsers } from '../api/customers';
@@ -9,7 +9,7 @@ import StatCard from '../components/shared/StatCard';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import {
   DollarSign, ShoppingBag, Users, Clock, TrendingUp, Activity, Trophy, Sparkles, Zap, Package,
-  BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, X, Loader2, ArrowLeftRight, AlertTriangle,
+  BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, Loader2, ArrowLeftRight,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { parseISO, differenceInDays, subDays, addDays } from 'date-fns';
@@ -210,14 +210,6 @@ export default function Dashboard() {
     placeholderData: (prev) => prev,
   });
 
-  const { data: profitSummary } = useQuery({
-    queryKey: ['stats', 'profit-summary', selectedBotId],
-    queryFn: () => getProfitSummary({ bot_id: Number(selectedBotId) }),
-    enabled: !!selectedBotId,
-    placeholderData: (prev) => prev,
-  });
-
-
   // Aggregates
   const totalRevenue = stats?.total_revenue || 0;
   const totalOrders = stats?.total_orders || 0;
@@ -229,11 +221,6 @@ export default function Dashboard() {
   const effectiveProductsSold = periodStats?.products_sold ?? stats?.products_sold ?? 0;
   const itemsSold = effectiveItemsSold;
   const productsSold = effectiveProductsSold;
-  const totalProfit = profitSummary?.total_profit || 0;
-  const todayProfit = profitSummary?.today_profit || 0;
-  const untrackedCount = profitSummary?.untracked_count || 0;
-  const hasUntrackedProducts = untrackedCount > 0;
-  const [dismissWarning, setDismissWarning] = useState(false);
 
   // Top products with percentages
   const topProductsWithPct = useMemo(() => {
@@ -500,38 +487,6 @@ export default function Dashboard() {
         <MiniMetric icon={TrendingUp} label="Monthly Revenue" value={`${monthlyRevenue.toLocaleString()} MMK`} sub={`${totalRevenue.toLocaleString()} MMK total`} color="amber" />
         <MiniMetric icon={Package} label="Product Sold" value={productsSold} sub={`${totalOrders} orders`} color="purple" period={productsPeriod} onPeriodChange={setProductsPeriod} />
       </motion.div>
-
-      {/* Profit stat cards */}
-      <motion.div variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
-        <MiniMetric icon={TrendingUp} label="Net Profit"
-          value={hasUntrackedProducts && totalProfit === 0 ? 'Set cost price' : `${totalProfit.toLocaleString()} MMK`}
-          color="emerald"
-          sub={hasUntrackedProducts && totalProfit === 0 ? 'to track profit' : 'from completed orders'} />
-        <MiniMetric icon={Zap} label="Today's Net Profit"
-          value={hasUntrackedProducts && todayProfit === 0 ? 'Set cost price' : `${todayProfit.toLocaleString()} MMK`}
-          color="emerald"
-          sub={hasUntrackedProducts && todayProfit === 0 ? 'to track profit' : 'vs yesterday'} />
-      </motion.div>
-
-      {/* Warning banner */}
-      {hasUntrackedProducts && !dismissWarning && (
-        <motion.div variants={itemVariants}
-          className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl shadow-sm">
-          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-amber-800">{untrackedCount} product{untrackedCount > 1 ? 's' : ''} ha{untrackedCount === 1 ? 's' : 've'} no cost price set</p>
-            <p className="text-xs text-amber-600 mt-0.5">Set cost price to see complete profit data</p>
-            <button onClick={() => window.location.href = '/products?no_cost_price=1'}
-              className="mt-2 px-3 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all active:scale-95">
-              Set Now →
-            </button>
-          </div>
-          <button onClick={() => setDismissWarning(true)}
-            className="p-1 rounded-lg hover:bg-amber-100 text-amber-400 transition-all flex-shrink-0">
-            <X className="w-4 h-4" />
-          </button>
-        </motion.div>
-      )}
 
       {/* Chart + Top Products */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
