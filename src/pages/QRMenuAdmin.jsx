@@ -7,8 +7,9 @@ import { uploadImage } from '../api/products';
 import { getBotPublicSlug } from '../api/public';
 import { API_BASE } from '../api/config';
 import client from '../api/client';
-import { useBotStore } from '../store/botStore';
+import { useSelectedBot } from '../hooks/useSelectedBot';
 import { useToastStore } from '../store/toastStore';
+import { formatPrice } from '../utils/formatPrice';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import {
@@ -120,7 +121,7 @@ function getItemImageUrls(image_url, botId) {
   return [`${API_BASE}/telegram/file/${encodeURIComponent(image_url)}?bot_id=${botId}`];
 }
 
-function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selectedBotId, badgeOptions }) {
+function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selectedBotId, badgeOptions, currency = 'MMK' }) {
   const [formData, setFormData] = useState({
     name: item?.name || '',
     description: item?.description || '',
@@ -465,7 +466,7 @@ function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selected
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-bold text-gray-700 ml-1">Price (MMK)</label>
+          <label className="text-sm font-bold text-gray-700 ml-1">Price ({currency})</label>
           <input
             required
             type="number"
@@ -565,7 +566,7 @@ function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selected
                           className="w-20 pl-4 pr-2 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-xs outline-none focus:ring-2 focus:ring-orange-500"
                         />
                       </div>
-                      <span className="text-[10px] text-gray-400 font-bold flex-shrink-0">MMK</span>
+                      <span className="text-[10px] text-gray-400 font-bold flex-shrink-0">{currency}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -648,7 +649,7 @@ function MenuItemForm({ item, categories, onClose, onSubmit, isLoading, selected
                       className="w-20 pl-4 pr-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-orange-500"
                     />
                   </div>
-                  <span className="text-[10px] text-gray-400 font-bold flex-shrink-0">MMK</span>
+                  <span className="text-[10px] text-gray-400 font-bold flex-shrink-0">{currency}</span>
                   <button
                     type="button"
                     onClick={() => setAddons(prev => prev.filter((_, j) => j !== i))}
@@ -801,7 +802,8 @@ function DebouncedSettingsInput({ value: initialValue, onSave, placeholder, type
 }
 
 export default function QRMenuAdmin() {
-  const { selectedBotId } = useBotStore();
+  const { selectedBotId, selectedBot } = useSelectedBot();
+  const currency = selectedBot?.currency || 'MMK';
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -1303,7 +1305,7 @@ export default function QRMenuAdmin() {
                     <p className="text-[10px] md:text-xs text-gray-400 line-clamp-2 mt-0.5">{item.description}</p>
                   )}
                   <p className="font-bold text-orange-600 text-sm md:text-base lg:text-lg mt-1.5">
-                    {Number(item.price).toLocaleString()} MMK
+                    {formatPrice(Number(item.price), selectedBot?.currency || 'MMK')}
                   </p>
                   {item.category_id && (
                     <div className="flex items-center gap-1.5 mt-1 text-[8px] md:text-[10px] text-gray-400 font-bold uppercase tracking-wider">
@@ -1404,6 +1406,7 @@ export default function QRMenuAdmin() {
                 categories={categories}
                 selectedBotId={selectedBotId}
                 badgeOptions={BUSINESS_BADGES[businessMode] || BUSINESS_BADGES.restaurant}
+                currency={currency}
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={(data) => {
                   if (editingItem) {
@@ -1494,7 +1497,7 @@ export default function QRMenuAdmin() {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-gray-500 mb-1 block">
-                      {couponForm.type === 'percentage' ? 'Discount %' : 'Discount Amount (MMK)'}
+                      {couponForm.type === 'percentage' ? 'Discount %' : `Discount Amount (${selectedBot?.currency || 'MMK'})`}
                     </label>
                     <input
                       type="number"
@@ -1624,7 +1627,7 @@ export default function QRMenuAdmin() {
                           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Orders</p>
                         </div>
                         <div className="bg-white rounded-xl p-3 text-center">
-                          <p className="text-lg font-bold text-green-600">{(customerDetail.total_spent ?? 0).toLocaleString()}</p>
+                          <p className="text-lg font-bold text-green-600">{formatPrice(customerDetail.total_spent ?? 0, currency)}</p>
                           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Spent</p>
                         </div>
                       </div>
@@ -1640,7 +1643,7 @@ export default function QRMenuAdmin() {
                               <div className="flex items-center gap-2.5">
                                 <span className="text-base">{order.channel === 'store' ? '\u{1F3EA}' : '\u{1F4F1}'}</span>
                                 <div>
-                                  <p className="text-sm font-bold text-gray-900">{Number(order.total).toLocaleString()} MMK</p>
+                                  <p className="text-sm font-bold text-gray-900">{formatPrice(Number(order.total), selectedBot?.currency || 'MMK')}</p>
                                   <p className="text-[10px] text-gray-400">{new Date(order.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
                                 </div>
                               </div>
@@ -2195,7 +2198,7 @@ export default function QRMenuAdmin() {
                                   placeholder="1000"
                                   className="w-20 px-2 py-1.5 rounded-lg text-sm text-center"
                                 />
-                                <span className="text-xs text-gray-400">MMK =</span>
+                                <span className="text-xs text-gray-400">{selectedBot?.currency || 'MMK'} =</span>
                                 <DebouncedSettingsInput
                                   type="number"
                                   value={pointsSettings.earn_rate || ''}
@@ -2224,7 +2227,7 @@ export default function QRMenuAdmin() {
                                   placeholder="1000"
                                   className="w-20 px-2 py-1.5 rounded-lg text-sm text-center"
                                 />
-                                <span className="text-xs text-gray-400">MMK</span>
+                                <span className="text-xs text-gray-400">{selectedBot?.currency || 'MMK'}</span>
                               </div>
                             </div>
                             <div>
@@ -2292,7 +2295,7 @@ export default function QRMenuAdmin() {
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                                       c.type === 'percentage' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
                                     }`}>
-                                      {c.type === 'percentage' ? `${c.value}%` : `${Number(c.value).toLocaleString()} MMK`}
+                                      {c.type === 'percentage' ? `${c.value}%` : formatPrice(c.value, selectedBot?.currency || 'MMK')}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2 mt-0.5">

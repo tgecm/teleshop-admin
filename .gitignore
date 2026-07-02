@@ -11,3 +11,4 @@ assets/
 android/build/
 .gradle/
 *.local
+sys

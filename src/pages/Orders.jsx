@@ -6,6 +6,8 @@ import client from '../api/client';
 import { useBotStore } from '../store/botStore';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
+import { useSelectedBot } from '../hooks/useSelectedBot';
+import { formatPrice } from '../utils/formatPrice';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
 import Receipt from '../components/orders/Receipt';
@@ -49,6 +51,7 @@ const TERMINAL_STATUSES = ['rejected'];
 
 export default function Orders() {
   const { selectedBotId } = useBotStore();
+  const { selectedBot } = useSelectedBot();
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
   const token = useAuthStore(s => s.token);
@@ -277,7 +280,7 @@ export default function Orders() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <p className="text-sm lg:text-base font-bold text-gray-900 whitespace-nowrap">{order.total_amount?.toLocaleString()} MMK</p>
+                    <p className="text-sm lg:text-base font-bold text-gray-900 whitespace-nowrap">{formatPrice(order.total_amount, selectedBot?.currency || 'MMK')}</p>
                     <StatusBadge status={order.status} />
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-300 hidden sm:block flex-shrink-0" />
@@ -387,7 +390,7 @@ export default function Orders() {
                     <div className="space-y-1">
                       {selectedOrder.items?.map((item, idx) => (
                         <div key={idx} className="text-sm text-gray-700">
-                          • {item.product_name || item.name}{item.variant_label ? <span className="text-gray-400"> [{item.variant_label}]</span> : null} (x{item.quantity}) - {(item.price * item.quantity).toLocaleString()} MMK
+                          • {item.product_name || item.name}{item.variant_label ? <span className="text-gray-400"> [{item.variant_label}]</span> : null} (x{item.quantity}) - {formatPrice(item.price * item.quantity, selectedBot?.currency || 'MMK')}
                         </div>
                       ))}
                     </div>
@@ -401,7 +404,7 @@ export default function Orders() {
                     </div>
                     <div className="flex items-center justify-between text-xs md:text-sm">
                       <span className="text-gray-500">Amount</span>
-                      <span className="font-bold text-indigo-600">{selectedOrder.total_amount?.toLocaleString()} MMK</span>
+                      <span className="font-bold text-indigo-600">{formatPrice(selectedOrder.total_amount, selectedBot?.currency || 'MMK')}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs md:text-sm">
                       <span className="text-gray-500">Payment Method</span>
@@ -410,13 +413,13 @@ export default function Orders() {
                     {Number(selectedOrder.delivery_fee) > 0 && (
                       <div className="flex items-center justify-between text-xs md:text-sm">
                         <span className="text-gray-500">Delivery Fee</span>
-                        <span className="font-bold text-gray-900">+ {Number(selectedOrder.delivery_fee).toLocaleString()} MMK</span>
+                        <span className="font-bold text-gray-900">+ {formatPrice(Number(selectedOrder.delivery_fee), selectedBot?.currency || 'MMK')}</span>
                       </div>
                     )}
                     {selectedOrder.buyer_snapshot?.points_redeemed > 0 && (
                       <div className="flex items-center justify-between text-xs md:text-sm">
                         <span className="text-gray-500">Points Used</span>
-                        <span className="font-bold text-emerald-600">{selectedOrder.buyer_snapshot.points_redeemed} pts = {Number(selectedOrder.buyer_snapshot.points_discount || 0).toLocaleString()} MMK off</span>
+                        <span className="font-bold text-emerald-600">{selectedOrder.buyer_snapshot.points_redeemed} pts = {formatPrice(Number(selectedOrder.buyer_snapshot.points_discount || 0), selectedBot?.currency || 'MMK')} off</span>
                       </div>
                     )}
                     {(() => {
@@ -426,7 +429,7 @@ export default function Orders() {
                       return (
                         <div className="flex items-center justify-between text-xs md:text-sm pt-1.5 border-t border-dashed border-gray-200">
                           <span className="text-gray-700 font-bold">Total Amount</span>
-                          <span className="font-bold text-indigo-600">{totalToPay.toLocaleString()} MMK</span>
+                          <span className="font-bold text-indigo-600">{formatPrice(totalToPay, selectedBot?.currency || 'MMK')}</span>
                         </div>
                       );
                     })()}

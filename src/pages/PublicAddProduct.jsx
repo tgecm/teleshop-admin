@@ -1,5 +1,6 @@
 import { API_BASE } from '../api/config';
 import React, { useState, useRef } from 'react';
+import { formatPrice } from '../utils/formatPrice';
 import {
   Package, AlertCircle, CheckCircle2, Loader2, ImageUp, X,
   ShoppingBag, ChevronRight, FolderPlus
@@ -234,7 +235,7 @@ export default function PublicAddProduct({ username, code, secret1 = '', secret2
           {result && (
             <div className="bg-gray-50 rounded-2xl p-4 mb-6 text-left border border-gray-100">
               <p className="text-sm font-bold text-gray-900">{result.name}</p>
-              <p className="text-lg font-bold text-emerald-600 mt-1">{Number(result.price).toLocaleString()} MMK</p>
+              <p className="text-lg font-bold text-emerald-600 mt-1">{formatPrice(result.price, botInfo?.currency || 'MMK')}</p>
             </div>
           )}
           <p className="text-xs text-gray-400">
@@ -387,7 +388,7 @@ export default function PublicAddProduct({ username, code, secret1 = '', secret2
 
             <div className="space-y-3">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 ml-1">Price (MMK) *</label>
+                <label className="text-sm font-bold text-gray-700 ml-1">Price ({botInfo?.currency || 'MMK'}) *</label>
                 <input required type="number" value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   placeholder="0"

@@ -27,6 +27,7 @@ import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { RichMessage } from '../components/chat/RichMessage';
 import NewsfeedFeed from '../components/NewsfeedFeed';
 
+import { formatPrice } from '../utils/formatPrice';
 import { API_BASE, fileUrl } from '../api/config';
 
 function authHeaders() {
@@ -98,10 +99,6 @@ function getPublicImageUrls(image_url, bot_id) {
     return clean.map(f => `${API_BASE}/telegram/file/${encodeURIComponent(f.file_id || f)}?bot_id=${bot_id}`);
   }
   return [`${API_BASE}/telegram/file/${encodeURIComponent(image_url)}?bot_id=${bot_id}`];
-}
-
-function formatPrice(price) {
-  return Number(price).toLocaleString();
 }
 
 function normalizeSearchText(text) {
@@ -265,8 +262,8 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
           ))}
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
           <div className="mb-4">
-            {product.original_price > 0 && <p className="text-sm line-through text-red-400 font-medium">{formatPrice(product.original_price)} MMK</p>}
-            <p className="text-2xl font-bold theme-price inline-flex items-baseline gap-1"><span>{formatPrice(product.price)}</span><span className="text-sm text-gray-400 font-medium">MMK</span></p>
+            {product.original_price > 0 && <p className="text-sm line-through text-red-400 font-medium">{formatPrice(product.original_price, shop?.currency || 'MMK')}</p>}
+            <p className="text-2xl font-bold theme-price inline-flex items-baseline gap-1"><span>{formatPrice(product.price, shop?.currency || 'MMK')}</span></p>
           </div>
 
           {product.description && (
@@ -884,38 +881,38 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
           {cartItems.map(item => (
             <div key={item.product_id} className="flex justify-between text-sm py-1">
               <span className="text-gray-700">{item.name} x{item.quantity}</span>
-              <span className="font-medium text-gray-900">{formatPrice(item.price * item.quantity)} MMK</span>
+              <span className="font-medium text-gray-900">{formatPrice(item.price * item.quantity, shop?.currency || 'MMK')}</span>
             </div>
           ))}
           {couponApplied && (
             <div className="flex justify-between text-sm py-1 text-emerald-600">
               <span>Discount ({couponApplied.code})</span>
-              <span className="font-semibold">-{formatPrice(couponApplied.discount)} MMK</span>
+              <span className="font-semibold">-{formatPrice(couponApplied.discount, shop?.currency || 'MMK')}</span>
             </div>
           )}
           {pointsDiscount > 0 && !isPointsPayment && (
             <div className="flex justify-between text-sm py-1 text-amber-600">
               <span>Points Discount</span>
-              <span className="font-semibold">-{formatPrice(pointsDiscount)} MMK</span>
+              <span className="font-semibold">-{formatPrice(pointsDiscount, shop?.currency || 'MMK')}</span>
             </div>
           )}
           {isPointsPayment && (
             <div className="flex justify-between text-sm py-1 text-amber-600">
               <span>Pay with Points ({formatPrice(effectivePts)} pts)</span>
-              <span className="font-semibold">-{formatPrice(ptsDisc)} MMK</span>
+              <span className="font-semibold">-{formatPrice(ptsDisc, shop?.currency || 'MMK')}</span>
             </div>
           )}
           <div className="flex justify-between text-sm py-1 text-gray-600">
             <span>Delivery Fee</span>
-            <span>{deliveryFeeAmount > 0 ? `${formatPrice(deliveryFeeAmount)} MMK` : 'Free'}</span>
+            <span>{deliveryFeeAmount > 0 ? formatPrice(deliveryFeeAmount, shop?.currency || 'MMK') : 'Free'}</span>
           </div>
           <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-bold text-gray-900">
             <span>Total</span>
-            <span>{formatPrice((isPointsPayment ? ptsTotal : (couponApplied ? effectiveTotal : totalAmount) - pointsDiscount) + deliveryFeeAmount)} MMK</span>
+            <span>{formatPrice((isPointsPayment ? ptsTotal : (couponApplied ? effectiveTotal : totalAmount) - pointsDiscount) + deliveryFeeAmount, shop?.currency || 'MMK')}</span>
           </div>
           {couponApplied?.discount > 0 && (
             <p className="text-[10px] text-emerald-500 font-medium text-center mt-1">
-              🎉 You saved {formatPrice(couponApplied.discount)} MMK!
+              🎉 You saved {formatPrice(couponApplied.discount, shop?.currency || 'MMK')}
             </p>
           )}
         </div>
@@ -930,7 +927,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
             {isPointsPayment ? (
               <div className="space-y-1">
                 <p className="text-[11px] text-amber-600">
-                  <strong>{customerPoints} Points</strong> = {formatPrice(pointsMmkVal)} MMK
+                  <strong>{customerPoints} Points</strong> = {formatPrice(pointsMmkVal, shop?.currency || 'MMK')}
                 </p>
                 {customerPoints < Number(pointsSettings?.min_redeem || 50) ? (
                   <p className="text-[11px] text-rose-600 font-medium">Minimum {pointsSettings?.min_redeem || 50} points required</p>
@@ -945,7 +942,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
             ) : pointsDiscount > 0 ? (
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[11px] text-amber-600 font-medium">Points discount: {formatPrice(pointsDiscount)} MMK</p>
+                  <p className="text-[11px] text-amber-600 font-medium">Points discount: {formatPrice(pointsDiscount, shop?.currency || 'MMK')}</p>
                   <p className="text-[10px] text-amber-500">{pointsToRedeem} pts used</p>
                 </div>
                 <button onClick={() => { setPointsDiscount(0); setPointsToRedeem(0); }}
@@ -1051,7 +1048,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
                 </div>
                 <p className="font-bold text-gray-900">Cash on Delivery</p>
                 <p className="text-sm text-gray-600 mt-2 leading-relaxed">
-                  Cash on Delivery. Please prepare the amount of <span className="font-bold text-gray-900">{formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount)} MMK</span> for the package
+                  Cash on Delivery. Please prepare the amount of <span className="font-bold text-gray-900">{formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount, shop?.currency || 'MMK')}</span> for the package
                 </p>
               </div>
             );
@@ -1161,7 +1158,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
           className="w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-base text-white transition-all active:scale-[0.98] disabled:opacity-60"
           style={{ background: THEMES[DEFAULT_THEME].css['--theme-btn'] }}
         >
-          {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Placing Order...</> : `Place Order — ${formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount)} MMK`}
+          {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Placing Order...</> : `Place Order — ${formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount, shop?.currency || 'MMK')}`}
         </button>
       </motion.div>
     </motion.div>
@@ -2617,8 +2614,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                       ))}
                       <h2 className="text-xl font-bold text-gray-900">{productLinkProduct.name}</h2>
                       <div className="mt-1">
-                        {productLinkProduct.original_price > 0 && <p className="text-sm line-through text-red-400 font-medium">{productLinkProduct.original_price.toLocaleString()} MMK</p>}
-                        <p className="text-2xl font-bold text-indigo-600">{productLinkProduct.price.toLocaleString()} <span className="text-sm font-medium text-indigo-400">MMK</span></p>
+                        {productLinkProduct.original_price > 0 && <p className="text-sm line-through text-red-400 font-medium">{formatPrice(productLinkProduct.original_price, shop?.currency || 'MMK')}</p>}
+                        <p className="text-2xl font-bold text-indigo-600">{formatPrice(productLinkProduct.price, shop?.currency || 'MMK')}</p>
                       </div>
                     </div>
                     {productLinkProduct.description && (
@@ -3014,8 +3011,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                       <p className="text-xs text-gray-400 line-clamp-2 mb-2 leading-relaxed">{product.description}</p>
                     )}
                     <div className="mb-1">
-                      {product.original_price > 0 && <p className="text-[10px] line-through text-red-400 font-medium">{formatPrice(product.original_price)} MMK</p>}
-                      <p className="font-bold theme-price text-sm md:text-base">{formatPrice(product.price)} <span className="text-[10px] text-gray-400 font-medium">MMK</span></p>
+                      {product.original_price > 0 && <p className="text-[10px] line-through text-red-400 font-medium">{formatPrice(product.original_price, shop?.currency || 'MMK')}</p>}
+                      <p className="font-bold theme-price text-sm md:text-base">{formatPrice(product.price, shop?.currency || 'MMK')}</p>
                     </div>
 
                     {viewMode !== 'telegram' && (() => {
@@ -3209,7 +3206,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
-                        <p className="text-xs text-gray-500">{formatPrice(item.price)} MMK each</p>
+                        <p className="text-xs text-gray-500">{formatPrice(item.price, shop?.currency || 'MMK')} each</p>
                         {isOOS && (
                           <p className="text-[10px] font-bold text-rose-500 mt-1">Out of stock</p>
                         )}
@@ -3285,7 +3282,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                 <div className="border-t border-gray-100 p-4 space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Subtotal</span>
-                    <span className="font-bold text-gray-900">{formatPrice(totalAmount)} MMK</span>
+                    <span className="font-bold text-gray-900">{formatPrice(totalAmount, shop?.currency || 'MMK')}</span>
                   </div>
                   <button
                     onClick={handleCheckout}

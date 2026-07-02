@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { TrendingUp, ArrowLeftRight, AlertTriangle, X, Calendar, Zap, Search, ChevronDown, Download } from 'lucide-react';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import { downloadText } from '../utils/download';
+import { formatPrice } from '../utils/formatPrice';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -46,7 +47,7 @@ function SummaryCard({ icon: Icon, label, value, sub, color }) {
 }
 
 export default function Profit() {
-  const { selectedBotId } = useSelectedBot();
+  const { selectedBotId, selectedBot } = useSelectedBot();
 
   const today = new Date().toISOString().split('T')[0];
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -159,10 +160,10 @@ export default function Profit() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            <SummaryCard icon={ArrowLeftRight} label="Cost" value={`${totalCost.toLocaleString()} MMK`} color="rose" />
-            <SummaryCard icon={TrendingUp} label="Net Profit" value={`${totalProfit.toLocaleString()} MMK`}
+            <SummaryCard icon={ArrowLeftRight} label="Cost" value={formatPrice(totalCost, selectedBot?.currency || 'MMK')} color="rose" />
+            <SummaryCard icon={TrendingUp} label="Net Profit" value={formatPrice(totalProfit, selectedBot?.currency || 'MMK')}
               sub={`${marginPct}% margin`} color="indigo" />
-            <SummaryCard icon={Zap} label="Today's Net Profit" value={`${todayProfit.toLocaleString()} MMK`}
+            <SummaryCard icon={Zap} label="Today's Net Profit" value={formatPrice(todayProfit, selectedBot?.currency || 'MMK')}
               sub="from completed orders" color="emerald" />
           </div>
         )}
@@ -272,7 +273,7 @@ export default function Profit() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-[700px] text-xs sm:text-sm">
+              <table className="w-full min-w-[700px] text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/50">
                     <th className="text-left px-3 sm:px-6 py-3 font-bold text-gray-500 uppercase tracking-wider">Product</th>

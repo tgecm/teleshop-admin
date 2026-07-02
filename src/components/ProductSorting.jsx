@@ -11,8 +11,10 @@ import { X, Loader2, GripVertical, Tag, Package, Edit2 } from 'lucide-react';
 import CachedImage from '../components/shared/CachedImage';
 import { updateProductSortOrder, updateCategory, getImageUrl } from '../api/products';
 import { useToastStore } from '../store/toastStore';
+import { formatPrice } from '../utils/formatPrice';
+import { useSelectedBot } from '../hooks/useSelectedBot';
 
-function SortableItem({ product, botId }) {
+function SortableItem({ product, botId, currency }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: String(product.id),
   });
@@ -56,7 +58,7 @@ function SortableItem({ product, botId }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-gray-900 truncate">{product.name}</p>
-        <p className="text-xs text-indigo-600 font-bold">{Number(product.price).toLocaleString()} MMK</p>
+        <p className="text-xs text-indigo-600 font-bold">{formatPrice(product.price, currency)}</p>
       </div>
       {product.sort_order != null && (
         <span className="text-[10px] text-gray-400 font-medium bg-gray-50 px-2 py-0.5 rounded-full">
@@ -70,6 +72,8 @@ function SortableItem({ product, botId }) {
 export default function ProductSorting({ products, categories, botId, onClose }) {
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
+  const { selectedBot } = useSelectedBot();
+  const currency = selectedBot?.currency || 'MMK';
 
   // Build category map
   const categoryMap = useMemo(() => {
@@ -393,7 +397,7 @@ export default function ProductSorting({ products, categories, botId, onClose })
                   {(orderedIds[selectedCategory] || []).map(id => {
                     const product = productMap[id];
                     if (!product) return null;
-                    return <SortableItem key={id} product={product} botId={botId} />;
+                    return <SortableItem key={id} product={product} botId={botId} currency={currency} />;
                   })}
                 </SortableContext>
               </DndContext>

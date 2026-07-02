@@ -8,6 +8,7 @@ import {
 import TelegramLoginModal from '../components/TelegramLoginModal';
 import { qrExchangeTelegramToken, storeQRLogin, clearQRLogin } from '../lib/qrAuth';
 import { API_BASE } from '../api/config';
+import { formatPrice } from '../utils/formatPrice';
 import {
   getQRPointsHistory, getQRCustomerDashboard,
   saveQRCustomerCart, getQRCustomerCart, clearQRCustomerCart,
@@ -15,10 +16,6 @@ import {
 } from '../api/qrMenu';
 
 const TELEGRAM_BLUE = '#2AABEE';
-
-function formatPrice(n) {
-  return Number(n || 0).toLocaleString();
-}
 
 function getCartKey(item, variants, addons) {
   const v = variants ? Object.values(variants).map(v => v.label).sort().join(',') : '';
@@ -155,7 +152,7 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, browseOnly
                   return (
                     <button key={oi} onClick={() => setSelectedVariants(prev => ({ ...prev, [vg.name]: opt }))}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                      {opt.label}{Number(opt.price_add) > 0 && <span className="ml-1 text-indigo-500">+{formatPrice(opt.price_add)}K</span>}
+                      {opt.label}{Number(opt.price_add) > 0 && <span className="ml-1 text-indigo-500">+{formatPrice(opt.price_add, shop?.currency || 'MMK')}</span>}
                     </button>
                   );
                 })}
@@ -172,7 +169,7 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, browseOnly
                   return (
                     <button key={i} onClick={() => toggleAddon(addon)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${isSelected ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                      {isSelected ? '✓ ' : ''}{addon.label}{Number(addon.price_add) > 0 && <span className="ml-1 text-emerald-500">+{formatPrice(addon.price_add)}K</span>}
+                      {isSelected ? '✓ ' : ''}{addon.label}{Number(addon.price_add) > 0 && <span className="ml-1 text-emerald-500">+{formatPrice(addon.price_add, shop?.currency || 'MMK')}</span>}
                     </button>
                   );
                 })}
@@ -182,8 +179,8 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, browseOnly
 
           <div className="flex items-center justify-between pt-3 border-t border-gray-100">
             <div>
-              <div className="text-lg font-bold">{formatPrice(unitPrice)} <span className="text-[10px] font-normal text-gray-400">K</span></div>
-              {lineTotal !== unitPrice && <div className="text-[10px] text-gray-400">Total: {formatPrice(lineTotal)} K</div>}
+              <div className="text-lg font-bold">{formatPrice(unitPrice, shop?.currency || 'MMK')}</div>
+              {lineTotal !== unitPrice && <div className="text-[10px] text-gray-400">Total: {formatPrice(lineTotal, shop?.currency || 'MMK')}</div>}
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => { if (qty > 1) setQty(q => q - 1); }} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center"><Minus className="w-3 h-3" /></button>
@@ -199,7 +196,7 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, browseOnly
           ) : (
             <button onClick={handleAdd} className="w-full mt-3 py-3 rounded-xl font-semibold text-sm text-white text-center transition-all active:scale-[0.98]"
               style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-              <ShoppingCart className="w-3.5 h-3.5 inline mr-1.5" />Add · {formatPrice(lineTotal)} K
+              <ShoppingCart className="w-3.5 h-3.5 inline mr-1.5" />Add · {formatPrice(lineTotal, shop?.currency || 'MMK')}
             </button>
           )}
         </div>
@@ -540,7 +537,7 @@ export default function QRMenuCustomerDashboard({ slug }) {
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-gray-400">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
-                      <span className="font-semibold text-gray-800">{formatPrice(order.total_amount || order.final_amount)} K</span>
+                      <span className="font-semibold text-gray-800">{formatPrice(order.total_amount || order.final_amount, shop?.currency || 'MMK')}</span>
                     </div>
                     {order.created_at && <p className="text-[10px] text-gray-300 mt-0.5">{new Date(order.created_at).toLocaleDateString()}</p>}
                   </div>
@@ -549,12 +546,12 @@ export default function QRMenuCustomerDashboard({ slug }) {
                       {orderItemsData.map((item, j) => (
                         <div key={j} className="flex justify-between text-gray-600">
                           <span><span className="font-bold text-gray-800">{item.quantity || item.qty}x</span> {item.name}</span>
-                          <span className="font-bold text-gray-700">{formatPrice(item.price)} K</span>
+                          <span className="font-bold text-gray-700">{formatPrice(item.price, shop?.currency || 'MMK')}</span>
                         </div>
                       ))}
                       <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-1.5">
                         <span>Total</span>
-                        <span>{formatPrice(order.total_amount || order.final_amount)} K</span>
+                        <span>{formatPrice(order.total_amount || order.final_amount, shop?.currency || 'MMK')}</span>
                       </div>
                       {order.created_at && (
                         <p className="text-[10px] text-gray-400 flex items-center gap-1">
@@ -619,7 +616,7 @@ export default function QRMenuCustomerDashboard({ slug }) {
                   <h3 className="font-semibold text-xs text-gray-900 leading-tight line-clamp-1">{item.name}</h3>
                   {item.description && <p className="text-[10px] text-gray-400 leading-relaxed line-clamp-1 mt-0.5">{item.description}</p>}
                   <div className="flex items-center justify-between mt-1.5" onClick={(e) => e.stopPropagation()}>
-                    <span className="font-bold text-xs text-indigo-600">{formatPrice(item.price)}<span className="text-[10px] font-normal ml-0.5 text-gray-400">K</span></span>
+                    <span className="font-bold text-xs text-indigo-600">{formatPrice(item.price, shop?.currency || 'MMK')}</span>
                     {item.is_available === false ? null : browseOnly ? (
                       <button onClick={() => { setBrowseMsg('Menu are currently browse only'); setTimeout(() => setBrowseMsg(''), 2500); }}
                         className="w-6 h-6 rounded-full bg-gray-200 text-gray-300 flex items-center justify-center cursor-default">
@@ -652,7 +649,7 @@ export default function QRMenuCustomerDashboard({ slug }) {
         <button onClick={() => setShowCart(true)}
           className="fixed bottom-20 right-3 z-30 bg-indigo-500 text-white rounded-full shadow-lg flex items-center gap-1.5 px-3.5 py-2.5 active:scale-95 transition-transform text-xs font-bold">
           <ShoppingCart className="w-4 h-4" />
-          <span>{formatPrice(orderTotal)} K</span>
+          <span>{formatPrice(orderTotal, shop?.currency || 'MMK')}</span>
           <span className="bg-white text-indigo-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{orderCount}</span>
         </button>
       )}
@@ -679,14 +676,14 @@ export default function QRMenuCustomerDashboard({ slug }) {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-xs truncate">{oi.item.name}</div>
                         {oi.variants && Object.keys(oi.variants).length > 0 && <div className="text-[10px] text-gray-400 truncate">{Object.values(oi.variants).map(v => v.label).join(', ')}</div>}
-                        <div className="text-[10px] text-gray-400">{formatPrice(itemPrice)} K each</div>
+                        <div className="text-[10px] text-gray-400">{formatPrice(itemPrice, shop?.currency || 'MMK')} each</div>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => updateQty(oi.cartKey, oi.qty - 1)} className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center"><Minus className="w-2.5 h-2.5" /></button>
                         <span className="font-semibold text-xs w-4 text-center">{oi.qty}</span>
                         <button onClick={() => updateQty(oi.cartKey, oi.qty + 1)} className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center"><Plus className="w-2.5 h-2.5" /></button>
                       </div>
-                      <div className="font-semibold text-xs w-14 text-right">{formatPrice(itemPrice * oi.qty)} K</div>
+                      <div className="font-semibold text-xs w-14 text-right">{formatPrice(itemPrice * oi.qty, shop?.currency || 'MMK')}</div>
                     </div>
                   );
                 })}
@@ -701,7 +698,7 @@ export default function QRMenuCustomerDashboard({ slug }) {
                 <div className="border-t border-gray-100 px-4 py-3 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-xs text-gray-700">Total</span>
-                    <span className="font-bold text-sm">{formatPrice(orderTotal)} K</span>
+                    <span className="font-bold text-sm">{formatPrice(orderTotal, shop?.currency || 'MMK')}</span>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={clearCart} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50"><Trash2 className="w-3.5 h-3.5 inline mr-1" />Clear</button>
@@ -753,10 +750,10 @@ export default function QRMenuCustomerDashboard({ slug }) {
               <h3 className="font-semibold text-xs text-gray-700 mb-1.5">How Points Work</h3>
               <p className="text-[11px] text-gray-500 leading-relaxed">
                 Earn <span className="font-semibold text-amber-600">{pointsSettings.earn_rate || 1} point{(pointsSettings.earn_rate || 1) > 1 ? 's' : ''}</span> for every{' '}
-                {formatPrice(pointsSettings.earn_per || 1000)} K spent.
+                {formatPrice(pointsSettings.earn_per || 1000, shop?.currency || 'MMK')} spent.
                 {pointsSettings.redeem_points ? (
                   <> Redeem <span className="font-semibold text-amber-600">{pointsSettings.redeem_points} points</span> for{' '}
-                  {formatPrice(pointsSettings.redeem_value || 1000)} K discount.</>
+                  {formatPrice(pointsSettings.redeem_value || 1000, shop?.currency || 'MMK')} discount.</>
                 ) : ''}
               </p>
             </div>
@@ -778,10 +775,10 @@ export default function QRMenuCustomerDashboard({ slug }) {
               <h3 className="font-semibold text-xs text-gray-700 mb-1.5">How Points Work</h3>
               <p className="text-[11px] text-gray-500 leading-relaxed">
                 Earn <span className="font-semibold text-amber-600">{pointsSettings.earn_rate || 1} point{(pointsSettings.earn_rate || 1) > 1 ? 's' : ''}</span> for every{' '}
-                {formatPrice(pointsSettings.earn_per || 1000)} K spent.
+                {formatPrice(pointsSettings.earn_per || 1000, shop?.currency || 'MMK')} spent.
                 {pointsSettings.redeem_points ? (
                   <> Redeem <span className="font-semibold text-amber-600">{pointsSettings.redeem_points} points</span> for{' '}
-                  {formatPrice(pointsSettings.redeem_value || 1000)} K discount.</>
+                  {formatPrice(pointsSettings.redeem_value || 1000, shop?.currency || 'MMK')} discount.</>
                 ) : ''}
               </p>
             </div>
@@ -1160,34 +1157,34 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
                   {orderItems.map(oi => (
                     <div key={oi.cartKey} className="flex justify-between text-gray-500">
                       <span>{oi.item.name} x{oi.qty}</span>
-                      <span>{formatPrice(calcItemPrice(oi.item, oi.variants, oi.addons) * oi.qty)} K</span>
+                      <span>{formatPrice(calcItemPrice(oi.item, oi.variants, oi.addons) * oi.qty, shop?.currency || 'MMK')}</span>
                     </div>
                   ))}
                   <div className="border-t border-gray-200 pt-1.5 mt-1.5">
                     <div className="flex justify-between font-semibold text-gray-800">
                       <span>Subtotal</span>
-                      <span>{formatPrice(orderTotal)} K</span>
+                      <span>{formatPrice(orderTotal, shop?.currency || 'MMK')}</span>
                     </div>
                     {isPointsPayment ? (
                       <div className="flex justify-between text-amber-600 text-[10px] mt-0.5">
                         <span>Pay with Points ({formatPrice(effectivePoints)} pts)</span>
-                        <span>-{formatPrice(effectiveDiscount)} K</span>
+                        <span>-{formatPrice(effectiveDiscount, shop?.currency || 'MMK')}</span>
                       </div>
                     ) : pointsDiscount > 0 && (
                       <div className="flex justify-between text-emerald-600 text-[10px] mt-0.5">
                         <span>Points discount</span>
-                        <span>-{formatPrice(pointsDiscount)} K</span>
+                        <span>-{formatPrice(pointsDiscount, shop?.currency || 'MMK')}</span>
                       </div>
                     )}
                     {couponDiscount > 0 && (
                       <div className="flex justify-between text-violet-600 text-[10px] mt-0.5">
                         <span>Coupon ({appliedCoupon?.code})</span>
-                        <span>-{formatPrice(couponDiscount)} K</span>
+                        <span>-{formatPrice(couponDiscount, shop?.currency || 'MMK')}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-semibold text-gray-800 text-sm mt-0.5">
                       <span>Total</span>
-                      <span>{formatPrice(displayTotal)} K</span>
+                      <span>{formatPrice(displayTotal, shop?.currency || 'MMK')}</span>
                     </div>
                   </div>
                 </div>
@@ -1211,7 +1208,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
                 <div className="flex items-center justify-between bg-emerald-50 rounded-xl px-3 py-2 mb-3 border border-emerald-200">
                   <span className="text-xs font-semibold text-emerald-600">{appliedCoupon.code}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-emerald-600">-{formatPrice(couponDiscount)} K</span>
+                    <span className="text-xs font-bold text-emerald-600">-{formatPrice(couponDiscount, shop?.currency || 'MMK')}</span>
                     <button onClick={() => { setAppliedCoupon(null); setCouponDiscount(0); }} className="p-0.5">
                       <X className="w-3 h-3 text-emerald-400" />
                     </button>
@@ -1268,7 +1265,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
                     <span className="font-semibold text-xs text-amber-700">Pay with Points</span>
                   </div>
                   <div className="text-[11px] text-amber-600 space-y-0.5">
-                    <p><strong>{customerPoints || 0} Points</strong> = {formatPrice(pointsMmkValue)} MMK</p>
+                    <p><strong>{customerPoints || 0} Points</strong> = {formatPrice(pointsMmkValue, shop?.currency || 'MMK')}</p>
                     {customerPoints < maxRedeem ? (
                       <p className="text-rose-600 font-medium">Minimum {maxRedeem} points required to use this payment method</p>
                     ) : displayTotal > 0 ? (
@@ -1311,7 +1308,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
               <button onClick={handleSubmit} disabled={submitting || !selectedMethod || (!isPointsPayment && !proofFile) || (isPointsPayment && (customerPoints < maxRedeem || displayTotal > 0))}
                 className="w-full py-3 rounded-xl font-semibold text-xs text-white text-center transition-all active:scale-[0.98] disabled:opacity-60"
                 style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-                {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : isPointsPayment ? (customerPoints < maxRedeem ? `Min ${maxRedeem} pts` : displayTotal > 0 ? 'Insufficient Points' : 'Pay with Points') : `Pay ${formatPrice(netTotal)} K`}
+                {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : isPointsPayment ? (customerPoints < maxRedeem ? `Min ${maxRedeem} pts` : displayTotal > 0 ? 'Insufficient Points' : 'Pay with Points') : `Pay ${formatPrice(netTotal, shop?.currency || 'MMK')}`}
               </button>
 
               <button onClick={() => { setStep(1); setIsPointsPayment(false); }} disabled={submitting}

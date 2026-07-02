@@ -16,6 +16,7 @@ import { parseISO, differenceInDays, subDays, addDays } from 'date-fns';
 const ChartRenderer = React.lazy(() => import('../components/dashboard/ChartRenderer'));
 import { myanmarFormat } from '../utils/date';
 import { downloadText } from '../utils/download';
+import { formatPrice } from '../utils/formatPrice';
 import { useToastStore } from '../store/toastStore';
 import InstallPrompt from '../components/InstallPrompt';
 import CachedImage from '../components/shared/CachedImage';
@@ -91,7 +92,7 @@ function MiniMetric({ icon: Icon, label, value, sub, color = 'indigo', period, o
 }
 
 export default function Dashboard() {
-  const { selectedBotId } = useSelectedBot();
+  const { selectedBotId, selectedBot } = useSelectedBot();
   const { addToast } = useToastStore();
 
   // Chart state
@@ -451,7 +452,7 @@ export default function Dashboard() {
         {statsLoading
           ? Array(4).fill(0).map((_, i) => (<motion.div key={i} variants={itemVariants}><LoadingSkeleton className="h-28 md:h-32" /></motion.div>))
           : [
-              { title: 'Total Revenue', value: `${totalRevenue.toLocaleString()} MMK`, icon: DollarSign, color: 'indigo' },
+              { title: 'Total Revenue', value: formatPrice(totalRevenue, selectedBot?.currency || 'MMK'), icon: DollarSign, color: 'indigo' },
               { title: 'Total Orders', value: totalOrders, icon: ShoppingBag, color: 'emerald' },
               { title: 'Total Users', value: totalUsers, icon: Users, color: 'rose' },
               { title: 'Pending Orders', value: pendingOrders, icon: Clock, color: 'amber' },
@@ -472,7 +473,7 @@ export default function Dashboard() {
                       </button>
                     </div>
                     <h3 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-gray-900 leading-tight mt-0.5">
-                      {showRevenue ? `${totalRevenue.toLocaleString()} MMK` : `${totalStockValue.toLocaleString()} MMK`}
+                      {showRevenue ? formatPrice(totalRevenue, selectedBot?.currency || 'MMK') : formatPrice(totalStockValue, selectedBot?.currency || 'MMK')}
                     </h3>
                   </div>
                 </div>
@@ -483,8 +484,8 @@ export default function Dashboard() {
       {/* Mini metrics */}
       <motion.div variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
         <MiniMetric icon={ShoppingBag} label="Units Sold" value={itemsSold} color="indigo" period={itemsPeriod} onPeriodChange={setItemsPeriod} />
-        <MiniMetric icon={Zap} label="Today's Revenue" value={`${todayRevenue.toLocaleString()} MMK`} color="emerald" />
-        <MiniMetric icon={TrendingUp} label="Monthly Revenue" value={`${monthlyRevenue.toLocaleString()} MMK`} sub={`${totalRevenue.toLocaleString()} MMK total`} color="amber" />
+        <MiniMetric icon={Zap} label="Today's Revenue" value={formatPrice(todayRevenue, selectedBot?.currency || 'MMK')} color="emerald" />
+        <MiniMetric icon={TrendingUp} label="Monthly Revenue" value={formatPrice(monthlyRevenue, selectedBot?.currency || 'MMK')} sub={`${formatPrice(totalRevenue, selectedBot?.currency || 'MMK')} total`} color="amber" />
         <MiniMetric icon={Package} label="Product Sold" value={productsSold} sub={`${totalOrders} orders`} color="purple" period={productsPeriod} onPeriodChange={setProductsPeriod} />
       </motion.div>
 
@@ -578,7 +579,7 @@ export default function Dashboard() {
                         </div>
                         <div className="text-right flex-shrink-0 ml-1">
                           <p className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">{product.total_revenue?.toLocaleString()}</p>
-                          <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium">MMK</p>
+                          <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium">{selectedBot?.currency || 'MMK'}</p>
                           {product.total_profit !== null && product.total_profit !== undefined ? (
                             <p className="text-[10px] sm:text-[11px] font-bold text-emerald-600 leading-tight mt-0.5">{Number(product.total_profit).toLocaleString()} <span className="text-[8px] font-medium">profit</span></p>
                           ) : (

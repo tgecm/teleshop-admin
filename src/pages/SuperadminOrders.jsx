@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { myanmarFormat } from '../utils/date';
+import { formatPrice } from '../utils/formatPrice';
 
 const STATUS_STEPS = [
   { key: 'pending', label: 'Pending' },
@@ -93,7 +94,7 @@ export default function SuperadminOrders() {
           { label: 'Total Orders', value: stats.total.toLocaleString(), color: 'bg-indigo-50 text-indigo-600' },
           { label: 'Pending', value: stats.pending.toLocaleString(), color: 'bg-amber-50 text-amber-600' },
           { label: 'Today', value: stats.today.toLocaleString(), color: 'bg-emerald-50 text-emerald-600' },
-          { label: 'Total Revenue', value: `${stats.revenue.toLocaleString()} MMK`, color: 'bg-purple-50 text-purple-600' },
+          { label: 'Total Revenue', value: formatPrice(stats.revenue, 'MMK'), color: 'bg-purple-50 text-purple-600' },
         ].map((s, i) => (
           <div key={i} className="bg-white rounded-xl border border-gray-100 p-3.5 shadow-sm">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{s.label}</p>
@@ -177,11 +178,11 @@ export default function SuperadminOrders() {
                   </div>
                   <p className="text-[11px] text-gray-500 truncate mt-0.5">
                     {bot ? `@${bot.bot_username} · ` : ''}
-                    {o.items?.[0]?.name || `${(o.total_amount || o.amount || 0).toLocaleString()} MMK`}
+                    {o.items?.[0]?.name || formatPrice(o.total_amount || o.amount || 0, 'MMK')}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-bold text-gray-900">{(o.total_amount || o.amount || 0).toLocaleString()} MMK</p>
+                  <p className="text-sm font-bold text-gray-900">{formatPrice(o.total_amount || o.amount || 0, 'MMK')}</p>
                   <p className="text-[10px] text-gray-400">{o.created_at ? myanmarFormat(o.created_at, 'MMM d') : ''}</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
@@ -242,7 +243,7 @@ export default function SuperadminOrders() {
                     {selectedOrder.items.map((item, i) => (
                       <div key={i} className="flex justify-between text-sm bg-gray-50 rounded-xl px-3 py-2">
                         <span className="font-medium text-gray-700 truncate mr-2">{item.name}{item.variant ? ` (${item.variant})` : ''}</span>
-                        <span className="font-bold text-gray-900 flex-shrink-0">{item.quantity}x {Number(item.price).toLocaleString()} MMK</span>
+                        <span className="font-bold text-gray-900 flex-shrink-0">{item.quantity}x {formatPrice(item.price, 'MMK')}</span>
                       </div>
                     ))}
                   </div>
@@ -250,7 +251,7 @@ export default function SuperadminOrders() {
 
                 {/* Totals */}
                 <div className="border-t border-gray-100 pt-3 space-y-1.5">
-                  <div className="flex justify-between text-sm"><span className="text-gray-500">Amount</span><span className="font-bold text-indigo-600">{(selectedOrder.total_amount || selectedOrder.amount || 0).toLocaleString()} MMK</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-gray-500">Amount</span><span className="font-bold text-indigo-600">{formatPrice(selectedOrder.total_amount || selectedOrder.amount || 0, 'MMK')}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-gray-500">Status</span><StatusBadge status={selectedOrder.status} /></div>
                   <div className="flex justify-between text-sm"><span className="text-gray-500">Date</span><span className="font-bold text-gray-900">{myanmarFormat(selectedOrder.created_at, 'MMM d, yyyy h:mm a')}</span></div>
                 </div>

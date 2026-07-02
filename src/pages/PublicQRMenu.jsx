@@ -7,6 +7,7 @@ import QRCustomerDashboard from './QRCustomerDashboard';
 import QRSignInModal from '../components/QRMenu/QRSignInModal';
 import { isQRAuthenticated, clearQRLogin } from '../lib/qrAuth';
 
+import { formatPrice } from '../utils/formatPrice';
 import { API_BASE } from '../api/config';
 
 const CAT_EMOJIS = ['🍽️','🍚','🍜','🍲','🔥','🥗','🥤','🍮','🥩','🌯','🥟','🍕','🥪','🧆','🫘','🥘','🫕','🥫','🍱'];
@@ -39,8 +40,6 @@ const BADGE_STYLES = {
   relaxing:{cls:'badge-relaxing',label:'💆 Relaxing'},
   premium:{cls:'badge-premium',label:'👑 Premium'},
 };
-
-function formatPrice(n) { if (n == null || isNaN(n)) return '0'; return Number(n).toLocaleString(); }
 
 function getCartKey(item, variants, addons) {
   const v = variants && Object.keys(variants).length > 0 ? JSON.stringify(variants) : '';
@@ -154,7 +153,7 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, addToOrder
                       className={`modal-extras-btn ${isSelected ? 'active' : ''}`}
                       onClick={() => setSelectedVariants(prev => ({ ...prev, [vg.name]: opt }))}>
                       <span className="modal-extras-btn-label">{opt.label}</span>
-                      {Number(opt.price_add) > 0 && <span className="modal-extras-btn-price">+{formatPrice(opt.price_add)} K</span>}
+                      {Number(opt.price_add) > 0 && <span className="modal-extras-btn-price">+{formatPrice(opt.price_add, shop?.currency || 'MMK')}</span>}
                     </button>
                   );
                 })}
@@ -177,7 +176,7 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, addToOrder
                         {isSelected ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="4"/></svg>}
                         {addon.label}
                       </span>
-                      {Number(addon.price_add) > 0 && <span className="modal-extras-btn-price">+{formatPrice(addon.price_add)} K</span>}
+                      {Number(addon.price_add) > 0 && <span className="modal-extras-btn-price">+{formatPrice(addon.price_add, shop?.currency || 'MMK')}</span>}
                     </button>
                   );
                 })}
@@ -185,15 +184,15 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, addToOrder
             </div>
           )}
 
-          <div className="modal-price">{formatPrice(unitPrice)} <span>K</span></div>
+          <div className="modal-price">{formatPrice(unitPrice, shop?.currency || 'MMK')}</div>
           {hasExtras && unitPrice !== Number(item.price) && (
             <div className="modal-price-breakdown">
-              Base {formatPrice(item.price)} K
+              Base {formatPrice(item.price, shop?.currency || 'MMK')}
               {Object.values(selectedVariants).filter(v => Number(v.price_add) > 0).map((v, i) => (
-                <span key={i}> + {v.label} {formatPrice(v.price_add)} K</span>
+                <span key={i}> + {v.label} {formatPrice(v.price_add, shop?.currency || 'MMK')}</span>
               ))}
               {selectedAddons.filter(a => Number(a.price_add) > 0).map((a, i) => (
-                <span key={i}> + {a.label} {formatPrice(a.price_add)} K</span>
+                <span key={i}> + {a.label} {formatPrice(a.price_add, shop?.currency || 'MMK')}</span>
               ))}
             </div>
           )}
@@ -210,7 +209,7 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, addToOrder
               </div>
               <button className="modal-add-btn" onClick={handleAdd}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
-                <span>{addToOrderLabel || 'Add to order'} · {formatPrice(lineTotal)} K</span>
+                <span>{addToOrderLabel || 'Add to order'} · {formatPrice(lineTotal, shop?.currency || 'MMK')}</span>
               </button>
             </>
           )}
@@ -263,11 +262,11 @@ function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRe
                   {oi.addons && oi.addons.length > 0 && (
                     <div className="cart-item-extras">
                       {oi.addons.map(a => (
-                        <span key={a.label} className="cart-item-extra">+ {a.label}{Number(a.price_add) > 0 ? ` (${formatPrice(a.price_add)} K)` : ''}</span>
+                        <span key={a.label} className="cart-item-extra">+ {a.label}{Number(a.price_add) > 0 ? ` (${formatPrice(a.price_add, shop?.currency || 'MMK')})` : ''}</span>
                       ))}
                     </div>
                   )}
-                  <div className="cart-item-price">{formatPrice(itemUnitPrice)} K each</div>
+                  <div className="cart-item-price">{formatPrice(itemUnitPrice, shop?.currency || 'MMK')} each</div>
                 </div>
                 <div className="cart-item-qty">
                   <button className="ciq-btn" onClick={() => onUpdateQty(oi.cartKey || oi.item.id, oi.qty - 1)}>−</button>
@@ -282,7 +281,7 @@ function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRe
           <div className="cart-sheet-footer">
             <div className="cart-sheet-total">
               <span>Total</span>
-              <span>{formatPrice(orderTotal)} K</span>
+              <span>{formatPrice(orderTotal, shop?.currency || 'MMK')}</span>
             </div>
             <div className="cart-sheet-actions">
               <button className="cs-btn cs-btn-secondary" onClick={onClearAll}>Clear</button>
@@ -443,7 +442,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
             {doneItems.slice(0, showDoneDetail ? doneItems.length : 2).map((item, i) => (
               <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'#6b7280',padding:'3px 0'}}>
                 <span>{item.name || 'Item'} <span style={{color:'#9ca3af'}}>x{item.quantity || 1}</span></span>
-                <span>{formatPrice((item.price || 0) * (item.quantity || 1))} K</span>
+                <span>{formatPrice((item.price || 0) * (item.quantity || 1), shop?.currency || 'MMK')}</span>
               </div>
             ))}
             {!showDoneDetail && doneItems.length > 2 && (
@@ -451,7 +450,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
             )}
             <div style={{borderTop:'1px solid #e5e7eb',marginTop:8,paddingTop:8,display:'flex',justifyContent:'space-between',fontSize:15,fontWeight:800,color:'#111827'}}>
               <span>Total</span>
-              <span>{formatPrice(done.final_amount || done.total_amount || orderTotal)} K</span>
+              <span>{formatPrice(done.final_amount || done.total_amount || orderTotal, shop?.currency || 'MMK')}</span>
             </div>
           </div>
 
@@ -559,7 +558,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
               {appliedCoupon?.code && (
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'#ecfdf5',borderRadius:10,padding:'10px 12px',margin:'12px 0'}}>
                   <span style={{fontSize:13,fontWeight:600,color:'#059669'}}>🎟️ {appliedCoupon.code}</span>
-                  <span style={{fontSize:13,fontWeight:700,color:'#059669'}}>-{formatPrice(couponDiscount)} K</span>
+                  <span style={{fontSize:13,fontWeight:700,color:'#059669'}}>-{formatPrice(couponDiscount, shop?.currency || 'MMK')}</span>
                 </div>
               )}
               {appliedCoupon?.error && (
@@ -605,27 +604,27 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
               <div style={{borderTop:'1px solid #e5e7eb',paddingTop:12,marginTop:12}}>
                 <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#6b7280',marginBottom:4}}>
                   <span>Subtotal</span>
-                  <span>{formatPrice(orderTotal)} K</span>
+                  <span>{formatPrice(orderTotal, shop?.currency || 'MMK')}</span>
                 </div>
                 {couponDiscount > 0 && (
                   <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'#059669',marginBottom:4}}>
                     <span>Coupon Discount</span>
-                    <span>-{formatPrice(couponDiscount)} K</span>
+                    <span>-{formatPrice(couponDiscount, shop?.currency || 'MMK')}</span>
                   </div>
                 )}
                 {pointsDiscount > 0 && (
                   <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'#f59e0b',marginBottom:4}}>
                     <span>Points Discount</span>
-                    <span>-{formatPrice(pointsDiscount)} K</span>
+                    <span>-{formatPrice(pointsDiscount, shop?.currency || 'MMK')}</span>
                   </div>
                 )}
                 <div className="checkout-total-row" style={{marginTop:4}}>
                   <span>Total Amount</span>
-                  <span className="font-bold">{formatPrice(netTotal)} K</span>
+                  <span className="font-bold">{formatPrice(netTotal, shop?.currency || 'MMK')}</span>
                 </div>
               </div>
               <p style={{fontSize:13,color:'#6b7280',margin:'8px 0 12px',lineHeight:1.5}}>
-                Please transfer {formatPrice(netTotal)} MMK to {selectedPayment?.name || ''} {selectedPayment?.payment_number || ''} and upload screenshot
+                Please transfer {formatPrice(netTotal, shop?.currency || 'MMK')} to {selectedPayment?.name || ''} {selectedPayment?.payment_number || ''} and upload screenshot
               </p>
               <div className="checkout-field">
                 <label>Payment Proof (screenshot) <span className="text-rose-500">*</span></label>
@@ -1420,7 +1419,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
               )}
               <button className={`qr-hero-orders-btn ${orderCount > 0 && !isBrowseOnly ? 'visible' : ''}`} onClick={() => setShowCart(true)}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
-                <span>{orderCount > 0 ? `${formatPrice(orderTotal)} K` : 'Orders'}</span>
+                <span>{orderCount > 0 ? formatPrice(orderTotal, shop?.currency || 'MMK') : 'Orders'}</span>
                 {orderCount > 0 && <span className="qr-hero-order-count">{orderCount}</span>}
               </button>
               <a href={'/' + slug + '-qr-dashboard'}
@@ -1539,7 +1538,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
                       <div className="qr-featured-body">
                         <div className="qr-featured-name">{item.name}</div>
                         <div className="qr-featured-desc">{item.description || ''}</div>
-                        <div className="qr-featured-price">{formatPrice(item.price)} <span>K</span></div>
+                        <div className="qr-featured-price">{formatPrice(item.price, shop?.currency || 'MMK')}</div>
                       </div>
                     </div>
                   );
@@ -1592,7 +1591,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
                       )}
                       {item.description && <div className="qr-item-desc">{item.description}</div>}
                       <div className="qr-item-bottom">
-                        <div className="qr-item-price">{formatPrice(item.price)} <span>K</span></div>
+                        <div className="qr-item-price">{formatPrice(item.price, shop?.currency || 'MMK')}</div>
                         {inOrderTotal > 0 && <span className="qr-item-in-cart">× {inOrderTotal}</span>}
                       </div>
                     </div>
@@ -1669,7 +1668,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
                         })}</div>
                       )}
                       <div className="qr-grid-bottom">
-                        <div className="qr-grid-price">{formatPrice(item.price)} <span>K</span></div>
+                        <div className="qr-grid-price">{formatPrice(item.price, shop?.currency || 'MMK')}</div>
                         <div onClick={(e) => e.stopPropagation()}>
                           {inOrderTotal > 0 ? (
                             <div className="qr-grid-qty-ctrl">

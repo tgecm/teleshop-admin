@@ -5,6 +5,8 @@ import {
 } from 'recharts';
 import { parseISO, subDays, addDays, differenceInDays } from 'date-fns';
 import { myanmarFormat } from '../../utils/date';
+import { formatPrice } from '../../utils/formatPrice';
+import { useSelectedBot } from '../../hooks/useSelectedBot';
 import LoadingSkeleton from '../shared/LoadingSkeleton';
 
 const CHART_COLORS = ['#4f46e5', '#34d399', '#f43f5e', '#f59e0b', '#8b5cf6', '#06b6d4'];
@@ -15,7 +17,7 @@ const METRIC_CONFIG = {
   profit: { label: 'Profit', color: '#22c55e', gradient: 'profitGrad' },
 };
 
-function ChartTooltip({ active, payload, label }) {
+function ChartTooltip({ active, payload, label, currency }) {
   if (!active || !payload?.length) return null;
   const formatted = (() => {
     try { return myanmarFormat(parseISO(label), 'MMM d, yyyy'); }
@@ -32,7 +34,7 @@ function ChartTooltip({ active, payload, label }) {
           </div>
           <span className="text-[11px] font-bold text-gray-800 tabular-nums">
             {entry.name === 'Revenue' || entry.name === 'Profit'
-              ? `${Number(entry.value).toLocaleString()} MMK`
+              ? formatPrice(entry.value, currency)
               : entry.value}
           </span>
         </div>
@@ -48,6 +50,8 @@ export default function ChartRenderer({
   pieData,
   chartLoading,
 }) {
+  const { selectedBot } = useSelectedBot();
+  const currency = selectedBot?.currency || 'MMK';
   const chartWrapperRef = useRef(null);
   const [cursorXY, setCursorXY] = useState(null);
 
@@ -98,7 +102,7 @@ export default function ChartRenderer({
                   <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip content={<ChartTooltip />} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
+              <Tooltip content={<ChartTooltip currency={currency} />} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
             </PieChart>
           </ResponsiveContainer>
         ) : (
@@ -129,7 +133,7 @@ export default function ChartRenderer({
                 <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                   tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                 <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
+                <Tooltip content={<ChartTooltip currency={currency} />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
                 {visibleMetrics.revenue && <Area yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#4f46e5" strokeWidth={2.5} fillOpacity={1} fill="url(#revGrad)" animationDuration={0} />}
                 {visibleMetrics.orders && <Area yAxisId="right" type="monotone" dataKey="count" name="Orders" stroke="#34d399" strokeWidth={2} fillOpacity={1} fill="url(#ordGrad)" animationDuration={0} />}
                 {visibleMetrics.users && <Area yAxisId="right" type="monotone" dataKey="users" name="Users" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#usersGrad)" animationDuration={0} />}
@@ -143,7 +147,7 @@ export default function ChartRenderer({
                 <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                   tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                 <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f9fafb' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
+                <Tooltip content={<ChartTooltip currency={currency} />} cursor={{ fill: '#f9fafb' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
                 {visibleMetrics.revenue && <Bar yAxisId="left" dataKey="revenue" name="Revenue" fill="#4f46e5" radius={[4, 4, 0, 0]} animationDuration={0} />}
                 {visibleMetrics.orders && <Bar yAxisId="right" dataKey="count" name="Orders" fill="#34d399" radius={[4, 4, 0, 0]} animationDuration={0} />}
                 {visibleMetrics.users && <Bar yAxisId="right" dataKey="users" name="Users" fill="#f43f5e" radius={[4, 4, 0, 0]} animationDuration={0} />}
@@ -157,7 +161,7 @@ export default function ChartRenderer({
                 <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={35} domain={[0, 'auto']}
                   tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
                 <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} width={30} domain={[0, 'auto']} />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
+                <Tooltip content={<ChartTooltip currency={currency} />} cursor={{ stroke: '#e5e7eb', strokeDasharray: '4 4' }} position={tooltipPosition} isAnimationActive={false} wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }} />
                 {visibleMetrics.revenue && <Line yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#4f46e5" strokeWidth={2.5} dot={false} animationDuration={0} />}
                 {visibleMetrics.orders && <Line yAxisId="right" type="monotone" dataKey="count" name="Orders" stroke="#34d399" strokeWidth={2} dot={false} animationDuration={0} />}
                 {visibleMetrics.users && <Line yAxisId="right" type="monotone" dataKey="users" name="Users" stroke="#f43f5e" strokeWidth={2} dot={false} animationDuration={0} />}
@@ -175,11 +179,11 @@ export default function ChartRenderer({
             <p className="text-sm font-bold text-gray-900 mt-0.5">
               {quickStats.bestDay ? (() => { try { return myanmarFormat(parseISO(quickStats.bestDay), 'd MMM'); } catch { return quickStats.bestDay; } })() : '—'}
             </p>
-            <p className="text-[10px] text-indigo-600 font-semibold">{quickStats.maxRevenue.toLocaleString()} MMK</p>
+            <p className="text-[10px] text-indigo-600 font-semibold">{formatPrice(quickStats.maxRevenue, currency)}</p>
           </div>
           <div className="text-center border-x border-gray-100">
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Avg Daily</p>
-            <p className="text-sm font-bold text-gray-900 mt-0.5">{Math.round(quickStats.avgDailyRevenue).toLocaleString()} MMK</p>
+            <p className="text-sm font-bold text-gray-900 mt-0.5">{formatPrice(Math.round(quickStats.avgDailyRevenue), currency)}</p>
           </div>
           <div className="text-center">
             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Growth</p>

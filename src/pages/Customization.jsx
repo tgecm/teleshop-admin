@@ -4,11 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
-import { getBot, getAiSettings, updateAiSettings } from '../api/bots';
+import { getBot, getAiSettings, updateAiSettings, updateBot } from '../api/bots';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { uploadImage } from '../api/products';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import currencies, { getCurrencyByCode } from '../utils/currencies';
 import {
   Palette,
   Camera,
@@ -28,6 +29,8 @@ import {
   Link,
   ShoppingBag,
   Globe,
+  DollarSign,
+  Search,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -274,6 +277,27 @@ export default function Customization() {
       addToast('AI settings updated');
     },
   });
+
+  const updateBotMutation = useMutation({
+    mutationFn: (data) => updateBot(selectedBotId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['bots', selectedBotId]);
+      addToast('Currency updated');
+    },
+    onError: () => addToast('Failed to update currency', 'error'),
+  });
+
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
+
+  const currentCurrency = getCurrencyByCode(bot?.currency);
+  const filteredCurrencies = currencySearch.trim()
+    ? currencies.filter(c =>
+        c.code.toLowerCase().includes(currencySearch.toLowerCase()) ||
+        c.name.toLowerCase().includes(currencySearch.toLowerCase()) ||
+        c.countries.toLowerCase().includes(currencySearch.toLowerCase())
+      )
+    : currencies;
 
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiIsEnabled, setAiIsEnabled] = useState(false);
@@ -600,6 +624,32 @@ export default function Customization() {
           </button>
         </section>
 
+        {/* Currency */}
+        <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Currency</h3>
+              <p className="text-[10px] text-gray-500">Set the currency for your bot and shop</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowCurrencyModal(true)}
+            className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
+          >
+            <DollarSign className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            <span className="text-sm text-gray-700 truncate flex-1">
+              {currentCurrency
+                ? <><span className="font-bold">{currentCurrency.code}</span> — {currentCurrency.name} ({currentCurrency.symbol})</>
+                : <span className="text-gray-400 italic">MMK — Myanmar Kyat (default)</span>
+              }
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          </button>
+        </section>
+
       </div>
       {/* Website Context Popup */}
       <AnimatePresence>
@@ -811,6 +861,93 @@ export default function Customization() {
                 })}
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Currency Modal */}
+      <AnimatePresence>
+        {showCurrencyModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex flex-col bg-white"
+          >
+            <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-gray-100 shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Select Currency</h3>
+                <p className="text-[10px] text-gray-400">Choose the currency for prices across your bot & shop</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setShowCurrencyModal(false); setCurrencySearch(''); }}
+                  className="px-3 py-1.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all active:scale-[0.98] text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            <div className="px-4 py-3 border-b border-gray-100 shrink-0">
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={currencySearch}
+                  onChange={e => setCurrencySearch(e.target.value)}
+                  placeholder="Search currency by code, name, or country..."
+                  className="w-full text-sm border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {filteredCurrencies.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 text-sm">No currencies match your search.</div>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {filteredCurrencies.map(c => {
+                    const isSelected = bot?.currency === c.code || (!bot?.currency && c.code === 'MMK');
+                    return (
+                      <button
+                        key={c.code}
+                        onClick={() => {
+                          updateBotMutation.mutate({ currency: c.code });
+                          setShowCurrencyModal(false);
+                          setCurrencySearch('');
+                        }}
+                        disabled={updateBotMutation.isPending}
+                        className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-all hover:bg-gray-50 active:scale-[0.99] ${
+                          isSelected ? 'bg-indigo-50/50' : ''
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {c.symbol}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-bold ${isSelected ? 'text-indigo-700' : 'text-gray-900'}`}>
+                              {c.code}
+                            </span>
+                            {isSelected && (
+                              <CheckCircle2 className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">{c.name}</p>
+                          <p className="text-[10px] text-gray-400 truncate">{c.countries}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

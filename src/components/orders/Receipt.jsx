@@ -4,6 +4,7 @@ import { X, Download, Loader2 } from 'lucide-react';
 import { myanmarFormat } from '../../utils/date';
 import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
+import { formatPrice } from '../../utils/formatPrice';
 import { isInAppBrowser, downloadViaNative, downloadBlob } from '../../utils/download';
 import { generateInvoiceNumber } from '../../api/orders';
 import client from '../../api/client';
@@ -489,7 +490,7 @@ async function getBotLogoDataUrl(logoUrl) {
   }
 }
 
-function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minRows, invoiceNumber, receiptNumber, type = 'receipt', receiptSettings = {}) {
+function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minRows, invoiceNumber, receiptNumber, type = 'receipt', currency = 'MMK', receiptSettings = {}) {
   const isInvoice = type === 'invoice';
   const { tagline: shopTagline = 'Your Trusted Online Store', phone: svgPhone = 'Phone', email: svgEmail = 'Email', website: svgWebsite = 'Website', address: svgAddress = 'Address', notes: svgNotes = '', botLogo = '', emojis = {}, taglineImg = null, notesImg = null, notesImg2 = null } = receiptSettings;
   const W = 800;
@@ -530,8 +531,8 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const sName = esc(botName);
   const fmtDate = myanmarFormat(orderDate, 'MMM dd, yyyy');
   const payM = esc(paymentMethod);
-  const sub = `${(subtotal || 0).toFixed(2)} MMK`;
-  const tot = `${(total || 0).toFixed(2)} MMK`;
+  const sub = formatPrice(subtotal || 0, currency);
+  const tot = formatPrice(total || 0, currency);
 
   const HDR_Y = 40;
   const HDR_H = 170;
@@ -556,7 +557,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     const ry = TBL_BODY + i * ROW_H;
     let cells;
     if (item) {
-      const ln = `${((item.price||0)*(item.quantity||0)).toFixed(2)} MMK`;
+      const ln = formatPrice((item.price||0)*(item.quantity||0), currency);
       const pn = esc(item.product_name || item.name || '—');
       const vl = item.variant_label ? esc(` [${item.variant_label}]`) : '';
       const pnRaw = item.product_name || item.name || '—';
@@ -565,7 +566,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
         <text x="55" y="${ry+19}" fill="${MB}" font-weight="600" font-size="12">${i+1}</text>
         ${_st(pnFullRaw, 100, ry+19, 12, TD, SVG_FF, '')}
         <text x="${qtyX}" y="${ry+19}" text-anchor="middle" fill="${TD}" font-size="12">${item.quantity||'—'}</text>
-        <text x="${priceX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${(item.price||0).toFixed(2)} MMK</text>
+        <text x="${priceX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${formatPrice(item.price||0, currency)}</text>
         <text x="${totalX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${ln}</text>`;
     } else {
       cells = `
@@ -581,7 +582,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     </g>`;
   }
 
-  const deliveryFeeLine = order?.delivery_fee > 0 ? { l: 'Delivery Fee', v: `+ ${Number(order.delivery_fee).toFixed(2)} MMK` } : null;
+  const deliveryFeeLine = order?.delivery_fee > 0 ? { l: 'Delivery Fee', v: `+ ${formatPrice(Number(order.delivery_fee), currency)}` } : null;
   const totalLines = [
     { l: 'Subtotal', v: sub },
     ...(deliveryFeeLine ? [deliveryFeeLine] : []),
@@ -816,6 +817,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
   const total = subtotal + deliveryFee;
   const orderDate = order.created_at ? new Date(order.created_at) : new Date();
   const paymentMethod = order.payment_method || 'Cash';
+  const currency = bot?.currency || 'MMK';
 
   const initials = botName.split(' ').map(w => w.charAt(0).toUpperCase()).join('');
   const receiptNumber = order.receipt_no || `${initials}-ECM-${myanmarFormat(orderDate, 'yyyyMMdd')}-${(order.order_number || String(order.id)).slice(-3)}`;
@@ -855,7 +857,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       const taglineImg = tagline ? renderSvgTextLine(tagline, 13, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
       const notesImg = shopNotes ? renderSvgTextLine(shopNotes.slice(0, 100), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
       const notesImg2 = shopNotes && shopNotes.length > 100 ? renderSvgTextLine(shopNotes.slice(100, 200), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: svgBotLogo, emojis, taglineImg, notesImg, notesImg2 });
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, currency, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: svgBotLogo, emojis, taglineImg, notesImg, notesImg2 });
       const fileName = `${receiptType}-${order.order_number || order.id}`;
 
       // Try server-side PNG conversion (server can also fetch logo)
@@ -866,7 +868,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       } catch (serverErr) {
         console.warn('PNG conversion server error, falling back to SVG:', serverErr);
         // Rebuild SVG with best-effort logo for fallback
-        const fallbackSvg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo, taglineImg, notesImg, notesImg2 });
+        const fallbackSvg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, currency, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo, taglineImg, notesImg, notesImg2 });
         const svgBlob = new Blob([fallbackSvg], { type: 'image/svg+xml' });
         await downloadBlob(svgBlob, `${fileName}.svg`);
       }
@@ -1032,7 +1034,7 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                       <div style={s.midCol}>
                         <div style={s.sectionTitle}><span>🧾</span> {isInv ? 'ORDER DETAILS' : 'PAYMENT DETAILS'}</div>
                         <div style={{ ...s.fieldItem, ...{ '--label-w': '120px' } }}>
-                          <span style={s.fieldLabelWide}>{isInv ? 'Amount to pay' : 'Amount Paid'}</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{total.toFixed(2)} MMK</span>
+                          <span style={s.fieldLabelWide}>{isInv ? 'Amount to pay' : 'Amount Paid'}</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{formatPrice(total, currency)}</span>
                         </div>
                         <div style={s.fieldItem}>
                           <span style={s.fieldLabelWide}>Payment</span><span style={s.fieldSep}>:</span><span style={s.fieldValue}>{paymentMethod}</span>
@@ -1063,8 +1065,8 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                               <div style={s.tdId}>{i + 1}</div>
                               <div style={s.tdProduct}>{item.product_name || item.name || '—'}{item.variant_label ? <span style={{color:'#9ca3af',fontSize:10}}> [{item.variant_label}]</span> : null}</div>
                               <div style={s.tdQty}>{item.quantity || '—'}</div>
-                              <div style={isInv ? s.tdUnitInv : s.tdUnit}>{(item.price || 0).toFixed(2)} MMK</div>
-                              <div style={isInv ? s.tdTotalInv : s.tdTotal}>{lineTotal.toFixed(2)} MMK</div>
+                              <div style={isInv ? s.tdUnitInv : s.tdUnit}>{formatPrice(item.price || 0, currency)}</div>
+                              <div style={isInv ? s.tdTotalInv : s.tdTotal}>{formatPrice(lineTotal, currency)}</div>
                             </div>
                           );
                         }
@@ -1089,23 +1091,23 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                         </div>
                         <div style={{ ...s.payBox, ...s.amountPaid }}>
                           <div style={s.payTitle}>💰 {isInv ? 'AMOUNT TO PAY' : 'AMOUNT PAID'}</div>
-                          <div style={s.amountValue}>{total.toFixed(2)} MMK</div>
+                          <div style={s.amountValue}>{formatPrice(total, currency)}</div>
                         </div>
                       </div>
 
                       <div style={s.totalsCol}>
                         <div style={s.totalsRow}>
-                          <span style={s.totalLabel}>Subtotal</span><span style={s.totalColon}>:</span><span style={s.totalValue}>{subtotal.toFixed(2)} MMK</span>
+                          <span style={s.totalLabel}>Subtotal</span><span style={s.totalColon}>:</span><span style={s.totalValue}>{formatPrice(subtotal, currency)}</span>
                         </div>
                         {deliveryFee > 0 && (
                           <div style={s.totalsRow}>
-                            <span style={s.totalLabel}>Delivery Fee</span><span style={s.totalColon}>:</span><span style={s.totalValue}>+ {deliveryFee.toFixed(2)} MMK</span>
+                            <span style={s.totalLabel}>Delivery Fee</span><span style={s.totalColon}>:</span><span style={s.totalValue}>+ {formatPrice(deliveryFee, currency)}</span>
                           </div>
                         )}
                         <div style={s.grandTotal}>
                           <span style={{ fontWeight: 700, color: '#fff', fontFamily: "'Roboto', system-ui, sans-serif" }}>TOTAL</span>
                           <span style={{ color: '#fff' }}>:</span>
-                          <span style={s.grandTotalValue}>{total.toFixed(2)} MMK</span>
+                          <span style={s.grandTotalValue}>{formatPrice(total, currency)}</span>
                         </div>
                       </div>
                     </div>

@@ -4,6 +4,8 @@ import { getUsers, updateUser, getWebCustomers } from '../api/customers';
 import { getOrders } from '../api/orders';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
+import { useSelectedBot } from '../hooks/useSelectedBot';
+import { formatPrice } from '../utils/formatPrice';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import PullToRefresh from '../components/shared/PullToRefresh';
@@ -20,6 +22,7 @@ import { API_BASE } from '../api/config';
 
 export default function Customers() {
   const { selectedBotId } = useBotStore();
+  const { selectedBot } = useSelectedBot();
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
   const [section, setSection] = useState('telegram');
@@ -463,7 +466,7 @@ export default function Customers() {
                               <div key={idx} className="flex items-center justify-between text-[11px]">
                                 <span className="text-gray-700 truncate mr-2">{item.name || 'Product'}</span>
                                 <span className="text-gray-900 font-bold shrink-0">
-                                  {item.quantity ? `x${item.quantity}` : ''} {item.price ? `${Number(item.price).toLocaleString()} MMK` : ''}
+                                  {item.quantity ? `x${item.quantity}` : ''} {item.price ? formatPrice(Number(item.price), selectedBot?.currency || 'MMK') : ''}
                                 </span>
                               </div>
                             ))}
@@ -473,7 +476,7 @@ export default function Customers() {
                               {order.created_at ? myanmarFormat(order.created_at, 'MMM d, HH:mm') : ''}
                             </span>
                             <span className="text-xs font-black text-gray-900">
-                              {order.final_amount || order.total || order.amount ? `${Number(order.final_amount || order.total || order.amount).toLocaleString()} MMK` : ''}
+                              {order.final_amount || order.total || order.amount ? formatPrice(Number(order.final_amount || order.total || order.amount), selectedBot?.currency || 'MMK') : ''}
                             </span>
                           </div>
                         </div>

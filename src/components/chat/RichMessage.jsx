@@ -4,6 +4,8 @@ import remarkGfm from 'remark-gfm';
 import { ShoppingBag, Check, Camera } from 'lucide-react';
 
 import { API_BASE } from '../../api/config';
+import { formatPrice } from '../../utils/formatPrice';
+import { useSelectedBot } from '../../hooks/useSelectedBot';
 
 function extractFileId(img) {
   if (!img) return '';
@@ -60,7 +62,7 @@ function parseRichMessage(text) {
   return segments.length > 0 ? segments : [{ type: 'text', content: text }];
 }
 
-function ProductCard({ data, onAction, theme, botId, getProductUrl }) {
+function ProductCard({ data, onAction, theme, botId, getProductUrl, currency }) {
   const imgUrl = getImageUrl(data.image, botId);
   const productUrl = getProductUrl?.(data.id);
   return (
@@ -73,7 +75,7 @@ function ProductCard({ data, onAction, theme, botId, getProductUrl }) {
       <div className="p-3">
         <h4 className="font-bold text-gray-900 text-sm">{data.name}</h4>
         <p className="text-lg font-bold mt-1" style={{ color: theme?.css?.['--theme-price'] || '#059669' }}>
-          {Number(data.price).toLocaleString()} MMK
+          {formatPrice(data.price, currency)}
         </p>
         {productUrl ? (
           <a href={productUrl}
@@ -179,7 +181,7 @@ const ChatForm = React.memo(function ChatForm({ data, onSubmit }) {
   );
 });
 
-function OrderSummary({ data }) {
+function OrderSummary({ data, currency }) {
   return (
     <div className="border border-gray-200 rounded-xl p-3 bg-green-50 my-2">
       <div className="flex items-center gap-2 mb-2">
@@ -190,7 +192,7 @@ function OrderSummary({ data }) {
       </div>
       {data.order_id && <p className="text-xs text-green-700 font-mono font-bold">#{data.order_id}</p>}
       {data.product && <p className="text-sm text-green-800 mt-1">{data.product}</p>}
-      {data.total && <p className="font-bold text-green-800 mt-1">{Number(data.total).toLocaleString()} MMK</p>}
+      {data.total && <p className="font-bold text-green-800 mt-1">{formatPrice(data.total, currency)}</p>}
       {data.status && (
         <div className="mt-2 pt-2 border-t border-green-200 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
@@ -201,7 +203,7 @@ function OrderSummary({ data }) {
   );
 }
 
-function CreateOrder({ data, botId }) {
+function CreateOrder({ data, botId, currency }) {
   const [state, setState] = React.useState('creating');
   const [result, setResult] = React.useState(null);
   const [error, setError] = React.useState('');
@@ -254,7 +256,7 @@ function CreateOrder({ data, botId }) {
         </div>
         <p className="text-xs text-green-700 font-mono font-bold">#{result.order_number || result.order_id || 'N/A'}</p>
         {data.product?.name && <p className="text-sm text-green-800 mt-1">{data.product.name}</p>}
-        <p className="font-bold text-green-800 mt-1">{Number(data.product?.price || 0).toLocaleString()} MMK</p>
+        <p className="font-bold text-green-800 mt-1">{formatPrice(data.product?.price || 0, currency)}</p>
         <div className="mt-2 pt-2 border-t border-green-200 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
           <span className="text-xs text-green-700 font-medium">Pending Review</span>
@@ -320,13 +322,15 @@ function MarkdownBlock({ content }) {
 }
 
 export const RichMessage = React.memo(function RichMessage({ content, onAction, onFormSubmit, onFileUpload, theme, isAssistant, botId, getProductUrl }) {
+  const { selectedBot } = useSelectedBot();
+  const currency = selectedBot?.currency || 'MMK';
   const segments = parseRichMessage(content);
   return segments.map((seg, i) => {
     switch (seg.type) {
       case 'text':
         return <MarkdownBlock key={i} content={seg.content} />;
       case 'product_card':
-        return isAssistant ? <ProductCard key={i} data={seg.data} onAction={onAction} theme={theme} botId={botId} getProductUrl={getProductUrl} /> : null;
+        return isAssistant ? <ProductCard key={i} data={seg.data} onAction={onAction} theme={theme} botId={botId} getProductUrl={getProductUrl} currency={currency} /> : null;
       case 'buttons':
         return isAssistant ? <RichButtons key={i} data={seg.data} onAction={onAction} theme={theme} /> : null;
       case 'payment_info':
@@ -336,9 +340,9 @@ export const RichMessage = React.memo(function RichMessage({ content, onAction, 
       case 'file_upload':
         return isAssistant ? <FileUploadButton key={i} data={seg.data} onUpload={(f) => onFileUpload?.(seg.data.id || 'upload', f)} /> : null;
       case 'order_summary':
-        return isAssistant ? <OrderSummary key={i} data={seg.data} /> : null;
+        return isAssistant ? <OrderSummary key={i} data={seg.data} currency={currency} /> : null;
       case 'create_order':
-        return isAssistant ? <CreateOrder key={i} data={seg.data} botId={botId} /> : null;
+        return isAssistant ? <CreateOrder key={i} data={seg.data} botId={botId} currency={currency} /> : null;
       default:
         return null;
     }
