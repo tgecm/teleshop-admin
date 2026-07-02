@@ -354,15 +354,18 @@ function _rte(text, fontSize, fontFamily, color) {
     const c = document.createElement('canvas');
     const ctx = c.getContext('2d');
     if (!ctx) return null;
-    const font = `${fontSize}px ${fontFamily}`;
-    ctx.font = font;
+    // Canvas 2D might not resolve font fallback per-character, so put a
+    // Myanmar-capable font first (covers Latin + Myanmar). Emoji fallback
+    // is handled by the system's sans-serif via Noto Color Emoji / Apple Color Emoji.
+    const canvasFont = `'Noto Sans Myanmar','Myanmar Text','TharLon','Padauk','Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif`;
+    ctx.font = `${fontSize}px ${canvasFont}`;
     const m = ctx.measureText(text);
     const w = Math.ceil(m.width) + 4;
     const h = Math.ceil(fontSize * 1.4);
     c.width = Math.ceil(w * dpr);
     c.height = Math.ceil(h * dpr);
     ctx.scale(dpr, dpr);
-    ctx.font = font;
+    ctx.font = `${fontSize}px ${canvasFont}`;
     ctx.fillStyle = color;
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(text, 2, h - 4);
