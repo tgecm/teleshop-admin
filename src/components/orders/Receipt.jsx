@@ -15,13 +15,14 @@ const TEXT_DARK = '#333';
 const TEXT_MUTED = '#666';
 const BORDER_LIGHT = '#ddd';
 const LIGHT_BLUE = '#e0f2f7';
+const SVG_FF = "'Open Sans','Noto Sans Myanmar','Myanmar Text','TharLon','Padauk',system-ui,-apple-system,sans-serif";
 
 const s = {
   wrap: {
     width: RECEIPT_W,
     minHeight: 1000,
     background: '#ffffff',
-    fontFamily: "'Open Sans', system-ui, -apple-system, sans-serif",
+    fontFamily: "'Open Sans', 'Noto Sans Myanmar', 'Myanmar Text', 'TharLon', 'Padauk', system-ui, -apple-system, sans-serif",
     color: TEXT_DARK,
     border: '1px solid #ccc',
     display: 'flex',
@@ -335,6 +336,46 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+const _ER = [
+  [0x1F000, 0x1FFFF], [0x2600, 0x27BF], [0x2300, 0x23FF],
+  [0x2700, 0x27BF], [0xFE00, 0xFE0F], [0x200D, 0x200D],
+  [0x1F600, 0x1F64F], [0x1F300, 0x1F5FF], [0x1F680, 0x1F6FF],
+  [0x1F900, 0x1F9FF], [0x1FA00, 0x1FAFF], [0x1FB00, 0x1FBFF],
+];
+function _ie(c) { return _ER.some(([l,h]) => c >= l && c <= h); }
+function _he(s) {
+  if (!s) return false;
+  for (let i = 0; i < s.length; i++) { const c = s.codePointAt(i); if (c && _ie(c)) return true; if (c && c > 0xFFFF) i++; }
+  return false;
+}
+function _se(s) {
+  if (!s) return [];
+  const r = []; let b = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.codePointAt(i); if (!c) continue;
+    if (_ie(c)) { if (b) { r.push({t:b,e:false}); b=''; } r.push({t:String.fromCodePoint(c),e:true}); if (c>0xFFFF) i++; }
+    else { b += s[i]; if (c>0xFFFF) i++; }
+  }
+  if (b) r.push({t:b,e:false});
+  return r;
+}
+let _mc = null;
+function _tw(t, fs, ff) {
+  if (!t) return 0;
+  try { if(!_mc){const c=document.createElement('canvas');_mc=c.getContext('2d');} _mc.font=`${fs}px ${ff}`; return _mc.measureText(t).width; }
+  catch { return t.length * fs * 0.6; }
+}
+function _st(raw, x, y, fs, fill, ff, attrs) {
+  if (!raw) return '';
+  if (!_he(raw)) return `<text x="${x}" y="${y}" fill="${fill}" font-size="${fs}"${attrs}>${esc(raw)}</text>`;
+  const segs = _se(raw); let r=''; let cx=x;
+  for (const s of segs) {
+    if (s.e) { const u=renderEmoji(s.t,fs); if(u) r+=`<image href="${u}" x="${cx}" y="${y-fs+2}" width="${fs}" height="${fs}"/>`; cx+=fs; }
+    else { r+=`<text x="${cx}" y="${y}" fill="${fill}" font-size="${fs}"${attrs}>${esc(s.t)}</text>`; cx+=_tw(s.t,fs,ff); }
+  }
+  return r;
+}
+
 function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -431,11 +472,16 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
   const subSize = isInvoice ? 15 : 16;
 
   const orderNum = esc(order.order_number || `#${order.id}`);
-  const cName = esc(order.buyer_snapshot?.name || order.buyer_snapshot?.full_name || order.customer?.first_name || '—');
-  const phone = esc(order.buyer_snapshot?.phone || '—');
-  const email = esc(order.buyer_snapshot?.email || '—');
-  const addr = esc(order.buyer_snapshot?.address || '—');
-  const cNotes = esc(order.buyer_snapshot?.notes || '');
+  const cNameRaw = order.buyer_snapshot?.name || order.buyer_snapshot?.full_name || order.customer?.first_name || '—';
+  const phoneRaw = order.buyer_snapshot?.phone || '—';
+  const emailRaw = order.buyer_snapshot?.email || '—';
+  const addrRaw = order.buyer_snapshot?.address || '—';
+  const cNotesRaw = order.buyer_snapshot?.notes || '';
+  const cName = esc(cNameRaw);
+  const phone = esc(phoneRaw);
+  const email = esc(emailRaw);
+  const addr = esc(addrRaw);
+  const cNotes = esc(cNotesRaw);
   const notesY = cNotes ? 140 : 0;
   const cAddr = esc(order.buyer_snapshot?.address || '……………………………………');
   const cPhone = esc(order.buyer_snapshot?.phone || '……………………………………');
@@ -475,9 +521,11 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
       const ln = `${((item.price||0)*(item.quantity||0)).toFixed(2)} MMK`;
       const pn = esc(item.product_name || item.name || '—');
       const vl = item.variant_label ? esc(` [${item.variant_label}]`) : '';
+      const pnRaw = item.product_name || item.name || '—';
+      const pnFullRaw = item.variant_label ? `${pnRaw} [${item.variant_label}]` : pnRaw;
       cells = `
         <text x="55" y="${ry+19}" fill="${MB}" font-weight="600" font-size="12">${i+1}</text>
-        <text x="100" y="${ry+19}" fill="${TD}" font-size="12">${pn}${vl}</text>
+        ${_st(pnFullRaw, 100, ry+19, 12, TD, SVG_FF, '')}
         <text x="${qtyX}" y="${ry+19}" text-anchor="middle" fill="${TD}" font-size="12">${item.quantity||'—'}</text>
         <text x="${priceX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${(item.price||0).toFixed(2)} MMK</text>
         <text x="${totalX}" y="${ry+19}" text-anchor="end" fill="${TD}" font-size="12">${ln}</text>`;
@@ -511,8 +559,8 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W*2}" height="${TOTAL_H*2}" viewBox="0 0 ${W} ${TOTAL_H}">
   <defs><style>
-    text{font-family:'Open Sans',system-ui,-apple-system,sans-serif;font-size:12px}
-    .r{font-family:'Roboto',system-ui,sans-serif}
+    text{font-family:'Open Sans','Noto Sans Myanmar','Myanmar Text','TharLon','Padauk',system-ui,-apple-system,sans-serif;font-size:12px}
+    .r{font-family:'Roboto','Noto Sans Myanmar','Myanmar Text','TharLon','Padauk',system-ui,sans-serif}
     .dc{font-family:'Dancing Script',cursive}
     .w{fill:#fff}
   </style>
@@ -533,22 +581,22 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     ${botLogo ? `<image href="${esc(botLogo)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid slice" clip-path="url(#logoClip)"/>` : `<text x="50" y="56" text-anchor="middle" fill="${MB}" font-size="16" font-weight="600" class="r">${initial}</text>`}
 
     <!-- Shop info -->
-    <text x="140" y="22" fill="${MB}" font-size="24" font-weight="700" class="r">${sName}</text>
+    ${_st(botName, 140, 22, 24, MB, SVG_FF, ' font-weight="700" class="r"')}
     ${taglineImg ? `<image href="${esc(taglineImg.url)}" x="140" y="${44 - taglineImg.h + 4}" width="${taglineImg.w}" height="${taglineImg.h}"/>` : `<text x="140" y="44" fill="${TM}" font-size="13">${esc(shopTagline)}</text>`}
 
     <!-- Contacts -->
     ${emojis.phone ? `<image href="${esc(emojis.phone)}" x="132" y="56" width="16" height="16"/>` : `<text x="140" y="68" fill="${TM}" font-size="12">📞</text>`}
-    <text x="152" y="68" fill="${TM}" font-size="12">${esc(svgPhone)}</text>
+    ${_st(svgPhone, 152, 68, 12, TM, SVG_FF, '')}
 
     ${emojis.email ? `<image href="${esc(emojis.email)}" x="132" y="78" width="16" height="16"/>` : `<text x="140" y="90" fill="${TM}" font-size="12">✉️</text>`}
-    <text x="152" y="90" fill="${TM}" font-size="12">${esc(svgEmail)}</text>
+    ${_st(svgEmail, 152, 90, 12, TM, SVG_FF, '')}
 
     ${emojis.globe ? `<image href="${esc(emojis.globe)}" x="132" y="100" width="16" height="16"/>` : `<text x="140" y="112" fill="${TM}" font-size="12">🌐</text>`}
-    <text x="152" y="112" fill="${TM}" font-size="12">${esc(svgWebsite)}</text>
+    ${_st(svgWebsite, 152, 112, 12, TM, SVG_FF, '')}
 
     ${emojis.pin ? `<image href="${esc(emojis.pin)}" x="132" y="122" width="16" height="16"/>` : `<text x="140" y="134" fill="${TM}" font-size="12">📍</text>`}
-    <text x="152" y="134" fill="${TM}" font-size="12">${esc(svgAddress.slice(0, 40))}</text>
-    ${svgAddress.length > 40 ? `<text x="152" y="152" fill="${TM}" font-size="12">${esc(svgAddress.slice(40, 80))}</text>` : ''}
+    ${_st(svgAddress.slice(0, 40), 152, 134, 12, TM, SVG_FF, '')}
+    ${svgAddress.length > 40 ? _st(svgAddress.slice(40, 80), 152, 152, 12, TM, SVG_FF, '') : ''}
 
     ${isInvoice ? `<!-- INVOICE heading (right) -->
     <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="44" font-weight="700" class="r">INVOICE</text>
@@ -607,23 +655,23 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     <text x="${emojis.person ? 28 : 12}" y="19" fill="#fff" font-size="13" font-weight="500" class="r">${isInvoice ? 'Bill To' : 'Received From'}</text>
     <text x="0" y="52" fill="${TD}" font-size="12" font-weight="600">Name</text>
     <text x="60" y="52" fill="${TM}" font-size="12">:</text>
-    <text x="70" y="52" fill="${TM}" font-size="12">${cName}</text>
+    ${_st(cNameRaw, 70, 52, 12, TM, SVG_FF, '')}
 
     <text x="0" y="74" fill="${TD}" font-size="12" font-weight="600">Phone</text>
     <text x="60" y="74" fill="${TM}" font-size="12">:</text>
-    <text x="70" y="74" fill="${TM}" font-size="12">${phone}</text>
+    ${_st(phoneRaw, 70, 74, 12, TM, SVG_FF, '')}
 
     <text x="0" y="96" fill="${TD}" font-size="12" font-weight="600">Email</text>
     <text x="60" y="96" fill="${TM}" font-size="12">:</text>
-    <text x="70" y="96" fill="${TM}" font-size="12">${email}</text>
+    ${_st(emailRaw, 70, 96, 12, TM, SVG_FF, '')}
 
     <text x="0" y="118" fill="${TD}" font-size="12" font-weight="600">Address</text>
     <text x="60" y="118" fill="${TM}" font-size="12">:</text>
-    <text x="70" y="118" fill="${TM}" font-size="12">${addr}</text>
+    ${_st(addrRaw, 70, 118, 12, TM, SVG_FF, '')}
     ${cNotes ? `
     <text x="0" y="140" fill="${TD}" font-size="12" font-weight="600">Notes</text>
     <text x="60" y="140" fill="${TM}" font-size="12">:</text>
-    <text x="70" y="140" fill="${TM}" font-size="12">${cNotes}</text>` : ''}
+    ${_st(cNotesRaw, 70, 140, 12, TM, SVG_FF, '')}` : ''}
   </g>
 
   <!-- Vertical divider -->
