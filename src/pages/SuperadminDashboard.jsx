@@ -32,6 +32,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { differenceInDays, subDays } from 'date-fns';
 import { myanmarFormat } from '../utils/date';
+import { formatPrice } from '../utils/formatPrice';
 
 // ─── Plan Config ──────────────────────────────────────────────
 const PLANS = [
@@ -375,7 +376,7 @@ function OverviewTab({ globalStats, statsLoading, allBots, botsLoading, recentOr
         {statsLoading
           ? Array(4).fill(0).map((_, i) => <LoadingSkeleton key={i} className="h-28" />)
           : [
-            { title: 'Total Revenue', value: `${(globalStats?.total_revenue || 0).toLocaleString()} MMK`, icon: DollarSign, color: 'indigo' },
+            { title: 'Total Revenue', value: formatPrice(globalStats?.total_revenue || 0, 'MMK'), icon: DollarSign, color: 'indigo' },
             { title: 'Total Orders', value: (globalStats?.total_orders || 0).toLocaleString(), icon: ShoppingBag, color: 'emerald' },
             { title: 'Total Users', value: (globalStats?.total_users || 0).toLocaleString(), icon: Users, color: 'rose' },
             { title: 'Pending Orders', value: (globalStats?.pending_orders || 0).toLocaleString(), icon: Clock, color: 'amber' },
@@ -387,8 +388,8 @@ function OverviewTab({ globalStats, statsLoading, allBots, botsLoading, recentOr
         {[
           { label: 'Total Bots', value: allBotsCount, sub: `${activeBotsCount} active`, icon: Bot, color: 'indigo' },
           { label: 'Paid Plans', value: paidBots, sub: `${freeBots} on free`, icon: Crown, color: 'purple' },
-          { label: "Today's Revenue", value: `${(globalStats?.today_revenue || 0).toLocaleString()} MMK`, icon: TrendingUp, color: 'emerald' },
-          { label: 'Monthly Revenue', value: `${(globalStats?.monthly_revenue || 0).toLocaleString()} MMK`, icon: CreditCard, color: 'amber' },
+          { label: "Today's Revenue", value: formatPrice(globalStats?.today_revenue || 0, 'MMK'), icon: TrendingUp, color: 'emerald' },
+          { label: 'Monthly Revenue', value: formatPrice(globalStats?.monthly_revenue || 0, 'MMK'), icon: CreditCard, color: 'amber' },
         ].map((s, i) => (
           <div key={i} className="bg-white p-3.5 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
             <div className="flex items-center gap-2.5 mb-1.5">
@@ -483,7 +484,7 @@ function OverviewTab({ globalStats, statsLoading, allBots, botsLoading, recentOr
                     <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-[10px] flex-shrink-0">#{String(o.id).slice(-4)}</div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-gray-900 truncate">{o.first_name || 'Anonymous'}</p>
-                      <p className="text-[10px] text-gray-400 truncate">{o.items?.[0]?.name || `${o.total || o.amount} MMK`}</p>
+                      <p className="text-[10px] text-gray-400 truncate">{o.items?.[0]?.name || formatPrice(o.total || o.amount || 0, 'MMK')}</p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">
@@ -744,12 +745,12 @@ function BotDetailPanel({ botId, bot, stats, loading, aiSettings, contentBlocks,
 
           <div className="grid grid-cols-2 gap-2.5">
             {[
-              { label: 'Total Revenue', value: stats ? `${(stats.total_revenue || 0).toLocaleString()} MMK` : '—' },
+              { label: 'Total Revenue', value: stats ? formatPrice(stats.total_revenue || 0, 'MMK') : '—' },
               { label: 'Total Orders', value: stats ? (stats.total_orders || 0).toLocaleString() : '—' },
               { label: 'Total Users', value: stats ? (stats.total_users || 0).toLocaleString() : '—' },
               { label: 'Pending Orders', value: stats ? (stats.pending_orders || 0).toLocaleString() : '—' },
-              { label: "Today's Revenue", value: stats ? `${(stats.today_revenue || 0).toLocaleString()} MMK` : '—' },
-              { label: 'Monthly Revenue', value: stats ? `${(stats.monthly_revenue || 0).toLocaleString()} MMK` : '—' },
+              { label: "Today's Revenue", value: stats ? formatPrice(stats.today_revenue || 0, 'MMK') : '—' },
+              { label: 'Monthly Revenue', value: stats ? formatPrice(stats.monthly_revenue || 0, 'MMK') : '—' },
             ].map((s, i) => (
               <div key={i} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{s.label}</p>
@@ -973,13 +974,13 @@ function PlansTab({ planPayments, allBots }) {
           <div key={p.key} className={`bg-white rounded-xl border ${p.border} p-4 shadow-sm`}>
             <div className={`w-8 h-8 rounded-lg ${p.bg} ${p.color} flex items-center justify-center mb-2`}>{React.createElement(p.icon, { className: 'w-4 h-4' })}</div>
             <p className="text-sm font-bold text-gray-900">{p.name}</p>
-            <p className="text-lg font-bold mt-0.5">{(planTotals[p.key] || 0).toLocaleString()} <span className="text-xs text-gray-400 font-medium">MMK</span></p>
+            <p className="text-lg font-bold mt-0.5">{formatPrice(planTotals[p.key] || 0, 'MMK')}</p>
           </div>
         ))}
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
           <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2"><DollarSign className="w-4 h-4" /></div>
           <p className="text-sm font-bold text-gray-900">Total Collected</p>
-          <p className="text-lg font-bold mt-0.5">{totalCollected.toLocaleString()} <span className="text-xs text-gray-400 font-medium">MMK</span></p>
+          <p className="text-lg font-bold mt-0.5">{formatPrice(totalCollected, 'MMK')}</p>
         </div>
       </div>
 
@@ -1046,7 +1047,7 @@ function PlansTab({ planPayments, allBots }) {
                   <p className="text-[11px] text-gray-500">{getPlanStyle(p.plan).name}{p.notes ? ` · ${p.notes}` : ''}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-bold text-gray-900">{Number(p.amount || 0).toLocaleString()} MMK</p>
+                  <p className="text-sm font-bold text-gray-900">{formatPrice(p.amount || 0, 'MMK')}</p>
                   <p className="text-[10px] text-gray-400">{safeFormat(p.created_at, 'MMM d, yyyy')}</p>
                 </div>
                 <button onClick={() => { if (confirm('Delete?')) deleteMutation.mutate(p.id); }}

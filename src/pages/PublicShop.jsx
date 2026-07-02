@@ -11,6 +11,7 @@ import { THEMES, DEFAULT_THEME } from '../themes/themes';
 
 import { API_BASE } from '../api/config';
 import { RichMessage } from '../components/chat/RichMessage';
+import { formatPrice } from '../utils/formatPrice';
 
 function getPublicImageUrls(image_url, bot_id) {
   if (!image_url) return [];
@@ -30,10 +31,6 @@ function getPublicImageUrls(image_url, bot_id) {
     return clean.map(f => `${API_BASE}/telegram/file/${encodeURIComponent(f.file_id || f)}?bot_id=${bot_id}`);
   }
   return [`${API_BASE}/telegram/file/${encodeURIComponent(image_url)}?bot_id=${bot_id}`];
-}
-
-function formatPrice(price) {
-  return Number(price).toLocaleString();
 }
 
 function LoadingSkeleton() {
@@ -216,8 +213,7 @@ function ProductDetailModal({ product, shop, onClose, onBuyNow, isSent }) {
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
 
           <div className="flex items-baseline gap-1.5 mb-4">
-            <span className="text-2xl font-bold theme-price">{formatPrice(product.price)}</span>
-            <span className="text-sm text-gray-400 font-medium">MMK</span>
+            <span className="text-2xl font-bold theme-price">{formatPrice(product.price, shop?.currency || 'MMK')}</span>
           </div>
 
           {product.description && (
@@ -983,9 +979,8 @@ export default function PublicShop({ slug, viaDomain }) {
 
                     <div className="flex items-baseline gap-1 mb-3">
                       <span className="font-bold theme-price text-sm md:text-base">
-                        {formatPrice(product.price)}
+                        {formatPrice(product.price, shop?.currency || 'MMK')}
                       </span>
-                      <span className="text-[10px] text-gray-400 font-medium">MMK</span>
                     </div>
 
                     <a

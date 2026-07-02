@@ -13,6 +13,7 @@ import { getPublicTopProducts } from '../api/public';
 import SearchableSelect from '../components/shared/SearchableSelect';
 import { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
 import { PaymentSelect, ContactInfoStep, CheckoutModal } from './PublicEcommerce';
+import { formatPrice } from '../utils/formatPrice';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
@@ -109,10 +110,6 @@ function linkifyText(text) {
     }
     return part;
   });
-}
-
-function formatPrice(price) {
-  return Number(price).toLocaleString();
 }
 
 const statusConfig = {
@@ -544,7 +541,7 @@ export default function CustomerDashboard({ shopSlug }) {
             )}
             {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} />}
             {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} />}
-            {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} />}
+            {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} shop={shopData?.shop} />}
             {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
           </motion.div>
         </AnimatePresence>
@@ -678,8 +675,6 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
     enabled: !!shopSlug,
     staleTime: 60000,
   });
-
-  const formatPrice = (price) => Number(price).toLocaleString();
 
   const productImg = (product) => {
     const url = product.image_url;
@@ -856,9 +851,9 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
                     <p className="text-xs font-bold text-gray-900 truncate">{product.name}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       {product.original_price > 0 && (
-                        <span className="text-[10px] line-through text-red-300 font-medium">{formatPrice(product.original_price)}</span>
+                        <span className="text-[10px] line-through text-red-300 font-medium">{formatPrice(product.original_price, shop?.currency || 'MMK')}</span>
                       )}
-                      <span className="text-xs font-black text-indigo-600">{formatPrice(product.price)} MMK</span>
+                      <span className="text-xs font-black text-indigo-600">{formatPrice(product.price, shop?.currency || 'MMK')}</span>
                     </div>
                   </div>
                 </div>
@@ -874,7 +869,8 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
 }
 
 /* ─── POINTS TAB ─── */
-function PointsTab({ points, pointsHistory, pointsSettings }) {
+function PointsTab({ points, pointsHistory, pointsSettings, shop }) {
+  const currency = shop?.currency || 'MMK';
   if (!pointsSettings?.enabled) {
     return (
       <div className="px-4 md:px-8 xl:px-16 py-16 text-center max-w-[1600px] mx-auto">
@@ -891,8 +887,6 @@ function PointsTab({ points, pointsHistory, pointsSettings }) {
   const totalEarned = points?.total_points_earned ?? pointsHistory?.total_earned ?? 0;
   const totalRedeemed = pointsHistory?.total_redeemed ?? 0;
   const transactions = pointsHistory?.transactions ?? [];
-  const formatPrice = (n) => Number(n || 0).toLocaleString();
-
   return (
     <div className="px-4 md:px-8 xl:px-16 py-6 space-y-3 max-w-[1600px] mx-auto">
       {/* Points Balance Card */}
@@ -920,10 +914,10 @@ function PointsTab({ points, pointsHistory, pointsSettings }) {
           <h3 className="font-semibold text-xs text-gray-700 mb-1.5">How Points Work</h3>
           <p className="text-[11px] text-gray-500 leading-relaxed">
             Earn <span className="font-semibold text-amber-600">{pointsSettings.earn_rate || 1} point{(pointsSettings.earn_rate || 1) > 1 ? 's' : ''}</span> for every{' '}
-            {formatPrice(pointsSettings.earn_per || 1000)} K spent.
+            {formatPrice(pointsSettings.earn_per || 1000, currency)} spent.
             {pointsSettings.redeem_points ? (
               <> Redeem <span className="font-semibold text-amber-600">{pointsSettings.redeem_points} points</span> for{' '}
-              {formatPrice(pointsSettings.redeem_value || 1000)} K discount.</>
+              {formatPrice(pointsSettings.redeem_value || 1000, currency)} discount.</>
             ) : ''}
           </p>
         </motion.div>
@@ -1041,7 +1035,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-black text-gray-900">
-                    {order.total ? formatPrice(order.total) : '—'} {order.currency || 'MMK'}
+                    {order.total ? formatPrice(order.total, order.currency || shop?.currency || 'MMK') : '—'}
                   </span>
                   <ChevronRight className={`w-4 h-4 text-gray-300 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                 </div>
@@ -1079,7 +1073,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
                           <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
                           {item.variant_label && <p className="text-[10px] text-gray-400 truncate">{item.variant_label}</p>}
                           <p className="text-xs text-gray-400">
-                            {item.quantity ? `x${item.quantity}` : ''} {item.price ? `${formatPrice(item.price)} MMK` : ''}
+                            {item.quantity ? `x${item.quantity}` : ''} {item.price ? formatPrice(item.price, shop?.currency || 'MMK') : ''}
                           </p>
                         </div>
                       </div>
@@ -1324,7 +1318,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
               <p className="text-sm font-black text-indigo-600 mt-0.5">
-                {formatPrice(item.price)} MMK
+                {formatPrice(item.price, effectiveShop?.currency || 'MMK')}
               </p>
               {isOOS && (
                 <p className="text-[10px] font-bold text-rose-500 mt-0.5">Out of stock</p>
@@ -1355,7 +1349,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mt-4">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-bold text-gray-700">Total</span>
-            <span className="text-xl font-black text-gray-900">{formatPrice(totalAmount)} MMK</span>
+            <span className="text-xl font-black text-gray-900">{formatPrice(totalAmount, effectiveShop?.currency || 'MMK')}</span>
           </div>
           <button onClick={handleCheckoutAll}
             disabled={Object.keys(oosMap).length > 0}

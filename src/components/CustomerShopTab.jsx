@@ -6,6 +6,7 @@ import { getPublicShop } from '../api/public';
 import { useCartState } from '../context/CartContext';
 
 import { API_BASE } from '../api/config';
+import { formatPrice } from '../utils/formatPrice';
 
 function getPublicImageUrls(image_url, bot_id) {
   if (!image_url) return [];
@@ -23,10 +24,6 @@ function getPublicImageUrls(image_url, bot_id) {
     return clean.map(f => `${API_BASE}/telegram/file/${encodeURIComponent(f.file_id || f)}?bot_id=${bot_id}`);
   }
   return [`${API_BASE}/telegram/file/${encodeURIComponent(image_url)}?bot_id=${bot_id}`];
-}
-
-function formatPrice(price) {
-  return Number(price).toLocaleString();
 }
 
 function normalizeSearchText(text) {
@@ -54,6 +51,7 @@ const COLOR_NAMES = {
 };
 
 export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecommerce', onNavigate }) {
+  const currency = shop?.currency || 'MMK';
   const { items: cartItems, addItem, updateQty } = useCartState(shop?.id, shopSlug, user, viewMode);
 
   const { data, isLoading } = useQuery({
@@ -199,9 +197,9 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
                   )}
                   <div className="flex items-baseline gap-1.5 mt-1">
                     {product.original_price > 0 && (
-                      <p className="text-xs line-through text-red-400 font-medium">{formatPrice(product.original_price)} MMK</p>
+                      <p className="text-xs line-through text-red-400 font-medium">{formatPrice(product.original_price, currency)}</p>
                     )}
-                    <p className="text-sm font-black text-indigo-600">{formatPrice(product.price)} MMK</p>
+                    <p className="text-sm font-black text-indigo-600">{formatPrice(product.price, currency)}</p>
                   </div>
 
                   {/* Color swatches preview */}
@@ -275,6 +273,7 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
 }
 
 function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selColor, setSelColor, selOptions, setSelOptions, onClose }) {
+  const currency = shop?.currency || 'MMK';
   const images = getPublicImageUrls(product.image_url, shop?.id);
   const isOutOfStock = product.stock_quantity !== null && product.stock_quantity === 0;
   const productColors = product.specifications?.colors || [];
@@ -325,8 +324,8 @@ function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selCol
         <div className="p-5">
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
           <div className="mb-4 flex items-baseline gap-2">
-            {product.original_price > 0 && <p className="text-sm line-through text-red-400 font-medium">{formatPrice(product.original_price)} MMK</p>}
-            <p className="text-2xl font-bold text-indigo-600">{formatPrice(product.price)} <span className="text-sm text-gray-400 font-medium">MMK</span></p>
+            {product.original_price > 0 && <p className="text-sm line-through text-red-400 font-medium">{formatPrice(product.original_price, currency)}</p>}
+            <p className="text-2xl font-bold text-indigo-600">{formatPrice(product.price, currency)}</p>
           </div>
 
           {product.description && (

@@ -6,6 +6,8 @@ import { createCoupon, getCoupons, deleteCoupon } from '../api/coupons';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
+import { useSelectedBot } from '../hooks/useSelectedBot';
+import { formatPrice } from '../utils/formatPrice';
 import { downloadBlob } from '../utils/download';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
@@ -39,6 +41,7 @@ const PREDEFINED_COLORS = [
 
 export default function Products() {
   const { selectedBotId } = useBotStore();
+  const { selectedBot } = useSelectedBot();
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -599,8 +602,8 @@ export default function Products() {
                 <div className="flex flex-col gap-0.5 mb-1">
                   <h3 className="font-bold text-gray-900 text-sm md:text-base lg:text-lg line-clamp-1">{product.name}</h3>
                   <p className="font-bold text-indigo-600 text-sm md:text-base lg:text-lg">
-                    {product.original_price > 0 && <span className="text-xs line-through text-red-400 font-medium mr-1.5">{product.original_price.toLocaleString()} MMK</span>}
-                    {product.price.toLocaleString()} MMK
+                    {product.original_price > 0 && <span className="text-xs line-through text-red-400 font-medium mr-1.5">{formatPrice(product.original_price, selectedBot?.currency || 'MMK')}</span>}
+                    {formatPrice(product.price, selectedBot?.currency || 'MMK')}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 text-[8px] md:text-[10px] lg:text-xs text-gray-400 font-bold uppercase tracking-wider">
@@ -685,7 +688,7 @@ export default function Products() {
               {deliveryFeeMode === 'flat' && (
                 <div className="space-y-3 sm:space-y-4 pb-3 sm:pb-4 border-b border-gray-100">
                   <div>
-                    <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Delivery Fee (MMK)</label>
+                    <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Delivery Fee ({selectedBot?.currency || 'MMK'})</label>
                     <input
                       type="number"
                       value={deliveryFee}
@@ -696,7 +699,7 @@ export default function Products() {
                     <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1">Flat fee added at checkout if any product has delivery fee enabled</p>
                   </div>
                   <div>
-                    <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Free Delivery if spent this amount (MMK)</label>
+                    <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Free Delivery if spent this amount ({selectedBot?.currency || 'MMK'})</label>
                     <input
                       type="number"
                       value={freeDeliveryThreshold}
@@ -779,7 +782,7 @@ export default function Products() {
 
                       <div className="flex gap-2 items-end">
                         <div className="flex-1">
-                          <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Delivery Fee (MMK)</label>
+                          <label className="text-[10px] sm:text-xs font-medium text-gray-600 block mb-0.5 sm:mb-1">Delivery Fee ({selectedBot?.currency || 'MMK'})</label>
                           <input
                             type="number"
                             value={townshipFeeInput}
@@ -811,7 +814,7 @@ export default function Products() {
                               <p className="text-[10px] sm:text-xs text-gray-500 truncate">{tf.region} &gt; {tf.district}</p>
                             </div>
                             <div className="flex items-center gap-1.5 sm:gap-2 ml-2 shrink-0">
-                              <span className="text-xs sm:text-sm font-bold text-emerald-600">{Number(tf.fee).toLocaleString()} MMK</span>
+                              <span className="text-xs sm:text-sm font-bold text-emerald-600">{formatPrice(Number(tf.fee), selectedBot?.currency || 'MMK')}</span>
                               <button
                                 onClick={() => deleteTownshipFee(tf.id)}
                                 disabled={deletingTownshipFeeId === tf.id}
@@ -831,7 +834,7 @@ export default function Products() {
                   {/* Free delivery threshold */}
                   <div className="mt-4 sm:mt-6 pt-4 sm:pt-5 border-t border-gray-100">
                     <div>
-                      <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Free Delivery if spent this amount (MMK)</label>
+                      <label className="text-xs sm:text-sm font-medium text-gray-700 block mb-1 sm:mb-1.5">Free Delivery if spent this amount ({selectedBot?.currency || 'MMK'})</label>
                       <input
                         type="number"
                         value={freeDeliveryThreshold}
@@ -938,8 +941,8 @@ export default function Products() {
                         </span>
                       </div>
                       <p className="text-[10px] text-gray-500 mt-0.5">
-                        {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% off` : `${Number(coupon.discount_value).toLocaleString()} MMK off`}
-                        {Number(coupon.min_spend) > 0 && ` · min ${Number(coupon.min_spend).toLocaleString()} MMK`}
+                        {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% off` : `${formatPrice(Number(coupon.discount_value), selectedBot?.currency || 'MMK')} off`}
+                        {Number(coupon.min_spend) > 0 && ` · min ${formatPrice(Number(coupon.min_spend), selectedBot?.currency || 'MMK')}`}
                         {` · ${coupon.current_uses}/${coupon.total_coupons} used`}
                       </p>
                     </div>
@@ -1073,7 +1076,7 @@ export default function Products() {
                               placeholder="1000"
                               className="w-20 px-2 py-1.5 rounded-lg text-sm text-center border border-gray-200 bg-white focus:ring-2 focus:ring-amber-500 outline-none"
                             />
-                            <span className="text-xs text-gray-400">MMK =</span>
+                            <span className="text-xs text-gray-400">{selectedBot?.currency || 'MMK'} =</span>
                             <input
                               type="number"
                               value={pointsSettings.earn_rate ?? ''}
@@ -1103,7 +1106,7 @@ export default function Products() {
                               placeholder="1000"
                               className="w-20 px-2 py-1.5 rounded-lg text-sm text-center border border-gray-200 bg-white focus:ring-2 focus:ring-amber-500 outline-none"
                             />
-                            <span className="text-xs text-gray-400">MMK</span>
+                            <span className="text-xs text-gray-400">{selectedBot?.currency || 'MMK'}</span>
                           </div>
                         </div>
                         {/* Min. Redeem Points */}
@@ -1259,7 +1262,7 @@ export default function Products() {
                           if (couponForm.discount_type === 'percentage' && Number(val) > 100) return;
                           setCouponForm(p => ({ ...p, discount_value: val }));
                         }}
-                        placeholder={couponForm.discount_type === 'fixed' ? 'Amount in MMK' : 'Percentage (max 100%)'}
+                        placeholder={couponForm.discount_type === 'fixed' ? `Amount in ${selectedBot?.currency || 'MMK'}` : 'Percentage (max 100%)'}
                         className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm min-w-0"
                       />
                     </div>
@@ -1420,7 +1423,7 @@ export default function Products() {
                                   </span>
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">
-                                  {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% off` : `${Number(coupon.discount_value).toLocaleString()} MMK off`}
+                                  {coupon.discount_type === 'percentage' ? `${coupon.discount_value}% off` : `${formatPrice(Number(coupon.discount_value), selectedBot?.currency || 'MMK')} off`}
                                 </p>
                               </div>
                             </div>
@@ -1446,7 +1449,7 @@ export default function Products() {
                             </div>
                           </div>
                           {Number(coupon.min_spend) > 0 && (
-                            <p className="text-[10px] text-gray-400 mt-2">Min. spend: {Number(coupon.min_spend).toLocaleString()} MMK</p>
+                            <p className="text-[10px] text-gray-400 mt-2">Min. spend: {formatPrice(Number(coupon.min_spend), selectedBot?.currency || 'MMK')}</p>
                           )}
                           {coupon.end_date && (
                             <p className="text-[10px] text-gray-400 mt-0.5">Expires: {new Date(coupon.end_date).toLocaleDateString()}</p>
@@ -1601,6 +1604,7 @@ function CategoryDropdown({ categories, selected, onSelect }) {
 }
 
 function ProductForm({ product, categories, onClose, onSubmit, isLoading, selectedBotId }) {
+  const { selectedBot } = useSelectedBot();
   const [formData, setFormData] = useState({
     name: product?.name || '',
     description: product?.description || '',
@@ -1887,7 +1891,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
 
         <div className="space-y-2">
           <div className="space-y-2">
-            <label className="text-sm font-bold text-gray-700 ml-1">Price (MMK)
+            <label className="text-sm font-bold text-gray-700 ml-1">Price ({selectedBot?.currency || 'MMK'})
               <label className="ml-3 text-sm font-normal text-gray-500 cursor-pointer select-none" onClick={(e) => { e.stopPropagation();
                 if (!promotion && !formData.original_price) {
                   setFormData(prev => ({ ...prev, original_price: prev.price }));
@@ -1971,7 +1975,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
                     {formData.cost_price && Number(formData.cost_price) > 0 && (
                       <p className="text-sm font-semibold ml-1">
                         Estimated Profit: <span className="text-emerald-600">
-                          {(Number(formData.price || 0) - Number(formData.cost_price || 0)).toLocaleString()} MMK
+                          {formatPrice(Number(formData.price || 0) - Number(formData.cost_price || 0), selectedBot?.currency || 'MMK')}
                         </span>
                       </p>
                     )}

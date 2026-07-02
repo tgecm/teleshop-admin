@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getQRMenuStats } from '../api/qrMenu';
 import { useSelectedBot } from '../hooks/useSelectedBot';
+import { formatPrice } from '../utils/formatPrice';
 import StatCard from '../components/shared/StatCard';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import {
@@ -49,7 +50,7 @@ function MiniMetric({ icon: Icon, label, value, sub, color = 'indigo' }) {
 }
 
 export default function QRMenuDashboard() {
-  const { selectedBotId } = useSelectedBot();
+  const { selectedBotId, selectedBot } = useSelectedBot();
 
   const [chartType, setChartType] = useState('line');
   const [visibleMetrics, setVisibleMetrics] = useState({ revenue: true, orders: true });
@@ -177,7 +178,7 @@ export default function QRMenuDashboard() {
         {isLoading
           ? Array(3).fill(0).map((_, i) => (<motion.div key={i} variants={itemVariants}><LoadingSkeleton className="h-28 md:h-32" /></motion.div>))
           : [
-              { title: 'QR Revenue', value: `${totalRevenue.toLocaleString()} MMK`, icon: DollarSign, color: 'indigo' },
+              { title: 'QR Revenue', value: formatPrice(totalRevenue, selectedBot?.currency || 'MMK'), icon: DollarSign, color: 'indigo' },
               { title: 'QR Orders', value: totalOrders, icon: ShoppingBag, color: 'emerald' },
               { title: 'Pending QR', value: pendingOrders, icon: Clock, color: 'amber' },
             ].map((card) => (
@@ -187,8 +188,8 @@ export default function QRMenuDashboard() {
 
       <motion.div variants={containerVariants} className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
         <MiniMetric icon={ShoppingBag} label="Items Sold" value={itemsSold} color="indigo" />
-        <MiniMetric icon={Zap} label="Today's Revenue" value={`${todayRevenue.toLocaleString()} MMK`} color="emerald" />
-        <MiniMetric icon={TrendingUp} label="Monthly Revenue" value={`${monthlyRevenue.toLocaleString()} MMK`} sub={`${totalRevenue.toLocaleString()} MMK total`} color="amber" />
+        <MiniMetric icon={Zap} label="Today's Revenue" value={formatPrice(todayRevenue, selectedBot?.currency || 'MMK')} color="emerald" />
+        <MiniMetric icon={TrendingUp} label="Monthly Revenue" value={formatPrice(monthlyRevenue, selectedBot?.currency || 'MMK')} sub={`${formatPrice(totalRevenue, selectedBot?.currency || 'MMK')} total`} color="amber" />
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
@@ -270,8 +271,8 @@ export default function QRMenuDashboard() {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0 ml-1">
-                          <p className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">{item.total_revenue?.toLocaleString()}</p>
-                          <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium">MMK</p>
+                          <p className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">{formatPrice(item.total_revenue, selectedBot?.currency || 'MMK')}</p>
+                          <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium">{selectedBot?.currency || 'MMK'}</p>
                         </div>
                       </div>
                     </motion.div>

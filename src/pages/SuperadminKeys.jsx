@@ -10,6 +10,7 @@ import {
 import { motion } from 'motion/react';
 import { addDays } from 'date-fns';
 import { myanmarFormat } from '../utils/date';
+import { formatPrice } from '../utils/formatPrice';
 
 const PLANS = [
   { key: 'basic', name: 'Basic', price: '150,000 MMK/yr', icon: Star, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', days: 365 },
@@ -237,7 +238,7 @@ export default function SuperadminKeys() {
               {planPayments.slice(0, 5).map(p => (
                 <div key={p.id} className="flex items-center justify-between text-xs">
                   <span className="font-bold text-gray-900 truncate max-w-[120px]">{p.bot_username || `Bot #${p.bot_id}`}</span>
-                  <span className="text-gray-500">{Number(p.amount || 0).toLocaleString()} MMK</span>
+                  <span className="text-gray-500">{formatPrice(p.amount || 0, 'MMK')}</span>
                   <span className="text-gray-400">{p.created_at ? myanmarFormat(p.created_at, 'MMM d') : ''}</span>
                 </div>
               ))}

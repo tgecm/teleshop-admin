@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { myanmarFormat } from '../utils/date';
+import { formatPrice } from '../utils/formatPrice';
 
 const SEARCH_TABS = [
   { key: 'all', label: 'All', icon: SearchIcon },
@@ -193,7 +194,7 @@ export default function SuperadminSearch() {
                       <span className="text-sm font-bold text-gray-900">{o.buyer_snapshot?.name || o.customer?.first_name || 'Customer'}</span>
                       <StatusBadge status={o.status} />
                     </div>
-                    <p className="text-[11px] text-gray-500">{(o.total_amount || o.amount || 0).toLocaleString()} MMK · {o.created_at ? myanmarFormat(o.created_at, 'MMM d, yyyy') : ''}</p>
+                    <p className="text-[11px] text-gray-500">{formatPrice(o.total_amount || o.amount || 0, 'MMK')} · {o.created_at ? myanmarFormat(o.created_at, 'MMM d, yyyy') : ''}</p>
                   </div>
                   <span className="text-xs text-gray-400 flex-shrink-0">#{o.id}</span>
                 </div>

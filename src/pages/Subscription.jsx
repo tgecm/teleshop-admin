@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { myanmarFormat } from '../utils/date';
+import { formatPrice } from '../utils/formatPrice';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -232,8 +233,8 @@ export default function Subscription() {
           ...result,
           planName: plan.name,
           planType,
-          amountFormatted: '0 MMK',
-          originalAmountFormatted: `${(result.original_amount || 0).toLocaleString()} MMK`,
+          amountFormatted: formatPrice(0, selectedBot?.currency || 'MMK'),
+          originalAmountFormatted: formatPrice(result.original_amount || 0, selectedBot?.currency || 'MMK'),
           discountPercent: 100,
         });
         if (discountCode) {
@@ -254,10 +255,10 @@ export default function Subscription() {
         planName: plan.name,
         planType,
         amountFormatted: result.original_amount
-          ? `${(result.amount || 0).toLocaleString()} MMK`
+          ? formatPrice(result.amount || 0, selectedBot?.currency || 'MMK')
           : originalPrice,
         originalAmountFormatted: result.discount_percent > 0
-          ? `${(result.original_amount || 0).toLocaleString()} MMK`
+          ? formatPrice(result.original_amount || 0, selectedBot?.currency || 'MMK')
           : null,
         discountPercent: result.discount_percent || 0,
       });

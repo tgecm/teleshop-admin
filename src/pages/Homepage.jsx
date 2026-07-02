@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { API_BASE } from '../api/config';
+import { formatPrice } from '../utils/formatPrice';
+import { useSelectedBot } from '../hooks/useSelectedBot';
 
 const CSS = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -287,6 +289,8 @@ const FAQS = [
 
 export default function Homepage() {
   const navRef = useRef(null);
+  const { selectedBot } = useSelectedBot();
+  const currency = selectedBot?.currency || 'MMK';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -329,7 +333,7 @@ export default function Homepage() {
         const reply = document.createElement('div');
         reply.className = 'msg bot';
         reply.style.cssText = 'opacity:0;transform:translateY(8px);transition:all .3s ease';
-        reply.innerHTML = '👟 Yes! We have 3 shoes under 50,000 MMK. Sneakers Pro is most popular at 45,000 MMK. Want to see details?';
+        reply.innerHTML = `👟 Yes! We have 3 shoes under ${formatPrice(50000, currency)}. Sneakers Pro is most popular at ${formatPrice(45000, currency)}. Want to see details?`;
         msgs.appendChild(reply);
         requestAnimationFrame(() => requestAnimationFrame(() => { reply.style.opacity = '1'; reply.style.transform = 'translateY(0)'; }));
         const timer3 = setTimeout(() => {
@@ -362,7 +366,7 @@ export default function Homepage() {
       <div className={'plan-card' + (plan.popular ? ' featured' : '')}>
         {plan.popular && <div className="plan-badge">Popular</div>}
         <div className="plan-name">{plan.name}</div>
-        <div className="plan-price">{price} <span style={{ fontSize: '1rem', color: 'var(--muted)' }}>MMK</span></div>
+        <div className="plan-price">{formatPrice(Number(price.replace(/,/g, '')), currency)}</div>
         <div className="plan-period">{plan.key === 'free' ? plan.period : periodLabel}</div>
         <ul className="plan-feat">
           {plan.inherited && <li style={{ color: 'var(--accent3)', fontWeight: 500, fontSize: '.78rem' }}>✦ Everything in {plan.inherited}, plus:</li>}
@@ -505,7 +509,7 @@ export default function Homepage() {
             </div>
             <div className="chat-msgs" id="chatMsgs">
               <div className="msg bot">👋 Welcome to Shop! Browse our products or ask me anything.</div>
-              <div className="msg user">Do you have shoes under 50,000 MMK?</div>
+              <div className="msg user">Do you have shoes under {formatPrice(50000, currency)}?</div>
               <div className="msg typing" id="typingMsg">
                 <div className="typing-dot"></div>
                 <div className="typing-dot"></div>
