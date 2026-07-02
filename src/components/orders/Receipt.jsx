@@ -348,30 +348,37 @@ function _he(s) {
   for (let i = 0; i < s.length; i++) { const c = s.codePointAt(i); if (c && _ie(c)) return true; if (c && c > 0xFFFF) i++; }
   return false;
 }
-function _se(s) {
-  if (!s) return [];
-  const r = []; let b = '';
-  for (let i = 0; i < s.length; i++) {
-    const c = s.codePointAt(i); if (!c) continue;
-    if (_ie(c)) { if (b) { r.push({t:b,e:false}); b=''; } r.push({t:String.fromCodePoint(c),e:true}); if (c>0xFFFF) i++; }
-    else { b += s[i]; if (c>0xFFFF) i++; }
-  }
-  if (b) r.push({t:b,e:false});
-  return r;
-}
-let _mc = null;
-function _tw(t, fs, ff) {
-  if (!t) return 0;
-  try { if(!_mc){const c=document.createElement('canvas');_mc=c.getContext('2d');} _mc.font=`${fs}px ${ff}`; return _mc.measureText(t).width; }
-  catch { return t.length * fs * 0.6; }
+function _rte(text, fontSize, fontFamily, color) {
+  try {
+    const dpr = 2;
+    const c = document.createElement('canvas');
+    const ctx = c.getContext('2d');
+    if (!ctx) return null;
+    const font = `${fontSize}px ${fontFamily}`;
+    ctx.font = font;
+    const m = ctx.measureText(text);
+    const w = Math.ceil(m.width) + 4;
+    const h = Math.ceil(fontSize * 1.4);
+    c.width = Math.ceil(w * dpr);
+    c.height = Math.ceil(h * dpr);
+    ctx.scale(dpr, dpr);
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(text, 2, h - 4);
+    return { url: c.toDataURL(), w, h };
+  } catch { return null; }
 }
 function _st(raw, x, y, fs, fill, ff, attrs) {
   if (!raw) return '';
   if (!_he(raw)) return `<text x="${x}" y="${y}" fill="${fill}" font-size="${fs}"${attrs}>${esc(raw)}</text>`;
+  const ri = _rte(raw, fs, ff, fill);
+  if (ri) return `<image href="${ri.url}" x="${x}" y="${y - ri.h + 4}" width="${ri.w}" height="${ri.h}"/>`;
+  // Fallback: segment-by-segment
   const segs = _se(raw); let r=''; let cx=x;
   for (const s of segs) {
     if (s.e) { const u=renderEmoji(s.t,fs); if(u) r+=`<image href="${u}" x="${cx}" y="${y-fs+2}" width="${fs}" height="${fs}"/>`; cx+=fs; }
-    else { r+=`<text x="${cx}" y="${y}" fill="${fill}" font-size="${fs}"${attrs}>${esc(s.t)}</text>`; cx+=_tw(s.t,fs,ff); }
+    else { r+=`<text x="${cx}" y="${y}" fill="${fill}" font-size="${fs}"${attrs}>${esc(s.t)}</text>`; try { const mc=document.createElement('canvas').getContext('2d'); mc.font=`${fs}px ${ff}`; cx+=mc.measureText(s.t).width; } catch { cx+=s.t.length*fs*0.6; } }
   }
   return r;
 }
