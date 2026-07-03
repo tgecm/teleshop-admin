@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Download, Loader2 } from 'lucide-react';
+import { X, Download, Loader2, FileText } from 'lucide-react';
 import { myanmarFormat } from '../../utils/date';
 import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
@@ -8,6 +8,7 @@ import { formatPrice } from '../../utils/formatPrice';
 import { isInAppBrowser, downloadViaNative, downloadBlob } from '../../utils/download';
 import { generateInvoiceNumber } from '../../api/orders';
 import client from '../../api/client';
+import jsPDF from 'jspdf';
 
 const RECEIPT_W = 800;
 const MAIN_BLUE = '#003366';
@@ -471,22 +472,39 @@ async function getBotLogoDataUrl(logoUrl) {
     if (logoUrl.startsWith('data:')) return logoUrl;
     if (logoUrl.startsWith('blob:')) return logoUrl;
 
-    const url = logoUrl.startsWith('http')
-      ? new URL(logoUrl)
-      : new URL(logoUrl, client.defaults.baseURL || window.location.origin);
+    // For absolute HTTP URLs: use img+crossOrigin to avoid CORS issues
+    if (logoUrl.startsWith('http')) {
+      try {
+        return await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            const c = document.createElement('canvas');
+            c.width = img.naturalWidth;
+            c.height = img.naturalHeight;
+            c.getContext('2d').drawImage(img, 0, 0);
+            resolve(c.toDataURL('image/png'));
+          };
+          img.onerror = () => reject();
+          img.src = logoUrl;
+        });
+      } catch {
+        // Fallback: fetch via backend proxy
+        const proxyUrl = `${client.defaults.baseURL}/proxy-image?url=${encodeURIComponent(logoUrl)}`;
+        const resp = await client.get(proxyUrl, { responseType: 'blob' });
+        if (!resp.data || !resp.data.size) return '';
+        return await blobToDataUrl(resp.data);
+      }
+    }
 
+    // For relative URLs, resolve against the API server
+    const url = new URL(logoUrl, client.defaults.baseURL || window.location.origin);
     const path = `${url.pathname}${url.search}`;
     const resp = await client.get(path, { responseType: 'blob' });
     if (!resp.data || !resp.data.size) return '';
     return await blobToDataUrl(resp.data);
   } catch {
-    try {
-      const resp = await fetch(logoUrl, { mode: 'cors', credentials: 'omit' });
-      if (!resp.ok) return '';
-      return await blobToDataUrl(await resp.blob());
-    } catch {
-      return '';
-    }
+    return '';
   }
 }
 
@@ -839,44 +857,93 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     setGenerating(true);
     try {
       const botLogo = await getBotLogoDataUrl(bot?.profile_picture || '');
-      const logoUrl = bot?.profile_picture || '';
-      // Use placeholder when client-side logo fetch fails (server will fetch it)
-      const svgBotLogo = botLogo || '{{LOGO_BASE64}}';
-      // Pre-render emojis to canvas data URLs for embedding in SVG images
       const emojis = {
-        phone: renderEmoji('\u{1F4DE}'),
-        email: renderEmoji('✉️'),
-        globe: renderEmoji('\u{1F310}'),
-        pin: renderEmoji('\u{1F4CD}'),
-        person: renderEmoji('\u{1F464}'),
-        receipt: renderEmoji('\u{1F9FE}'),
-        card: renderEmoji('\u{1F4B3}'),
-        money: renderEmoji('\u{1F4B0}'),
+        phone: renderEmoji('\u{1F4DE}'), email: renderEmoji('✉️'), globe: renderEmoji('\u{1F310}'),
+        pin: renderEmoji('\u{1F4CD}'), person: renderEmoji('\u{1F464}'), receipt: renderEmoji('\u{1F9FE}'),
+        card: renderEmoji('\u{1F4B3}'), money: renderEmoji('\u{1F4B0}'),
       };
-      // Render tagline and notes text to canvas (handles emoji rendering for SVG)
       const taglineImg = tagline ? renderSvgTextLine(tagline, 13, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
       const notesImg = shopNotes ? renderSvgTextLine(shopNotes.slice(0, 100), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
       const notesImg2 = shopNotes && shopNotes.length > 100 ? renderSvgTextLine(shopNotes.slice(100, 200), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, currency, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo: svgBotLogo, emojis, taglineImg, notesImg, notesImg2 });
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, currency, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo, emojis, taglineImg, notesImg, notesImg2 });
       const fileName = `${receiptType}-${order.order_number || order.id}`;
 
-      // Try server-side PNG conversion (server can also fetch logo)
-      try {
-        const res = await client.post('/orders/receipt-png', { svg, logo_url: logoUrl || undefined }, { responseType: 'blob' });
-        const pngBlob = new Blob([res.data], { type: 'image/png' });
-        await downloadBlob(pngBlob, `${fileName}.png`);
-      } catch (serverErr) {
-        console.warn('PNG conversion server error, falling back to SVG:', serverErr);
-        // Rebuild SVG with best-effort logo for fallback
-        const fallbackSvg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, currency, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo, taglineImg, notesImg, notesImg2 });
-        const svgBlob = new Blob([fallbackSvg], { type: 'image/svg+xml' });
-        await downloadBlob(svgBlob, `${fileName}.svg`);
-      }
+      // Client-side SVG to PNG (uses browser fonts for all languages)
+      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => { URL.revokeObjectURL(url); resolve(i); };
+        i.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG image failed to load')); };
+        i.src = url;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      const pngBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      await downloadBlob(pngBlob, `${fileName}.png`);
 
       addToast('Receipt downloaded successfully');
     } catch (err) {
       console.error('Receipt export failed:', err);
       addToast('Failed to generate receipt image', 'error');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setGenerating(true);
+    try {
+      const botLogo = await getBotLogoDataUrl(bot?.profile_picture || '');
+      const emojis = {
+        phone: renderEmoji('\u{1F4DE}'), email: renderEmoji('✉️'), globe: renderEmoji('\u{1F310}'),
+        pin: renderEmoji('\u{1F4CD}'), person: renderEmoji('\u{1F464}'), receipt: renderEmoji('\u{1F9FE}'),
+        card: renderEmoji('\u{1F4B3}'), money: renderEmoji('\u{1F4B0}'),
+      };
+      const taglineImg = tagline ? renderSvgTextLine(tagline, 13, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
+      const notesImg = shopNotes ? renderSvgTextLine(shopNotes.slice(0, 100), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
+      const notesImg2 = shopNotes && shopNotes.length > 100 ? renderSvgTextLine(shopNotes.slice(100, 200), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
+      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, currency, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo, taglineImg, notesImg, notesImg2 });
+
+      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => { URL.revokeObjectURL(url); resolve(i); };
+        i.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG image failed to load')); };
+        i.src = url;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = (canvas.height * pdfW) / canvas.width;
+      const pageH = pdf.internal.pageSize.getHeight();
+      let heightLeft = pdfH;
+      let position = 0;
+      pdf.addImage(imgData, 'PNG', 0, position, pdfW, pdfH);
+      heightLeft -= pageH;
+      while (heightLeft > 0) {
+        position -= pageH;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfW, pdfH);
+        heightLeft -= pageH;
+      }
+
+      const fileName = `${receiptType}-${order.order_number || order.id}.pdf`;
+      pdf.save(fileName);
+      addToast('PDF downloaded successfully');
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      addToast('Failed to generate PDF', 'error');
     } finally {
       setGenerating(false);
     }
@@ -907,6 +974,18 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
             <div className="flex items-center justify-between px-4 pb-3 flex-shrink-0">
               <h2 className="text-lg font-bold text-gray-900">{receiptType === 'invoice' ? 'Invoice' : 'Receipt'}</h2>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={generating}
+                  className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
+                >
+                  {generating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileText className="w-4 h-4" />
+                  )}
+                  {generating ? 'Generating...' : 'Download PDF'}
+                </button>
                 <button
                   onClick={handleDownload}
                   disabled={generating}

@@ -256,6 +256,7 @@ const PLANS = [
       { ok: true, text: 'Shop Banners' },
       { ok: true, text: 'Multi-Platform Website' },
       { ok: true, text: 'QR Menu System' },
+      { ok: true, text: 'Multi-Currency (180+ currencies)' },
       { ok: true, text: 'Staff Accounts' },
     ]
   },

@@ -10,6 +10,7 @@ import { useCartState } from '../context/CartContext';
 import { myanmarFormat } from '../utils/date';
 import { RichMessage } from '../components/chat/RichMessage';
 import { getPublicTopProducts } from '../api/public';
+import { getContentBlocks } from '../api/contentBlocks';
 import SearchableSelect from '../components/shared/SearchableSelect';
 import { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
 import { PaymentSelect, ContactInfoStep, CheckoutModal } from './PublicEcommerce';
@@ -114,6 +115,8 @@ function linkifyText(text) {
 
 const statusConfig = {
   pending: { label: 'Pending', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-400' },
+  pending_review: { label: 'Pending', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-400' },
+  confirmed: { label: 'Confirmed', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-400' },
   processing: { label: 'Processing', icon: Package, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-400' },
   shipped: { label: 'Shipped', icon: Truck, color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-200', dot: 'bg-indigo-400' },
   delivered: { label: 'Delivered', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-400' },
@@ -233,6 +236,17 @@ export default function CustomerDashboard({ shopSlug }) {
       .then(d => { if (d) setPointsHistory(d); })
       .catch(() => {});
   }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled]);
+
+
+  const { data: contentBlocks } = useQuery({
+    queryKey: ['content-blocks', shopData?.shop?.id],
+    queryFn: () => getContentBlocks({ bot_id: Number(shopData?.shop?.id) }),
+    enabled: !!shopData?.shop?.id,
+    placeholderData: (prev) => prev,
+  });
+
+  const receiptSettingsBlock = contentBlocks?.find(b => b.key === 'receipt_settings');
+  const receiptSettings = receiptSettingsBlock?.content_data || {};
 
   // Claim welcome bonus if not yet claimed
   useEffect(() => {
@@ -499,7 +513,20 @@ export default function CustomerDashboard({ shopSlug }) {
             <h1 className="text-white text-sm font-bold truncate">Hello, {savedName || displayName}!</h1>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => { setRefreshKey(k => k + 1); setRefreshing(true); }}
+            <button onClick={() => {
+              setRefreshing(true);
+              const ts = Date.now();
+              if (uid && shopSlug) {
+                fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders?shop=${encodeURIComponent(shopSlug)}&_=${ts}`, { headers: authHeaders() })
+                  .then(r => r.ok ? r.json() : [])
+                  .then(data => { setCustomerOrders(Array.isArray(data) ? data : []); setRefreshing(false); })
+                  .catch(() => setRefreshing(false));
+                fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders/stats?shop=${encodeURIComponent(shopSlug)}&_=${ts}`, { headers: authHeaders() })
+                  .then(r => r.ok ? r.json() : null)
+                  .then(s => { if (s) setOrderStats(s); })
+                  .catch(() => {});
+              }
+            }}
               className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
@@ -539,7 +566,7 @@ export default function CustomerDashboard({ shopSlug }) {
                 />
               </div>
             )}
-            {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} />}
+            {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} receiptSettings={receiptSettings} />}
             {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} />}
             {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} shop={shopData?.shop} />}
             {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
@@ -964,7 +991,7 @@ function PointsTab({ points, pointsHistory, pointsSettings, shop }) {
 }
 
 /* ─── ORDERS TAB ─── */
-function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
+function OrdersTab({ shopSlug, uid, shop, orders, loading, receiptSettings }) {
   const [expandedId, setExpandedId] = useState(null);
   const [downloadOrder, setDownloadOrder] = useState(null);
   const [downloadType, setDownloadType] = useState('invoice');
@@ -1132,6 +1159,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading }) {
       open={!!downloadOrder}
       onClose={() => setDownloadOrder(null)}
       receiptType={downloadType}
+      receiptSettings={receiptSettings}
     />
     </>
   );
@@ -1254,6 +1282,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
         shop={shopData?.shop || null}
         onContinueShopping={() => setOrderPlaced(null)}
         shopSlug={shopSlug}
+        receiptSettings={receiptSettings}
       />
     );
   }
@@ -1779,7 +1808,7 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
 
 
 /* ─── ORDER CONFIRMATION INLINE ─── */
-function OrderConfirmationInline({ orderData, shop, onContinueShopping, shopSlug }) {
+function OrderConfirmationInline({ orderData, shop, onContinueShopping, shopSlug, receiptSettings }) {
   const [showInvoice, setShowInvoice] = useState(false);
 
   return (
@@ -1824,6 +1853,7 @@ function OrderConfirmationInline({ orderData, shop, onContinueShopping, shopSlug
         open={showInvoice}
         onClose={() => setShowInvoice(false)}
         receiptType="invoice"
+        receiptSettings={receiptSettings}
       />
     </>
   );
