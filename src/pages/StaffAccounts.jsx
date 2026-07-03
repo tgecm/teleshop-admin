@@ -50,18 +50,20 @@ export default function StaffAccounts() {
     { id: 'payments', label: 'Payments' },
     { id: 'subscription', label: 'Subscription' },
     { id: 'customize', label: 'Customize' },
-    { id: 'qr_menu', label: 'QR Menu System' },
+    { id: 'profile', label: 'Profile' },
+    { id: 'qr_menu', label: 'QR Menu', subs: [
+      { id: 'qr_dashboard', label: 'QR Dashboard' },
+      { id: 'qr_menu_items', label: 'QR Menu' },
+      { id: 'qr_tables', label: 'QR Tables' },
+      { id: 'qr_orders', label: 'QR Orders' },
+    ]},
     { id: 'faqs', label: 'FAQs' },
     { id: 'telegram', label: 'Telegram', subs: [
       { id: 'telegram_broadcast', label: 'Broadcast' },
       { id: 'telegram_command', label: 'Telegram Command' },
       { id: 'telegram_bot', label: 'Bot Customization' },
     ]},
-    { id: 'settings', label: 'Settings', subs: [
-      { id: 'settings_general', label: 'General Settings' },
-      { id: 'settings_payment', label: 'Payment Methods' },
-      { id: 'settings_notification', label: 'Notifications' },
-    ]},
+    { id: 'settings', label: 'Settings' },
   ];
 
   const { data: staffList, isLoading } = useQuery({
@@ -134,16 +136,18 @@ export default function StaffAccounts() {
       client.get(`/staff/${selectedStaff.id}/permissions`).then(r => {
         const perms = r.data?.permissions || {};
         const defaults = {};
+        const defaultEnabled = new Set(['orders', 'products', 'chats']);
         PERM_GROUPS.forEach(g => {
-          if (!(g.id in perms)) defaults[g.id] = true;
-          if (g.subs) g.subs.forEach(s => { if (!(s.id in perms)) defaults[s.id] = true; });
+          if (!(g.id in perms)) defaults[g.id] = defaultEnabled.has(g.id);
+          if (g.subs) g.subs.forEach(s => { if (!(s.id in perms)) defaults[s.id] = defaultEnabled.has(s.id); });
         });
         setStaffPerms({ ...defaults, ...perms });
       }).catch(() => {
         const defaults = {};
+        const defaultEnabled = new Set(['orders', 'products', 'chats']);
         PERM_GROUPS.forEach(g => {
-          defaults[g.id] = true;
-          if (g.subs) g.subs.forEach(s => { defaults[s.id] = true; });
+          defaults[g.id] = defaultEnabled.has(g.id);
+          if (g.subs) g.subs.forEach(s => { defaults[s.id] = defaultEnabled.has(s.id); });
         });
         setStaffPerms(defaults);
       });
