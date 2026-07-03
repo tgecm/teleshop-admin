@@ -23,6 +23,7 @@ import {
 import { getStats } from '../api/stats';
 import { getBotPublicSlug, generateBotSlug, listBotDomains, addBotDomain, verifyBotDomainItem, toggleBotDomainItem, deleteBotDomainItem } from '../api/public';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
+import ErrorBoundary from '../components/shared/ErrorBoundary';
 import client from '../api/client';
 import {
   Settings as SettingsIcon,
@@ -1659,7 +1660,9 @@ export default function Settings() {
                 Release Update
               </button>
             </section>
-            <DiscountsManager />
+            <ErrorBoundary>
+              <DiscountsManager />
+            </ErrorBoundary>
           </>
         )}
 
@@ -2003,7 +2006,11 @@ function DiscountsManager() {
       resetForm();
       addToast(`Discount code "${res.code}" created`);
     },
-    onError: (err) => addToast(err.response?.data?.detail || 'Failed to create', 'error'),
+    onError: (err) => {
+      const d = err.response?.data?.detail;
+      const msg = Array.isArray(d) ? d[0]?.msg || 'Validation error' : (d || 'Failed to create');
+      addToast(msg, 'error');
+    },
   });
 
   const updateMutation = useMutation({
@@ -2013,7 +2020,11 @@ function DiscountsManager() {
       resetForm();
       addToast('Discount code updated');
     },
-    onError: (err) => addToast(err.response?.data?.detail || 'Failed to update', 'error'),
+    onError: (err) => {
+      const d = err.response?.data?.detail;
+      const msg = Array.isArray(d) ? d[0]?.msg || 'Validation error' : (d || 'Failed to update');
+      addToast(msg, 'error');
+    },
   });
 
   const deleteMutation = useMutation({

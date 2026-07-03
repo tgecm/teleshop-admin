@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getPublicShop, getPublicShopByDomain, getShopBio } from '../api/public';
+import { getPublicShop, getPublicShopByDomain, getShopBio, trackOrder } from '../api/public';
 import { useCartState } from '../context/CartContext';
-import {
-  ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
+import { ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
   Minus, Plus, Trash2, LogOut, CheckCircle, CheckCircle2, Loader2, User,
-  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard, Award
+  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard, Award, Map
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -594,7 +593,8 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     }
   };
 
-  const effectiveTotal = couponApplied ? totalAmount - couponApplied.discount : totalAmount;
+  const appliedDiscount = couponApplied ? Number(couponApplied.discount_amount) || 0 : 0;
+  const effectiveTotal = couponApplied ? totalAmount - appliedDiscount : totalAmount;
 
   const deliveryFeeAmount = useMemo(() => {
     const total = couponApplied ? effectiveTotal : totalAmount;
@@ -811,7 +811,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
             const p = products.find(pp => pp.id === i.product_id);
             return sum + (p ? Number(p.price) : i.price) * i.quantity;
           }, 0);
-          return couponApplied ? latestTotal - couponApplied.discount : latestTotal;
+          return couponApplied ? latestTotal - appliedDiscount : latestTotal;
         })(),
         delivery_fee: deliveryFeeAmount,
         coupon_code: couponApplied?.code || '',
@@ -887,7 +887,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
           {couponApplied && (
             <div className="flex justify-between text-sm py-1 text-emerald-600">
               <span>Discount ({couponApplied.code})</span>
-              <span className="font-semibold">-{formatPrice(couponApplied.discount, shop?.currency || 'MMK')}</span>
+              <span className="font-semibold">-{formatPrice(appliedDiscount, shop?.currency || 'MMK')}</span>
             </div>
           )}
           {pointsDiscount > 0 && !isPointsPayment && (
@@ -910,9 +910,9 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
             <span>Total</span>
             <span>{formatPrice((isPointsPayment ? ptsTotal : (couponApplied ? effectiveTotal : totalAmount) - pointsDiscount) + deliveryFeeAmount, shop?.currency || 'MMK')}</span>
           </div>
-          {couponApplied?.discount > 0 && (
+          {appliedDiscount > 0 && (
             <p className="text-[10px] text-emerald-500 font-medium text-center mt-1">
-              🎉 You saved {formatPrice(couponApplied.discount, shop?.currency || 'MMK')}
+              🎉 You saved {formatPrice(appliedDiscount, shop?.currency || 'MMK')}
             </p>
           )}
         </div>
@@ -1684,6 +1684,11 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [showVisitorForm, setShowVisitorForm] = useState(false);
   const [visitorForm, setVisitorForm] = useState({ name: '', phone: '', email: '' });
+  const [showTrackOrder, setShowTrackOrder] = useState(false);
+  const [trackSearch, setTrackSearch] = useState('');
+  const [trackResult, setTrackResult] = useState(null);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackError, setTrackError] = useState('');
   const chatRef = useRef(null);
   const chatInputRef = useRef(null);
   const photoInputRef = useRef(null);
@@ -2767,6 +2772,12 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               }`}>
               <ArrowUpDown className="w-[15px] h-[15px]" />
             </button>
+            {viewMode === 'guest' && (
+              <button onClick={() => { setShowTrackOrder(true); setTrackSearch(''); setTrackResult(null); setTrackError(''); }}
+                className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90">
+                <Map className="w-[15px] h-[15px]" />
+              </button>
+            )}
             {showSortMenu && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowSortMenu(false)} />
@@ -3553,6 +3564,219 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Track Order Modal */}
+      <AnimatePresence>
+        {showTrackOrder && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowTrackOrder(false)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 z-[60] bg-white rounded-t-[24px] md:rounded-3xl shadow-2xl md:w-[480px] max-h-[90dvh] md:max-h-[85vh] flex flex-col overflow-hidden"
+            >
+              <div className="sticky top-0 bg-white z-10 rounded-t-[24px] md:rounded-t-3xl">
+                <div className="flex flex-col items-center pt-3 pb-0.5 md:hidden">
+                  <div className="w-10 h-1 bg-gray-200 rounded-full" />
+                </div>
+                <div className="flex items-center justify-between px-4 pb-3 pt-1 md:py-4">
+                  <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <Map className="w-5 h-5" style={{ color: theme.css['--theme-btn'] }} />
+                    Track Order
+                  </h2>
+                  <button onClick={() => setShowTrackOrder(false)} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={trackSearch}
+                    onChange={(e) => setTrackSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && trackSearch.trim()) {
+                        setTrackLoading(true);
+                        setTrackResult(null);
+                        setTrackError('');
+                        trackOrder(trackSearch.trim(), shop?.id)
+                          .then(res => { setTrackResult(res); setTrackLoading(false); })
+                          .catch(err => {
+                            setTrackError(err?.response?.data?.detail || 'Order not found');
+                            setTrackLoading(false);
+                          });
+                      }
+                    }}
+                    placeholder="Search by Order ID, Invoice No, or Receipt No..."
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!trackSearch.trim()) return;
+                      setTrackLoading(true);
+                      setTrackResult(null);
+                      setTrackError('');
+                      trackOrder(trackSearch.trim(), shop?.id)
+                        .then(res => { setTrackResult(res); setTrackLoading(false); })
+                        .catch(err => {
+                          setTrackError(err?.response?.data?.detail || 'Order not found');
+                          setTrackLoading(false);
+                        });
+                    }}
+                    disabled={trackLoading || !trackSearch.trim()}
+                    className="px-5 py-3 rounded-2xl font-bold text-white text-sm transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                    style={{ background: theme.css['--theme-btn'] }}
+                  >
+                    {trackLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                    {trackLoading ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {trackLoading && (
+                  <div className="flex flex-col items-center justify-center py-16 gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin" style={{ color: theme.css['--theme-btn'] }} />
+                    <p className="text-sm text-gray-500 font-medium">Searching for your order...</p>
+                  </div>
+                )}
+
+                {trackError && !trackLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center py-16 gap-3"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
+                      <X className="w-7 h-7 text-red-400" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-900">Order Not Found</p>
+                    <p className="text-xs text-gray-500 text-center max-w-xs">
+                      No order matches your search. Please check your Order ID, Invoice Number, or Receipt Number and try again.
+                    </p>
+                  </motion.div>
+                )}
+
+                {trackResult && !trackLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: 'spring', damping: 20, stiffness: 250 }}
+                    className="space-y-3"
+                  >
+                    {/* Status Card */}
+                    <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 text-center">
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 0.1 }}
+                        className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3"
+                        style={{ background: STATUS_COLORS[trackResult.status]?.bg || '#F3F4F6' }}
+                      >
+                        {STATUS_COLORS[trackResult.status]?.icon || '📦'}
+                      </motion.div>
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="text-xl font-bold capitalize"
+                        style={{ color: STATUS_COLORS[trackResult.status]?.text || '#374151' }}
+                      >
+                        {trackResult.status === 'pending_review' ? 'Pending Review' : trackResult.status}
+                      </motion.p>
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-xs text-gray-400 mt-1"
+                      >
+                        Current Status
+                      </motion.p>
+                    </div>
+
+                    {/* Order Details */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25 }}
+                      className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Order Number</span>
+                        <span className="text-sm font-bold text-gray-900">{trackResult.order_number}</span>
+                      </div>
+                      {trackResult.invoice_number && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Invoice No.</span>
+                          <span className="text-sm font-medium text-gray-700">{trackResult.invoice_number}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Amount</span>
+                        <span className="text-sm font-bold text-gray-900">{formatPrice(trackResult.final_amount, shop?.currency || 'MMK')}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Payment</span>
+                        <span className="text-sm font-medium text-gray-700 capitalize">{trackResult.payment_method}</span>
+                      </div>
+                      {trackResult.created_at && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Date</span>
+                          <span className="text-sm font-medium text-gray-700">{trackResult.created_at?.split('T')[0]}</span>
+                        </div>
+                      )}
+                      {trackResult.customer_name && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Customer</span>
+                          <span className="text-sm font-medium text-gray-700">{trackResult.customer_name}</span>
+                        </div>
+                      )}
+                    </motion.div>
+
+                    {/* Items */}
+                    {trackResult.items?.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.35 }}
+                        className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2"
+                      >
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Items</p>
+                        {trackResult.items.map((item, i) => (
+                          <div key={i} className="flex items-center justify-between text-sm">
+                            <span className="text-gray-700 truncate max-w-[250px]">{item.name}</span>
+                            <span className="font-bold text-gray-900 ml-2">x{item.quantity}</span>
+                          </div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
+const STATUS_COLORS = {
+  pending: { bg: '#FEF3C7', text: '#D97706', icon: '⏳' },
+  pending_review: { bg: '#FEF3C7', text: '#D97706', icon: '📋' },
+  confirmed: { bg: '#DBEAFE', text: '#2563EB', icon: '✅' },
+  processing: { bg: '#E0F2FE', text: '#0284C7', icon: '⚙️' },
+  shipped: { bg: '#F3E8FF', text: '#7C3AED', icon: '🚚' },
+  delivered: { bg: '#D1FAE5', text: '#059669', icon: '📦' },
+  cancelled: { bg: '#FEE2E2', text: '#DC2626', icon: '❌' },
+  rejected: { bg: '#FEE2E2', text: '#DC2626', icon: '❌' },
+  payment_failed: { bg: '#FEE2E2', text: '#DC2626', icon: '💳' },
+};

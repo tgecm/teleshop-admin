@@ -110,3 +110,6 @@ export const createPlanOrder = (botId, planName, planType, discountCode) =>
 
 export const validateSubscriptionDiscount = (code) =>
   client.post('/public/validate-subscription-discount', { code }).then(res => res.data);
+
+export const trackOrder = (search, botId) =>
+  client.post('/public/track-order', { search, bot_id: botId }).then(res => res.data);

@@ -191,7 +191,7 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
       </div>
 
       {/* Topic filter bar */}
-      <div className="flex gap-1.5 px-4 py-2.5 border-b border-gray-100 overflow-x-auto flex-shrink-0 scrollbar-hide">
+      <div className="flex gap-1.5 px-4 py-2.5 border-b border-gray-100 overflow-x-auto flex-shrink-0 scrollbar-hide sticky top-0 z-10 bg-white">
         {[
           { label: 'All', value: '' },
           { label: 'Promotion', value: 'Promotion' },
@@ -229,7 +229,7 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
             <p className="text-sm text-gray-500">Check back later for updates from the shop.</p>
           </div>
         ) : (
-          <div className="max-w-lg mx-auto pb-8 pt-4 space-y-4 px-4">
+          <div className="max-w-lg mx-auto pb-8 space-y-4 px-4">
             {posts.map(post => (
               <PostCard key={post.id} post={post} botId={botId} visitorId={visitorId}
                 onLike={() => likeMutation.mutate(post.id)} slug={slug}
