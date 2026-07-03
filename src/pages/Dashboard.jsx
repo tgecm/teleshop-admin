@@ -412,7 +412,7 @@ export default function Dashboard() {
       {/* Header */}
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Overview</h1>
           <p className="text-gray-500 text-[11px] sm:text-sm lg:text-base mt-0.5 hidden sm:block">Real-time performance metrics for your bot.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

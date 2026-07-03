@@ -61,6 +61,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .hero-note{font-size:.76rem;color:var(--muted);margin-top:4px}
 .hero-note span{color:var(--accent3)}
 .platforms{margin-top:20px;display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:nowrap;animation:fade-up .6s .4s ease both;}
+.btn-details{display:inline-block;margin-top:20px;background:linear-gradient(135deg,rgba(255,107,43,.12),rgba(255,61,127,.08));border:1px solid rgba(255,107,43,.4);border-radius:100px;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;padding:10px 24px;transition:all .3s;letter-spacing:.02em;box-shadow:0 0 20px rgba(255,107,43,.08);}
+.btn-details:hover{color:#fff;border-color:var(--accent);background:linear-gradient(135deg,var(--accent),var(--accent2));transform:translateY(-2px);box-shadow:0 6px 30px rgba(255,107,43,.35)}
+.details-content{margin-top:20px;padding:28px;background:linear-gradient(135deg,var(--surface2),var(--card));border:1px solid var(--border);border-radius:var(--radius);max-width:640px;text-align:left;font-size:.82rem;line-height:1.9;color:#d4d4e0;white-space:pre-wrap;animation:fade-up .35s ease both;}
 @media(max-width:400px){.plat-chip{font-size:.58rem;padding:2px 5px;gap:2px}}
 .plat-label{font-size:.76rem;color:var(--muted)}
 .plat-chip{display:flex;align-items:center;gap:4px;padding:4px 8px;background:var(--surface);border:1px solid var(--border);border-radius:100px;font-size:.68rem;font-weight:500;color:var(--text);white-space:nowrap;}
@@ -381,6 +384,7 @@ export default function Homepage() {
     );
   }
 
+  const [showDetails, setShowDetails] = useState(false);
   const [yearly, setYearly] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', telegram: '', notes: '' });
   const [contactStatus, setContactStatus] = useState('idle'); // idle | submitting | success | error
@@ -440,6 +444,71 @@ export default function Homepage() {
             <span className="plat-chip">🌐 Website Mode</span>
             <span className="plat-chip">👤 Guest Mode</span>
           </div>
+          <button className="btn-details" onClick={() => setShowDetails(!showDetails)}>
+            {showDetails ? '✨ Hide Details' : '✨ See Details'}
+          </button>
+          {showDetails && (
+            <div className="details-content">
+🙅‍♂️ မတူဘူး မတူဘူး လုံးဝကိုမတူဘူး။ မိတ်ဆွေတို့မြင်ဖူး<br />ကြားဖူးသမျှ E-commerce တွေနဲ့ လုံးဝကိုမတူတဲ့...<br />
+"Myanmar's First Multi-Platform E-commerce"<br />
+<br />
+ဘာလို့ Multi-Platform E-commerce လို့ခေါ်တာလဲ?<br /><br />
+
+💁‍♂️ ဘာလို့ဒီလိုခေါ်တာလဲဆိုရင် ဒီ E-commerce က<br />
+▪️Telegram<br />
+▪️Website<br />
+▪️PC<br />
+▪️Android App အားလုံးကို တစ်ခုနဲ့တစ်ခုချိတ်ဆက်<br />ထားပြီး Real-time Sync ဖြစ်လို့ အဆင်ပြေတဲ့နေရာ<br />
+ကနေဝင်သုံး၊ အဆင်ပြေတဲ့နေရာကနေဝင်ဝယ်ရုံပါပဲ။<br /><br />
+
+🤷‍♂️ ဥပမာ Product တစ်ခုကို E-commerce Store<br />
+ပေါ်တင်လိုက်တာနဲ့ သင့်ရဲ့ Customer တွေက <br />ကိုယ်နှစ်သက်ရာ Platform ကနေ ဝင်ဝယ်လိုက်ရုံပါပဲ။
+<br /><br />
+🚨 ဘယ်ကနေဝယ်ဝယ် ဆိုင်ရှင်ရဲ့ Email, Telegram နဲ့ <br />Android App တွေကို New Order Alerts ပို့ပေးမှာဖြစ်လို့ <br />မသိလိုက်မှာလည်း စိတ်ပူစရာမလိုပါဘူး။
+<br /><br />
+😱 ဒီထက်အံ့ဩစရာကောင်းတာလေးပြောပြရမယ်ဆိုရင်<br /> Order Alerts ကိုသိနိုင်ဖို့ Website ထဲလည်း<br />ဝင်ထားစရာမလို၊ Email လည်းဝင်စစ်စရာမလို၊ Telegram မှာလည်း<br />ရှိနေစရာမလို၊ App ကိုလည်းဖွင့်ထားစရာ မလိုပါဘူး။
+<br /><br />
+💯 APP ကို Notification Permission ပေးထားရုံနဲ့<br />
+User တွေဆီကဝင်တဲ့စာတွေ၊ Customer တွေဝယ်ယူတဲ့ <br />Order တွေကို Notification Bar လေးကနေ<br /> Real Time ပြပေးမှာဖြစ်ပါတယ်။
+<br /><br />
+🚙 နယ်ဝေးကားဂိတ်တင်ပေးရတဲ့ ဆိုင်ရှင်တို့အတွက်<br />
+Customer က Contact Information ထည့်လိုက်တာနဲ့<br />
+Delivery Fees ကို အလိုအလျောက်တွက်ချက်<br />ပေးသွားမယ့် Feature ပါဝင်ပါတယ်။<br /><br />
+
+🍜 F&B နဲ့ စားသောက်ဆိုင်လုပ်ငန်းများအတွက်<br />
+QR Ordering Menu System ကိုပါ လက်ဆောင်<br />
+အနေနဲ့ ထည့်ပေးထားပါသေးတယ်ဗျာ။<br /><br />
+
+🍽️ QR Menu ဆိုတာက စားသောက်ဆိုင်တွေရဲ့ စားပွဲခုံ၊<br />
+ဒါမှမဟုတ် Menu ပေါ်မှာ QR Code လေးကပ်ထားပြီး <br />Customer က Scan လိုက်တာနဲ့ စားစရာ Menu လေးတွေကို<br /> Customer တွေရဲ့ကိုယ်ပိုင်ဖုန်းကနေအေးဆေးလေး<br />ကြည့်ပြီး မှာယူနိုင်တဲ့ စနစ်ဖြစ်ပါတယ်။<br /><br />
+
+▪️Telegram Mode, Website, Guest Mode တွေ<br />
+▪️Stock နည်းနေရင် သတိပေးတာတွေ<br />
+▪️24 နာရီစာပြန်ပေးတဲ့ AI Agent တွေ<br />
+▪️Product တိုင်းကို သီးသန့် PnL တွက်ပေးတာတွေ<br />
+▪️Confirmed, Processing, Shipped, Delivered<br />
+▪️Invoice & Receipt လှလှလေးထုတ်ပေးတာတွေ<br />
+▪️Shop Report တွေကို CSV Download ရတာတွေ<br />
+▪️နေ့စဉ်၊ လစဉ်အရှုံးအမြတ်တွက်ပေးတာတွေ<br />
+▪️Royal Point System ရှိတာတွေ<br />
+▪️Coupon တွေဖန်တီးလို့ရတာတွေ<br />
+▪️Facebook လိုမျိုး Newsfeed ပါဝင်တာတွေ<br />
+▪️Telegram Mode Website Mode Guest Mode<br />
+▪️Staff Activities ကြည့်လို့ကတာတွေ<br />
+▪️Order Button Label အမျိုးမျိုးပြောင်းလို့ရတာတွေ<br />
+▪️Currency 180 မျိုးပါဝင်တာတွေ<br />
+( ရေးလို့မကုန်သေးဘူး အများကြီးကျန်သေးတယ် 😁)<br />
+ဒီလိုမျိုး Features တွေကတော့ အသေးအမွှား<br />လေးတွေဆိုတော့ တကူးတက ရှင်းပြမနေတော့ပါဘူး။<br /><br />
+
+🌐 ဒါ့အပြင် E-commerce ကို ကိုယ်ပိုင် Domain နဲ့<br />
+သုံးချင်သေးတာဆိုရင်လည်း ရသေးတယ်ဗျာ....<br /><br />
+
+Set Up လုပ်တာကလည်း တစ်မိနစ်အတွင်းတဲ့ OMG 😱<br /><br />
+
+💁‍♂️ စိတ်ကြိုက်သာစမ်းဗျာ... အဆင်ပြေတယ်လို့ယူဆ<br />
+မှသာ ဆက်သုံးပါ။ အဲ့လောက်အထိကို အာမခံပါတယ်။<br /><br />
+            </div>
+          )}
         </section>
 
         {/* STATS */}

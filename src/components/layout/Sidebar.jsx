@@ -108,10 +108,10 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
   ];
 
   const qrMenuItems = [
-    { to: '/qr-menu/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/qr-menu', icon: Utensils, label: 'Menu' },
-    { to: '/qr-menu/tables', icon: QrCode, label: 'Tables' },
-    { to: '/qr-menu/orders', icon: ClipboardList, label: 'Orders' },
+    { to: '/qr-menu/dashboard', icon: LayoutDashboard, label: 'QR Dashboard' },
+    { to: '/qr-menu', icon: Utensils, label: 'QR Menu' },
+    { to: '/qr-menu/tables', icon: QrCode, label: 'QR Tables' },
+    { to: '/qr-menu/orders', icon: ClipboardList, label: 'QR Orders' },
   ];
 
   const telegramItems = [
