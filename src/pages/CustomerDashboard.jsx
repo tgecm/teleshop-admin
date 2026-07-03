@@ -212,8 +212,8 @@ export default function CustomerDashboard({ shopSlug }) {
     setOrdersLoading(true);
     fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : [])
-      .then(data => { setCustomerOrders(Array.isArray(data) ? data : []); setOrdersLoading(false); })
-      .catch(() => { setCustomerOrders([]); setOrdersLoading(false); });
+      .then(data => { setCustomerOrders(Array.isArray(data) ? data : []); setOrdersLoading(false); setRefreshing(false); })
+      .catch(() => { setCustomerOrders([]); setOrdersLoading(false); setRefreshing(false); });
   }, [uid, shopSlug, refreshKey]);
 
   // Fetch customer points balance
@@ -225,7 +225,7 @@ export default function CustomerDashboard({ shopSlug }) {
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setCustomerPoints(d); })
       .catch(() => {});
-  }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled]);
+  }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled, refreshKey]);
 
   // Fetch points history
   useEffect(() => {
@@ -236,7 +236,7 @@ export default function CustomerDashboard({ shopSlug }) {
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setPointsHistory(d); })
       .catch(() => {});
-  }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled]);
+  }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled, refreshKey]);
 
 
   const { data: contentBlocks } = useQuery({
@@ -529,20 +529,7 @@ export default function CustomerDashboard({ shopSlug }) {
             <h1 className="text-white text-sm font-bold truncate">Hello, {savedName || displayName}!</h1>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => {
-              setRefreshing(true);
-              const ts = Date.now();
-              if (uid && shopSlug) {
-                fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders?shop=${encodeURIComponent(shopSlug)}&_=${ts}`, { headers: authHeaders() })
-                  .then(r => r.ok ? r.json() : [])
-                  .then(data => { setCustomerOrders(Array.isArray(data) ? data : []); setRefreshing(false); })
-                  .catch(() => setRefreshing(false));
-                fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders/stats?shop=${encodeURIComponent(shopSlug)}&_=${ts}`, { headers: authHeaders() })
-                  .then(r => r.ok ? r.json() : null)
-                  .then(s => { if (s) setOrderStats(s); })
-                  .catch(() => {});
-              }
-            }}
+            <button onClick={() => { setRefreshing(true); setRefreshKey(k => k + 1); }}
               className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
@@ -583,7 +570,7 @@ export default function CustomerDashboard({ shopSlug }) {
               </div>
             )}
             {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} receiptSettings={receiptSettings} />}
-            {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} />}
+            {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} receiptSettings={receiptSettings} />}
             {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} shop={shopData?.shop} />}
             {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
           </motion.div>
@@ -1193,7 +1180,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading, receiptSettings }) {
 }
 
 /* ─── CART TAB ─── */
-function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser }) {
+function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSettings }) {
   const [shopData, setShopData] = useState(null);
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
   const [customerPoints, setCustomerPoints] = useState(null);
