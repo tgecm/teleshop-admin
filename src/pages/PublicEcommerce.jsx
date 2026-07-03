@@ -1494,7 +1494,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
     if (fields.name && !form.name.trim()) { setError('Name is required'); return; }
     if (fields.phones && !form.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
     if (fields.emails && !form.emails[0]?.trim()) { setError('At least one email is required'); return; }
-    if (showZoneFields && (!form.region || !form.district || !form.township)) { setError('Please select Region, District and Township'); return; }
+    if (showZoneFields && fields.zone && (!form.region || !form.district || !form.township)) { setError('Please select Region, District and Township'); return; }
     if (fields.address && !form.address.trim()) { setError('Delivery address is required'); return; }
     if (fields.telegram && !form.telegram.trim()) { setError('Telegram username is required'); return; }
     if (fields.viber && !form.viber.trim()) { setError('Viber number is required'); return; }
@@ -1518,14 +1518,14 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
         </div>
 
         <div className="space-y-3">
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Full Name {fields.name ? '*' : ''}</label>
+          {fields.name && <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Full Name *</label>
             <input type="text" value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
+          </div>}
 
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Phone Numbers {fields.phones ? '*' : ''}</label>
+          {fields.phones && <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Phone Numbers *</label>
             <div className="space-y-2">
               {form.phones.map((phone, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -1544,10 +1544,10 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
 
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Email Addresses {fields.emails ? '*' : ''}</label>
+          {fields.emails && <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Email Addresses *</label>
             <div className="space-y-2">
               {form.emails.map((email, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -1566,23 +1566,23 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
 
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Telegram Username {fields.telegram ? '*' : ''}</label>
+          {fields.telegram && <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Telegram Username *</label>
             <input type="text" value={form.telegram} onChange={e => setForm(p => ({...p, telegram: e.target.value}))}
               placeholder="@username"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
+          </div>}
 
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Viber Number {fields.viber ? '*' : ''}</label>
+          {fields.viber && <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Viber Number *</label>
             <input type="tel" value={form.viber} onChange={e => setForm(p => ({...p, viber: e.target.value}))}
               placeholder="09xxxxxxxxx"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
+          </div>}
 
-          {showZoneFields && (<>
+          {showZoneFields && fields.zone && (<>
               <div>
                 <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်) *</label>
                 <SearchableSelect
@@ -1614,18 +1614,18 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
               </div>
             </>)}
 
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Delivery Address {fields.address ? '*' : ''}</label>
+          {fields.address && <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Delivery Address *</label>
             <textarea value={form.address} onChange={e => setForm(p => ({...p, address: e.target.value}))} rows={2}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
-          </div>
+          </div>}
 
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Notes {fields.notes ? '*' : ''}</label>
+          {fields.notes && <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Notes *</label>
             <input type="text" value={form.notes} onChange={e => setForm(p => ({...p, notes: e.target.value}))}
               placeholder="Any special requests?"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
+          </div>}
         </div>
 
         {error && <p className="text-rose-500 text-sm mt-3 text-center">{error}</p>}

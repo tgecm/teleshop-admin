@@ -15,6 +15,7 @@ import SearchableSelect from '../components/shared/SearchableSelect';
 import { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
 import { PaymentSelect, ContactInfoStep, CheckoutModal } from './PublicEcommerce';
 import { formatPrice } from '../utils/formatPrice';
+import ErrorBoundary from '../components/shared/ErrorBoundary';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
@@ -87,7 +88,7 @@ import {
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
   ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
   CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw,
-  TrendingUp, Star, Award
+  TrendingUp, Star, Award, AlertTriangle
 } from 'lucide-react';
 import Receipt from '../components/orders/Receipt';
 import CustomerShopTab from '../components/CustomerShopTab';
@@ -502,6 +503,21 @@ export default function CustomerDashboard({ shopSlug }) {
   const shopName = shopData?.shop?.bot_full_name || shopSlug;
 
   return (
+    <ErrorBoundary fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 max-w-sm text-center">
+          <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mx-auto mb-3">
+            <AlertTriangle className="w-6 h-6 text-rose-500" />
+          </div>
+          <p className="text-sm font-bold text-gray-800">Something went wrong</p>
+          <p className="text-xs text-gray-500 mt-1 mb-4">Please refresh the page.</p>
+          <button onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl">
+            Refresh
+          </button>
+        </div>
+      </div>
+    }>
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-gradient-to-r from-indigo-600 to-purple-600 shadow-md">
@@ -614,6 +630,15 @@ export default function CustomerDashboard({ shopSlug }) {
 
       {/* Chat Panel */}
       {chatOpen && shopData?.shop?.id && (
+        <ErrorBoundary fallback={
+          <div className="fixed inset-0 z-50 flex flex-col bg-white items-center justify-center p-8">
+            <p className="text-sm text-gray-500 text-center">Something went wrong. Please close and reopen the chat.</p>
+            <button onClick={() => setChatOpen(false)}
+              className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold">
+              Close
+            </button>
+          </div>
+        }>
         <div className="fixed inset-0 z-50 flex flex-col bg-white">
           {/* Chat Header */}
           <div className="flex items-center justify-between px-4 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 shrink-0">
@@ -662,8 +687,10 @@ export default function CustomerDashboard({ shopSlug }) {
             </div>
           </div>
         </div>
+        </ErrorBoundary>
       )}
     </div>
+    </ErrorBoundary>
   );
 }
 

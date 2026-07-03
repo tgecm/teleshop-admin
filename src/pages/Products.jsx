@@ -399,6 +399,13 @@ export default function Products() {
     setSelectedTownship('');
   };
 
+  const copyCode = async (code) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      addToast('Copied');
+    } catch { addToast('Failed to copy', 'error'); }
+  };
+
   const generateCouponCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
@@ -932,6 +939,9 @@ export default function Products() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-gray-900 font-mono">{coupon.code}</span>
+                        <button onClick={() => copyCode(coupon.code)} className="text-gray-300 hover:text-indigo-600 transition-colors p-0.5">
+                          <Copy className="w-3 h-3" />
+                        </button>
                         <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${
                           status === 'active' ? 'bg-emerald-50 text-emerald-700' :
                           status === 'used' ? 'bg-amber-50 text-amber-700' :
@@ -1414,6 +1424,9 @@ export default function Products() {
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-bold text-gray-900 font-mono">{coupon.code}</span>
+                                  <button onClick={() => copyCode(coupon.code)} className="text-gray-300 hover:text-indigo-600 transition-colors p-0.5">
+                                    <Copy className="w-3.5 h-3.5" />
+                                  </button>
                                   <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${
                                     status === 'active' ? 'bg-emerald-50 text-emerald-700' :
                                     status === 'used' ? 'bg-amber-50 text-amber-700' :
