@@ -1,4 +1,3 @@
-import { API_BASE } from '../api/config';
 import React, { useState, useRef } from 'react';
 import {
   CreditCard, AlertCircle, CheckCircle2, Loader2, ImageUp, X, ShoppingBag, ChevronRight
@@ -35,6 +34,7 @@ function compressImage(file, maxDimension = 720) {
 }
 
 export default function PublicAddPayment({ username, code, secret1 = '', secret2 = '' }) {
+  const API = window.location.origin;
   const [state, setState] = useState('loading');
   const [botInfo, setBotInfo] = useState(null);
   const [formData, setFormData] = useState({
@@ -52,14 +52,8 @@ export default function PublicAddPayment({ username, code, secret1 = '', secret2
 
   React.useEffect(() => {
     let cancelled = false;
-    const html = document.documentElement;
-    const prevOverscroll = html.style.overscrollBehavior;
-    const preventPull = (e) => {
-      if (e.cancelable) e.preventDefault();
-    };
-    html.style.overscrollBehavior = 'none';
-    document.addEventListener('touchmove', preventPull, { passive: false });
-    fetch(`${API_BASE}/public/bot-resolve/${encodeURIComponent(username)}/${encodeURIComponent(code)}?secret1=${encodeURIComponent(secret1)}&secret2=${encodeURIComponent(secret2)}`)
+    document.documentElement.style.overscrollBehavior = 'none';
+    fetch(`${API}/public/bot-resolve/${encodeURIComponent(username)}/${encodeURIComponent(code)}?secret1=${encodeURIComponent(secret1)}&secret2=${encodeURIComponent(secret2)}`)
       .then(res => {
         if (!res.ok) throw new Error('Invalid link');
         return res.json();
@@ -77,11 +71,7 @@ export default function PublicAddPayment({ username, code, secret1 = '', secret2
         if (cancelled) return;
         setState('error');
       });
-    return () => {
-      cancelled = true;
-      html.style.overscrollBehavior = prevOverscroll;
-      document.removeEventListener('touchmove', preventPull);
-    };
+    return () => { cancelled = true; document.documentElement.style.overscrollBehavior = ''; };
   }, [username, code]);
 
   const handleQrUpload = async (e) => {
@@ -93,7 +83,7 @@ export default function PublicAddPayment({ username, code, secret1 = '', secret2
       const formData = new FormData();
       formData.append('file', compressed);
       formData.append('bot_id', botInfo.bot_id);
-      const res = await fetch(`${API_BASE}/public/upload/photo`, {
+      const res = await fetch(`${API}/public/upload/photo`, {
         method: 'POST',
         body: formData,
       });
@@ -117,7 +107,7 @@ export default function PublicAddPayment({ username, code, secret1 = '', secret2
     if (!formData.name.trim() || !formData.payment_number.trim()) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/public/create-payment`, {
+      const res = await fetch(`${API}/public/create-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -332,7 +322,7 @@ export default function PublicAddPayment({ username, code, secret1 = '', secret2
                 <div className="flex justify-center">
                   <div className="relative w-36 h-36">
                     <img
-                      src={`${API_BASE}/telegram/file/${encodeURIComponent(qrImage.file_id)}?bot_id=${botInfo.bot_id}`}
+                      src={`${API}/telegram/file/${encodeURIComponent(qrImage.file_id)}?bot_id=${botInfo.bot_id}`}
                       alt="QR Code"
                       className="w-full h-full object-cover rounded-2xl border border-gray-200"
                     />
