@@ -251,6 +251,30 @@ body {
 .footer-brand .brand-icon svg { width: 12px; height: 12px; color: #fff; }
 .footer-brand span { font-size: 12px; font-weight: 700; color: #6b7280; }
 .footer > p { font-size: 10px; color: #9ca3af; }
+
+/* --- Animations --- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-card {
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.animate-slide-down {
+  animation: slideDown 0.2s ease both;
+}
+.btn:active { transform: scale(0.96) !important; }
 </style>
 </head>
 <body>
@@ -294,15 +318,15 @@ function esc(s) {
 function render() {
   const root = document.getElementById('root');
   if (state === 'loading') {
-    root.innerHTML = '<div class="card"><div class="loading-wrap">' +
+    root.innerHTML = '<div class="card animate-card"><div class="loading-wrap">' +
       '<div class="spinner"></div>' +
       '<p>Loading, If slow, use VPN</p>' +
     '</div></div>';
     return;
   }
   if (state === 'error') {
-    root.innerHTML = '<div class="card"><div class="card-body"><div class="center-card">' +
-      '<div class="icon-circle" style="background:linear-gradient(135deg,#fef2f2,#fee2e2)">' + iconSvg('alertCircle', 40) + '</div>' +
+    root.innerHTML = '<div class="card animate-card"><div class="card-body"><div class="center-card">' +
+      '<div class="icon-circle animate-scale-in" style="background:linear-gradient(135deg,#fef2f2,#fee2e2)">' + iconSvg('alertCircle', 40) + '</div>' +
       '<h2>Invalid Link</h2>' +
       '<p>Please add product using your mobile phone</p>' +
       '<a href="https://t.me/tg_ecommerce_official_bot" target="_blank" class="btn btn-ghost">Contact Support' + iconSvg('chevronRight', 16) + '</a>' +
@@ -310,8 +334,8 @@ function render() {
     return;
   }
   if (state === 'limit_reached') {
-    root.innerHTML = '<div class="card"><div class="card-body"><div class="center-card">' +
-      '<div class="icon-circle" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)">' + iconSvg('alertCircle', 40) + '</div>' +
+    root.innerHTML = '<div class="card animate-card"><div class="card-body"><div class="center-card">' +
+      '<div class="icon-circle animate-scale-in" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)">' + iconSvg('alertCircle', 40) + '</div>' +
       '<h2>Limit Reached</h2>' +
       '<p>You have reached your limit of adding new product. To add more, please upgrade!</p>' +
       '<a href="https://t.me/tg_ecommerce_official_bot" target="_blank" class="btn btn-primary">Contact Support to Upgrade' + iconSvg('chevronRight', 16) + '</a>' +
@@ -320,8 +344,8 @@ function render() {
   }
   if (state === 'success') {
     const p = result ? formatPrice(result.price, (botInfo && botInfo.currency) || 'MMK') : '';
-    root.innerHTML = '<div class="card" style="background:linear-gradient(135deg,#ecfdf5,#f0fdfa);padding:24px"><div class="center-card">' +
-      '<div class="icon-circle" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5)">' + iconSvg('checkCircle', 40) + '</div>' +
+    root.innerHTML = '<div class="card animate-card" style="background:linear-gradient(135deg,#ecfdf5,#f0fdfa);padding:24px"><div class="center-card">' +
+      '<div class="icon-circle animate-scale-in" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5)">' + iconSvg('checkCircle', 40) + '</div>' +
       '<h2>Product Submitted!</h2>' +
       '<p>Your product has been submitted successfully.</p>' +
       (result ? '<div style="background:#f9fafb;border-radius:16px;padding:16px;margin-bottom:24px;text-align:left;border:1px solid #f3f4f6">' +
@@ -339,7 +363,7 @@ function render() {
   const isValid = formData.name.trim() && formData.price && formData.category_id;
   const catLimit = botInfo && botInfo.limits && botInfo.counts && botInfo.limits.categories !== null && botInfo.counts.categories >= botInfo.limits.categories;
 
-  let html = '<div class="card">' +
+  let html = '<div class="card animate-card">' +
     '<div class="card-header">' +
       '<div class="icon-wrap">' + iconSvg('package', 28) + '</div>' +
       '<h1>Add Product</h1>' +
@@ -348,7 +372,7 @@ function render() {
     '<div class="card-body">';
 
   if (errorMsg) {
-    html += '<div class="error-banner">' + iconSvg('alertCircle', 20) + '<p>' + esc(errorMsg) + '</p></div>';
+    html += '<div class="error-banner animate-slide-down">' + iconSvg('alertCircle', 20) + '<p>' + esc(errorMsg) + '</p></div>';
   }
 
   // Category
