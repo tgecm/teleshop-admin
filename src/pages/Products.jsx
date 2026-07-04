@@ -120,7 +120,7 @@ export default function Products() {
       queryClient.invalidateQueries(['products', selectedBotId]);
       addToast('Product created successfully');
       setIsModalOpen(false);
-      console.log('[Product] Created:', result);
+      if (import.meta.env.DEV) console.log('[Product] Created:', result);
     },
     onError: (err) => {
       console.error('[Product] Create failed:', err.response?.data || err.message);
