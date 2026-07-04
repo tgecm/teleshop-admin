@@ -405,14 +405,13 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
           customer_name: 'Walk-in Customer',
           phone: '-',
           items,
-          total_amount: orderTotal, // raw pre-discount total — backend must apply discounts
+          order_total: orderTotal, // pre-discount total — backend must apply discounts
           payment_proof: paymentProof,
           payment_method: selectedPayment.name || 'prepaid',
           notes: tableProp ? `Table ${tableProp}` : tokenNumber ? `Token #${tokenNumber}` : 'QR Menu - Prepaid',
           customer_id: customerId || undefined,
-          points_earned: 0,
-          points_redeemed: pointsDiscount > 0 ? pointsToRedeem : 0,
-          coupon_code: appliedCoupon?.code || '',
+          points_to_redeem: pointsToRedeem || 0,
+          coupon_code: appliedCoupon?.code || null,
         }),
       });
       const data = await res.json();
@@ -1010,7 +1009,9 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
     return s + oi.qty * calcItemPrice(oi.item, oi.variants, oi.addons);
   }, 0), [orderItems]);
 
-  // WARNING: netTotal is for display only — backend must verify final total
+  // ⚠️ WARNING: netTotal is for DISPLAY ONLY
+  // Backend must re-validate coupon + points and return verified_total
+  // Never trust this value for actual charge amount
   const netTotal = Math.max(0, orderTotal - couponDiscount - pointsDiscount);
 
   const addToOrder = useCallback((item, qty, selectedVariants = {}, selectedAddons = []) => {
