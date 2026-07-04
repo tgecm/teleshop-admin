@@ -43,7 +43,17 @@ export default function PermissionGuard({ children }) {
 
   if (isError) {
     console.warn('[PermissionGuard] Failed to load permissions for user', user?.id);
-    return children;
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-5">
+          <ShieldX className="w-10 h-10 text-amber-400" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Permission Check Failed</h2>
+        <p className="text-sm text-gray-500 max-w-xs">
+          Could not verify your permissions. Please try refreshing the page or contact your admin.
+        </p>
+      </div>
+    );
   }
 
   if (staffPerms?.[requiredPerm] !== true) {

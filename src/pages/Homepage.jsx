@@ -3,11 +3,10 @@ import { API_BASE } from '../api/config';
 import { formatPrice } from '../utils/formatPrice';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 
-const sanitizeHtml = (html) =>
-  (html || '').replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-              .replace(/on\w+="[^"]*"/gi, '')
-              .replace(/on\w+='[^']*'/gi, '')
-              .replace(/javascript:/gi, '');
+const renderHtml = (text) => {
+  const parts = (text || '').split(/\s*<br\s*\/?>\s*/);
+  return parts.map((p, i) => i < parts.length - 1 ? <>{p}<br /></> : <>{p}</>);
+};
 
 const CSS = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -570,9 +569,9 @@ Set Up လုပ်တာကလည်း တစ်မိနစ်အတွင်
                     <div className="feat-title">{f.title}</div>
                     <div className="feat-icon" style={{ background: f.bg }}>{f.icon}</div>
                   </div>
-                  <div className="feat-desc" dangerouslySetInnerHTML={{__html: sanitizeHtml(f.desc)}} />
+                  <div className="feat-desc">{renderHtml(f.desc)}</div>
                   <ul className="feat-sublist">
-                    {f.items.map((item, j) => <li key={j} dangerouslySetInnerHTML={{__html: sanitizeHtml(item)}} />)}
+                    {f.items.map((item, j) => <li key={j}>{renderHtml(item)}</li>)}
                   </ul>
                 </div>
               </div>
