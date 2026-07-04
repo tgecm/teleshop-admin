@@ -24,6 +24,7 @@ import { useAppBadge } from './hooks/useAppBadge';
 import { useBackgroundSync } from './hooks/useBackgroundSync';
 
 const Layout = React.lazy(() => import('./components/layout/Layout'));
+const PublicLayout = React.lazy(() => import('./components/layout/PublicLayout'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Orders = React.lazy(() => import('./pages/Orders'));
@@ -91,45 +92,55 @@ function PublicRoute() {
   const addProductMatch = pathname.match(/^(.+)-add-product-(\d{5})-(\d+)-(\d+)$/);
   if (addProductMatch) {
     return (
-      <Suspense fallback={<SuspenseFallback />}>
-        <PublicAddProduct username={addProductMatch[1]} code={addProductMatch[2]} secret1={addProductMatch[3]} secret2={addProductMatch[4]} />
-      </Suspense>
+      <PublicLayout>
+        <Suspense fallback={<SuspenseFallback />}>
+          <PublicAddProduct username={addProductMatch[1]} code={addProductMatch[2]} secret1={addProductMatch[3]} secret2={addProductMatch[4]} />
+        </Suspense>
+      </PublicLayout>
     );
   }
 
   const addPaymentMatch = pathname.match(/^(.+)-add-new-payment-(\d{5})-(\d+)-(\d+)$/);
   if (addPaymentMatch) {
     return (
-      <Suspense fallback={<SuspenseFallback />}>
-        <PublicAddPayment username={addPaymentMatch[1]} code={addPaymentMatch[2]} secret1={addPaymentMatch[3]} secret2={addPaymentMatch[4]} />
-      </Suspense>
+      <PublicLayout>
+        <Suspense fallback={<SuspenseFallback />}>
+          <PublicAddPayment username={addPaymentMatch[1]} code={addPaymentMatch[2]} secret1={addPaymentMatch[3]} secret2={addPaymentMatch[4]} />
+        </Suspense>
+      </PublicLayout>
     );
   }
 
   const customerLoginMatch = pathname.match(/^(.+)-user-dashboard-login$/);
   if (customerLoginMatch) {
     return (
-      <Suspense fallback={<SuspenseFallback />}>
-        <CustomerLogin shopSlug={customerLoginMatch[1]} />
-      </Suspense>
+      <PublicLayout>
+        <Suspense fallback={<SuspenseFallback />}>
+          <CustomerLogin shopSlug={customerLoginMatch[1]} />
+        </Suspense>
+      </PublicLayout>
     );
   }
 
   const customerDashboardMatch = pathname.match(/^(.+)-user-dashboard$/);
   if (customerDashboardMatch) {
     return (
-      <Suspense fallback={<SuspenseFallback />}>
-        <CustomerDashboard shopSlug={customerDashboardMatch[1]} />
-      </Suspense>
+      <PublicLayout>
+        <Suspense fallback={<SuspenseFallback />}>
+          <CustomerDashboard shopSlug={customerDashboardMatch[1]} />
+        </Suspense>
+      </PublicLayout>
     );
   }
 
   const ecommerceMatch = pathname.match(/^(.+)-ecommerce$/);
   if (ecommerceMatch) {
     return (
-      <Suspense fallback={<SuspenseFallback />}>
-        <PublicEcommerce slug={ecommerceMatch[1]} />
-      </Suspense>
+      <PublicLayout>
+        <Suspense fallback={<SuspenseFallback />}>
+          <PublicEcommerce slug={ecommerceMatch[1]} />
+        </Suspense>
+      </PublicLayout>
     );
   }
 
@@ -138,25 +149,25 @@ function PublicRoute() {
   }
   const modeMatch = pathname.match(/^(.+)\/(telegram|ecommerce|guest)$/);
   if (modeMatch) {
-    return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={modeMatch[1]} mode={modeMatch[2]} /></Suspense>;
+    return <PublicLayout><Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={modeMatch[1]} mode={modeMatch[2]} /></Suspense></PublicLayout>;
   }
   const qrDashboard = pathname.match(/^(.+)-qr-dashboard$/);
   if (qrDashboard) {
-    return <Suspense fallback={<SuspenseFallback />}><QRMenuCustomerDashboard slug={qrDashboard[1]} /></Suspense>;
+    return <PublicLayout><Suspense fallback={<SuspenseFallback />}><QRMenuCustomerDashboard slug={qrDashboard[1]} /></Suspense></PublicLayout>;
   }
   const qrMenu = pathname.match(/^(.+)-qr-menu(?:\/t(\d+))?$/);
   if (qrMenu) {
-    return <Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} /></Suspense>;
+    return <PublicLayout><Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} /></Suspense></PublicLayout>;
   }
   const tokenDash = pathname.match(/^(.+)-token-dashboard$/);
   if (tokenDash) {
-    return <Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={tokenDash[1]} table="" forceDashboard /></Suspense>;
+    return <PublicLayout><Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={tokenDash[1]} table="" forceDashboard /></Suspense></PublicLayout>;
   }
   const tokenDisplay = pathname.match(/^(.+)-token-display$/);
   if (tokenDisplay) {
-    return <Suspense fallback={<SuspenseFallback />}><LiveTokenDisplay slug={tokenDisplay[1]} /></Suspense>;
+    return <PublicLayout><Suspense fallback={<SuspenseFallback />}><LiveTokenDisplay slug={tokenDisplay[1]} /></Suspense></PublicLayout>;
   }
-  return <Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={pathname} /></Suspense>;
+  return <PublicLayout><Suspense fallback={<SuspenseFallback />}><PublicEcommerce slug={pathname} /></Suspense></PublicLayout>;
 }
 
 const queryClient = new QueryClient({
@@ -325,83 +336,125 @@ export default function App() {
       <VpnWarningModal />
       {addProductFromHash ? (
         <>
-          <Suspense fallback={<SuspenseFallback />}>
-            <PublicAddProduct username={addProductFromHash.username} code={addProductFromHash.code} secret1={addProductFromHash.secret1} secret2={addProductFromHash.secret2} />
-          </Suspense>
+          <PublicLayout>
+            <Suspense fallback={<SuspenseFallback />}>
+              <PublicAddProduct username={addProductFromHash.username} code={addProductFromHash.code} secret1={addProductFromHash.secret1} secret2={addProductFromHash.secret2} />
+            </Suspense>
+          </PublicLayout>
           <ToastContainer />
           <SelectionToolbar />
         </>
       ) : addPaymentFromHash ? (
         <>
-          <Suspense fallback={<SuspenseFallback />}>
-            <PublicAddPayment username={addPaymentFromHash.username} code={addPaymentFromHash.code} secret1={addPaymentFromHash.secret1} secret2={addPaymentFromHash.secret2} />
-          </Suspense>
+          <PublicLayout>
+            <Suspense fallback={<SuspenseFallback />}>
+              <PublicAddPayment username={addPaymentFromHash.username} code={addPaymentFromHash.code} secret1={addPaymentFromHash.secret1} secret2={addPaymentFromHash.secret2} />
+            </Suspense>
+          </PublicLayout>
           <ToastContainer />
           <SelectionToolbar />
         </>
       ) : addProductParam ? (
         <>
-          <Suspense fallback={<SuspenseFallback />}>
-            <PublicAddProduct username={addProductParam.username} code={addProductParam.code} secret1={addProductParam.secret1} secret2={addProductParam.secret2} />
-          </Suspense>
+          <PublicLayout>
+            <Suspense fallback={<SuspenseFallback />}>
+              <PublicAddProduct username={addProductParam.username} code={addProductParam.code} secret1={addProductParam.secret1} secret2={addProductParam.secret2} />
+            </Suspense>
+          </PublicLayout>
           <ToastContainer />
           <SelectionToolbar />
         </>
       ) : addPaymentParam ? (
         <>
-          <Suspense fallback={<SuspenseFallback />}>
-            <PublicAddPayment username={addPaymentParam.username} code={addPaymentParam.code} secret1={addPaymentParam.secret1} secret2={addPaymentParam.secret2} />
-          </Suspense>
+          <PublicLayout>
+            <Suspense fallback={<SuspenseFallback />}>
+              <PublicAddPayment username={addPaymentParam.username} code={addPaymentParam.code} secret1={addPaymentParam.secret1} secret2={addPaymentParam.secret2} />
+            </Suspense>
+          </PublicLayout>
           <ToastContainer />
           <SelectionToolbar />
         </>
       ) : publicSlug ? (
         <>
-          <Suspense fallback={<SuspenseFallback />}>
-            {(() => {
-              if (publicSlug === 'homepage') return <Homepage />;
-              const m = publicSlug.match(/^(.+)-add-product-(\d{5})-(\d+)-(\d+)$/);
-              if (m) return <PublicAddProduct username={m[1]} code={m[2]} secret1={m[3]} secret2={m[4]} />;
-              const pm = publicSlug.match(/^(.+)-add-new-payment-(\d{5})-(\d+)-(\d+)$/);
-              if (pm) return <PublicAddPayment username={pm[1]} code={pm[2]} secret1={pm[3]} secret2={pm[4]} />;
-              const cl = publicSlug.match(/^(.+)-user-dashboard-login$/);
-              if (cl) return <CustomerLogin shopSlug={cl[1]} />;
-              const cd = publicSlug.match(/^(.+)-user-dashboard$/);
-              if (cd) return <CustomerDashboard shopSlug={cd[1]} />;
-              const ec = publicSlug.match(/^(.+)-ecommerce$/);
-              if (ec) return <PublicEcommerce slug={ec[1]} />;
-              const modeSlug = publicSlug.match(/^(.+)\/(telegram|ecommerce|guest)$/);
-              if (modeSlug) return <PublicEcommerce slug={modeSlug[1]} mode={modeSlug[2]} />;
-              const qrMenu = publicSlug.match(/^(.+)-qr-menu(?:\/t(\d+))?$/);
-              if (qrMenu) return <PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} />;
-              const qrDash = publicSlug.match(/^(.+)-qr-dashboard$/);
-              if (qrDash) return <QRMenuCustomerDashboard slug={qrDash[1]} />;
-              const tokenDash = publicSlug.match(/^(.+)-token-dashboard$/);
-              if (tokenDash) return <PublicQRMenu slug={tokenDash[1]} table="" forceDashboard />;
-              const tokenDisplay = publicSlug.match(/^(.+)-token-display$/);
-              if (tokenDisplay) return <LiveTokenDisplay slug={tokenDisplay[1]} />;
-              return <PublicEcommerce slug={publicSlug} />;
-            })()}
-          </Suspense>
+          <PublicLayout>
+            <Suspense fallback={<SuspenseFallback />}>
+              {(() => {
+                if (publicSlug === 'homepage') return <Homepage />;
+                const m = publicSlug.match(/^(.+)-add-product-(\d{5})-(\d+)-(\d+)$/);
+                if (m) return <PublicAddProduct username={m[1]} code={m[2]} secret1={m[3]} secret2={m[4]} />;
+                const pm = publicSlug.match(/^(.+)-add-new-payment-(\d{5})-(\d+)-(\d+)$/);
+                if (pm) return <PublicAddPayment username={pm[1]} code={pm[2]} secret1={pm[3]} secret2={pm[4]} />;
+                const cl = publicSlug.match(/^(.+)-user-dashboard-login$/);
+                if (cl) return <CustomerLogin shopSlug={cl[1]} />;
+                const cd = publicSlug.match(/^(.+)-user-dashboard$/);
+                if (cd) return <CustomerDashboard shopSlug={cd[1]} />;
+                const ec = publicSlug.match(/^(.+)-ecommerce$/);
+                if (ec) return <PublicEcommerce slug={ec[1]} />;
+                const modeSlug = publicSlug.match(/^(.+)\/(telegram|ecommerce|guest)$/);
+                if (modeSlug) return <PublicEcommerce slug={modeSlug[1]} mode={modeSlug[2]} />;
+                const qrMenu = publicSlug.match(/^(.+)-qr-menu(?:\/t(\d+))?$/);
+                if (qrMenu) return <PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} />;
+                const qrDash = publicSlug.match(/^(.+)-qr-dashboard$/);
+                if (qrDash) return <QRMenuCustomerDashboard slug={qrDash[1]} />;
+                const tokenDash = publicSlug.match(/^(.+)-token-dashboard$/);
+                if (tokenDash) return <PublicQRMenu slug={tokenDash[1]} table="" forceDashboard />;
+                const tokenDisplay = publicSlug.match(/^(.+)-token-display$/);
+                if (tokenDisplay) return <LiveTokenDisplay slug={tokenDisplay[1]} />;
+                return <PublicEcommerce slug={publicSlug} />;
+              })()}
+            </Suspense>
+          </PublicLayout>
           <ToastContainer />
           <SelectionToolbar />
         </>
       ) : window.location.hash.startsWith('#/auth/google/proxy') ? (
         <>
-          <Suspense fallback={<SuspenseFallback />}>
-            <GoogleAuthProxy />
-          </Suspense>
+          <PublicLayout>
+            <Suspense fallback={<SuspenseFallback />}>
+              <GoogleAuthProxy />
+            </Suspense>
+          </PublicLayout>
           <ToastContainer />
           <SelectionToolbar />
         </>
       ) : isCustomDomain() ? (
         (() => {
-          const modePath = window.location.pathname.replace(/\/+$/, '').replace(/^\//, '').match(/^(telegram|ecommerce|guest)$/);
+          const pathname = window.location.pathname.replace(/^\//, '');
+          const ecomMode = pathname.match(/^(telegram|ecommerce|guest)$/);
+          if (ecomMode) {
+            return <><PublicLayout><Suspense fallback={<SuspenseFallback />}><PublicEcommerce viaDomain mode={ecomMode[1]} /></Suspense></PublicLayout><ToastContainer /><SelectionToolbar /></>;
+          }
+          const qrMenu = pathname.match(/^(.+)-qr-menu(?:\/t(\d+))?$/);
+          if (qrMenu) {
+            return <><PublicLayout><Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={qrMenu[1]} table={qrMenu[2] || ''} /></Suspense></PublicLayout><ToastContainer /><SelectionToolbar /></>;
+          }
+          const qrDash = pathname.match(/^(.+)-qr-dashboard$/);
+          if (qrDash) {
+            return <><PublicLayout><Suspense fallback={<SuspenseFallback />}><QRMenuCustomerDashboard slug={qrDash[1]} /></Suspense></PublicLayout><ToastContainer /><SelectionToolbar /></>;
+          }
+          const tokenDash = pathname.match(/^(.+)-token-dashboard$/);
+          if (tokenDash) {
+            return <><PublicLayout><Suspense fallback={<SuspenseFallback />}><PublicQRMenu slug={tokenDash[1]} table="" forceDashboard /></Suspense></PublicLayout><ToastContainer /><SelectionToolbar /></>;
+          }
+          const tokenDisplay = pathname.match(/^(.+)-token-display$/);
+          if (tokenDisplay) {
+            return <><PublicLayout><Suspense fallback={<SuspenseFallback />}><LiveTokenDisplay slug={tokenDisplay[1]} /></Suspense></PublicLayout><ToastContainer /><SelectionToolbar /></>;
+          }
+          const cd = pathname.match(/^(.+)-user-dashboard$/);
+          if (cd) {
+            return <><PublicLayout><Suspense fallback={<SuspenseFallback />}><CustomerDashboard shopSlug={cd[1]} /></Suspense></PublicLayout><ToastContainer /><SelectionToolbar /></>;
+          }
+          const cl = pathname.match(/^(.+)-user-dashboard-login$/);
+          if (cl) {
+            return <><PublicLayout><Suspense fallback={<SuspenseFallback />}><CustomerLogin shopSlug={cl[1]} /></Suspense></PublicLayout><ToastContainer /><SelectionToolbar /></>;
+          }
           return (
             <>
-              <Suspense fallback={<SuspenseFallback />}>
-                <PublicEcommerce viaDomain mode={modePath?.[1] || undefined} />
-              </Suspense>
+              <PublicLayout>
+                <Suspense fallback={<SuspenseFallback />}>
+                  <PublicEcommerce viaDomain />
+                </Suspense>
+              </PublicLayout>
               <ToastContainer />
               <SelectionToolbar />
             </>
@@ -415,7 +468,9 @@ export default function App() {
         if (!pn && !isCapacitor) {
           return (
             <>
-              <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>
+              <PublicLayout>
+                <Suspense fallback={<SuspenseFallback />}><Homepage /></Suspense>
+              </PublicLayout>
               <ToastContainer />
               <NotificationToast />
               <SelectionToolbar />
@@ -427,10 +482,10 @@ export default function App() {
             <BrowserRouter basename="/">
               <Routes>
                 <Route path="/login" element={
-                  <Suspense fallback={<SuspenseFallback />}><Login /></Suspense>
+                  <PublicLayout><Suspense fallback={<SuspenseFallback />}><Login /></Suspense></PublicLayout>
                 } />
                 <Route path="/manage-web-panel" element={
-                  <Suspense fallback={<SuspenseFallback />}><WebPanel /></Suspense>
+                  <PublicLayout><Suspense fallback={<SuspenseFallback />}><WebPanel /></Suspense></PublicLayout>
                 } />
                 <Route path="/" element={
                   <Suspense fallback={<SuspenseFallback />}><Layout /></Suspense>

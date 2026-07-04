@@ -302,7 +302,7 @@ function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRe
   );
 }
 
-function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, onSubmitOrder, tableProp, customerId, customerPoints, pointsSettings, netTotal, couponDiscount, pointsDiscount, appliedCoupon, couponInput, setCouponInput, handleApplyCoupon, checkingCoupon, pointsToRedeem, setPointsToRedeem, handleRedeemPoints, redeemingPoints, tokenNumber }) {
+function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, onSubmitOrder, tableProp, customerId, customerPoints, pointsSettings, netTotal, couponDiscount, pointsDiscount, appliedCoupon, couponInput, setCouponInput, handleApplyCoupon, checkingCoupon, pointsToRedeem, setPointsToRedeem, handleRedeemPoints, redeemingPoints, tokenNumber, couponAttempts, couponLockUntil }) {
   const [step, setStep] = useState('form');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -316,6 +316,18 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
   const [copied, setCopied] = useState(false);
 
   const [showDoneDetail, setShowDoneDetail] = useState(false);
+
+  const [couponCountdown, setCouponCountdown] = useState(0);
+  useEffect(() => {
+    if (!couponLockUntil || Date.now() >= couponLockUntil) { setCouponCountdown(0); return; }
+    setCouponCountdown(Math.ceil((couponLockUntil - Date.now()) / 1000));
+    const id = setInterval(() => {
+      const left = Math.ceil((couponLockUntil - Date.now()) / 1000);
+      if (left <= 0) { setCouponCountdown(0); clearInterval(id); }
+      else setCouponCountdown(left);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [couponLockUntil]);
 
   function getPaymentQrUrl(pm) {
     if (!pm?.qr_code_url) return null;
@@ -393,16 +405,14 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
           customer_name: 'Walk-in Customer',
           phone: '-',
           items,
-          total_amount: netTotal,
+          total_amount: orderTotal, // raw pre-discount total — backend must apply discounts
           payment_proof: paymentProof,
           payment_method: selectedPayment.name || 'prepaid',
           notes: tableProp ? `Table ${tableProp}` : tokenNumber ? `Token #${tokenNumber}` : 'QR Menu - Prepaid',
           customer_id: customerId || undefined,
           points_earned: 0,
           points_redeemed: pointsDiscount > 0 ? pointsToRedeem : 0,
-          points_discount: pointsDiscount,
           coupon_code: appliedCoupon?.code || '',
-          coupon_discount: couponDiscount,
         }),
       });
       const data = await res.json();
@@ -527,6 +537,11 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
                   <img src={getPaymentQrUrl(selectedPayment)} alt="Payment QR" className="checkout-qr" />
                 )}
               </div>
+              {couponCountdown > 0 && (
+                <div style={{background:'#fef2f2',borderRadius:10,padding:'10px 12px',margin:'12px 0',fontSize:13,color:'#dc2626',fontWeight:500,textAlign:'center'}}>
+                  Too many attempts. Try again in {couponCountdown}s...
+                </div>
+              )}
               {/* Coupon */}
               {!appliedCoupon?.code && !appliedCoupon?.error && (
                 <details style={{margin:'12px 0'}}>
@@ -542,15 +557,15 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
                     />
                     <button
                       onClick={handleApplyCoupon}
-                      disabled={checkingCoupon || !couponInput.trim()}
+                      disabled={checkingCoupon || !couponInput.trim() || couponCountdown > 0}
                       style={{
                         padding:'10px 16px',border:'none',borderRadius:10,
                         background:'var(--theme-primary, #4f46e5)',color:'#fff',
                         fontSize:13,fontWeight:700,cursor:'pointer',
-                        opacity: checkingCoupon || !couponInput.trim() ? 0.5 : 1,
+                        opacity: checkingCoupon || !couponInput.trim() || couponCountdown > 0 ? 0.5 : 1,
                       }}
                     >
-                      {checkingCoupon ? '...' : 'Apply'}
+                      {checkingCoupon ? '...' : couponCountdown > 0 ? `${couponCountdown}s` : 'Apply'}
                     </button>
                   </div>
                 </details>
@@ -672,6 +687,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
   const [customerPoints, setCustomerPoints] = useState(0);
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
   const [phoneInput, setPhoneInput] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [identifyingPhone, setIdentifyingPhone] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponInput, setCouponInput] = useState('');
@@ -680,6 +696,14 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
   const [pointsToRedeem, setPointsToRedeem] = useState(0);
   const [pointsDiscount, setPointsDiscount] = useState(0);
   const [redeemingPoints, setRedeemingPoints] = useState(false);
+  const [couponAttempts, setCouponAttempts] = useState(() => Number(sessionStorage.getItem('coupon_attempts') || 0));
+  const [couponLockUntil, setCouponLockUntil] = useState(() => Number(sessionStorage.getItem('coupon_lock_until') || 0));
+
+  const isValidMyanmarPhone = (phone) => {
+    const cleaned = phone.trim();
+    if (cleaned.length > 15) return false;
+    return /^(\+959|09|9)\d{7,12}$/.test(cleaned);
+  };
   const bannerTouchRef = useRef(null);
   const searchRef = useRef(null);
   const catScrollRef = useRef(null);
@@ -784,7 +808,6 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          setCustomerPhone(parsed.phone);
           setCustomerId(parsed.id);
           setCustomerPoints(parsed.points || 0);
         } catch {}
@@ -806,6 +829,19 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
 
   async function doAssignToken() {
     if (!slug) return;
+    // Return existing token if already assigned this session
+    const existingToken = sessionStorage.getItem('qr_token');
+    if (existingToken) {
+      setTokenNumber(Number(existingToken));
+      setTokenMode(true);
+      setShowTokenCard(true);
+      return;
+    }
+    // 5-second cooldown between requests
+    const lastRequest = sessionStorage.getItem('last_token_request');
+    if (lastRequest && Date.now() - Number(lastRequest) < 5000) {
+      return;
+    }
     setAssigningToken(true);
     setTokenMode(true);
     try {
@@ -815,9 +851,12 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
       if (!res.ok) throw new Error('Failed to assign token');
       const data = await res.json();
       sessionStorage.setItem('qr_token', data.token_number);
+      sessionStorage.setItem('last_token_request', String(Date.now()));
       setTokenNumber(data.token_number);
     } catch (err) {
-      console.error('Token error:', err);
+      if (import.meta.env.DEV) {
+        console.error('Token error:', err);
+      }
     } finally {
       setAssigningToken(false);
     }
@@ -859,14 +898,20 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
   };
 
   const handleIdentifyPhone = async () => {
-    if (!phoneInput.trim() || !shop?.id) return;
+    setPhoneError('');
+    const trimmed = phoneInput.trim();
+    if (!trimmed || !shop?.id) return;
+    if (!isValidMyanmarPhone(trimmed)) {
+      setPhoneError('Enter a valid Myanmar phone number (e.g. 09123456789)');
+      return;
+    }
     setIdentifyingPhone(true);
     try {
-      const result = await identifyCustomer(phoneInput.trim(), shop.id, '');
+      const result = await identifyCustomer(trimmed, shop.id, '');
       setCustomerId(result.customer_id);
       setCustomerPhone(result.phone);
       setCustomerPoints(result.points || 0);
-      localStorage.setItem(`qr_customer_${shop.id}`, JSON.stringify({ id: result.customer_id, phone: result.phone, points: result.points || 0 }));
+      localStorage.setItem(`qr_customer_${shop.id}`, JSON.stringify({ id: result.customer_id, points: result.points || 0 }));
       setShowPhonePrompt(false);
     } catch {
       // silently fail — customer can still browse
@@ -880,6 +925,8 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
   };
 
   const handleApplyCoupon = async () => {
+    // Check lockout — 5 failed attempts = 60s ban
+    if (Date.now() < couponLockUntil) return;
     if (!couponInput.trim() || !shop?.id) return;
     setCheckingCoupon(true);
     try {
@@ -888,9 +935,21 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
         setAppliedCoupon({ code: result.coupon_code, type: result.coupon_type, discount: result.discount });
         setCouponDiscount(result.discount);
         setCouponInput('');
+        setCouponAttempts(0);
+        setCouponLockUntil(0);
+        sessionStorage.setItem('coupon_attempts', '0');
+        sessionStorage.removeItem('coupon_lock_until');
       } else {
         setAppliedCoupon({ error: result.message });
         setCouponDiscount(0);
+        const newAttempts = couponAttempts + 1;
+        setCouponAttempts(newAttempts);
+        sessionStorage.setItem('coupon_attempts', String(newAttempts));
+        if (newAttempts >= 5) {
+          const lockTime = Date.now() + 60000;
+          setCouponLockUntil(lockTime);
+          sessionStorage.setItem('coupon_lock_until', String(lockTime));
+        }
       }
     } catch {
       setAppliedCoupon({ error: 'Failed to validate coupon' });
@@ -951,6 +1010,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
     return s + oi.qty * calcItemPrice(oi.item, oi.variants, oi.addons);
   }, 0), [orderItems]);
 
+  // WARNING: netTotal is for display only — backend must verify final total
   const netTotal = Math.max(0, orderTotal - couponDiscount - pointsDiscount);
 
   const addToOrder = useCallback((item, qty, selectedVariants = {}, selectedAddons = []) => {
@@ -994,7 +1054,9 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
     );
   }
 
-  if (!isOpen && !wasEverOpen) {
+  const tokenModeDisabled = (isTokenUrlMode || forceDashboard) && !dualModeEnabled && !!data;
+
+  if (!isOpen && !wasEverOpen || tokenModeDisabled) {
     return (
       <div className="qr-page-closed">
         <div className="qr-closed-bg-pattern" />
@@ -1277,6 +1339,9 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
                   autoFocus
                 />
               </div>
+              {phoneError && (
+                <p style={{fontSize:12,color:'#dc2626',fontWeight:500,textAlign:'center',marginTop:-8}}>{phoneError}</p>
+              )}
               <button
                 onClick={handleIdentifyPhone}
                 disabled={identifyingPhone || phoneInput.length < 6}
@@ -1738,6 +1803,8 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
             netTotal={netTotal}
             couponDiscount={couponDiscount}
             pointsDiscount={pointsDiscount}
+            couponAttempts={couponAttempts}
+            couponLockUntil={couponLockUntil}
             appliedCoupon={appliedCoupon}
             couponInput={couponInput}
             setCouponInput={setCouponInput}
