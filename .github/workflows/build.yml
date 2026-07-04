@@ -36,6 +36,14 @@ jobs:
         run: npx cap sync android
       - name: Fix Java version after sync
         run: find android node_modules/@capacitor/android -name "*.gradle" -exec sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' {} \;
+      - name: Generate debug keystore
+        run: |
+          if [ ! -f android/mm-shop.keystore ]; then
+            keytool -genkey -v -keystore android/mm-shop.keystore \
+              -storepass teleshop123 -alias mm-shop -keypass teleshop123 \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, ST=Debug, C=US"
+          fi
       - name: Build debug APK
         run: cd android && ./gradlew assembleDebug
       - name: Upload APK
