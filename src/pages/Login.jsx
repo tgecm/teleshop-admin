@@ -11,7 +11,7 @@ import { API_BASE } from '../api/config';
 
 export default function Login() {
   const [email, setEmail] = useState(() => localStorage.getItem('saved_email') || '');
-  const [password, setPassword] = useState(() => localStorage.getItem('saved_password') || '');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -469,7 +469,6 @@ export default function Login() {
       } else {
         localStorage.setItem('saved_email', email);
       }
-      if (password) localStorage.setItem('saved_password', password);
     } catch {}
   };
 
