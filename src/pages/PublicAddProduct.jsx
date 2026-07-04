@@ -57,6 +57,13 @@ export default function PublicAddProduct({ username, code, secret1 = '', secret2
   // Resolve bot on mount
   React.useEffect(() => {
     let cancelled = false;
+    const html = document.documentElement;
+    const prevOverscroll = html.style.overscrollBehavior;
+    const preventPull = (e) => {
+      if (e.cancelable) e.preventDefault();
+    };
+    html.style.overscrollBehavior = 'none';
+    document.addEventListener('touchmove', preventPull, { passive: false });
     fetch(`${API_BASE}/public/bot-resolve/${encodeURIComponent(username)}/${encodeURIComponent(code)}?secret1=${encodeURIComponent(secret1)}&secret2=${encodeURIComponent(secret2)}`)
       .then(res => {
         if (!res.ok) throw new Error('Invalid link');
@@ -78,7 +85,11 @@ export default function PublicAddProduct({ username, code, secret1 = '', secret2
         if (cancelled) return;
         setState('error');
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      html.style.overscrollBehavior = prevOverscroll;
+      document.removeEventListener('touchmove', preventPull);
+    };
   }, [username, code]);
 
   const handleImageUpload = async (e) => {
@@ -177,7 +188,7 @@ export default function PublicAddProduct({ username, code, secret1 = '', secret2
   // Loading state
   if (state === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4" style={{ overscrollBehavior: 'none' }}>
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-[3px] border-indigo-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-gray-400 font-medium">Loading, If slow, use VPN</p>
@@ -189,7 +200,7 @@ export default function PublicAddProduct({ username, code, secret1 = '', secret2
   // Error state
   if (state === 'error') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4" style={{ overscrollBehavior: 'none' }}>
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -295,7 +306,7 @@ export default function PublicAddProduct({ username, code, secret1 = '', secret2
   const shopName = botInfo?.bot_full_name || 'Shop';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50" style={{ overscrollBehavior: 'none' }}>
       <div className="max-w-lg mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
