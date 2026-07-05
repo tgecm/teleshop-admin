@@ -10,6 +10,7 @@ import client from '../api/client';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import { useToastStore } from '../store/toastStore';
 import { formatPrice } from '../utils/formatPrice';
+import { DEFAULT_DOMAINS } from '../utils/domains';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import {
@@ -1053,8 +1054,8 @@ export default function QRMenuAdmin() {
     setIsDeleting(id);
   };
 
-  const qrMenuUrl = publicSlug?.slug
-    ? `https://telegramecommerce.shop/${publicSlug.slug}-qr-menu`
+  const qrMenuUrls = publicSlug?.slug
+    ? DEFAULT_DOMAINS.map(d => ({ ...d, fullUrl: `${d.url}/${publicSlug.slug}-qr-menu` }))
     : null;
 
   if (isLoading) return <LoadingSkeleton type="grid" count={6} />;
@@ -2330,28 +2331,32 @@ export default function QRMenuAdmin() {
                   </div>
 
                   {/* QR Menu URL */}
-                    <p className="text-xs font-bold text-gray-500 mb-2">QR Menu URL</p>
-                    {qrMenuUrl ? (
-                      <div className="space-y-3">
-                        <a
-                          href={qrMenuUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1.5 break-all"
-                        >
-                          telegramecommerce.shop/{publicSlug.slug}-qr-menu
-                          <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
-                        </a>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(qrMenuUrl);
-                            addToast('QR Menu URL copied');
-                          }}
-                          className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-100 transition-all font-bold text-xs flex items-center justify-center gap-1.5"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                          Copy URL
-                        </button>
+                    <p className="text-xs font-bold text-gray-500 mb-2">QR Menu URLs</p>
+                    {qrMenuUrls ? (
+                      <div className="space-y-2">
+                        {qrMenuUrls.map(domain => (
+                          <div key={domain.name} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border border-gray-100">
+                            <a
+                              href={domain.fullUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1.5 break-all"
+                            >
+                              {domain.name}/{publicSlug.slug}-qr-menu
+                              <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            </a>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(domain.fullUrl);
+                                addToast(`${domain.name} QR Menu URL copied`);
+                              }}
+                              className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 transition-all font-bold text-[10px] flex items-center gap-1 flex-shrink-0"
+                            >
+                              <Copy className="w-3 h-3" />
+                              Copy
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     ) : (
                       <p className="text-sm text-gray-400">Generate a public shop URL in Settings first.</p>

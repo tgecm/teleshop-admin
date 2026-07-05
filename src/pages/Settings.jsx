@@ -70,6 +70,7 @@ import {
 import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { requireFeature } from '../utils/plans';
+import { DEFAULT_DOMAINS } from '../utils/domains';
 import Subscription from './Subscription';
 import { Capacitor } from '@capacitor/core';
 import { registerFCMToken } from '../lib/pushNotifications';
@@ -669,30 +670,32 @@ export default function Settings() {
               <div className="transition-all duration-300">
                 {publicSlug?.slug ? (
                   <div className="space-y-2.5">
-                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                      <p className="text-[10px] text-gray-500 font-medium mb-0.5">Your public shop URL</p>
-                      <a
-                        href={`https://telegramecommerce.shop/${publicSlug.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 break-all"
-                      >
-                        telegramecommerce.shop/{publicSlug.slug}
-                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      </a>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(`https://telegramecommerce.shop/${publicSlug.slug}`);
-                          addToast('URL copied to clipboard');
-                        }}
-                        className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl hover:bg-gray-100 transition-all font-bold text-xs flex items-center justify-center gap-1.5"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        Copy URL
-                      </button>
-                    </div>
+                    {DEFAULT_DOMAINS.map(domain => (
+                      <div key={domain.name} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                        <p className="text-[10px] text-gray-500 font-medium mb-0.5">{domain.name}</p>
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={`${domain.url}/${publicSlug.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 break-all"
+                          >
+                            {domain.name}/{publicSlug.slug}
+                            <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                          </a>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${domain.url}/${publicSlug.slug}`);
+                              addToast(`${domain.name} URL copied`);
+                            }}
+                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 transition-all font-bold text-[10px] flex items-center gap-1 flex-shrink-0"
+                          >
+                            <Copy className="w-3 h-3" />
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                    ))}
 
                     <div className="border-t border-gray-100 pt-2.5 mt-2.5">
                       <p className="text-[10px] text-gray-500 font-medium mb-2">Dedicated mode pages</p>
@@ -702,28 +705,31 @@ export default function Settings() {
                           { label: 'Website', suffix: '/ecommerce', icon: '🛒' },
                           { label: 'Guest', suffix: '/guest', icon: '👤' },
                         ].map(mode => (
-                          <div key={mode.suffix} className="flex items-center gap-1.5">
-                            <a
-                              href={`https://telegramecommerce.shop/${publicSlug.slug}${mode.suffix}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 break-all"
-                            >
-                              <span className="text-[10px]">{mode.icon}</span>
-                              .../{publicSlug.slug}{mode.suffix}
-                              <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
-                            </a>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(`https://telegramecommerce.shop/${publicSlug.slug}${mode.suffix}`);
-                                addToast(`${mode.label} URL copied`);
-                              }}
-                              className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-indigo-600 transition-all flex-shrink-0"
-                              title={`Copy ${mode.label} URL`}
-                            >
-                              <Copy className="w-3 h-3" />
-                            </button>
-                          </div>
+                          DEFAULT_DOMAINS.map(domain => (
+                            <div key={domain.name + mode.suffix} className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-gray-400 w-[100px] font-medium">{domain.name}</span>
+                              <a
+                                href={`${domain.url}/${publicSlug.slug}${mode.suffix}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 break-all"
+                              >
+                                <span className="text-[10px]">{mode.icon}</span>
+                                /{publicSlug.slug}{mode.suffix}
+                                <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+                              </a>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(`${domain.url}/${publicSlug.slug}${mode.suffix}`);
+                                  addToast(`${domain.name} ${mode.label} URL copied`);
+                                }}
+                                className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-indigo-600 transition-all flex-shrink-0"
+                                title={`Copy ${domain.name} ${mode.label} URL`}
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))
                         ))}
                       </div>
                     </div>

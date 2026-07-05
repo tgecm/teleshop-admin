@@ -6,6 +6,7 @@ import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { getBotPublicSlug, listBotDomains } from '../api/public';
 import { downloadBlob } from '../utils/download';
 import { QRCodeCanvas } from 'qrcode.react';
+import { DEFAULT_DOMAINS } from '../utils/domains';
 import { Plus, Copy, Download, Trash2, QrCode, ExternalLink, Pen, SkipForward, RotateCcw, Ticket, ChevronLeft } from 'lucide-react';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 
@@ -86,18 +87,33 @@ export default function QRMenuTables() {
 
   const baseUrl = useMemo(() => {
     if (customDomain) return `https://${customDomain}`;
-    return 'https://www.telegramecommerce.shop';
+    return DEFAULT_DOMAINS[0].url;
   }, [customDomain]);
+
+  const domainUrls = useMemo(() => {
+    if (!publicSlug?.slug) return DEFAULT_DOMAINS.map(d => ({ ...d, fullUrl: '' }));
+    return DEFAULT_DOMAINS.map(d => ({ ...d, fullUrl: `${d.url}/${publicSlug.slug}-qr-menu` }));
+  }, [publicSlug]);
 
   const getTableUrl = useCallback((number) => {
     if (!publicSlug?.slug) return '';
     return `${baseUrl}/${publicSlug.slug}-qr-menu/t${number}`;
   }, [publicSlug, baseUrl]);
 
+  const getTableDomainUrls = useCallback((number) => {
+    if (!publicSlug?.slug) return [];
+    return DEFAULT_DOMAINS.map(d => ({ ...d, url: `${d.url}/${publicSlug.slug}-qr-menu/t${number}` }));
+  }, [publicSlug]);
+
   const getTokenUrl = useCallback(() => {
     if (!publicSlug?.slug) return '';
     return `${baseUrl}/${publicSlug.slug}-qr-menu?mode=token`;
   }, [publicSlug, baseUrl]);
+
+  const getTokenDomainUrls = useCallback(() => {
+    if (!publicSlug?.slug) return [];
+    return DEFAULT_DOMAINS.map(d => ({ ...d, url: `${d.url}/${publicSlug.slug}-qr-menu?mode=token` }));
+  }, [publicSlug]);
 
   const setQrRef = (number, node) => {
     if (node) qrRefs.current[number] = node;
@@ -140,18 +156,16 @@ export default function QRMenuTables() {
     if (blob) await downloadBlob(blob, 'token-qr.png');
   };
 
-  const copyLink = (number) => {
-    const url = getTableUrl(number);
-    if (!url) return;
-    navigator.clipboard.writeText(url);
+  const copyLink = (number, domainUrl) => {
+    if (!domainUrl) return;
+    navigator.clipboard.writeText(domainUrl);
     const table = tables.find(t => t.number === number);
     addToast(`${table?.name || `Table ${number}`} link copied`);
   };
 
-  const copyTokenLink = () => {
-    const url = getTokenUrl();
-    if (!url) return;
-    navigator.clipboard.writeText(url);
+  const copyTokenLink = (domainUrl) => {
+    if (!domainUrl) return;
+    navigator.clipboard.writeText(domainUrl);
     addToast('Token link copied');
   };
 
@@ -317,14 +331,20 @@ export default function QRMenuTables() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => copyLink(table.number)}
-                        className="w-full py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-100 transition-all flex items-center justify-center gap-2 active:scale-[0.97]"
-                      >
-                        <Copy className="w-4 h-4" />
-                        Copy Link
-                      </button>
+                    <div className="space-y-1.5">
+                      {(() => {
+                        const domainUrls = getTableDomainUrls(table.number);
+                        return domainUrls.map((d, i) => (
+                          <button
+                            key={d.name}
+                            onClick={() => copyLink(table.number, d.url)}
+                            className="w-full py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-100 transition-all flex items-center justify-center gap-2 active:scale-[0.97]"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            {d.name}
+                          </button>
+                        ));
+                      })()}
                       <button
                         onClick={() => downloadQR(table.number)}
                         className="w-full py-2.5 bg-orange-50 border border-orange-200 rounded-xl text-sm font-bold text-orange-600 hover:bg-orange-100 transition-all flex items-center justify-center gap-2 active:scale-[0.97]"
@@ -459,17 +479,20 @@ export default function QRMenuTables() {
                     includeMargin
                   />
                 </div>
-                <div className="flex gap-3 w-full max-w-sm">
-                  <button
-                    onClick={copyTokenLink}
-                    className="flex-1 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-100 transition-all flex items-center justify-center gap-2 active:scale-[0.97]"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copy Link
-                  </button>
+                <div className="flex flex-col gap-1.5 w-full max-w-sm">
+                  {getTokenDomainUrls().map(d => (
+                    <button
+                      key={d.name}
+                      onClick={() => copyTokenLink(d.url)}
+                      className="w-full py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-100 transition-all flex items-center justify-center gap-2 active:scale-[0.97]"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      {d.name}
+                    </button>
+                  ))}
                   <button
                     onClick={downloadTokenQR}
-                    className="flex-1 py-2.5 bg-violet-50 border border-violet-200 rounded-xl text-sm font-bold text-violet-600 hover:bg-violet-100 transition-all flex items-center justify-center gap-2 active:scale-[0.97]"
+                    className="w-full py-2 bg-violet-50 border border-violet-200 rounded-xl text-xs font-bold text-violet-600 hover:bg-violet-100 transition-all flex items-center justify-center gap-2 active:scale-[0.97]"
                   >
                     <Download className="w-4 h-4" />
                     Download QR
