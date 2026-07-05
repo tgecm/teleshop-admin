@@ -12,6 +12,7 @@ import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
 import Receipt from '../components/orders/Receipt';
 import { Capacitor } from '@capacitor/core';
+import { downloadBlob } from '../utils/download';
 import {
   Search,
   ChevronRight,
@@ -36,6 +37,7 @@ import {
   User,
   Hash,
   Store,
+  Download,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -67,6 +69,7 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showFilter, setShowFilter] = useState(false);
   const [showShopInfo, setShowShopInfo] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState(null);
   const filterRef = useRef(null);
 
   useEffect(() => {
@@ -553,17 +556,28 @@ export default function Orders() {
                                         </a>
                                       )}
                                     </div>
-                                    <img
-                                      src={imgUrl}
-                                      alt={`Payment proof ${idx + 1}`}
-                                      className="w-full rounded-lg border border-gray-200"
-                                      onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.style.display = 'none';
-                                        e.target.nextElementSibling.style.display = 'block';
-                                      }}
-                                    />
-                                    <p className="hidden text-xs text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
+                                    <div className="relative group">
+                                      <img
+                                        src={imgUrl}
+                                        alt={`Payment proof ${idx + 1}`}
+                                        className="w-full rounded-lg border border-gray-200 cursor-pointer"
+                                        onClick={() => setFullScreenImage(imgUrl)}
+                                        onError={(e) => {
+                                          e.target.onerror = null;
+                                          e.target.style.display = 'none';
+                                          e.target.parentElement.querySelector('.proof-fallback').style.display = 'block';
+                                        }}
+                                      />
+                                      <a
+                                        href={`${client.defaults.baseURL}/orders/${selectedOrder.id}/payment-proof-image/${idx}?download=1&token=${token}`}
+                                        download={`payment_proof_${selectedOrder.id}_${idx + 1}.jpg`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="absolute top-2 right-2 w-8 h-8 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity active:scale-90"
+                                      >
+                                        <Download className="w-4 h-4 text-white" />
+                                      </a>
+                                    </div>
+                                    <p className="hidden proof-fallback text-xs text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
                                       Unable to load image. Check in Telegram bot.
                                     </p>
                                   </div>
@@ -692,6 +706,10 @@ export default function Orders() {
         onSave={(data) => receiptMutation.mutate(data)}
         isPending={receiptMutation.isPending}
       />
+
+      {fullScreenImage && (
+        <ImageViewer src={fullScreenImage} onClose={() => setFullScreenImage(null)} />
+      )}
     </div>
   );
 }
@@ -888,6 +906,108 @@ function DetailRow({ icon: Icon, label, value }) {
         <p className="text-xs text-gray-500 font-medium">{label}</p>
         <p className="text-sm font-bold text-gray-900 text-right max-w-[200px] break-words">{value}</p>
       </div>
+    </div>
+  );
+}
+
+function ImageViewer({ src, onClose }) {
+  const imgRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const lastDist = useRef(null);
+  const lastPos = useRef(null);
+  const lastScale = useRef(1);
+  const lastPosition = useRef({ x: 0, y: 0 });
+  const [panning, setPanning] = useState(false);
+
+  const reset = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+    lastScale.current = 1;
+    lastPosition.current = { x: 0, y: 0 };
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastDist.current = Math.hypot(dx, dy);
+      lastScale.current = scale;
+      lastPosition.current = { ...position };
+    } else if (e.touches.length === 1 && scale > 1) {
+      setPanning(true);
+      lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastPosition.current = { ...position };
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      if (lastDist.current) {
+        const newScale = Math.min(Math.max(lastScale.current * (dist / lastDist.current), 1), 5);
+        setScale(newScale);
+        if (newScale <= 1) {
+          setPosition({ x: 0, y: 0 });
+        }
+      }
+    } else if (e.touches.length === 1 && panning && scale > 1) {
+      const dx = e.touches[0].clientX - lastPos.current.x;
+      const dy = e.touches[0].clientY - lastPos.current.y;
+      setPosition({
+        x: lastPosition.current.x + dx,
+        y: lastPosition.current.y + dy,
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    lastDist.current = null;
+    lastPos.current = null;
+    setPanning(false);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center z-10 transition-all active:scale-90"
+      >
+        <X className="w-5 h-5 text-white" />
+      </button>
+
+      <button
+        onClick={(e) => { e.stopPropagation(); reset(); }}
+        className="absolute top-4 left-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center z-10 transition-all active:scale-90"
+      >
+        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+        </svg>
+      </button>
+
+      <img
+        ref={imgRef}
+        src={src}
+        alt="Payment proof"
+        className="max-w-full max-h-full object-contain select-none transition-transform duration-200 ease-out"
+        style={{
+          transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          scale > 1 ? reset() : setScale(2.5);
+        }}
+        draggable={false}
+      />
+      <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-white/50">Pinch to zoom · Double tap to zoom</p>
     </div>
   );
 }
