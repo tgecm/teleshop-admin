@@ -971,35 +971,38 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
               <div className="w-10 h-1 bg-gray-200 rounded-full" />
             </div>
 
-            <div className="flex items-center justify-between px-4 pb-3 flex-shrink-0">
-              <h2 className="text-lg font-bold text-gray-900">{receiptType === 'invoice' ? 'Invoice' : 'Receipt'}</h2>
-              <div className="flex items-center gap-2">
+            <div className="flex items-center px-2 md:px-4 pb-3 flex-shrink-0 gap-2">
+              <h2 className="text-lg font-bold text-gray-900 whitespace-nowrap">{receiptType === 'invoice' ? 'Invoice' : 'Receipt'}</h2>
+              <div className="flex-1 min-w-4 max-w-[30%] md:max-w-[50%]" />
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={handleDownloadPdf}
                   disabled={generating}
-                  className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
+                  className="px-2.5 py-2 md:px-4 md:py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1 md:gap-1.5 text-[11px] md:text-sm"
                 >
                   {generating ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" />
                   ) : (
-                    <FileText className="w-4 h-4" />
+                    <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   )}
-                  {generating ? 'Generating...' : 'Download PDF'}
+                  <span className="hidden sm:inline">{generating ? 'Generating...' : 'PDF'}</span>
+                  <span className="sm:hidden">{generating ? '...' : 'PDF'}</span>
                 </button>
                 <button
                   onClick={handleDownload}
                   disabled={generating}
-                  className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 text-sm"
+                  className="px-2.5 py-2 md:px-4 md:py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1 md:gap-1.5 text-[11px] md:text-sm"
                 >
                   {generating ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" />
                   ) : (
-                    <Download className="w-4 h-4" />
+                    <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   )}
-                  {generating ? 'Generating...' : 'Download PNG'}
+                  <span className="hidden sm:inline">{generating ? 'Generating...' : 'PNG'}</span>
+                  <span className="sm:hidden">{generating ? '...' : 'PNG'}</span>
                 </button>
-                <button onClick={onClose} className="p-2 bg-white rounded-full shadow-sm active:scale-90 transition-transform">
-                  <X className="w-5 h-5 text-gray-500" />
+                <button onClick={onClose} className="p-1.5 md:p-2 bg-white rounded-full shadow-sm active:scale-90 transition-transform">
+                  <X className="w-4 h-4 md:w-5 md:h-5 text-gray-500" />
                 </button>
               </div>
             </div>

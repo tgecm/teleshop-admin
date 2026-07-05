@@ -20,24 +20,30 @@ export default function NotificationPopup() {
   const initPending = useRef(false);
   const initAdmin = useRef(false);
 
-  const { data: unread } = useQuery({
+  const { data: unread, isFetching: fetchingUnread } = useQuery({
     queryKey: ['unreadCount', selectedBotId],
     queryFn: () => getUnreadCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
     refetchInterval: 3000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
-  const { data: pendingOrders } = useQuery({
+  const { data: pendingOrders, isFetching: fetchingOrders } = useQuery({
     queryKey: ['pendingOrderCount', selectedBotId],
     queryFn: () => getPendingOrderCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
     refetchInterval: 3000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
-  const { data: unreadAdminMsgs } = useQuery({
+  const { data: unreadAdminMsgs, isFetching: fetchingAdmin } = useQuery({
     queryKey: ['adminUnreadMessages'],
     queryFn: getAdminUnreadMessagesCount,
     refetchInterval: 3000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
   const pop = (type, msg, path) => {
@@ -54,7 +60,7 @@ export default function NotificationPopup() {
     }
     if (unread !== undefined) initUnread.current = true;
     prevUnread.current = curr;
-  }, [unread?.total]);
+  }, [unread?.total, fetchingUnread]);
 
   useEffect(() => {
     const curr = pendingOrders?.pending ?? 0;
@@ -63,7 +69,7 @@ export default function NotificationPopup() {
     }
     if (pendingOrders !== undefined) initPending.current = true;
     prevPending.current = curr;
-  }, [pendingOrders?.pending]);
+  }, [pendingOrders?.pending, fetchingOrders]);
 
   useEffect(() => {
     const curr = unreadAdminMsgs?.count ?? 0;
@@ -72,7 +78,7 @@ export default function NotificationPopup() {
     }
     if (unreadAdminMsgs !== undefined) initAdmin.current = true;
     prevAdmin.current = curr;
-  }, [unreadAdminMsgs?.count]);
+  }, [unreadAdminMsgs?.count, fetchingAdmin]);
 
   const tap = () => {
     if (!notice) return;
@@ -82,23 +88,33 @@ export default function NotificationPopup() {
   };
 
   const icons = { order: '📦', message: '💬', admin: '📧' };
+  const subtitles = { order: 'Tap to view order', message: 'Tap to open chat', admin: 'Tap to open chat' };
 
   return (
     <AnimatePresence>
       {notice && (
         <motion.div
-          initial={{ y: -60, opacity: 0, scaleX: 0.9 }}
-          animate={{ y: 0, opacity: 1, scaleX: 1 }}
-          exit={{ y: -60, opacity: 0, scaleX: 0.9 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 260 }}
+          initial={{ height: 32, opacity: 0, y: -20, scaleX: 0.6 }}
+          animate={{ height: 'auto', opacity: 1, y: 0, scaleX: 1 }}
+          exit={{ height: 32, opacity: 0, y: -20, scaleX: 0.6 }}
+          transition={{ type: 'spring', damping: 22, stiffness: 280 }}
           onClick={tap}
-          className="fixed top-2 left-0 right-0 z-[100] flex justify-center pointer-events-none"
+          className="fixed top-3 left-0 right-0 z-[100] flex justify-center pointer-events-none px-6"
         >
-          <div className="pointer-events-auto bg-black/90 text-white rounded-full shadow-2xl px-5 py-2.5 flex items-center gap-2.5 cursor-pointer active:scale-95 transition-transform max-w-[280px] border border-white/10">
-            <span className="text-sm">{icons[notice.type] || '🔔'}</span>
-            <span className="text-sm font-semibold whitespace-nowrap">{notice.msg}</span>
-            <span className="text-[9px] text-white/40 font-medium pl-1 border-l border-white/10">Tap</span>
-          </div>
+          <motion.div
+            layout
+            transition={{ type: 'spring', damping: 22, stiffness: 280 }}
+            className="pointer-events-auto bg-black/95 text-white rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform border border-white/10 max-w-sm w-full backdrop-blur-xl"
+          >
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-base flex-shrink-0 shadow-lg shadow-indigo-500/20">
+              {icons[notice.type] || '🔔'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold leading-tight">{notice.msg}</p>
+              <p className="text-[11px] text-white/40 font-medium mt-0.5">{subtitles[notice.type] || 'Tap to view'}</p>
+            </div>
+            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0 shadow-sm shadow-green-400/50" />
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>

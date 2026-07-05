@@ -364,9 +364,9 @@ export default function Customers() {
                 <div className="w-9 h-1 bg-gray-200 rounded-full" />
               </div>
 
-              <div className="flex items-center justify-between px-6 pb-3 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm overflow-hidden ${
+              <div className="flex items-center justify-between px-6 pb-3 border-b border-gray-100 gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm overflow-hidden shrink-0 ${
                     detailCustomer.telegram_id
                       ? detailCustomer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
                       : 'bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600'
@@ -381,14 +381,11 @@ export default function Customers() {
                       '?'
                     )}
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">{detailCustomer.first_name || detailCustomer.display_name || 'User'}</h3>
-                    <p className="text-xs text-gray-500">
-                      {detailCustomer.telegram_id ? `@${detailCustomer.username || 'no_username'}` : detailCustomer.email || ''}
-                    </p>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold text-gray-900 truncate">{detailCustomer.first_name || detailCustomer.display_name || 'User'}</h3>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button onClick={handleCopyProfile}
                     className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-indigo-100 transition-all active:scale-95">
                     <Copy className="w-3.5 h-3.5" />

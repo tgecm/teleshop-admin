@@ -853,7 +853,17 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
           }));
         } catch {}
       }
-      onOrderPlaced(data);
+      // Fetch full order details for invoice generation (same as admin panel approach)
+      let orderData = data;
+      try {
+        const detailRes = await fetch(API_BASE + '/public/order/' + data.order_number + '?bot_id=' + shop.id);
+        if (detailRes.ok) {
+          orderData = await detailRes.json();
+        }
+      } catch (e) {
+        console.error('Failed to fetch order details:', e);
+      }
+      onOrderPlaced(orderData);
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -1483,7 +1493,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
     setProfileLoaded(true);
   }, [viewMode, shopSlug, profileLoaded]);
 
-  const setPhone = (idx, val) => setForm(p => { const n = [...p.phones]; n[idx] = val; return { ...p, phones: n }; });
+  const setPhone = (idx, val) => setForm(p => { const n = [...p.phones]; n[idx] = val.replace(/\D/g, '').slice(0, 15); return { ...p, phones: n }; });
   const addPhone = () => setForm(p => ({ ...p, phones: [...p.phones, ''] }));
   const removePhone = (idx) => setForm(p => ({ ...p, phones: p.phones.filter((_, i) => i !== idx) }));
   const setEmail = (idx, val) => setForm(p => { const n = [...p.emails]; n[idx] = val; return { ...p, emails: n }; });
@@ -1577,7 +1587,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
 
           {fields.viber && <div>
             <label className="text-xs text-gray-500 font-medium mb-1 block">Viber Number *</label>
-            <input type="tel" value={form.viber} onChange={e => setForm(p => ({...p, viber: e.target.value}))}
+            <input type="tel" value={form.viber} onChange={e => setForm(p => ({...p, viber: e.target.value.replace(/\D/g, '').slice(0, 15)}))}
               placeholder="09xxxxxxxxx"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>}

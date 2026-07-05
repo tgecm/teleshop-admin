@@ -1094,12 +1094,12 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading, receiptSettings }) {
                     {order.shipping_address && (
                       <div className="bg-white rounded-xl p-3 border border-gray-100 space-y-1.5">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Contact Info</p>
-                        <p className="text-xs text-gray-700"><span className="font-medium">Name:</span> {order.shipping_address.name || '—'}</p>
-                        <p className="text-xs text-gray-700"><span className="font-medium">Phone:</span> {order.shipping_address.phone || '—'}</p>
+                        <p className="text-xs text-gray-700"><span className="font-medium">Name:</span> {order.buyer_snapshot?.full_name || order.buyer_snapshot?.name || '—'}</p>
+                        <p className="text-xs text-gray-700"><span className="font-medium">Phone:</span> {order.buyer_snapshot?.phone || '—'}</p>
                         <p className="text-xs text-gray-700"><span className="font-medium">Email:</span> {order.buyer_snapshot?.email || '—'}</p>
                         {order.buyer_snapshot?.telegram_username && <p className="text-xs text-gray-700"><span className="font-medium">Telegram:</span> {order.buyer_snapshot.telegram_username}</p>}
                         {order.buyer_snapshot?.viber_number && <p className="text-xs text-gray-700"><span className="font-medium">Viber:</span> {order.buyer_snapshot.viber_number}</p>}
-                        <p className="text-xs text-gray-700"><span className="font-medium">Address:</span> {order.shipping_address.address || '—'}</p>
+                        <p className="text-xs text-gray-700"><span className="font-medium">Address:</span> {order.buyer_snapshot?.address || '—'}</p>
                         {order.shipping_address.notes && <p className="text-xs text-gray-700"><span className="font-medium">Notes:</span> {order.shipping_address.notes}</p>}
                       </div>
                     )}
@@ -1131,7 +1131,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading, receiptSettings }) {
                       </div>
                     )}
                     <div className="flex gap-2 pt-1">
-                      {order.status === 'pending' ? (
+                      {order.status !== 'cancelled' && order.status !== 'rejected' && order.status !== 'payment_failed' && (
                         <button
                           onClick={() => { setDownloadType('invoice'); setDownloadOrder(order); }}
                           className="flex-1 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
@@ -1139,24 +1139,16 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading, receiptSettings }) {
                           <ReceiptIcon className="w-3.5 h-3.5 inline mr-1" />
                           Download Invoice
                         </button>
-                      ) : order.status !== 'cancelled' && order.status !== 'rejected' && order.status !== 'payment_failed' ? (
-                        <>
-                          <button
-                            onClick={() => { setDownloadType('invoice'); setDownloadOrder(order); }}
-                            className="flex-1 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
-                          >
-                            <ReceiptIcon className="w-3.5 h-3.5 inline mr-1" />
-                            Download Invoice
-                          </button>
-                          <button
-                            onClick={() => { setDownloadType('receipt'); setDownloadOrder(order); }}
-                            className="flex-1 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
-                          >
-                            <ReceiptIcon className="w-3.5 h-3.5 inline mr-1" />
-                            Download Receipt
-                          </button>
-                        </>
-                      ) : null}
+                      )}
+                      {['confirmed', 'processing', 'shipped', 'delivered'].includes(order.status) && (
+                        <button
+                          onClick={() => { setDownloadType('receipt'); setDownloadOrder(order); }}
+                          className="flex-1 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+                        >
+                          <ReceiptIcon className="w-3.5 h-3.5 inline mr-1" />
+                          Download Receipt
+                        </button>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -1679,7 +1671,7 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
               {phones.map((phone, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <input type="tel" value={phone} onChange={e => {
-                    const next = [...phones]; next[idx] = e.target.value; setPhones(next);
+                    const next = [...phones]; next[idx] = e.target.value.replace(/\D/g, '').slice(0, 15); setPhones(next);
                   }} placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone"}
                     className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
                   {idx === 0 ? (
@@ -1731,7 +1723,7 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
           {/* Viber Number */}
           <div>
             <label className="text-xs text-gray-500 font-medium mb-1.5 block">Viber Number</label>
-            <input type="tel" value={viber} onChange={e => setViber(e.target.value)}
+            <input type="tel" value={viber} onChange={e => setViber(e.target.value.replace(/\D/g, '').slice(0, 15))}
               placeholder="09xxxxxxxxx"
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
           </div>
