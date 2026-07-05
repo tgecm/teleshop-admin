@@ -76,6 +76,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
     queryFn: () => getUnreadCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
     refetchInterval: 15000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
   const { data: pendingOrders } = useQuery({
@@ -83,6 +85,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
     queryFn: () => getPendingOrderCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
     refetchInterval: 15000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
   const { data: qrPendingOrders } = useQuery({
@@ -90,6 +94,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
     queryFn: () => getQRMenuPendingCount(selectedBotId),
     enabled: !!selectedBotId,
     refetchInterval: 30000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
   const navItems = [

@@ -121,8 +121,9 @@ export default function Orders() {
   });
 
   const filteredOrders = orders?.filter(o => {
-    const isWebsite = o.payment_method === 'website';
-    const isGuest = o.payment_method === 'guest';
+    const isTelegramOrder = o.user_id != null;
+    const isWebsite = o.payment_method === 'website' || o.buyer_snapshot?.firebase_uid != null;
+    const isGuest = o.payment_method === 'guest' || (!isTelegramOrder && !isWebsite);
     if (orderTab !== 'all') {
       if (orderTab === 'telegram' && (isWebsite || isGuest)) return false;
       if (orderTab === 'ecommerce' && !isWebsite) return false;
@@ -365,7 +366,9 @@ export default function Orders() {
                   {(() => {
                     const bs = selectedOrder.buyer_snapshot || {};
                     const cust = selectedOrder.customer || {};
-                    const label = selectedOrder.payment_method === 'guest' ? 'Guest Info' : selectedOrder.payment_method === 'website' ? 'Customer Profile' : 'Telegram Customer Info';
+                    const isTelegramSelected = selectedOrder.user_id != null;
+                    const isWebsiteSelected = selectedOrder.payment_method === 'website' || selectedOrder.buyer_snapshot?.firebase_uid != null;
+                    const label = isTelegramSelected ? 'Telegram Customer Info' : isWebsiteSelected ? 'Customer Profile' : 'Guest Info';
                     return (
                       <div className="bg-gray-50 rounded-2xl border border-gray-100 p-3 md:p-4 space-y-2 md:space-y-3">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>

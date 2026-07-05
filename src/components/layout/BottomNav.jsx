@@ -20,6 +20,8 @@ export default function BottomNav() {
     queryFn: () => getUnreadCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
     refetchInterval: 3000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
   const { data: pendingOrders } = useQuery({
@@ -27,6 +29,8 @@ export default function BottomNav() {
     queryFn: () => getPendingOrderCount(Number(selectedBotId)),
     enabled: !!selectedBotId,
     refetchInterval: 3000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 
   const navItems = [

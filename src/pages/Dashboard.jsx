@@ -582,9 +582,7 @@ export default function Dashboard() {
                           <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium">{selectedBot?.currency || 'MMK'}</p>
                           {product.total_profit !== null && product.total_profit !== undefined ? (
                             <p className="text-[10px] sm:text-[11px] font-bold text-emerald-600 leading-tight mt-0.5">{Number(product.total_profit).toLocaleString()} <span className="text-[8px] font-medium">profit</span></p>
-                          ) : (
-                            <p className="text-[10px] sm:text-[11px] text-gray-300 leading-tight mt-0.5" title="Cost price not set">⚠️ N/A</p>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </motion.div>
