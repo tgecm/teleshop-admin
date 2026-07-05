@@ -18,10 +18,10 @@ android {
     }
     signingConfigs {
         debug {
-            storeFile file('../mm-shop.keystore')
-            storePassword 'teleshop123'
-            keyAlias 'mm-shop'
-            keyPassword 'teleshop123'
+            storeFile file(System.getenv('KEYSTORE_FILE') ?: '../mm-shop.keystore')
+            storePassword System.getenv('KEYSTORE_PASSWORD') ?: 'teleshop123'
+            keyAlias System.getenv('KEY_ALIAS') ?: 'mm-shop'
+            keyPassword System.getenv('KEY_PASSWORD') ?: 'teleshop123'
         }
     }
     buildTypes {

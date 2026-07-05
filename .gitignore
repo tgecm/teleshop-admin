@@ -12,3 +12,5 @@ android/build/
 .gradle/
 *.local
 sys
+*.keystore
+*.jks
