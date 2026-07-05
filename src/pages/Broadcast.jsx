@@ -154,10 +154,6 @@ export default function Broadcast() {
         </div>
       </div>
 
-      <div className="text-center md:hidden">
-        <p className="text-[10px] text-gray-400 italic">Pull down to refresh</p>
-      </div>
-
       <div className="grid gap-4">
         {activeTab === 'broadcasts' ? (
           <>
