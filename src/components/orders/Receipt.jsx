@@ -939,7 +939,8 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       }
 
       const fileName = `${receiptType}-${order.order_number || order.id}.pdf`;
-      pdf.save(fileName);
+      const pdfBlob = pdf.output('blob');
+      await downloadBlob(pdfBlob, fileName);
       addToast('PDF downloaded successfully');
     } catch (err) {
       console.error('PDF export failed:', err);
