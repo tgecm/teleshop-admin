@@ -536,7 +536,7 @@ export default function Login() {
         }
       }
     } catch (err) {
-      setError(err.response?.data?.detail || err.response?.data?.message || 'Login failed. Please try again.');
+      setError(err.response?.data?.detail || err.response?.data?.message || 'Login failed. Please try connecting VPN.');
       verifyingRef.current = false;
     } finally {
       setLoading(false);
