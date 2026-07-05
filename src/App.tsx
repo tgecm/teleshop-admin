@@ -71,13 +71,12 @@ const ADMIN_PATHS = new Set([
   'qr-menu/dashboard',
 ]);
 
-const PUBLIC_DOMAIN = 'telegramecommerce.shop';
+const PUBLIC_DOMAINS = ['telegramecommerce.shop', 'crossmart.shop'];
 
 function isCustomDomain() {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname;
-  return host !== PUBLIC_DOMAIN
-    && !host.endsWith(`.${PUBLIC_DOMAIN}`)
+  return !PUBLIC_DOMAINS.some(d => host === d || host.endsWith(`.${d}`))
     && host !== 'localhost'
     && host !== '127.0.0.1';
 }

@@ -11,7 +11,9 @@ function isValidRedirectUri(uri: string): boolean {
   try {
     const url = new URL(uri);
     const hostname = url.hostname;
-    if (hostname === 'telegramecommerce.shop' || hostname === 'www.telegramecommerce.shop') return false;
+    const blocked = ['telegramecommerce.shop', 'www.telegramecommerce.shop',
+                     'crossmart.shop', 'www.crossmart.shop'];
+    if (blocked.includes(hostname)) return false;
     return true;
   } catch {
     return false;
