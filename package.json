@@ -9,8 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist && rsync -avz --delete dist/ root@139.180.156.116:/var/www/teleshop-admin/dist"
+    "dist": "npm run build && rsync -avz --delete dist/ root@139.180.156.116:/var/www/teleshop-admin/"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
