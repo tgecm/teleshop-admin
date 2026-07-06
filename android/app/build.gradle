@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "mm.crossmart.shop"
+    namespace = "com.crossmartmm.shop"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "mm.crossmart.shop"
+        applicationId "com.crossmartmm.shop"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
