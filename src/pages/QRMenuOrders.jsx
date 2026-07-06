@@ -1,19 +1,24 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBotStore } from '../store/botStore';
+import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import { getQRMenuOrders, getQRMenuPendingCount } from '../api/orders';
 import { updateOrder } from '../api/orders';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import { API_BASE } from '../api/config';
-import { Loader2, Package, X } from 'lucide-react';
+import client from '../api/client';
+import { downloadBlob } from '../utils/download';
+import { Loader2, Package, X, Download } from 'lucide-react';
 
 export default function QRMenuOrders() {
   const { selectedBotId } = useBotStore();
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
+  const token = useAuthStore(s => s.token);
   const [orderTab, setOrderTab] = useState('pending');
   const [expandedOrder, setExpandedOrder] = useState(null);
+  const [fullScreenImage, setFullScreenImage] = useState(null);
 
   const { data: pendingOrderCount } = useQuery({
     queryKey: ['qr-pending-orders-count', selectedBotId],
@@ -161,12 +166,25 @@ export default function QRMenuOrders() {
                               return proofs.map((proof, i) => {
                                 const fileId = proof.file_id || proof;
                                 if (!fileId) return null;
+                                const imgSrc = `${API_BASE}/telegram/file/${encodeURIComponent(fileId)}?bot_id=${selectedBotId}`;
+                                const dlUrl = `${API_BASE}/orders/${order.id}/payment-proof-image/${i}?download=1&token=${token}`;
                                 return (
-                                  <img key={i}
-                                    src={`${API_BASE}/telegram/file/${encodeURIComponent(fileId)}?bot_id=${selectedBotId}`}
-                                    alt="Payment proof"
-                                    className="h-28 w-auto rounded-lg border border-gray-200 bg-white object-contain"
-                                  />
+                                  <div key={i} className="relative group shrink-0">
+                                    <img
+                                      src={imgSrc}
+                                      alt="Payment proof"
+                                      className="h-28 w-auto rounded-lg border border-gray-200 bg-white object-contain cursor-pointer"
+                                      onClick={() => setFullScreenImage(imgSrc)}
+                                    />
+                                    <a
+                                      href={dlUrl}
+                                      download={`payment_proof_${order.id}_${i + 1}.jpg`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="absolute top-1 right-1 w-7 h-7 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity active:scale-90"
+                                    >
+                                      <Download className="w-3.5 h-3.5 text-white" />
+                                    </a>
+                                  </div>
                                 );
                               });
                             })()}
@@ -194,6 +212,112 @@ export default function QRMenuOrders() {
           )}
         </div>
       </div>
+
+      {fullScreenImage && (
+        <ImageViewer src={fullScreenImage} onClose={() => setFullScreenImage(null)} />
+      )}
+    </div>
+  );
+}
+
+function ImageViewer({ src, onClose }) {
+  const imgRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const lastDist = useRef(null);
+  const lastPos = useRef(null);
+  const lastScale = useRef(1);
+  const lastPosition = useRef({ x: 0, y: 0 });
+  const [panning, setPanning] = useState(false);
+
+  const reset = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+    lastScale.current = 1;
+    lastPosition.current = { x: 0, y: 0 };
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastDist.current = Math.hypot(dx, dy);
+      lastScale.current = scale;
+      lastPosition.current = { ...position };
+    } else if (e.touches.length === 1 && scale > 1) {
+      setPanning(true);
+      lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastPosition.current = { ...position };
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      if (lastDist.current) {
+        const newScale = Math.min(Math.max(lastScale.current * (dist / lastDist.current), 1), 5);
+        setScale(newScale);
+        if (newScale <= 1) {
+          setPosition({ x: 0, y: 0 });
+        }
+      }
+    } else if (e.touches.length === 1 && panning && scale > 1) {
+      const dx = e.touches[0].clientX - lastPos.current.x;
+      const dy = e.touches[0].clientY - lastPos.current.y;
+      setPosition({
+        x: lastPosition.current.x + dx,
+        y: lastPosition.current.y + dy,
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    lastDist.current = null;
+    lastPos.current = null;
+    setPanning(false);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center z-10 transition-all active:scale-90"
+      >
+        <X className="w-5 h-5 text-white" />
+      </button>
+
+      <button
+        onClick={(e) => { e.stopPropagation(); reset(); }}
+        className="absolute top-4 left-4 w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center z-10 transition-all active:scale-90"
+      >
+        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+        </svg>
+      </button>
+
+      <img
+        ref={imgRef}
+        src={src}
+        alt="Payment proof"
+        className="max-w-full max-h-full object-contain select-none transition-transform duration-200 ease-out"
+        style={{
+          transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          scale > 1 ? reset() : setScale(2.5);
+        }}
+        draggable={false}
+      />
+      <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-white/50">Pinch to zoom · Double tap to zoom</p>
     </div>
   );
 }

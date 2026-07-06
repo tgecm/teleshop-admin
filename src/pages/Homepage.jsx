@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { API_BASE } from '../api/config';
 import { formatPrice } from '../utils/formatPrice';
-import { useSelectedBot } from '../hooks/useSelectedBot';
 
 const renderHtml = (text) => {
   const parts = (text || '').split(/\s*<br\s*\/?>\s*/);
@@ -298,8 +297,7 @@ const FAQS = [
 
 export default function Homepage() {
   const navRef = useRef(null);
-  const { selectedBot } = useSelectedBot();
-  const currency = selectedBot?.currency || 'MMK';
+  const currency = 'MMK';
 
   useEffect(() => {
     const handleScroll = () => {
