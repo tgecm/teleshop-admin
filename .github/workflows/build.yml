@@ -36,14 +36,15 @@ jobs:
         run: npx cap sync android
       - name: Fix Java version after sync
         run: find android node_modules/@capacitor/android -name "*.gradle" -exec sed -i 's/JavaVersion.VERSION_21/JavaVersion.VERSION_17/g' {} \;
-      - name: Generate debug keystore
+      - name: Setup keystore
         run: |
-          if [ ! -f android/mm-shop.keystore ]; then
-            keytool -genkey -v -keystore android/mm-shop.keystore \
-              -storepass teleshop123 -alias mm-shop -keypass teleshop123 \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, ST=Debug, C=US"
-          fi
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/mm-shop.keystore
+          cat > android/keystore.properties << 'PROPEOF'
+          storeFile=../mm-shop.keystore
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          PROPEOF
       - name: Build debug APK
         run: cd android && ./gradlew assembleDebug
       - name: Upload APK
@@ -54,8 +55,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: "TeleshopAdmin v1.0.${{ github.run_number }}"
+          tag_name: v2.0.${{ github.run_number }}
+          name: "CrossMart v2.0.${{ github.run_number }}"
           files: android/app/build/outputs/apk/debug/mm-shop.apk
           make_latest: true
         env:
