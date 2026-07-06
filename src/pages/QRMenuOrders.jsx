@@ -158,7 +158,7 @@ export default function QRMenuOrders() {
                           return null;
                         })()}
                         {order.payment_proof_messages && order.payment_proof_messages.length > 0 && (
-                          <div className="flex gap-2 overflow-x-auto pb-1">
+                          <div className="grid grid-cols-2 gap-3">
                             {(() => {
                               const proofs = typeof order.payment_proof_messages === 'string'
                                 ? JSON.parse(order.payment_proof_messages)
@@ -169,20 +169,20 @@ export default function QRMenuOrders() {
                                 const imgSrc = `${API_BASE}/telegram/file/${encodeURIComponent(fileId)}?bot_id=${selectedBotId}`;
                                 const dlUrl = `${API_BASE}/orders/${order.id}/payment-proof-image/${i}?download=1&token=${token}`;
                                 return (
-                                  <div key={i} className="relative group shrink-0">
+                                  <div key={i} className="relative">
                                     <img
                                       src={imgSrc}
                                       alt="Payment proof"
-                                      className="h-28 w-auto rounded-lg border border-gray-200 bg-white object-contain cursor-pointer"
+                                      className="w-full h-44 rounded-lg border border-gray-200 bg-white object-contain cursor-pointer"
                                       onClick={() => setFullScreenImage(imgSrc)}
                                     />
                                     <a
                                       href={dlUrl}
                                       download={`payment_proof_${order.id}_${i + 1}.jpg`}
                                       onClick={(e) => e.stopPropagation()}
-                                      className="absolute top-1 right-1 w-7 h-7 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity active:scale-90"
+                                      className="absolute top-2 right-2 flex items-center justify-center gap-1.5 w-9 h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg transition-all active:scale-90"
                                     >
-                                      <Download className="w-3.5 h-3.5 text-white" />
+                                      <Download className="w-5 h-5" />
                                     </a>
                                   </div>
                                 );
