@@ -2,12 +2,45 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
-import { getFaqs, createFaq, updateFaq, deleteFaq } from '../api/superadmin';
+import { getFaqs, createFaq, updateFaq, deleteFaq, reorderFaqs } from '../api/superadmin';
 import {
-  HelpCircle, Plus, X, Loader2, Trash2, Pencil, ChevronDown, ChevronRight
+  HelpCircle, Plus, X, Loader2, Trash2, Pencil, ChevronDown, ChevronRight, GripVertical, ArrowUpDown
 } from 'lucide-react';
 import { linkifyText } from '../utils/linkify';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors
+} from '@dnd-kit/core';
+import {
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+function SortableFaqItem({ faq }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: String(faq.id),
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${isDragging ? 'border-indigo-400 shadow-lg ring-2 ring-indigo-200' : 'border-gray-100'}`}
+    >
+      <div className="flex items-center gap-3 px-5 py-4">
+        <button {...attributes} {...listeners}
+          className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
+          title="Drag to reorder">
+          <GripVertical className="w-5 h-5" />
+        </button>
+        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+          <HelpCircle className="w-4 h-4" />
+        </div>
+        <span className="flex-1 text-sm font-bold text-gray-900 truncate">{faq.question}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function FAQs() {
   const { user } = useAuthStore();
@@ -56,6 +89,28 @@ export default function FAQs() {
     },
   });
 
+  const [isReordering, setIsReordering] = useState(false);
+  const [orderedFaqs, setOrderedFaqs] = useState([]);
+
+  const reorderMutation = useMutation({
+    mutationFn: (items) => reorderFaqs(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['faqs'] });
+      setIsReordering(false);
+      addToast('FAQ order saved');
+    },
+    onError: () => addToast('Failed to save order', 'error'),
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const startReordering = () => {
+    setOrderedFaqs([...(faqs || [])]);
+    setIsReordering(true);
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -69,12 +124,38 @@ export default function FAQs() {
           </div>
         </div>
         {user?.is_superadmin && (
-          <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-sm active:scale-95">
-            <Plus className="w-4 h-4" /> Create FAQ
-          </button>
+          <div className="flex items-center gap-2">
+            {isReordering ? (
+              <>
+                <button onClick={() => reorderMutation.mutate(orderedFaqs.map((f, i) => ({ id: f.id, sort_order: i })))}
+                  disabled={reorderMutation.isPending}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all text-sm active:scale-95">
+                  {reorderMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Save Order
+                </button>
+                <button onClick={() => setIsReordering(false)}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-sm">
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button onClick={startReordering}
+                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-sm">
+                <ArrowUpDown className="w-4 h-4" /> Reorder
+              </button>
+            )}
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-sm active:scale-95">
+              <Plus className="w-4 h-4" /> Create FAQ
+            </button>
+          </div>
         )}
       </div>
+      {isReordering && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-4 py-2 rounded-xl">
+          Drag the grip handle ≡ to reorder FAQs. Click "Save Order" when done.
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-300" /></div>
@@ -83,6 +164,21 @@ export default function FAQs() {
           <HelpCircle className="w-12 h-12 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">No FAQs yet</p>
         </div>
+      ) : isReordering ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => {
+          const { active, over } = event;
+          if (!over || active.id === over.id) return;
+          const oldIndex = orderedFaqs.findIndex(f => f.id === Number(active.id));
+          const newIndex = orderedFaqs.findIndex(f => f.id === Number(over.id));
+          if (oldIndex === -1 || newIndex === -1) return;
+          setOrderedFaqs(arrayMove(orderedFaqs, oldIndex, newIndex));
+        }}>
+          <SortableContext items={orderedFaqs.map(f => String(f.id))} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {orderedFaqs.map(faq => <SortableFaqItem key={faq.id} faq={faq} />)}
+            </div>
+          </SortableContext>
+        </DndContext>
       ) : (
         <div className="space-y-2">
           {faqs.map(faq => (

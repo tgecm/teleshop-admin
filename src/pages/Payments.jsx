@@ -144,7 +144,7 @@ export default function Payments() {
           className="hidden sm:flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
         >
           <Plus className="w-5 h-5" />
-          Add Method
+          Add Payment Method
         </button>
       </div>
 
@@ -186,7 +186,7 @@ export default function Payments() {
               onClick={() => openModal()}
               className="mt-6 px-8 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all"
             >
-              Add Method
+              Add Payment Method
             </button>
           </div>
         ) : (

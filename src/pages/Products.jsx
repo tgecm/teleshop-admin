@@ -498,7 +498,7 @@ export default function Products() {
           </div>
           <button
             onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
-            className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 active:scale-95"
+            className="hidden sm:flex p-2.5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all items-center gap-2 active:scale-95"
           >
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline font-bold">New Product</span>
@@ -623,11 +623,18 @@ export default function Products() {
         </div>
       )}
 
-      
+
+      <button
+        onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
+        className="sm:hidden fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 rounded-full shadow-2xl shadow-indigo-200 flex items-center justify-center text-white hover:bg-indigo-700 transition-all active:scale-90 z-40 border-4 border-white"
+      >
+        <Plus className="w-8 h-8" />
+      </button>
+
       <AnimatePresence>
         {isModalOpen && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
