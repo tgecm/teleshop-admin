@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.ecommercemyanmar.shop',
-  appName: 'E-commerce',
+  appId: 'mm.crossmart.shop',
+  appName: 'CrossMart',
   webDir: 'dist',
   server: {
     androidScheme: 'http',

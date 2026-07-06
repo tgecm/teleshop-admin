@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">E-commerce</string>
-    <string name="title_activity_main">E-commerce</string>
-    <string name="package_name">com.ecommercemyanmar.shop</string>
-    <string name="custom_url_scheme">com.ecommercemyanmar.shop</string>
+    <string name="app_name">CrossMart</string>
+    <string name="title_activity_main">CrossMart</string>
+    <string name="package_name">mm.crossmart.shop</string>
+    <string name="custom_url_scheme">mm.crossmart.shop</string>
 </resources>
