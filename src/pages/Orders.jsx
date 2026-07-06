@@ -556,11 +556,11 @@ export default function Orders() {
                                         </a>
                                       )}
                                     </div>
-                                    <div className="relative group">
+                                    <div className="relative">
                                       <img
                                         src={imgUrl}
                                         alt={`Payment proof ${idx + 1}`}
-                                        className="w-full rounded-lg border border-gray-200 cursor-pointer"
+                                        className="w-full rounded-lg border border-gray-200 cursor-pointer max-h-80 object-contain"
                                         onClick={() => setFullScreenImage(imgUrl)}
                                         onError={(e) => {
                                           e.target.onerror = null;
@@ -572,9 +572,9 @@ export default function Orders() {
                                         href={`${client.defaults.baseURL}/orders/${selectedOrder.id}/payment-proof-image/${idx}?download=1&token=${token}`}
                                         download={`payment_proof_${selectedOrder.id}_${idx + 1}.jpg`}
                                         onClick={(e) => e.stopPropagation()}
-                                        className="absolute top-2 right-2 w-8 h-8 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity active:scale-90"
+                                        className="absolute top-2 right-2 flex items-center justify-center gap-1.5 w-9 h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg transition-all active:scale-90"
                                       >
-                                        <Download className="w-4 h-4 text-white" />
+                                        <Download className="w-5 h-5" />
                                       </a>
                                     </div>
                                     <p className="hidden proof-fallback text-xs text-gray-400 text-center py-4 bg-gray-50 rounded-lg">
