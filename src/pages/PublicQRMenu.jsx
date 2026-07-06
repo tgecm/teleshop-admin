@@ -532,9 +532,19 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
                 </div>
                 {selectedPayment?.description && <p className="checkout-pd-desc">{selectedPayment.description}</p>}
                 {selectedPayment?.notes && <p className="checkout-pd-desc" style={{color:'#e67e22'}}>📌 {selectedPayment.notes}</p>}
-                {getPaymentQrUrl(selectedPayment) && (
-                  <img src={getPaymentQrUrl(selectedPayment)} alt="Payment QR" className="checkout-qr" />
-                )}
+                {getPaymentQrUrl(selectedPayment) && (() => {
+                  const qrUrl = getPaymentQrUrl(selectedPayment);
+                  const dlUrl = qrUrl + (qrUrl.includes('?') ? '&' : '?') + 'download=payment.jpg';
+                  return (
+                    <div className="flex flex-col items-center gap-1">
+                      <img src={qrUrl} alt="Payment QR" className="checkout-qr" />
+                      <a href={dlUrl}
+                        style={{fontSize:11,color:'#6366f1',textDecoration:'none',cursor:'pointer'}}>
+                        Download QR
+                      </a>
+                    </div>
+                  );
+                })()}
               </div>
               {couponCountdown > 0 && (
                 <div style={{background:'#fef2f2',borderRadius:10,padding:'10px 12px',margin:'12px 0',fontSize:13,color:'#dc2626',fontWeight:500,textAlign:'center'}}>

@@ -1233,7 +1233,17 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
       setSelectedPayment({ id: 'cod', name: 'Cash on Delivery' });
     } else {
       const pm = (shopData?.payment_methods || []).find(p => p.id === paymentId);
-      setSelectedPayment(pm || null);
+      if (pm) {
+        // Normalize QR code URL like PublicEcommerce does
+        const botId = shopData?.shop?.id;
+        const normalizedPm = { ...pm };
+        if (normalizedPm.qr_code_url && !normalizedPm.qr_code_url.startsWith('http') && botId) {
+          normalizedPm.qr_code_url = `${API_BASE}/telegram/file/${encodeURIComponent(normalizedPm.qr_code_url)}?bot_id=${botId}`;
+        }
+        setSelectedPayment(normalizedPm);
+      } else {
+        setSelectedPayment(null);
+      }
     }
     setShowPaymentSelect(false);
     setShowContactInfo(true);

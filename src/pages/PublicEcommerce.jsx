@@ -1075,9 +1075,15 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
                 <p className="font-bold text-sm text-gray-900">Pay via {pm.name}</p>
               </div>
               {pm.qr_code_url && (
-                <div className="flex justify-center bg-white rounded-xl p-3">
-                  <img src={pm.qr_code_url} alt="QR Code" className="w-36 h-36 object-contain rounded-lg"
-                    onError={(e) => { e.target.style.display = 'none'; }} />
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex justify-center bg-white rounded-xl p-3">
+                    <img src={pm.qr_code_url} alt="QR Code" className="w-36 h-36 object-contain rounded-lg"
+                      onError={(e) => { e.target.style.display = 'none'; }} />
+                  </div>
+                  <a href={pm.qr_code_url + (pm.qr_code_url.includes('?') ? '&' : '?') + 'download=payment.jpg'}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:underline transition-colors">
+                    Download QR
+                  </a>
                 </div>
               )}
               {pm.account_name && (
@@ -1177,7 +1183,26 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
 
 function OrderConfirmation({ data, shop, onContinueShopping, viewMode }) {
   const [showInvoice, setShowInvoice] = useState(false);
+  const { addToast } = useToastStore();
   const isGuest = viewMode === 'guest';
+
+  const handleCopyId = async (text) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      addToast('Copied order id');
+    } catch {
+      addToast('Failed to copy', 'error');
+    }
+  };
   return (
     <>
       <motion.div
@@ -1198,6 +1223,9 @@ function OrderConfirmation({ data, shop, onContinueShopping, viewMode }) {
         <p className="text-sm text-gray-500 mb-1">Your order has been placed successfully.</p>
         <p className="text-sm text-gray-500 mb-6">
           Order ID: <span className="font-bold text-gray-900">{data?.order_number}</span>
+          <button onClick={() => handleCopyId(data?.order_number)} className="inline-flex ml-1.5 align-middle text-indigo-500 hover:text-indigo-600 transition-colors active:scale-90">
+            <Copy className="w-4 h-4" />
+          </button>
         </p>
 
         <div className="bg-gray-50 rounded-2xl p-4 mb-6 text-left text-sm text-gray-600 space-y-1">
@@ -2902,12 +2930,12 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         <AnimatePresence>
           {showSearch && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-4">
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-1 flex items-center">
+              <form className="bg-white rounded-2xl border border-gray-200 shadow-sm p-1 flex items-center" onSubmit={(e) => { e.preventDefault(); }}>
                 <Search className="w-5 h-5 text-gray-400 ml-4 flex-shrink-0" />
                 <input type="text" autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search products..." className="flex-1 px-3 py-3 bg-transparent outline-none text-sm font-medium" />
-                {searchQuery && <button onClick={() => setSearchQuery('')} className="p-2 text-gray-400 hover:text-gray-600 mr-1"><X className="w-4 h-4" /></button>}
-              </div>
+                  placeholder="Search products..." className="flex-1 min-w-0 px-3 py-3 bg-transparent outline-none text-sm font-medium" />
+                {searchQuery && <button type="button" onClick={() => setSearchQuery('')} className="p-2 text-gray-400 hover:text-gray-600 mr-1 shrink-0"><X className="w-4 h-4" /></button>}
+              </form>
             </motion.div>
           )}
         </AnimatePresence>

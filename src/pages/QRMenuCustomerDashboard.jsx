@@ -1229,11 +1229,18 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
                   <div className="font-semibold text-xs text-gray-700 mb-1">{selectedMethod.name}</div>
                   {selectedMethod.account_name && <p className="text-[11px] text-gray-500">Name: {selectedMethod.account_name}</p>}
                   {selectedMethod.payment_number && <p className="text-[11px] text-gray-500">Number: {selectedMethod.payment_number}</p>}
-                  {selectedMethod.qr_code_url && (
-                    <div className="mt-2 flex justify-center">
-                      <img src={selectedMethod.qr_code_url.startsWith('http') ? selectedMethod.qr_code_url : `${API_BASE}/telegram/file/${encodeURIComponent(selectedMethod.qr_code_url)}?bot_id=${shop.id}`} alt="Payment QR" className="w-24 h-24 object-contain rounded-lg" />
-                    </div>
-                  )}
+                  {selectedMethod.qr_code_url && (() => {
+                    const qrUrl = selectedMethod.qr_code_url.startsWith('http')
+                      ? selectedMethod.qr_code_url
+                      : `${API_BASE}/telegram/file/${encodeURIComponent(selectedMethod.qr_code_url)}?bot_id=${shop.id}`;
+                    const dlUrl = qrUrl + (qrUrl.includes('?') ? '&' : '?') + 'download=payment.jpg';
+                    return (
+                      <div className="mt-2 flex flex-col items-center gap-1">
+                        <img src={qrUrl} alt="Payment QR" className="w-24 h-24 object-contain rounded-lg" />
+                        <a href={dlUrl} className="text-[11px] font-medium text-indigo-500 hover:underline">Download QR</a>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
