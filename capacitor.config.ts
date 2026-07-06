@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'mm.crossmart.shop',
+  appId: 'com.crossmartmm.shop',
   appName: 'CrossMart',
   webDir: 'dist',
   server: {

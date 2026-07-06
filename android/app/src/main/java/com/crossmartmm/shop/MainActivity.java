@@ -1,4 +1,4 @@
-package mm.crossmart.shop;
+package com.crossmartmm.shop;
 
 import android.app.DownloadManager;
 import android.content.ContentValues;
