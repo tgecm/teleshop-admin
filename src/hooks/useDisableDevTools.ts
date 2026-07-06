@@ -27,8 +27,8 @@ export function useDisableDevTools() {
     let menu: HTMLDivElement | null = null;
 
     const handleContextMenu = (e: MouseEvent) => {
-      // Don't show custom menu on mobile (below 768px - md breakpoint)
-      if (window.innerWidth < 768) return;
+      // Don't show custom menu on touch devices (mobile/tablet)
+      if (window.matchMedia('(pointer: coarse)').matches) return;
       // Let native context menu work on inputs/textareas (copy/paste on mobile)
       const target = e.target as HTMLElement;
       if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT' || target?.closest('textarea') || target?.closest('input')) return;
