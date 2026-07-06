@@ -27,6 +27,8 @@ export function useDisableDevTools() {
     let menu: HTMLDivElement | null = null;
 
     const handleContextMenu = (e: MouseEvent) => {
+      // Don't show custom menu on mobile (below 768px - md breakpoint)
+      if (window.innerWidth < 768) return;
       // Let native context menu work on inputs/textareas (copy/paste on mobile)
       const target = e.target as HTMLElement;
       if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT' || target?.closest('textarea') || target?.closest('input')) return;
@@ -40,7 +42,7 @@ export function useDisableDevTools() {
       const path = window.location.pathname.replace(/^\//, '').split('/')[0];
       const ADMIN_ROUTES = new Set(['dashboard', 'orders', 'products', 'customers', 'broadcast', 'commands', 'payments', 'subscription', 'settings', 'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'subscribers', 'faqs', 'staff-accounts']);
       if (!ADMIN_ROUTES.has(path)) return;
-      if (path === 'chats') return;
+      if (path === 'chats' || path === 'products') return;
 
       clickSound();
       removeMenu(menu);
