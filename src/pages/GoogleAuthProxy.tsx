@@ -11,10 +11,12 @@ function isValidRedirectUri(uri: string): boolean {
   try {
     const url = new URL(uri);
     const hostname = url.hostname;
-    const blocked = ['telegramecommerce.shop', 'www.telegramecommerce.shop',
+    const allowed = ['telegramecommerce.shop', 'www.telegramecommerce.shop',
                      'crossmart.shop', 'www.crossmart.shop'];
-    if (blocked.includes(hostname)) return false;
-    return true;
+    if (allowed.includes(hostname)) return true;
+    const currentOrigin = window.location.origin;
+    if (uri.startsWith(currentOrigin)) return true;
+    return false;
   } catch {
     return false;
   }

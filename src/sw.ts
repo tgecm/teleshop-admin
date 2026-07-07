@@ -70,6 +70,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const target = event.notification.data?.url || '/';
   const urlToOpen = new URL(target, self.location.origin).href;
+  if (!urlToOpen.startsWith(self.location.origin)) return;
 
   event.waitUntil(
     self.clients.matchAll({type: 'window', includeUncontrolled: true}).then((clients) => {
