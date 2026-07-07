@@ -13,6 +13,7 @@ import { NotificationToast } from './components/NotificationToast';
 import VpnWarningModal from './components/VpnWarningModal';
 import ToastContainer from './components/shared/ToastContainer';
 import SelectionToolbar from './components/shared/SelectionToolbar';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 import HapticProvider from './components/shared/HapticProvider';
 import NetworkStatus from './components/shared/NetworkStatus';
 import PermissionGuard from './components/shared/PermissionGuard';
@@ -490,7 +491,7 @@ export default function App() {
                   <Suspense fallback={<SuspenseFallback />}><Layout /></Suspense>
                 }>
                   <Route index element={<Navigate to="/dashboard" replace />} />
-                  <Route path="dashboard" element={<PermissionGuard><PlanGate><Dashboard /></PlanGate></PermissionGuard>} />
+                  <Route path="dashboard" element={<PermissionGuard><PlanGate><ErrorBoundary><Dashboard /></ErrorBoundary></PlanGate></PermissionGuard>} />
                   <Route path="orders" element={<PermissionGuard><PlanGate><Orders /></PlanGate></PermissionGuard>} />
                   <Route path="products" element={<PermissionGuard><PlanGate><Products /></PlanGate></PermissionGuard>} />
                   <Route path="customers" element={<PermissionGuard><PlanGate><Customers /></PlanGate></PermissionGuard>} />

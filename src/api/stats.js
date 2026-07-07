@@ -14,3 +14,6 @@ export const getUsersByDay = (params) =>
 
 export const getProfitSummary = (params) =>
   client.get('/stats/profit-summary', { params }).then(res => res.data);
+
+export const getSalesLog = (params) =>
+  client.get('/stats/sales-log', { params }).then(res => res.data);

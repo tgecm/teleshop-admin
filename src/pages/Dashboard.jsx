@@ -9,7 +9,7 @@ import StatCard from '../components/shared/StatCard';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import {
   DollarSign, ShoppingBag, Users, Clock, TrendingUp, Activity, Trophy, Sparkles, Zap, Package,
-  BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, Loader2, ArrowLeftRight,
+  BarChart3, PieChart as PieChartIcon, Download, Calendar, ChevronDown, Loader2, ArrowLeftRight, X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { parseISO, differenceInDays, subDays, addDays } from 'date-fns';
@@ -385,10 +385,11 @@ export default function Dashboard() {
       const csv = parts.join('\n');
       await downloadText('﻿' + csv,
         filename || `export-${myanmarFormat(new Date(), 'yyyy-MM-dd')}.csv`,
-        'text/csv;charset=utf-8;');
+        'text/csv;charset=utf-8');
       addToast('CSV exported successfully');
       setShowExportModal(false);
     } catch (err) {
+      console.error('[Export]', err);
       addToast(err.message || 'Export failed', 'error');
     } finally {
       setExportLoading(false);

@@ -348,7 +348,7 @@ function OverviewTab({ globalStats, statsLoading, allBots, botsLoading, recentOr
         const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
         await downloadText('﻿' + csv,
           `bots-export-${myanmarFormat(new Date(), 'yyyy-MM-dd')}.csv`,
-          'text/csv;charset=utf-8;');
+          'text/csv;charset=utf-8');
         addToast('Bots CSV exported');
       } catch (e) {
         addToast('Export failed', 'error');
