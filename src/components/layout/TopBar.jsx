@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../../store/authStore';
-import { LogOut, User, Mail, X, Loader2, ChevronRight, Trash2, Menu } from 'lucide-react';
+import { LogOut, Mail, X, Loader2, Trash2, Menu, Store } from 'lucide-react';
 import BotSwitcher from '../shared/BotSwitcher';
 import RefreshButton from '../shared/RefreshButton';
 import ConfirmDialog from '../shared/ConfirmDialog';
@@ -18,6 +18,9 @@ export default function TopBar({ onToggleSidebar }) {
   const queryClient = useQueryClient();
   const selectedBot = (bots || []).find(b => b.id.toString() === selectedBotId?.toString());
   const botName = selectedBot ? normalizeText(selectedBot.bot_full_name || selectedBot.bot_username || 'E-commerce Myanmar') : (user?.email?.split('@')[0] || 'E-commerce Myanmar');
+  const [logoFailed, setLogoFailed] = useState(false);
+  const logoUrl = selectedBot?.profile_picture || user?.profile_picture;
+  useEffect(() => { setLogoFailed(false); }, [logoUrl]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
@@ -52,12 +55,10 @@ export default function TopBar({ onToggleSidebar }) {
             onClick={() => setMenuOpen(prev => !prev)}
             className="w-7 h-7 rounded-full bg-indigo-500 border-2 border-white/20 flex items-center justify-center text-white overflow-hidden shadow-sm active:scale-95 transition-transform"
           >
-            {user?.profile_picture ? (
-              <img src={user.profile_picture} alt="Avatar" className="w-full h-full object-cover" />
-            ) : user?.telegram_id ? (
-              <img src={`https://t.me/i/userpic/320/${user.telegram_id}.jpg`} alt="Avatar" className="w-full h-full object-cover" />
+            {logoUrl && !logoFailed ? (
+              <img src={logoUrl} alt="" onError={() => setLogoFailed(true)} className="w-full h-full object-cover" />
             ) : (
-              <User className="w-[14px] h-[14px]" />
+              <Store className="w-[14px] h-[14px]" />
             )}
           </button>
         </div>
@@ -84,12 +85,10 @@ export default function TopBar({ onToggleSidebar }) {
             onClick={() => setMenuOpen(prev => !prev)}
             className="w-10 h-10 rounded-full bg-indigo-500 border-2 border-white/20 flex items-center justify-center text-white overflow-hidden shadow-sm active:scale-95 transition-transform"
           >
-            {user?.profile_picture ? (
-              <img src={user.profile_picture} alt="Avatar" className="w-full h-full object-cover" />
-            ) : user?.telegram_id ? (
-              <img src={`https://t.me/i/userpic/320/${user.telegram_id}.jpg`} alt="Avatar" className="w-full h-full object-cover" />
+            {logoUrl && !logoFailed ? (
+              <img src={logoUrl} alt="" onError={() => setLogoFailed(true)} className="w-full h-full object-cover" />
             ) : (
-              <User className="w-6 h-6" />
+              <Store className="w-6 h-6" />
             )}
           </button>
         </div>

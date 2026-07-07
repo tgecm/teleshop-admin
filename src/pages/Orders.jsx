@@ -256,15 +256,15 @@ export default function Orders() {
               )}
               <motion.div
                 layout
-                drag={order.status === 'pending' ? 'x' : false}
+                drag={order.status === 'pending' && order.payment_method !== 'COD' ? 'x' : false}
                 dragConstraints={{left: -80, right: 80}}
                 dragElastic={0.05}
                 dragSnapToOrigin
                 onDragEnd={(_e, info) => {
-                  if (info.offset.x < -60 && order.status === 'pending') {
+                  if (info.offset.x < -60 && order.status === 'pending' && order.payment_method !== 'COD') {
                     setSelectedOrder(order);
                     setConfirmAction('reject');
-                  } else if (info.offset.x > 60 && order.status === 'pending') {
+                  } else if (info.offset.x > 60 && order.status === 'pending' && order.payment_method !== 'COD') {
                     setSelectedOrder(order);
                     setConfirmAction('confirm');
                   }
@@ -492,7 +492,7 @@ export default function Orders() {
                   </div>
 
 
-                  {selectedOrder.status !== 'pending' && selectedOrder.status !== 'pending_review' && !TERMINAL_STATUSES.includes(selectedOrder.status) && (
+                  {(selectedOrder.payment_method === 'COD' || (selectedOrder.status !== 'pending' && selectedOrder.status !== 'pending_review')) && !TERMINAL_STATUSES.includes(selectedOrder.status) && (
                     <div className="space-y-2">
                       <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Update Status</h3>
                       <div className="grid grid-cols-4 gap-1.5">
@@ -524,7 +524,22 @@ export default function Orders() {
                   )}
 
 
-                  {(selectedOrder.status === 'pending' || selectedOrder.status === 'pending_review') && (
+                  {selectedOrder.payment_method === 'COD' && selectedOrder.status === 'delivered' && (
+                    <div className="bg-white rounded-2xl border border-emerald-200 p-4">
+                      <button
+                        onClick={() => statusMutation.mutate({ id: selectedOrder.id, status: 'confirmed' })}
+                        disabled={statusMutation.isPending}
+                        className="w-full py-3.5 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-emerald-100"
+                      >
+                        {statusMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                        Mark as Paid
+                      </button>
+                      <p className="text-[10px] text-gray-400 text-center mt-2">Confirm payment received upon delivery</p>
+                    </div>
+                  )}
+
+
+                  {selectedOrder.payment_method !== 'COD' && (selectedOrder.status === 'pending' || selectedOrder.status === 'pending_review') && (
                     <>
 
                       <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4 space-y-3">
