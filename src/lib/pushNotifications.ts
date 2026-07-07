@@ -95,7 +95,10 @@ export function initPushNotifications(): void {
   PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
     const data = action.notification.data;
     if (data?.route) {
-      window.location.href = data.route as string;
+      const route = data.route as string;
+      if (route.startsWith('/') || route.startsWith(window.location.origin)) {
+        window.location.href = route;
+      }
     }
   });
 

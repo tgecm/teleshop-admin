@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useReducer } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUsers, updateUser, getWebCustomers } from '../api/customers';
 import { getOrders } from '../api/orders';
@@ -30,6 +30,7 @@ export default function Customers() {
   const [filterTab, setFilterTab] = useState('all');
   const [confirmCustomer, setConfirmCustomer] = useState(null);
   const [detailCustomer, setDetailCustomer] = useState(null);
+  const [brokenImages, addBrokenImage] = useReducer((state, id) => state.add(id) && state, new Set());
 
   const { data: customers, isLoading: customersLoading, refetch: refetchCustomers } = useQuery({
     queryKey: ['users', 'customers', selectedBotId],
@@ -298,8 +299,8 @@ export default function Customers() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600 overflow-hidden">
-                      {customer.photo_url ? (
-                        <img src={customer.photo_url} alt="" className="w-full h-full object-cover" />
+                      {customer.photo_url && !brokenImages.has(customer.id) ? (
+                        <img src={customer.photo_url} alt="" onError={() => addBrokenImage(customer.id)} className="w-full h-full object-cover" />
                       ) : (
                         customer.display_name?.[0]?.toUpperCase() || 'W'
                       )}
@@ -371,8 +372,8 @@ export default function Customers() {
                       ? detailCustomer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
                       : 'bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600'
                   }`}>
-                    {detailCustomer.photo_url ? (
-                      <img src={detailCustomer.photo_url} alt="" className="w-full h-full object-cover" />
+                    {detailCustomer.photo_url && !brokenImages.has(detailCustomer.id) ? (
+                      <img src={detailCustomer.photo_url} alt="" onError={() => addBrokenImage(detailCustomer.id)} className="w-full h-full object-cover" />
                     ) : detailCustomer.first_name ? (
                       detailCustomer.first_name[0]
                     ) : detailCustomer.display_name ? (
