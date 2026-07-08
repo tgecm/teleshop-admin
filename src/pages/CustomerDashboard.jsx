@@ -538,7 +538,8 @@ export default function CustomerDashboard({ shopSlug }) {
               <MessageCircle className="w-4 h-4" />
             </button>
             {photoUrl && (
-              <img src={photoUrl} alt="" className="w-6 h-6 rounded-full ring-2 ring-white/30" />
+              <img src={photoUrl} alt="" className="w-6 h-6 rounded-full ring-2 ring-white/30"
+                onError={(e) => { e.target.style.display = 'none'; }} />
             )}
           </div>
         </div>
@@ -1469,6 +1470,9 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(photoUrl);
+  const photoInputRef = useRef(null);
 
   const [displayName, setDisplayName] = useState('');
   const [phones, setPhones] = useState(['']);
@@ -1484,6 +1488,46 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
   // Resolve bot_id from shopSlug once and cache it
   const botIdRef = useRef(null);
   const [resolving, setResolving] = useState(false);
+
+  const handlePhotoUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !botIdRef.current || !uid) return;
+    setUploadingPhoto(true);
+    try {
+      // Compress to 512x512 on canvas
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = URL.createObjectURL(file);
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, 512, 512);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      URL.revokeObjectURL(img.src);
+
+      const res = await fetch(`${API_BASE}/api/customer-profile/update-photo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bot_id: botIdRef.current,
+          uid,
+          photo_url: dataUrl,
+        }),
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const result = await res.json();
+      setProfilePhotoUrl(result.photo_url);
+    } catch {
+      setSaveError('Failed to upload photo');
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  }, [uid]);
 
   useEffect(() => {
     if (!uid || !shopSlug) {
@@ -1635,14 +1679,23 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
       >
-        <div className="flex items-center gap-4">
-          {photoUrl ? (
-            <img src={photoUrl} alt="" className="w-16 h-16 rounded-full ring-2 ring-indigo-100" />
-          ) : (
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
-              <User className="w-8 h-8 text-indigo-400" />
-            </div>
-          )}
+        <div className="flex items-start gap-4">
+          <div className="flex flex-col items-center gap-2">
+            {profilePhotoUrl ? (
+              <img src={profilePhotoUrl} alt=""
+                className="w-16 h-16 rounded-full ring-2 ring-indigo-100 object-cover"
+                onError={(e) => { e.target.style.display = 'none'; setProfilePhotoUrl(''); }} />
+            ) : (
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
+                <User className="w-8 h-8 text-indigo-400" />
+              </div>
+            )}
+            <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+            <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto}
+              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50 transition-colors">
+              {uploadingPhoto ? 'Uploading...' : 'Update Profile Photo'}
+            </button>
+          </div>
           <div className="min-w-0">
             <h3 className="text-lg font-bold text-gray-900 truncate">{displayName || 'User'}</h3>
             {email && (
