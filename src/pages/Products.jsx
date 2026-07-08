@@ -649,8 +649,9 @@ export default function Products() {
                 className="relative bg-white rounded-[20px] md:rounded-[32px] shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
               >
                 <ProductForm
-                product={editingProduct} 
+                product={editingProduct}
                 categories={categories}
+                products={products}
                 selectedBotId={selectedBotId}
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={(data) => {
@@ -1623,7 +1624,7 @@ function CategoryDropdown({ categories, selected, onSelect }) {
   );
 }
 
-function ProductForm({ product, categories, onClose, onSubmit, isLoading, selectedBotId }) {
+function ProductForm({ product, categories, products, onClose, onSubmit, isLoading, selectedBotId }) {
   const { selectedBot } = useSelectedBot();
   const [formData, setFormData] = useState({
     name: product?.name || '',
@@ -1637,6 +1638,7 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     show_on_website: product?.show_on_website !== undefined ? product.show_on_website : true,
     show_on_guest: product?.show_on_guest !== undefined ? product.show_on_guest : true,
   });
+  const [nameError, setNameError] = useState(false);
   const [showAdditional, setShowAdditional] = useState(() => !!product?.cost_price);
   const [promotion, setPromotion] = useState(() => !!product?.original_price);
   const [stockOption, setStockOption] = useState(() => {
@@ -1707,6 +1709,12 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
     }
     return [];
   });
+  const telegramDisabled = colors.length > 0 || options.length > 0;
+  useEffect(() => {
+    if (telegramDisabled && formData.show_on_telegram) {
+      setFormData(prev => ({ ...prev, show_on_telegram: false }));
+    }
+  }, [telegramDisabled]);
   const uid = () => Math.random().toString(36).substring(2, 9);
 
   const addOption = () => {
@@ -1801,9 +1809,20 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setNameError(false);
     if (promotion && Number(formData.price) > Number(formData.original_price)) {
       addToast('Promotion price cannot exceed original price', 'error');
       return;
+    }
+    if (products) {
+      const duplicate = products.some(p =>
+        p.name === formData.name.trim() && (!product || p.id !== product.id)
+      );
+      if (duplicate) {
+        setNameError(true);
+        addToast('Product name already exists. Please use a different name.', 'error');
+        return;
+      }
     }
     if (!formData.show_on_telegram && !formData.show_on_website && !formData.show_on_guest) {
       addToast('At least one channel must be selected', 'error');
@@ -1880,7 +1899,15 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
               />
               <button
                 type="button"
-                onClick={() => createCategoryMutation.mutate(newCategoryName)}
+                onClick={() => {
+                  const trimmed = newCategoryName.trim();
+                  if (!trimmed) return;
+                  if (categories?.some(c => c.name.toLowerCase() === trimmed.toLowerCase())) {
+                    addToast('Category "' + trimmed + '" already exists. Use a different name.', 'error');
+                    return;
+                  }
+                  createCategoryMutation.mutate(trimmed);
+                }}
                 disabled={!newCategoryName.trim() || createCategoryMutation.isPending}
                 className="px-3 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl disabled:opacity-40 hover:bg-indigo-700 transition-all"
               >
@@ -1903,9 +1930,9 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
             required
             type="text"
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onChange={(e) => { setNameError(false); setFormData({ ...formData, name: e.target.value }); }}
             placeholder="e.g. Premium Coffee Beans"
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
+            className={`w-full px-4 py-3 bg-gray-50 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium ${nameError ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-100'}`}
           />
         </div>
 
@@ -2305,16 +2332,20 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
               { key: 'show_on_telegram', label: 'Telegram' },
               { key: 'show_on_website', label: 'Website' },
               { key: 'show_on_guest', label: 'Guest' },
-            ].map(({ key, label }) => (
+            ].map(({ key, label }) => {
+              const disabled = key === 'show_on_telegram' && telegramDisabled;
+              return (
               <label
                 key={key}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all select-none ${
+                  disabled ? 'opacity-40 cursor-not-allowed border-gray-200 bg-gray-50' :
                   formData[key] ? 'border-indigo-300 bg-indigo-50/50' : 'border-gray-200 bg-white hover:border-gray-300'
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={formData[key]}
+                  disabled={disabled}
                   onChange={(e) => {
                     // Prevent unchecking the last channel
                     const checked = e.target.checked;
@@ -2331,7 +2362,8 @@ function ProductForm({ product, categories, onClose, onSubmit, isLoading, select
                 />
                 <span className={`text-xs font-bold ${formData[key] ? 'text-indigo-700' : 'text-gray-600'}`}>{label}</span>
               </label>
-            ))}
+            );
+            })}
           </div>
         </div>
 
