@@ -1846,7 +1846,10 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const products = useMemo(() => {
     const all = data?.products || [];
     return all.filter(p => {
-      if (viewMode === 'telegram') return p.show_on_telegram !== false;
+      if (viewMode === 'telegram') {
+        if (p.specifications?.colors?.length > 0 || p.specifications?.options?.length > 0) return false;
+        return p.show_on_telegram !== false;
+      }
       if (viewMode === 'ecommerce') return p.show_on_website !== false;
       if (viewMode === 'guest') return p.show_on_guest !== false;
       return true;
@@ -3175,13 +3178,11 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-100 mt-8">
         <div className="max-w-7xl mx-auto px-4 py-8 text-center">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: theme.css['--theme-btn'] }}>
-              <ShoppingBag className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-sm font-bold text-gray-800">Telegram E-Commerce</span>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <img src="/logo.webp" alt="CrossMart" className="w-6 h-6 rounded-full object-cover" />
+            <a href="https://www.crossmart.shop" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Powered by CrossMart</a>
           </div>
-          <p className="text-xs text-gray-400">Powered by Telegram E-Commerce Platform</p>
+          <p className="text-xs text-gray-400">Myanmar's First Cross-Platform Marketplace</p>
         </div>
       </footer>
 
