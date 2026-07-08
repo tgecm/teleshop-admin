@@ -773,12 +773,19 @@ export default function Chats() {
                       <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {v.name === 'E-commerce Support'
                           ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
-                          : (
-                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                              <User className="w-5 h-5 text-gray-500" />
-                            </div>
-                          )
+                          : v.photo_url ? (
+                            <img src={v.photo_url} alt="" className="w-full h-full object-cover"
+                              onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }} />
+                          ) : null
                         }
+                        {v.name !== 'E-commerce Support' && !v.photo_url && (
+                          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                            <User className="w-5 h-5 text-gray-500" />
+                          </div>
+                        )}
+                        <div className="w-full h-full bg-gray-100 items-center justify-center" style={{display:'none'}}>
+                          <User className="w-5 h-5 text-gray-500" />
+                        </div>
                         {v.unread_count > 0 && (
                           <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
                             <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
@@ -852,12 +859,19 @@ export default function Chats() {
                       <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {v.name === 'E-commerce Support'
                           ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
-                          : (
-                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                              <User className="w-5 h-5 text-gray-500" />
-                            </div>
-                          )
+                          : v.photo_url ? (
+                            <img src={v.photo_url} alt="" className="w-full h-full object-cover"
+                              onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }} />
+                          ) : null
                         }
+                        {v.name !== 'E-commerce Support' && !v.photo_url && (
+                          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                            <User className="w-5 h-5 text-gray-500" />
+                          </div>
+                        )}
+                        <div className="w-full h-full bg-gray-100 items-center justify-center" style={{display:'none'}}>
+                          <User className="w-5 h-5 text-gray-500" />
+                        </div>
                         {v.unread_count > 0 && (
                           <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
                             <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
@@ -912,12 +926,19 @@ export default function Chats() {
                       <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {v.name === 'E-commerce Support'
                           ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
-                          : (
-                            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                              <User className="w-5 h-5 text-gray-500" />
-                            </div>
-                          )
+                          : v.photo_url ? (
+                            <img src={v.photo_url} alt="" className="w-full h-full object-cover"
+                              onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }} />
+                          ) : null
                         }
+                        {v.name !== 'E-commerce Support' && !v.photo_url && (
+                          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                            <User className="w-5 h-5 text-gray-500" />
+                          </div>
+                        )}
+                        <div className="w-full h-full bg-gray-100 items-center justify-center" style={{display:'none'}}>
+                          <User className="w-5 h-5 text-gray-500" />
+                        </div>
                         {v.unread_count > 0 && (
                           <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
                             <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
@@ -1079,12 +1100,19 @@ export default function Chats() {
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {selectedWebChat?.name === 'E-commerce Support'
                       ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
-                      : (
-                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                          <User className="w-4 h-4 text-gray-500" />
-                        </div>
-                      )
+                      : selectedWebChat?.photo_url ? (
+                        <img src={selectedWebChat.photo_url} alt="" className="w-full h-full object-cover"
+                          onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }} />
+                      ) : null
                     }
+                    {selectedWebChat?.name !== 'E-commerce Support' && !selectedWebChat?.photo_url && (
+                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                        <User className="w-4 h-4 text-gray-500" />
+                      </div>
+                    )}
+                    <div className="w-full h-full bg-gray-100 items-center justify-center" style={{display:'none'}}>
+                      <User className="w-4 h-4 text-gray-500" />
+                    </div>
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
