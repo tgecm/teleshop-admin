@@ -25,6 +25,7 @@ import { getBotPublicSlug, generateBotSlug, listBotDomains, addBotDomain, verify
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
 import client from '../api/client';
+import { getGuidePrompt, updateGuidePrompt } from '../api/ai';
 import {
   Settings as SettingsIcon,
   ShieldCheck,
@@ -66,6 +67,8 @@ import {
   Palette,
   Image,
   Type,
+  Sparkles,
+  BookOpen,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1669,6 +1672,7 @@ export default function Settings() {
             <ErrorBoundary>
               <DiscountsManager />
             </ErrorBoundary>
+            <GuidePromptManager />
           </>
         )}
 
@@ -2384,5 +2388,95 @@ function DiscountsManager() {
         )}
       </section>
     </div>
+  );
+}
+
+// ── Guide Prompt Manager ─────────────────────────────────────
+function GuidePromptManager() {
+  const { selectedBotId } = useBotStore();
+  const { addToast } = useToastStore();
+  const [showEditor, setShowEditor] = useState(false);
+  const [promptText, setPromptText] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['guide-prompt', selectedBotId],
+    queryFn: () => getGuidePrompt(Number(selectedBotId)),
+    enabled: !!selectedBotId,
+  });
+
+  useEffect(() => {
+    if (data?.guide_prompt != null) setPromptText(data.guide_prompt);
+  }, [data]);
+
+  const saveMutation = useMutation({
+    mutationFn: (text) => updateGuidePrompt(Number(selectedBotId), text),
+    onSuccess: () => {
+      addToast('Guide prompt saved');
+      setShowEditor(false);
+    },
+    onError: (err) => {
+      addToast(err.response?.data?.detail || 'Failed to save', 'error');
+    },
+  });
+
+  return (
+    <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mt-4">
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+          <BookOpen className="w-4 h-4" />
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-gray-900">Guide Prompt</h3>
+          <p className="text-[10px] text-gray-500">Set AI guide prompt for bot admin assistant</p>
+        </div>
+      </div>
+
+      {!showEditor ? (
+        <div className="space-y-3">
+          {isLoading ? (
+            <div className="h-20 bg-gray-50 rounded-xl animate-pulse" />
+          ) : (
+            <div className="bg-gray-50 rounded-xl p-3 max-h-24 overflow-y-auto">
+              <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">
+                {data?.guide_prompt || 'No guide prompt set yet.'}
+              </p>
+            </div>
+          )}
+          <button
+            onClick={() => setShowEditor(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm"
+          >
+            <Sparkles className="w-4 h-4" />
+            {data?.guide_prompt ? 'Edit Guide Prompt' : 'Write Guide Prompt'}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <textarea
+            value={promptText}
+            onChange={(e) => setPromptText(e.target.value)}
+            placeholder="Write instructions for the AI assistant. For example: You are a website guide who helps shop admins learn how to use the platform features. Answer questions about settings, custom domains, products, etc."
+            rows={6}
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setShowEditor(false); setPromptText(data?.guide_prompt || ''); }}
+              className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all active:scale-[0.98] text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => saveMutation.mutate(promptText)}
+              disabled={saveMutation.isPending}
+              className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm flex items-center justify-center gap-1.5"
+            >
+              {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Save
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

@@ -124,13 +124,11 @@ export default function Orders() {
   });
 
   const filteredOrders = orders?.filter(o => {
-    const isTelegramOrder = o.user_id != null;
-    const isWebsite = o.payment_method === 'website' || o.buyer_snapshot?.firebase_uid != null;
-    const isGuest = o.payment_method === 'guest' || (!isTelegramOrder && !isWebsite);
+    const source = o.source || (o.user_id != null ? 'telegram' : o.payment_method === 'website' || o.buyer_snapshot?.firebase_uid != null ? 'website' : 'guest');
     if (orderTab !== 'all') {
-      if (orderTab === 'telegram' && (isWebsite || isGuest)) return false;
-      if (orderTab === 'ecommerce' && !isWebsite) return false;
-      if (orderTab === 'guest' && !isGuest) return false;
+      if (orderTab === 'telegram' && source !== 'telegram') return false;
+      if (orderTab === 'ecommerce' && source !== 'website') return false;
+      if (orderTab === 'guest' && source !== 'guest') return false;
     }
     if (statusFilter !== 'all') {
       if (statusFilter === 'pending') {
