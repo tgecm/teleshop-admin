@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../../store/authStore';
-import { LogOut, Mail, X, Loader2, Trash2, Menu, Store } from 'lucide-react';
+import { LogOut, Mail, X, Loader2, Trash2, Menu, Store, Sparkles } from 'lucide-react';
 import BotSwitcher from '../shared/BotSwitcher';
 import RefreshButton from '../shared/RefreshButton';
+import AiChatModal from '../shared/AiChatModal';
 import ConfirmDialog from '../shared/ConfirmDialog';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -22,6 +23,7 @@ export default function TopBar({ onToggleSidebar }) {
   const logoUrl = selectedBot?.profile_picture || user?.profile_picture;
   useEffect(() => { setLogoFailed(false); }, [logoUrl]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showAiChat, setShowAiChat] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -50,6 +52,7 @@ export default function TopBar({ onToggleSidebar }) {
         </button>
         <span className="text-center text-white text-sm font-black tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
         <div className="flex items-center justify-end gap-1">
+          <button onClick={() => setShowAiChat(true)} className="p-1.5 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-all active:scale-90" title="AI Assistant"><Sparkles className="w-[18px] h-[18px]" /></button>
           <RefreshButton />
           <button
             onClick={() => setMenuOpen(prev => !prev)}
@@ -74,7 +77,8 @@ export default function TopBar({ onToggleSidebar }) {
           </div>
         )}
 
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button onClick={() => setShowAiChat(true)} className="p-2 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-all active:scale-90" title="AI Assistant"><Sparkles className="w-[18px] h-[18px]" /></button>
           <RefreshButton />
           <div className="hidden md:flex flex-col items-end">
             <span className="text-white text-sm font-medium leading-none">{user?.email?.split('@')[0]}</span>
@@ -239,6 +243,7 @@ export default function TopBar({ onToggleSidebar }) {
         confirmText="Logout"
         variant="danger"
       />
+      <AiChatModal open={showAiChat} onClose={() => setShowAiChat(false)} />
     </header>
   );
 }

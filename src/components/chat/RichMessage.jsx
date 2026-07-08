@@ -204,24 +204,36 @@ function OrderSummary({ data, currency }) {
 }
 
 function CreateOrder({ data, botId, currency }) {
-  const [state, setState] = React.useState('creating');
+  const [state, setState] = React.useState('idle');
   const [result, setResult] = React.useState(null);
   const [error, setError] = React.useState('');
+  const submitRef = React.useRef(false);
 
-  React.useEffect(() => {
-    if (!botId || state !== 'creating') return;
+  function handleSubmit() {
+    if (!botId || submitRef.current) return;
+    submitRef.current = true;
     setState('loading');
-    const item = data.product || {};
+    const items = data.items || [{ name: 'Product', price: 0, quantity: 1 }];
+    const calcTotal = items.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 1), 0);
     fetch(`${API_BASE}/public/create-order`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        bot_id: botId,
+        bot_id: Number(botId),
+        source: 'ai',
         customer_name: data.customer?.name || '',
         phone: data.customer?.phone || '',
+        email: data.customer?.email || '',
         address: data.customer?.address || '',
-        items: [{ name: item.name || 'Product', price: Number(item.price) || 0, quantity: 1 }],
-        total_amount: Number(item.price) || 0,
+        region: data.customer?.region || '',
+        district: data.customer?.district || '',
+        township: data.customer?.township || '',
+        notes: data.customer?.notes || '',
+        telegram_username: data.customer?.telegram || data.customer?.telegram_username || '',
+        viber_number: data.customer?.viber || data.customer?.viber_number || '',
+        items,
+        total_amount: Number(data.total_amount) || calcTotal,
+        delivery_fee: Number(data.delivery_fee || 0),
         payment_method: data.payment_method || '',
         payment_proof: data.payment_screenshot || '',
       }),
@@ -232,7 +244,20 @@ function CreateOrder({ data, botId, currency }) {
       setError('Failed to create order. Please try again.');
       setState('error');
     });
-  }, [botId, state, data]);
+  }
+
+  if (state === 'idle') {
+    return (
+      <div className="border border-gray-200 rounded-xl p-3 bg-white my-2 text-center">
+        <p className="text-sm text-gray-600 mb-2">Review your order and submit?</p>
+        <button onClick={handleSubmit}
+          className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+          style={{ background: '#6366f1' }}>
+          Submit Order
+        </button>
+      </div>
+    );
+  }
 
   if (state === 'loading') {
     return (
