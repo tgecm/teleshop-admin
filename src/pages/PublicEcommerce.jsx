@@ -2846,8 +2846,10 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               <div className="relative">
                 <button onClick={() => setShowProfileMenu(p => !p)}
                   className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90">
-                  {user?.photoURL ? (
-                    <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
+                  {user?.photoURL || telegramUser?.photo_url ? (
+                    <img src={user?.photoURL || telegramUser?.photo_url} alt=""
+                      className="w-6 h-6 rounded-full"
+                      onError={(e) => { e.target.src = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3e%3cpath d='M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2'/%3e%3ccircle cx='12' cy='7' r='4'/%3e%3c/svg%3e"; }} />
                   ) : (
                     <User className="w-[15px] h-[15px]" />
                   )}

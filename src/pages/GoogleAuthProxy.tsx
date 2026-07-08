@@ -6,7 +6,7 @@ import { auth } from '../lib/firebase';
 import { requestGoogleIdToken, exchangeGoogleToken } from '../lib/googleSignIn';
 import { restoreProxyParamsFromQ, getProxyParamsFromHash } from '../utils/authProxy';
 
-function isValidRedirectUri(uri: string): boolean {
+function isValidRedirectUri(uri: string, shopSlug?: string): boolean {
   if (!uri.startsWith('https://')) return false;
   try {
     const url = new URL(uri);
@@ -16,6 +16,8 @@ function isValidRedirectUri(uri: string): boolean {
     if (allowed.includes(hostname)) return true;
     const currentOrigin = window.location.origin;
     if (uri.startsWith(currentOrigin)) return true;
+    // Custom domain: validate the path contains the shop slug
+    if (shopSlug && (url.pathname + url.search).includes(encodeURIComponent(shopSlug))) return true;
     return false;
   } catch {
     return false;
@@ -52,7 +54,7 @@ export default function GoogleAuthProxy() {
   const proxyParams = getProxyParams();
   const paramError = !proxyParams
     ? 'Missing required parameters: shop_slug and redirect_uri'
-    : !isValidRedirectUri(proxyParams.redirectUri)
+    : !isValidRedirectUri(proxyParams.redirectUri, proxyParams.shopSlug)
       ? 'Invalid redirect URI'
       : '';
 
