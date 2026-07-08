@@ -145,7 +145,7 @@ export default function QRSignInModal({ slug, onClose, onSuccess, botUsername: p
               {signingIn ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-5 h-5" />
+                <img src="/google-logo.svg" alt="" className="w-5 h-5" />
               )}
               {signingIn ? 'Signing in...' : 'Continue with Google'}
             </button>

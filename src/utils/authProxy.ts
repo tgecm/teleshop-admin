@@ -1,4 +1,4 @@
-const MAIN_DOMAINS = ['telegramecommerce.shop', 'crossmart.shop'];
+const MAIN_DOMAINS = ['telegramecommerce.shop'];
 
 export const isMainDomain = (): boolean => {
   const hostname = window.location.hostname;
