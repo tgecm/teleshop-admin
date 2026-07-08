@@ -5,9 +5,7 @@ export const DEFAULT_DOMAINS = [
 
 export function isMainDomain(hostname) {
   return hostname === 'www.telegramecommerce.shop'
-    || hostname === 'telegramecommerce.shop'
-    || hostname === 'www.crossmart.shop'
-    || hostname === 'crossmart.shop';
+    || hostname === 'telegramecommerce.shop';
 }
 
 export function getGoogleAuthRedirectUrl(params) {

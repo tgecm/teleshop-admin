@@ -128,7 +128,7 @@ export default function GoogleAuthProxy() {
         ) : (
           <>
             <div className="w-16 h-16 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-8 h-8" />
+              <img src="/google-logo.svg" alt="" className="w-8 h-8" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">Sign in to Continue</h2>
             <p className="text-sm text-gray-500 mb-6">
@@ -138,7 +138,7 @@ export default function GoogleAuthProxy() {
               onClick={handleSignIn}
               className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border-2 border-gray-200 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-[0.98]"
             >
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-5 h-5" />
+              <img src="/google-logo.svg" alt="" className="w-5 h-5" />
               Sign in with Google
             </button>
           </>

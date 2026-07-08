@@ -216,7 +216,7 @@ export default function CustomerLogin({ shopSlug }) {
                   <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                 ) : (
                   <img
-                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                    src="/google-logo.svg"
                     alt="Google"
                     className="w-5 h-5"
                   />

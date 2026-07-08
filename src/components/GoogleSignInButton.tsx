@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import { LogOut, Loader2 } from 'lucide-react';
 
-const GOOGLE_LOGO = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
+const GOOGLE_LOGO = '/google-logo.svg';
 
 export default function GoogleSignInButton() {
   const { user, loading } = useAuth();
