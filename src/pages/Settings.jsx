@@ -1672,7 +1672,9 @@ export default function Settings() {
             <ErrorBoundary>
               <DiscountsManager />
             </ErrorBoundary>
-            <GuidePromptManager />
+            <ErrorBoundary>
+              <GuidePromptManager />
+            </ErrorBoundary>
           </>
         )}
 
@@ -2393,15 +2395,13 @@ function DiscountsManager() {
 
 // ── Guide Prompt Manager ─────────────────────────────────────
 function GuidePromptManager() {
-  const { selectedBotId } = useBotStore();
   const { addToast } = useToastStore();
   const [showEditor, setShowEditor] = useState(false);
   const [promptText, setPromptText] = useState('');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['guide-prompt', selectedBotId],
-    queryFn: () => getGuidePrompt(Number(selectedBotId)),
-    enabled: !!selectedBotId,
+    queryKey: ['guide-prompt', 'global'],
+    queryFn: () => getGuidePrompt(),
   });
 
   useEffect(() => {
@@ -2409,7 +2409,7 @@ function GuidePromptManager() {
   }, [data]);
 
   const saveMutation = useMutation({
-    mutationFn: (text) => updateGuidePrompt(Number(selectedBotId), text),
+    mutationFn: (text) => updateGuidePrompt(text),
     onSuccess: () => {
       addToast('Guide prompt saved');
       setShowEditor(false);
