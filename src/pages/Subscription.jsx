@@ -48,6 +48,7 @@ export default function Subscription() {
   const [appliedDiscount, setAppliedDiscount] = useState(null);
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef(null);
+  const qrRef = useRef(null);
   const failureCountRef = useRef(0);
   const pollRef = useRef(null);
   const timerRef = useRef(null);
@@ -372,6 +373,27 @@ export default function Subscription() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const downloadQr = () => {
+    const svg = qrRef.current?.querySelector('svg');
+    if (!svg) return;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    canvas.width = 360;
+    canvas.height = 360;
+    const ctx = canvas.getContext('2d');
+    const img = new window.Image();
+    img.onload = () => {
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, 360, 360);
+      const a = document.createElement('a');
+      a.download = 'payment-qr.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
   return (
     <div className="space-y-5 sm:space-y-8 pb-10">
       <div className="flex items-center justify-between">
@@ -652,7 +674,7 @@ export default function Subscription() {
                         </span>
                       </div>
                     )}
-                    <div className="bg-white rounded-2xl border-2 border-gray-100 shadow-sm mb-3">
+                    <div ref={qrRef} className="bg-white rounded-2xl border-2 border-gray-100 shadow-sm mb-3">
                       <div className="p-2 sm:p-3 flex items-center justify-center">
                         <QRCodeSVG value={orderData.qr} size={180} level="M" includeMargin />
                       </div>
@@ -661,6 +683,12 @@ export default function Subscription() {
                         <span className="text-[9px] text-gray-400">Payment powered by Myan Myan Pay MMQR</span>
                       </div>
                     </div>
+                    <button
+                      onClick={downloadQr}
+                      className="mb-3 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl transition-colors"
+                    >
+                      Download QR
+                    </button>
                     <div className="text-center space-y-1">
                       <p className="text-sm sm:text-lg font-bold text-gray-900">{orderData.planName} Plan</p>
                       {orderData.discountPercent > 0 ? (
