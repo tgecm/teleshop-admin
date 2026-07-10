@@ -91,3 +91,6 @@ export const triggerApkUpdate = () =>
 
 export const getSubscribers = () =>
   client.get('/superadmin/subscribers').then(res => res.data);
+
+export const submitFeatureRequest = (botId, message) =>
+  client.post('/feature-request', { bot_id: botId, message }).then(res => res.data);
