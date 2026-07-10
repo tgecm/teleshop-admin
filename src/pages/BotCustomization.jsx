@@ -6,6 +6,7 @@ import { API_BASE } from '../api/config';
 import { getBot, getAiSettings, updateAiSettings } from '../api/bots';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { uploadImage } from '../api/products';
+import { isFeatureAllowed } from '../utils/plans';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import {
   MessageSquare,
@@ -140,6 +141,9 @@ export default function BotCustomization() {
           <div>
             <h3 className="text-base font-bold text-gray-900">AI Custom Prompt Telegram</h3>
             <p className="text-[10px] text-gray-500">Custom instructions for Telegram AI assistant</p>
+            {!isFeatureAllowed(bot?.plan_name, 'ai_agent') && (
+              <span className="text-[10px] font-semibold text-amber-600">Requires Standard plan or above</span>
+            )}
           </div>
         </div>
         <div className="space-y-2">
@@ -163,6 +167,9 @@ export default function BotCustomization() {
             {updateAiMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Prompt
           </button>
+          {isFeatureAllowed(bot?.plan_name, 'ai_agent') && !aiContext && (
+            <p className="text-[10px] text-gray-400 italic text-center">Using default system prompt — add a custom prompt to tailor the AI</p>
+          )}
         </div>
       </section>
 
