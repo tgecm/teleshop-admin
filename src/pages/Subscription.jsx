@@ -166,7 +166,7 @@ export default function Subscription() {
         'Automation: Unlimited', 'Custom Commands: Unlimited',
         'Payment Methods: Unlimited', 'Broadcasts: Unlimited', 'Total Bots: 50',
         'Custom Domain: Yes (up to 3)', 'Multi-Currency: Yes (180+ currencies)', 'New Order Email Notification: Yes',
-        'QR Menu System: ✅', 'Staff Accounts: ✅'
+        'QR Menu System: ✅', 'Staff Accounts: ✅', 'Feature Request: ✅'
       ],
     }
   ];

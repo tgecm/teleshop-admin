@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
-import { getFaqs, createFaq, updateFaq, deleteFaq, reorderFaqs } from '../api/superadmin';
+import { useSelectedBot } from '../hooks/useSelectedBot';
+import { getFaqs, createFaq, updateFaq, deleteFaq, reorderFaqs, submitFeatureRequest } from '../api/superadmin';
 import {
-  HelpCircle, Plus, X, Loader2, Trash2, Pencil, ChevronDown, ChevronRight, GripVertical, ArrowUpDown
+  HelpCircle, Plus, X, Loader2, Trash2, Pencil, ChevronDown, ChevronRight, GripVertical, ArrowUpDown,
+  Lightbulb, Send
 } from 'lucide-react';
 import { linkifyText } from '../utils/linkify';
 import { motion, AnimatePresence } from 'motion/react';
@@ -45,12 +47,16 @@ function SortableFaqItem({ faq }) {
 export default function FAQs() {
   const { user } = useAuthStore();
   const { addToast } = useToastStore();
+  const { selectedBot } = useSelectedBot();
   const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editFaq, setEditFaq] = useState(null);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
+  const [showFeatureRequest, setShowFeatureRequest] = useState(false);
+  const [featureText, setFeatureText] = useState('');
+  const [featureSubmitting, setFeatureSubmitting] = useState(false);
 
   const { data: faqs, isLoading } = useQuery({
     queryKey: ['faqs'],
@@ -111,6 +117,28 @@ export default function FAQs() {
     setIsReordering(true);
   };
 
+  const handleFeatureSubmit = async () => {
+    if (!featureText.trim() || featureText.trim().length < 10) {
+      addToast('Please enter at least 10 characters', 'error');
+      return;
+    }
+    if (!selectedBot?.id) {
+      addToast('No bot selected', 'error');
+      return;
+    }
+    setFeatureSubmitting(true);
+    try {
+      await submitFeatureRequest(selectedBot.id, featureText.trim());
+      addToast('Your request has been submitted. Admin will review it.');
+      setShowFeatureRequest(false);
+      setFeatureText('');
+    } catch (err) {
+      addToast(err.response?.data?.detail || 'Failed to submit feature request', 'error');
+    } finally {
+      setFeatureSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -123,33 +151,41 @@ export default function FAQs() {
             <p className="text-xs text-gray-500">Frequently asked questions</p>
           </div>
         </div>
-        {user?.is_superadmin && (
-          <div className="flex items-center gap-2">
-            {isReordering ? (
-              <>
-                <button onClick={() => reorderMutation.mutate(orderedFaqs.map((f, i) => ({ id: f.id, sort_order: i })))}
-                  disabled={reorderMutation.isPending}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all text-sm active:scale-95">
-                  {reorderMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  Save Order
-                </button>
-                <button onClick={() => setIsReordering(false)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-sm">
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button onClick={startReordering}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-sm">
-                <ArrowUpDown className="w-4 h-4" /> Reorder
-              </button>
-            )}
-            <button onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-sm active:scale-95">
-              <Plus className="w-4 h-4" /> Create FAQ
+        <div className="flex items-center gap-2">
+          {selectedBot?.plan_name?.toLowerCase() === 'business' && (
+            <button onClick={() => setShowFeatureRequest(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-all text-sm active:scale-95">
+              <Lightbulb className="w-4 h-4" /> Feature Request
             </button>
-          </div>
-        )}
+          )}
+          {user?.is_superadmin && (
+            <>
+              {isReordering ? (
+                <>
+                  <button onClick={() => reorderMutation.mutate(orderedFaqs.map((f, i) => ({ id: f.id, sort_order: i })))}
+                    disabled={reorderMutation.isPending}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all text-sm active:scale-95">
+                    {reorderMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    Save Order
+                  </button>
+                  <button onClick={() => setIsReordering(false)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-sm">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button onClick={startReordering}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-sm">
+                  <ArrowUpDown className="w-4 h-4" /> Reorder
+                </button>
+              )}
+              <button onClick={() => setShowCreate(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-sm active:scale-95">
+                <Plus className="w-4 h-4" /> Create FAQ
+              </button>
+            </>
+          )}
+        </div>
       </div>
       {isReordering && (
         <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-4 py-2 rounded-xl">
@@ -310,6 +346,44 @@ export default function FAQs() {
                 </button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Feature Request Modal */}
+      <AnimatePresence>
+        {showFeatureRequest && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col bg-white">
+            {/* Top Bar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white">
+              <button onClick={() => { setShowFeatureRequest(false); setFeatureText(''); }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all text-sm">
+                <X className="w-4 h-4" /> Cancel
+              </button>
+              <div className="flex items-center gap-2">
+                <Lightbulb className="w-5 h-5 text-amber-500" />
+                <h2 className="text-lg font-bold text-gray-900">Feature Request</h2>
+              </div>
+              <button onClick={handleFeatureSubmit} disabled={featureSubmitting || !featureText.trim()}
+                className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-all text-sm disabled:opacity-50 active:scale-95">
+                {featureSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Send
+              </button>
+            </div>
+            {/* Text Area */}
+            <div className="flex-1 flex flex-col p-4">
+              <textarea value={featureText} onChange={e => setFeatureText(e.target.value)}
+                placeholder="Describe the feature you'd like to request..."
+                className="w-full flex-1 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                autoFocus />
+              <div className="flex items-center justify-between mt-2 px-1">
+                <p className="text-xs text-gray-400">Minimum 10 characters</p>
+                <p className={`text-xs ${featureText.length > 2000 ? 'text-red-500' : 'text-gray-400'}`}>
+                  {featureText.length}/2000
+                </p>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
