@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
-import { requireFeature } from '../utils/plans';
+import { requireFeature, isFeatureAllowed } from '../utils/plans';
 
 function BannerEditor({ contentBlocks, onSave, botId, planName }) {
   const { addToast } = useToastStore();
@@ -535,7 +535,12 @@ export default function Customization() {
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Enable AI Agent</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">Enable AI Agent</span>
+                {!isFeatureAllowed(bot?.plan_name, 'ai_agent') && (
+                  <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Requires Standard+</span>
+                )}
+              </div>
               <button
                 onClick={() => {
                   if (!requireFeature(bot?.plan_name, 'ai_agent', addToast)) return;
@@ -543,11 +548,14 @@ export default function Customization() {
                   setAiIsEnabled(newVal);
                   updateAiMutation.mutate({ is_enabled: newVal, api_key: aiApiKey, gender: aiGender });
                 }}
-                className={`w-12 h-6 rounded-full transition-colors relative ${aiIsEnabled ? 'bg-cyan-500' : 'bg-gray-300'}`}
+                className={`w-12 h-6 rounded-full transition-colors relative ${!isFeatureAllowed(bot?.plan_name, 'ai_agent') ? 'opacity-40 cursor-not-allowed' : ''} ${aiIsEnabled ? 'bg-cyan-500' : 'bg-gray-300'}`}
               >
                 <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${aiIsEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
               </button>
             </div>
+            {aiIsEnabled && !aiWebsiteContext && (
+              <p className="text-[10px] text-gray-400 italic">Using default system prompt — add a custom prompt below to tailor responses</p>
+            )}
             <div>
               <label className="text-xs font-medium text-gray-600 mb-1.5 block">AI Gender</label>
               <div className="flex bg-gray-100 rounded-xl p-0.5">
