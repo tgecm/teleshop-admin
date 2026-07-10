@@ -975,7 +975,7 @@ export default function Settings() {
                       <input
                         type="text"
                         value={addDomainInput}
-                        onChange={(e) => setAddDomainInput(e.target.value)}
+                        onChange={(e) => setAddDomainInput(e.target.value.replace(/[^a-zA-Z0-9.-]/g, ''))}
                         className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium"
                         placeholder="shop.yourdomain.com"
                         autoFocus
