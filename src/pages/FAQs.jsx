@@ -152,12 +152,15 @@ export default function FAQs() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {selectedBot?.plan_name?.toLowerCase() === 'business' && (
-            <button onClick={() => setShowFeatureRequest(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-all text-sm active:scale-95">
-              <Lightbulb className="w-4 h-4" /> Feature Request
-            </button>
-          )}
+          <button onClick={() => {
+            if (selectedBot?.plan_name?.toLowerCase() === 'business') {
+              setShowFeatureRequest(true);
+            } else {
+              addToast('Your plan does not allow feature requests', 'error');
+            }
+          }} className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-all text-sm active:scale-95">
+            <Lightbulb className="w-4 h-4" /> Feature Request
+          </button>
           {user?.is_superadmin && (
             <>
               {isReordering ? (
