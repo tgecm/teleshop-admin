@@ -20,7 +20,7 @@
         android:usesCleartextTraffic="true">
 
         <activity
-            android:name="com.crossmartmm.shop.MainActivity"
+            android:name="shop.crossmartmm.com.MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/AppTheme.NoActionBar"
@@ -32,7 +32,7 @@
         </activity>
 
         <service
-            android:name="com.crossmartmm.shop.FCMService"
+            android:name="shop.crossmartmm.com.FCMService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
