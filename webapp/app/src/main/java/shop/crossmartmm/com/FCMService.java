@@ -1,4 +1,4 @@
-package com.crossmartmm.shop;
+package shop.crossmartmm.com;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;

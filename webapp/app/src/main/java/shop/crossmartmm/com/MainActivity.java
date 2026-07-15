@@ -1,4 +1,4 @@
-package com.crossmartmm.shop;
+package shop.crossmartmm.com;
 
 import android.annotation.SuppressLint;
 import android.app.DownloadManager;

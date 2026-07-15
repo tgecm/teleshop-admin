@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">CrossMart</string>
     <string name="title_activity_main">CrossMart</string>
-    <string name="package_name">com.crossmartmm.shop</string>
-    <string name="custom_url_scheme">com.crossmartmm.shop</string>
+    <string name="package_name">shop.crossmartmm.com</string>
+    <string name="custom_url_scheme">shop.crossmartmm.com</string>
 </resources>

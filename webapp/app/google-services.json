@@ -23,6 +23,25 @@
           "other_platform_oauth_client": []
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:626011919901:android:3e8f2c1a7b5d9f4e6c2a8b0d",
+        "android_client_info": {
+          "package_name": "shop.crossmartmm.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcNBQ5JmFXyr-2XpX-AT08NZfEXll3Zwc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"

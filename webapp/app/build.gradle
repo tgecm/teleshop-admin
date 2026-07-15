@@ -7,11 +7,11 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace 'com.crossmartmm.shop'
+    namespace 'shop.crossmartmm.com'
     compileSdk 36
 
     defaultConfig {
-        applicationId 'com.crossmartmm.shop'
+        applicationId 'shop.crossmartmm.com'
         minSdkVersion 24
         targetSdkVersion 36
         versionCode 1
