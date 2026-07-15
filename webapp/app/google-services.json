@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "626011919901",
+    "project_id": "e-commerce-57dad",
+    "storage_bucket": "e-commerce-57dad.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:626011919901:android:57aa98dc0dec8bfc9fd8f4",
+        "android_client_info": {
+          "package_name": "com.crossmartmm.shop"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcNBQ5JmFXyr-2XpX-AT08NZfEXll3Zwc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
