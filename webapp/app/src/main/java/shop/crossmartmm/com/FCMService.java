@@ -6,7 +6,8 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.media.RingtoneManager;
+import android.media.AudioAttributes;
+import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
 
@@ -18,8 +19,8 @@ import com.google.firebase.messaging.RemoteMessage;
 public class FCMService extends FirebaseMessagingService {
 
     private static final String TAG = "FCMService";
-    private static final String CHANNEL_ID = "crossmart_webapp";
-    private static final String CHANNEL_NAME = "CrossMart Notifications";
+    static final String CHANNEL_ID = "crossmart_webapp";
+    static final String CHANNEL_NAME = "CrossMart Notifications";
 
     @Override
     public void onNewToken(String token) {
@@ -61,7 +62,7 @@ public class FCMService extends FirebaseMessagingService {
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
-            .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+            .setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.shop))
             .setContentIntent(pendingIntent);
 
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -75,6 +76,13 @@ public class FCMService extends FirebaseMessagingService {
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH);
             channel.setDescription("CrossMart push notifications");
+
+            Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.shop);
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .build();
+            channel.setSound(soundUri, attrs);
+
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
