@@ -68,9 +68,10 @@ function BannerEditor({ contentBlocks, onSave, botId, planName }) {
     await new Promise((resolve) => { img.onload = resolve; img.src = url; });
 
     const ratio = img.width / img.height;
-    const targetRatio = 1200 / 400;
-    if (Math.abs(ratio - targetRatio) > 0.05) {
-      addToast('Image must be 1200×400 ratio (3:1). Current size: ' + img.width + '×' + img.height, 'error');
+    const is3_1 = Math.abs(ratio - 3) < 0.05;
+    const is16_9 = Math.abs(ratio - 16/9) < 0.05;
+    if (!is3_1 && !is16_9) {
+      addToast('Image must be 3:1 (1200×400) or 16:9 (1920×1080) ratio. Current: ' + img.width + '×' + img.height, 'error');
       URL.revokeObjectURL(url);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
@@ -719,7 +720,7 @@ export default function Customization() {
           </div>
           <div>
             <h3 className="text-base font-bold text-gray-900">Shop Banners</h3>
-            <p className="text-[10px] text-gray-500">Banner images for your public shop (1200×400, max 5)</p>
+            <p className="text-[10px] text-gray-500">Banner images for your public shop (3:1 or 16:9, max 5)</p>
           </div>
         </div>
 

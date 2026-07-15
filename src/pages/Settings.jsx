@@ -22,6 +22,7 @@ import {
 } from '../api/superadmin';
 import { getStats } from '../api/stats';
 import { getBotPublicSlug, generateBotSlug, listBotDomains, addBotDomain, verifyBotDomainItem, toggleBotDomainItem, deleteBotDomainItem } from '../api/public';
+import { getPaymentMethods, getCodSettings } from '../api/payments';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
 import client from '../api/client';
@@ -96,6 +97,22 @@ export default function Settings() {
     queryFn: () => getContentBlocks({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
+
+  const { data: paymentMethods } = useQuery({
+    queryKey: ['payment-methods', selectedBotId],
+    queryFn: () => getPaymentMethods({ bot_id: Number(selectedBotId) }),
+    enabled: !!selectedBotId,
+  });
+
+  const { data: codSettings } = useQuery({
+    queryKey: ['cod-settings', selectedBotId],
+    queryFn: () => getCodSettings(selectedBotId),
+    enabled: !!selectedBotId,
+  });
+
+  const hasPaymentMethod = Array.isArray(paymentMethods) ? paymentMethods.length > 0 : false;
+  const hasCod = codSettings?.cod_enabled === true;
+  const shopOpen = hasPaymentMethod || hasCod;
 
   const { data: admins } = useQuery({
     queryKey: ['users', 'admins', selectedBotId],
@@ -284,8 +301,7 @@ export default function Settings() {
     onError: () => addToast('Failed to remove domain', 'error'),
   });
 
-  const [email, setEmail] = useState('');
-  const [shopOpen, setShopOpen] = useState(true);
+    const [email, setEmail] = useState('');
   const [adminSearch, setAdminSearch] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('soundEnabled') !== 'false');
   const [lowStockThreshold, setLowStockThreshold] = useState('');
@@ -330,10 +346,6 @@ export default function Settings() {
       setLowStockEnabled(threshold !== null && threshold > 0);
     }
     if (contentBlocks) {
-      const shop = contentBlocks.find(b => b.key === 'shop_settings');
-      if (shop) {
-        setShopOpen(shop.content_data?.is_open !== false);
-      }
       const mo = contentBlocks.find(b => b.key === 'mode_order');
       if (mo?.content_data?.order?.length) {
         setModeOrder(mo.content_data.order);
@@ -509,19 +521,16 @@ export default function Settings() {
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-gray-900">Shop Status</h3>
-                    <p className="text-[10px] text-gray-500">Control your bot's availability</p>
+                    <p className="text-[10px] text-gray-500">Auto-managed based on payment availability</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => updateContentMutation.mutate({ key: 'shop_settings', data: { is_open: !shopOpen, auto_mode: false, open_time: null, close_time: null } })}
-                  className={`w-12 h-6 rounded-full transition-colors relative ${shopOpen ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                >
-                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${shopOpen ? 'left-6.5' : 'left-0.5'}`} />
-                </button>
               </div>
               <p className={`text-xs font-bold text-center py-2 rounded-xl ${shopOpen ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
                 {shopOpen ? 'SHOP OPEN' : 'SHOP CLOSED'}
               </p>
+              {!shopOpen && (
+                <p className="text-[10px] text-gray-400 text-center mt-2">Add a payment method or enable COD to open the shop</p>
+              )}
             </section>
 
 

@@ -758,7 +758,7 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full aspect-[2/1] object-cover rounded-xl"
+                className="w-full aspect-[16/9] md:aspect-[3/1] object-cover rounded-xl"
                 onError={(e) => { e.target.style.display = 'none'; }} />
             </AnimatePresence>
             {banners.length > 1 && (
