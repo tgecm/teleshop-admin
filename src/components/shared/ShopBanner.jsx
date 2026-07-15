@@ -43,7 +43,7 @@ export default function ShopBanner({ banners, botId, theme, children }) {
 
   if (!hasBanners) {
     return (
-      <div className="relative h-[200px] md:h-[400px] overflow-hidden bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500">
+      <div className="relative aspect-[16/9] md:aspect-[3/1] overflow-hidden bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500">
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/5 rounded-full" />
         <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-white/5 rounded-full" />
         <div className="absolute top-1/2 left-1/3 w-32 h-32 bg-white/5 rounded-full" />
@@ -54,7 +54,7 @@ export default function ShopBanner({ banners, botId, theme, children }) {
   }
 
   return (
-    <div className="relative h-[200px] md:h-[400px] overflow-hidden"
+    <div className="relative aspect-[16/9] md:aspect-[3/1] overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
