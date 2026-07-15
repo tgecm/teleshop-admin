@@ -2,18 +2,23 @@ package shop.crossmartmm.com;
 
 import android.annotation.SuppressLint;
 import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.database.Cursor;
+import android.media.AudioAttributes;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.JavascriptInterface;
@@ -26,23 +31,78 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.FileProvider;
-import androidx.webkit.WebViewAssetLoader;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String APP_URL = "https://www.crossmart.shop/dashboard";
+    private static final String DOWNLOAD_INTERCEPT_JS =
+        "(function() {" +
+        "  var db = BlobDownloadBridge;" +
+        "  if (!db) return;" +
+        "  document.addEventListener('click', function(e) {" +
+        "    var a = e.target.closest('a[download]');" +
+        "    if (!a || !a.href) return;" +
+        "    e.preventDefault();" +
+        "    var url = a.href;" +
+        "    var filename = a.download || 'download';" +
+        "    if (url.startsWith('blob:')) {" +
+        "      var xhr = new XMLHttpRequest();" +
+        "      xhr.open('GET', url, true);" +
+        "      xhr.responseType = 'blob';" +
+        "      xhr.onload = function() {" +
+        "        var reader = new FileReader();" +
+        "        reader.onloadend = function() {" +
+        "          db.downloadBase64(reader.result.split(',')[1], xhr.response.type, 'filename=' + filename);" +
+        "        };" +
+        "        reader.readAsDataURL(xhr.response);" +
+        "      };" +
+        "      xhr.send();" +
+        "    } else if (url.startsWith('data:')) {" +
+        "      var parts = url.split(',');" +
+        "      db.downloadBase64(parts[1], (parts[0].split(';')[0].split(':')[1]||''), 'filename=' + filename);" +
+        "    }" +
+        "  }, true);" +
+        "  window.saveFile = function(name, mime, b64) { db.downloadBase64(b64, mime, 'filename=' + name); };" +
+        "})();";
+
     private WebView webView;
     private String pendingFcmToken = "";
 
     @Override
+    @SuppressLint("SourceLockedOrientationActivity")
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getWindow().setDecorFitsSystemWindows(false);
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                controller.hide(WindowInsets.Type.systemBars());
+                controller.setSystemBarsBehavior(
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            }
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+        }
+
         setContentView(R.layout.activity_main);
+        createNotificationChannel();
 
         webView = findViewById(R.id.webview);
 
@@ -53,14 +113,35 @@ public class MainActivity extends AppCompatActivity {
         loadAppUrl();
     }
 
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                WindowInsetsController controller = getWindow().getInsetsController();
+                if (controller != null) {
+                    controller.hide(WindowInsets.Type.systemBars());
+                }
+            } else {
+                getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+            }
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private void setupWebView() {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setAllowFileAccess(false);
-        settings.setAllowContentAccess(false);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         settings.setUserAgentString(settings.getUserAgentString() + " CrossMartWebApp/1.0");
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
@@ -80,6 +161,14 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
                 startActivity(intent);
                 return true;
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (url.startsWith("https://www.crossmart.shop")) {
+                    view.evaluateJavascript(DOWNLOAD_INTERCEPT_JS, null);
+                }
             }
         });
 
@@ -181,8 +270,8 @@ public class MainActivity extends AppCompatActivity {
                 case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": return ".docx";
                 case "application/vnd.ms-excel": return ".xls";
                 case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": return ".xlsx";
-                case "text/plain": return ".txt";
                 case "text/csv": return ".csv";
+                case "text/plain": return ".txt";
                 case "application/json": return ".json";
                 case "application/zip": return ".zip";
                 default: return ".bin";
@@ -191,14 +280,14 @@ public class MainActivity extends AppCompatActivity {
 
         private void saveFile(byte[] data, String fileName, String mimeType) throws IOException {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                android.content.ContentValues values = new android.content.ContentValues();
+                ContentValues values = new ContentValues();
                 values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
                 values.put(MediaStore.Downloads.MIME_TYPE, mimeType);
                 values.put(MediaStore.Downloads.IS_PENDING, 1);
 
                 Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
                 if (uri != null) {
-                    try (java.io.OutputStream out = getContentResolver().openOutputStream(uri)) {
+                    try (OutputStream out = getContentResolver().openOutputStream(uri)) {
                         if (out != null) {
                             out.write(data);
                         }
@@ -221,6 +310,23 @@ public class MainActivity extends AppCompatActivity {
                     new String[]{file.getAbsolutePath()}, null, null);
                 runOnUiThread(() ->
                     Toast.makeText(MainActivity.this, "Downloaded: " + fileName, Toast.LENGTH_SHORT).show());
+            }
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                FCMService.CHANNEL_ID, FCMService.CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH);
+            channel.setDescription("CrossMart push notifications");
+            Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/raw/shop");
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .build();
+            channel.setSound(soundUri, attrs);
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
             }
         }
     }
