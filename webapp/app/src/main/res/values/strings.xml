@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">CrossMart</string>
-    <string name="title_activity_main">CrossMart</string>
-    <string name="package_name">shop.crossmartmm.com</string>
-    <string name="custom_url_scheme">shop.crossmartmm.com</string>
-</resources>
