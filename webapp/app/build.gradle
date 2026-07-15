@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace 'com.crossmartmm.shop'
     compileSdk 36
@@ -14,10 +20,14 @@ android {
 
     signingConfigs {
         release {
-            storeFile rootProject.file('webapp.keystore')
-            storePassword "teleshop123"
-            keyAlias "webapp"
-            keyPassword "teleshop123"
+            storeFile file(keystoreProperties.getProperty('storeFile',
+                System.getenv('KEYSTORE_FILE') ?: rootProject.file('webapp.keystore').absolutePath))
+            storePassword keystoreProperties.getProperty('storePassword',
+                System.getenv('KEYSTORE_PASSWORD') ?: 'teleshop123')
+            keyAlias keystoreProperties.getProperty('keyAlias',
+                System.getenv('KEY_ALIAS') ?: 'webapp')
+            keyPassword keystoreProperties.getProperty('keyPassword',
+                System.getenv('KEY_PASSWORD') ?: 'teleshop123')
         }
     }
 

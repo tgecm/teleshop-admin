@@ -47,17 +47,40 @@ jobs:
           PROPEOF
       - name: Build debug APK
         run: cd android && ./gradlew assembleDebug
-      - name: Upload APK
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: mm-shop
           path: android/app/build/outputs/apk/debug/mm-shop.apk
+
+      - name: Build WebApp APK
+        run: |
+          VC=${{ github.run_number }}
+          VN="1.0.$VC"
+          sed -i "s/versionCode [0-9]*/versionCode $VC/" webapp/app/build.gradle
+          sed -i "s/versionName '.*'/versionName '$VN'/" webapp/app/build.gradle
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > webapp/webapp.keystore
+          cat > webapp/keystore.properties << 'PROPEOF'
+          storeFile=../webapp.keystore
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          PROPEOF
+          cd webapp && ./gradlew assembleRelease
+      - name: Upload WebApp APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: crossmart-webapp
+          path: webapp/app/build/outputs/apk/release/app-release.apk
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v2.0.${{ github.run_number }}
           name: "CrossMart v2.0.${{ github.run_number }}"
-          files: android/app/build/outputs/apk/debug/mm-shop.apk
+          files: |
+            android/app/build/outputs/apk/debug/mm-shop.apk
+            webapp/app/build/outputs/apk/release/app-release.apk
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
