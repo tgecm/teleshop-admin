@@ -9,6 +9,7 @@ import { useToastStore } from '../store/toastStore';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import { formatPrice } from '../utils/formatPrice';
 import { downloadBlob } from '../utils/download';
+import { getPlanLimit } from '../utils/plans';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import SearchableSelect from '../components/shared/SearchableSelect';
@@ -109,6 +110,14 @@ export default function Products() {
     enabled: !!selectedBotId,
     placeholderData: (prev) => prev,
   });
+
+  const planName = selectedBot?.plan_name;
+  const productLimit = getPlanLimit(planName, 'products');
+  const categoryLimit = getPlanLimit(planName, 'categories');
+  const productCount = products?.length || 0;
+  const categoryCount = categories?.length || 0;
+  const atProductLimit = productCount >= productLimit;
+  const atCategoryLimit = categoryCount >= categoryLimit;
 
   const createMutation = useMutation({
     mutationFn: (data) => createProduct({ 
@@ -497,7 +506,13 @@ export default function Products() {
             )}
           </div>
           <button
-            onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
+            onClick={() => {
+              if (atProductLimit) {
+                addToast('Your account has reached total limits of products', 'error');
+                return;
+              }
+              setEditingProduct(null); setIsModalOpen(true);
+            }}
             className="hidden sm:flex p-2.5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all items-center gap-2 active:scale-95"
           >
             <Plus className="w-5 h-5" />
@@ -538,8 +553,14 @@ export default function Products() {
             {search ? "Try a different search term." : "Start adding products to your shop to see them here."}
           </p>
           {!search && (
-            <button 
-              onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
+            <button
+              onClick={() => {
+                if (atProductLimit) {
+                  addToast('Your account has reached total limits of products', 'error');
+                  return;
+                }
+                setEditingProduct(null); setIsModalOpen(true);
+              }}
               className="mt-6 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all"
             >
               Add Your First Product
@@ -625,7 +646,13 @@ export default function Products() {
 
 
       <button
-        onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
+        onClick={() => {
+          if (atProductLimit) {
+            addToast('Your account has reached total limits of products', 'error');
+            return;
+          }
+          setEditingProduct(null); setIsModalOpen(true);
+        }}
         className="sm:hidden fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 rounded-full shadow-2xl shadow-indigo-200 flex items-center justify-center text-white hover:bg-indigo-700 transition-all active:scale-90 z-40 border-4 border-white"
       >
         <Plus className="w-8 h-8" />
@@ -653,6 +680,7 @@ export default function Products() {
                 categories={categories}
                 products={products}
                 selectedBotId={selectedBotId}
+                atCategoryLimit={atCategoryLimit}
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={(data) => {
                   if (editingProduct) {
@@ -1624,7 +1652,7 @@ function CategoryDropdown({ categories, selected, onSelect }) {
   );
 }
 
-function ProductForm({ product, categories, products, onClose, onSubmit, isLoading, selectedBotId }) {
+function ProductForm({ product, categories, products, onClose, onSubmit, isLoading, selectedBotId, atCategoryLimit }) {
   const { selectedBot } = useSelectedBot();
   const [formData, setFormData] = useState({
     name: product?.name || '',
@@ -1881,8 +1909,15 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
           </select>
           <button
             type="button"
-            onClick={() => setShowNewCategory(true)}
-            className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 px-1 py-1"
+            onClick={() => {
+              if (atCategoryLimit) {
+                addToast('Your account has reached total limits of category', 'error');
+                return;
+              }
+              setShowNewCategory(true);
+            }}
+            className={`text-sm font-bold flex items-center gap-1.5 px-1 py-1 ${atCategoryLimit ? 'text-gray-300 cursor-not-allowed' : 'text-indigo-600 hover:text-indigo-700'}`}
+            disabled={atCategoryLimit}
           >
             <FolderPlus className="w-4 h-4" />
             Create New Category
@@ -1900,6 +1935,10 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
               <button
                 type="button"
                 onClick={() => {
+                  if (atCategoryLimit) {
+                    addToast('Your account has reached total limits of category', 'error');
+                    return;
+                  }
                   const trimmed = newCategoryName.trim();
                   if (!trimmed) return;
                   if (categories?.some(c => c.name.toLowerCase() === trimmed.toLowerCase())) {
