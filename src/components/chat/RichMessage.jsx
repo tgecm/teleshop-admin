@@ -9,7 +9,19 @@ import { useSelectedBot } from '../../hooks/useSelectedBot';
 
 function extractFileId(img) {
   if (!img) return '';
-  if (typeof img === 'string') return img;
+  if (typeof img === 'string') {
+    // Handle Telegram JSON array string from AI product cards
+    if (img.startsWith('[')) {
+      try {
+        const arr = JSON.parse(img);
+        if (Array.isArray(arr) && arr.length > 0) {
+          const photo = arr.find(m => m.type === 'photo' || m.file_id) || arr[0];
+          return photo?.file_id || (typeof photo === 'string' ? photo : '') || '';
+        }
+      } catch { /* not JSON, use as-is */ }
+    }
+    return img;
+  }
   if (Array.isArray(img)) {
     const photo = img.find(m => m.type === 'photo' || m.file_id);
     return photo?.file_id || photo || '';

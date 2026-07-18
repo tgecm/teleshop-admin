@@ -6,6 +6,8 @@ import { useSelectedBot } from '../hooks/useSelectedBot';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import CachedImage from '../components/shared/CachedImage';
+import { getPlanLimit } from '../utils/plans';
+import { useToastStore } from '../store/toastStore';
 import {
   Plus,
   CreditCard,
@@ -50,7 +52,8 @@ function compressImage(file, maxDimension = 720) {
 }
 
 export default function Payments() {
-  const { selectedBotId } = useSelectedBot();
+  const { selectedBotId, selectedBot } = useSelectedBot();
+  const { addToast } = useToastStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
   const [formData, setFormData] = useState({
@@ -66,6 +69,11 @@ export default function Payments() {
     queryFn: () => getPaymentMethods({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
   });
+
+  const planName = selectedBot?.plan_name;
+  const paymentMethodLimit = getPlanLimit(planName, 'payment_methods');
+  const paymentMethodCount = payments?.length || 0;
+  const atPaymentMethodLimit = paymentMethodCount >= paymentMethodLimit;
 
   const mutation = useMutation({
     mutationFn: (data) => editingPayment ? updatePayment(editingPayment.id, data) : createPayment({ ...data, bot_id: Number(selectedBotId) }),
@@ -111,6 +119,10 @@ export default function Payments() {
   };
 
   const openModal = (payment = null) => {
+    if (!payment && atPaymentMethodLimit) {
+      addToast('Your account has reached total limits of payment methods. Please upgrade.', 'error');
+      return;
+    }
     if (payment) {
       setEditingPayment(payment);
       setFormData({

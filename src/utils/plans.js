@@ -1,3 +1,16 @@
+const PLAN_LIMITS = {
+  free:     { products: 5, categories: 1, payment_methods: 1 },
+  basic:    { products: 30, categories: 7, payment_methods: 3 },
+  standard: { products: 70, categories: 15, payment_methods: 5 },
+  pro:      { products: 150, categories: 35, payment_methods: 10 },
+  business: { products: Infinity, categories: Infinity, payment_methods: Infinity },
+};
+
+export function getPlanLimit(planName, type) {
+  const plan = planName?.toLowerCase() || 'free';
+  return PLAN_LIMITS[plan]?.[type] ?? Infinity;
+}
+
 const PLAN_FEATURES = {
   basic: {
     ai_agent: false,
