@@ -256,7 +256,7 @@ const PLANS = [
       { ok: true, text: 'Admin: Up to 10' },
       { ok: true, text: 'Custom Domain' },
       { ok: true, text: 'AI Agent (API Provided)' },
-      { ok: true, text: 'Free DeepSeek API' },
+      { ok: true, text: 'Free API' },
       { ok: true, text: 'Shop Banners' },
       { ok: true, text: 'Multi-Platform Website' },
       { ok: true, text: 'QR Menu System' },

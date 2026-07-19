@@ -5,7 +5,7 @@ import { API_BASE } from '../../api/config';
 import { uploadImage } from '../../api/products';
 import { useToastStore } from '../../store/toastStore';
 import LoadingSkeleton from '../shared/LoadingSkeleton';
-import { Plus, X, Loader2, Image as ImageIcon, Heart, MessageCircle, Trash2, Edit2, Newspaper, Calendar, Check } from 'lucide-react';
+import { Plus, X, Loader2, Image as ImageIcon, Heart, MessageCircle, Trash2, Edit2, Newspaper, Calendar, Check, Pin, PinOff } from 'lucide-react';
 import { myanmarFormat } from '../../utils/date';
 
 export default function NewsfeedPanel({ botId }) {
@@ -52,6 +52,14 @@ export default function NewsfeedPanel({ botId }) {
       addToast('Post deleted');
     },
     onError: () => addToast('Failed to delete post', 'error'),
+  });
+
+  const togglePinMutation = useMutation({
+    mutationFn: ({ id, pinned }) => updateNewsfeedPost(id, { pinned }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['newsfeed', botId]);
+    },
+    onError: () => addToast('Failed to update pin', 'error'),
   });
 
   const handleViewComments = async (post) => {
@@ -124,6 +132,10 @@ export default function NewsfeedPanel({ botId }) {
                   ))}
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
+                  <button onClick={() => togglePinMutation.mutate({ id: post.id, pinned: !post.pinned })}
+                    className={`p-1.5 rounded-lg transition-all ${post.pinned ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-50 text-gray-400 hover:text-indigo-500 hover:bg-gray-100'}`}>
+                    {post.pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                  </button>
                   <button onClick={() => setEditingPost(post)}
                     className="p-1.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
                     <Edit2 className="w-3.5 h-3.5 text-gray-500" />

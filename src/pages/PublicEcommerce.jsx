@@ -1785,7 +1785,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     viewMode = userMode;
   } else if (data?.mode_order) {
     const modeData = data.mode_order;
-    const order = Array.isArray(modeData) ? modeData : (modeData.order || ['telegram', 'ecommerce', 'guest']);
+    const order = Array.isArray(modeData) ? modeData : (modeData.order || ['ecommerce', 'guest', 'telegram']);
     const enabled = !Array.isArray(modeData) ? (modeData.enabled || {}) : {};
     let filtered = order.filter(k => enabled[k] !== false);
     if (filtered.length === 0) filtered = order;
@@ -2908,7 +2908,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             guest: { key: 'guest', label: 'Buy as a Guest' },
           };
           const modeData = data?.mode_order || {};
-          const order = Array.isArray(modeData) ? modeData : (modeData.order || ['telegram', 'ecommerce', 'guest']);
+          const order = Array.isArray(modeData) ? modeData : (modeData.order || ['ecommerce', 'guest', 'telegram']);
           const enabled = !Array.isArray(modeData) ? (modeData.enabled || {}) : {};
           let ordered = order.filter(k => enabled[k] !== false);
           if (ordered.length === 0) ordered = order;
