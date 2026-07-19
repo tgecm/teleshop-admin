@@ -181,7 +181,7 @@ export default function Subscription() {
   const handleUpgradeClick = (planKey) => {
     if (cooldown > 0) return;
     if (!selectedBot) { addToast('No bot selected. Please select a bot from the admin panel first.', 'error'); return; }
-    if (!bot) { addToast('Bot data not loaded', 'error'); return; }
+    if (!bot && !selectedBot) { addToast('Bot data not loaded', 'error'); return; }
     setPendingPlanKey(planKey);
     pendingPlanRef.current = planKey;
     setDiscountCodeInput('');
