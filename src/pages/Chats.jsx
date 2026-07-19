@@ -11,6 +11,7 @@ import {
   MessageCircle,
   Send,
   X,
+  ChevronDown,
   ChevronRight,
   User,
   Loader2,
@@ -45,7 +46,7 @@ const lastMessageText = (msg, fileType) => {
 
 const FILE_SIZE_LIMIT = 5 * 1024 * 1024; // 5MB
 
-function DocumentItem({ fileUrl, tgLink, isAdmin }) {
+function DocumentItem({ fileUrl, tgLink, isAdmin, showTelegramLink }) {
   const [size, setSize] = useState(null);
   const [checking, setChecking] = useState(true);
 
@@ -100,16 +101,18 @@ function DocumentItem({ fileUrl, tgLink, isAdmin }) {
         <FileText className="w-5 h-5 flex-shrink-0" />
         <p className="text-sm font-medium">Document</p>
       </div>
-      <a href={tgLink} target="_blank" rel="noreferrer"
-        className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
-        onClick={(e) => e.stopPropagation()}>
-        Open in Telegram ↗
-      </a>
+      {showTelegramLink && (
+        <a href={tgLink} target="_blank" rel="noreferrer"
+          className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
+          onClick={(e) => e.stopPropagation()}>
+          Open in Telegram ↗
+        </a>
+      )}
     </div>
   );
 }
 
-function ChatBubble({ message, isAdmin, isAi, botId, botUsername }) {
+function ChatBubble({ message, isAdmin, isAi, botId, botUsername, showTelegramLink }) {
   const token = useAuthStore(s => s.token);
   const currentUser = useAuthStore(s => s.user);
   const isOwner = currentUser?.is_superadmin;
@@ -141,11 +144,13 @@ function ChatBubble({ message, isAdmin, isAi, botId, botUsername }) {
               draggable={false}
               onContextMenu={(e) => e.preventDefault()}
             />
-            <a href={tgLink} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
-              onClick={(e) => e.stopPropagation()}>
-              Open in Telegram ↗
-            </a>
+            {showTelegramLink && (
+              <a href={tgLink} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
+                onClick={(e) => e.stopPropagation()}>
+                Open in Telegram ↗
+              </a>
+            )}
           </div>
         );
       case 'video':
@@ -155,11 +160,13 @@ function ChatBubble({ message, isAdmin, isAi, botId, botUsername }) {
               <FileText className="w-4 h-4 flex-shrink-0" />
               <p className="text-sm font-medium">Sent a video</p>
             </div>
-            <a href={tgLink} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
-              onClick={(e) => e.stopPropagation()}>
-              Open in Telegram ↗
-            </a>
+            {showTelegramLink && (
+              <a href={tgLink} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
+                onClick={(e) => e.stopPropagation()}>
+                Open in Telegram ↗
+              </a>
+            )}
           </div>
         );
       case 'audio':
@@ -175,11 +182,13 @@ function ChatBubble({ message, isAdmin, isAi, botId, botUsername }) {
                   {message.file_type === 'voice' ? 'Voice Message' : 'Audio'}
                 </p>
               </div>
-              <a href={tgLink} target="_blank" rel="noreferrer"
-                className={`text-[10px] font-bold hover:underline flex-shrink-0 ${isRightSide ? 'text-indigo-200' : 'text-indigo-600'}`}
-                onClick={(e) => e.stopPropagation()}>
-                Open ↗
-              </a>
+              {showTelegramLink && (
+                <a href={tgLink} target="_blank" rel="noreferrer"
+                  className={`text-[10px] font-bold hover:underline flex-shrink-0 ${isRightSide ? 'text-indigo-200' : 'text-indigo-600'}`}
+                  onClick={(e) => e.stopPropagation()}>
+                  Open ↗
+                </a>
+              )}
             </div>
             <audio controls controlsList="nodownload" className="w-full h-9" preload="metadata">
               <source src={fileUrl} />
@@ -193,7 +202,7 @@ function ChatBubble({ message, isAdmin, isAi, botId, botUsername }) {
           </div>
         );
       case 'document':
-        return <DocumentItem fileUrl={fileUrl} tgLink={tgLink} isAdmin={isRightSide} />;
+        return <DocumentItem fileUrl={fileUrl} tgLink={tgLink} isAdmin={isRightSide} showTelegramLink={showTelegramLink} />;
       default:
         return (
           <div className="mb-2">
@@ -201,11 +210,13 @@ function ChatBubble({ message, isAdmin, isAi, botId, botUsername }) {
               <FileText className="w-5 h-5 flex-shrink-0" />
               <p className="text-sm font-medium">{fileTypeLabel(message.file_type)}</p>
             </div>
-            <a href={tgLink} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
-              onClick={(e) => e.stopPropagation()}>
-              Open in Telegram ↗
-            </a>
+            {showTelegramLink && (
+              <a href={tgLink} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
+                onClick={(e) => e.stopPropagation()}>
+                Open in Telegram ↗
+              </a>
+            )}
           </div>
         );
     }
@@ -255,7 +266,7 @@ function ChatBubble({ message, isAdmin, isAi, botId, botUsername }) {
             <RichMessage content={message.message_text} isAssistant={true} botId={botId} />
           </div>
         ) : (
-          <p ref={msgRef} className="text-sm leading-relaxed whitespace-pre-wrap break-words select-all cursor-text"
+          <div ref={msgRef} className="text-sm leading-relaxed whitespace-pre-wrap break-words select-all cursor-text"
             onContextMenu={(e) => {
               if (touchCopiedRef.current) { touchCopiedRef.current = false; return; }
               e.preventDefault();
@@ -280,7 +291,7 @@ function ChatBubble({ message, isAdmin, isAi, botId, botUsername }) {
             <ErrorBoundary fallback={<span className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.message_text}</span>}>
               <MarkdownRenderer isAdmin={isAdmin}>{message.message_text}</MarkdownRenderer>
             </ErrorBoundary>
-          </p>
+          </div>
         ))}
         <p
           className={`text-[10px] mt-1 ${
@@ -353,6 +364,23 @@ export default function Chats() {
   const [chatTab, setChatTab] = useState('all');
   const [selectedVisitor, setSelectedVisitor] = useState(null);
   const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+
+  const handleChatScroll = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    setUserScrolledUp(!isNearBottom);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    setUserScrolledUp(false);
+  }, []);
+
   const inputRef = useRef(null);
   const menuRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -361,6 +389,7 @@ export default function Chats() {
 
   const prevChatsRef = useRef([]);
   const prevMessagesRef = useRef([]);
+  const initialScrollDone = useRef(false);
   const prevWebVisitorsRef = useRef([]);
   const prevWebMessagesRef = useRef([]);
 
@@ -405,6 +434,24 @@ export default function Chats() {
   const stableWebMessages = isFetching && webMessages.length === 0 ? prevWebMessagesRef.current : webMessages;
 
   // Apply local unread overrides on top of server data
+  useEffect(() => {
+    initialScrollDone.current = false;
+    setUserScrolledUp(false);
+  }, [selectedUser, selectedVisitor]);
+
+  const activeMsgs = selectedVisitor ? webMessages : messages;
+
+  useEffect(() => {
+    const el = chatContainerRef.current;
+    if (!el || activeMsgs.length === 0) return;
+    if (!initialScrollDone.current) {
+      initialScrollDone.current = true;
+      el.scrollTop = el.scrollHeight;
+    } else if (!userScrolledUp) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [activeMsgs, userScrolledUp, selectedVisitor]);
+
   const displayedChats = useMemo(() =>
     stableChats.map(c => ({ ...c, unread_count: unreadOverrides[c.user_id] ?? c.unread_count })),
     [stableChats, unreadOverrides]
@@ -513,10 +560,6 @@ export default function Chats() {
     document.addEventListener('pointerdown', handle);
     return () => document.removeEventListener('pointerdown', handle);
   }, [contextMenu]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
   const webVisitorsWithUid = displayedWebVisitors.filter(v => v.firebase_uid || v.telegram_id);
@@ -1151,7 +1194,7 @@ export default function Chats() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-5 py-4 space-y-3 min-h-0 [overflow-wrap:anywhere]">
+              <div ref={chatContainerRef} onScroll={handleChatScroll} className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-5 py-4 space-y-3 min-h-0 [overflow-wrap:anywhere]">
                 {(() => {
                   const msgs = selectedVisitor ? stableWebMessages : stableMessages;
                   return msgs.length === 0 ? (
@@ -1167,11 +1210,22 @@ export default function Chats() {
                         isAi={msg.sender_type === 'ai'}
                         botId={Number(selectedBotId)}
                         botUsername={botUsername}
+                        showTelegramLink={chatTab === 'all' || chatTab === 'telegram'}
                       />
                     ))
                   );
                 })()}
                 <div ref={messagesEndRef} />
+                {userScrolledUp && (
+                  <div className="sticky bottom-0 flex justify-end pb-2 pointer-events-none">
+                    <button
+                      onClick={scrollToBottom}
+                      className="pointer-events-auto w-10 h-10 bg-white border border-gray-200 shadow-lg rounded-full flex items-center justify-center hover:bg-gray-50 active:scale-90 transition-all"
+                    >
+                      <ChevronDown className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="sticky bottom-0 bg-white border-t border-gray-100 px-4 md:px-5 py-3 pb-[calc(max(env(safe-area-inset-bottom),8px)+12px)]">

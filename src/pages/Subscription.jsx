@@ -121,7 +121,7 @@ export default function Subscription() {
         'Update Bot Info: All', 'Update Photo: All',
         'Automation: 20', 'Custom Commands: 25', 'Payment Methods: 5',
         'Broadcasts: 25/mo', 'Ads Removed: Yes', 'Total Bots: 7',
-        'AI Agent: Yes (with own API)', 'E-commerce Website: Yes',
+        'AI Agent: Yes but with your own API', 'E-commerce Website: Yes',
         'Admin Panel: Website Dashboard + Telegram',
         'Change Order Button Name: Yes', 'Watermark: Removed ✅',
         'QR Menu System: ❌', 'Staff Accounts: ✅'
@@ -143,7 +143,7 @@ export default function Subscription() {
         'Categories: up to 35', 'Products: up to 150', 'Admin: Up to 10',
         'Automation: 50', 'Custom Commands: 50', 'Payment Methods: 10',
         'Broadcasts: 75/mo', 'Total Bots: 25',
-        'Free DeepSeek API: ✅', 'Help Setting Up Product: ✅',
+        'Free API: ✅', 'Help Setting Up Product: ✅',
         'AI Agent: Yes (API Provided)',
         'E-commerce Website: Yes (Multi-Platform)',
         'Custom Domain: Yes (1)', 'E-commerce Shop Banner: Yes', 'Multi-Currency: Yes (180+ currencies)', 'QR Menu System: ✅', 'Staff Accounts: ✅'
