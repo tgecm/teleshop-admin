@@ -277,7 +277,7 @@ export default function Settings() {
       if (data.verified) {
         addToast('Domain verified successfully');
       } else {
-        addToast('Domain does not point to server IP yet. Make sure your DNS A record points to 139.180.156.116', 'error');
+        addToast(data.detail || 'Domain does not point to server IP yet. Make sure your DNS A record points to 139.180.156.116', 'error');
       }
     },
     onError: () => addToast('Verification failed', 'error'),
