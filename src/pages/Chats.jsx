@@ -813,7 +813,7 @@ export default function Chats() {
                     } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
                         {v.name === 'E-commerce Support'
                           ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
                           : v.photo_url ? (
@@ -899,7 +899,7 @@ export default function Chats() {
                     } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
                         {v.name === 'E-commerce Support'
                           ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
                           : v.photo_url ? (
@@ -966,7 +966,7 @@ export default function Chats() {
                     } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
                         {v.name === 'E-commerce Support'
                           ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
                           : v.photo_url ? (

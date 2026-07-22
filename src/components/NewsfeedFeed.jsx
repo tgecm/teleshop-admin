@@ -215,7 +215,7 @@ export default function NewsfeedFeed({ botId, botName, onClose, viaDomain, slug,
       </div>
 
       {/* Posts */}
-      <div className="flex-1 overflow-y-auto bg-gray-50" style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
+      <div className={inline ? "bg-gray-50" : "flex-1 overflow-y-auto bg-gray-50"} style={inline ? {} : { overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
         {initialLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />

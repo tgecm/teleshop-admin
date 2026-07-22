@@ -114,7 +114,8 @@ export default function Dashboard() {
       const products = Array.isArray(data) ? data : data?.products || data?.data || [];
       const totalValue = products.reduce((sum, p) => {
         const qty = p.stock_quantity;
-        if (qty === null || qty === undefined || qty <= 0) return sum;
+        if (qty === null || qty === undefined) return sum + (Number(p.price) || 0) * 1;
+        if (qty <= 0) return sum;
         return sum + (Number(p.price) || 0) * qty;
       }, 0);
       return { products, totalStockValue: totalValue };

@@ -1,5 +1,4 @@
 export const DEFAULT_DOMAINS = [
-  { name: 'telegramecommerce.shop', url: 'https://telegramecommerce.shop' },
   { name: 'crossmart.shop', url: 'https://crossmart.shop' },
 ];
 
