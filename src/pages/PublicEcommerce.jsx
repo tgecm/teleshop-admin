@@ -1738,6 +1738,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const crossSellScrollRef = useRef(null);
   const crossSellDrag = useRef({ isDragging: false, startX: 0, scrollLeft: 0, moved: false });
   const [showScrollTop, setShowScrollTop] = useState(false);
+const [showModePopup, setShowModePopup] = useState(false);
 
   const handleCrossSellMouseDown = useCallback((e) => {
     const el = crossSellScrollRef.current;
@@ -2915,9 +2916,9 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         {/* View mode toggle — hide when only 1 mode enabled */}
         {!mode && (() => {
           const modeMap = {
-            telegram: { key: 'telegram', label: 'Buy on Telegram' },
-            ecommerce: { key: 'ecommerce', label: 'Buy on Website' },
-            guest: { key: 'guest', label: 'Buy as a Guest' },
+            telegram: { key: 'telegram', label: 'Buy on Telegram', icon: Send },
+            ecommerce: { key: 'ecommerce', label: 'Buy on Website', icon: ShoppingCart },
+            guest: { key: 'guest', label: 'Buy as a Guest', icon: User },
           };
           const modeData = data?.mode_order || {};
           const order = Array.isArray(modeData) ? modeData : (modeData.order || ['telegram', 'ecommerce', 'guest']);
@@ -2935,7 +2936,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                       ? 'theme-filter-active'
                       : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'
                   }`}>
-                  <ShoppingBag className="w-3 h-3 inline mr-1 -mt-0.5" />
+                  <opt.icon className="w-3 h-3 inline mr-1 -mt-0.5" />
                   {opt.label}
                 </button>
               ))}
@@ -3032,7 +3033,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
               return (
                 <motion.div key={product.id} layout
-                  initial={{ y: 20 }} whileInView={{ y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.2 }}
+                  initial={{ scale: 0.9 }} whileInView={{ scale: 1 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.2 }}
                   className="theme-card rounded-2xl md:rounded-3xl shadow-sm overflow-hidden hover:-translate-y-1 transition-all duration-300 group cursor-pointer"
                   onClick={() => setSelectedProduct(product)}
                 >
@@ -3819,19 +3820,77 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         )}
       </AnimatePresence>
 
-      {/* Scroll to top */}
+      {/* Scroll to top & mode switcher */}
       {showScrollTop && (
-        <motion.button
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          onClick={() => document.getElementById('root')?.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-10 left-5 z-50 w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-white transition-transform active:scale-90 hover:scale-105"
-          style={{ background: theme.css['--theme-btn'] }}
-        >
-          <ChevronUp className="w-5 h-5" />
-        </motion.button>
+        <>
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={() => document.getElementById('root')?.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="fixed bottom-10 left-5 z-50 w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-white transition-transform active:scale-90 hover:scale-105"
+            style={{ background: theme.css['--theme-btn'] }}
+          >
+            <ChevronUp className="w-5 h-5" />
+          </motion.button>
+
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={() => setShowModePopup(prev => !prev)}
+            className="fixed bottom-10 left-20 z-50 w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-white transition-transform active:scale-90 hover:scale-105"
+            style={{ background: theme.css['--theme-btn'] }}
+          >
+            {viewMode === 'telegram' ? <Send className="w-5 h-5" /> :
+             viewMode === 'ecommerce' ? <ShoppingCart className="w-5 h-5" /> :
+             viewMode === 'guest' ? <User className="w-5 h-5" /> :
+             <ShoppingBag className="w-5 h-5" />}
+          </motion.button>
+        </>
       )}
+
+      {/* Mode popup */}
+      {showModePopup && <div className="fixed inset-0 z-50" onClick={() => setShowModePopup(false)} />}
+      <AnimatePresence>
+        {showModePopup && (() => {
+          const modeMap = {
+            telegram: { key: 'telegram', label: 'Buy on Telegram', icon: Send },
+            ecommerce: { key: 'ecommerce', label: 'Buy on Website', icon: ShoppingCart },
+            guest: { key: 'guest', label: 'Buy as a Guest', icon: User },
+          };
+          const modeData = data?.mode_order || {};
+          const order = Array.isArray(modeData) ? modeData : (modeData.order || ['telegram', 'ecommerce', 'guest']);
+          const enabled = !Array.isArray(modeData) ? (modeData.enabled || {}) : {};
+          let ordered = order.filter(k => enabled[k] !== false);
+          if (ordered.length === 0) ordered = order;
+          if (ordered.length <= 1) return null;
+          return (
+            <motion.div
+              key="mode-popup"
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className="fixed bottom-24 left-5 z-50 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 min-w-[160px] overflow-hidden"
+            >
+              {ordered.map(key => modeMap[key]).filter(Boolean).map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => { setViewMode(opt.key); setShowModePopup(false); }}
+                  className={`w-full px-4 py-2.5 text-left text-sm font-medium transition-colors flex items-center gap-2 ${
+                    viewMode === opt.key
+                      ? 'theme-filter-active'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <opt.icon className="w-4 h-4 flex-shrink-0" />
+                  {opt.label}
+                </button>
+              ))}
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </div>
   );
 }
