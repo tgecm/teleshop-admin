@@ -88,7 +88,7 @@ import {
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
   ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
   CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw,
-  TrendingUp, Star, Award, AlertTriangle
+  TrendingUp, Star, Award, AlertTriangle, ChevronUp
 } from 'lucide-react';
 import Receipt from '../components/orders/Receipt';
 import CustomerShopTab from '../components/CustomerShopTab';
@@ -150,6 +150,8 @@ export default function CustomerDashboard({ shopSlug }) {
   const chatRef = useRef(null);
   const copyTimerRef = useRef(null);
   const chatInputRef = useRef(null);
+  const mainRef = useRef(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const telegramToken = typeof window !== 'undefined' ? localStorage.getItem('telegram_token') : null;
   const isTelegramUser = !!telegramToken && !user;
@@ -546,7 +548,7 @@ export default function CustomerDashboard({ shopSlug }) {
       </header>
 
       {/* Tab Content */}
-      <main className="flex-1 overflow-y-auto pb-16">
+      <main ref={mainRef} className="flex-1 overflow-y-auto pb-16">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -570,7 +572,7 @@ export default function CustomerDashboard({ shopSlug }) {
                 />
               </div>
             )}
-            {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} receiptSettings={receiptSettings} />}
+            {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
             {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} receiptSettings={receiptSettings} />}
             {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} shop={shopData?.shop} />}
             {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
@@ -677,6 +679,20 @@ export default function CustomerDashboard({ shopSlug }) {
         </div>
         </ErrorBoundary>
       )}
+
+      {/* Scroll to top */}
+      {showScrollTop && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          onClick={() => mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-28 left-5 z-50 w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-white active:scale-90 transition-all"
+          style={{ background: 'linear-gradient(135deg, #6366f1, #7c3aed)' }}
+        >
+          <ChevronUp className="w-5 h-5" />
+        </motion.button>
+      )}
     </div>
     </ErrorBoundary>
   );
@@ -703,6 +719,17 @@ function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onN
     const timer = setInterval(() => setBannerIndex(prev => (prev + 1) % banners.length), 5000);
     return () => clearInterval(timer);
   }, [banners]);
+
+  // Scroll to top button
+  const SCROLL_THRESHOLD = 600;
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const handler = () => setShowScrollTop(el.scrollTop > SCROLL_THRESHOLD);
+    handler();
+    el.addEventListener('scroll', handler, { passive: true });
+    return () => el.removeEventListener('scroll', handler);
+  }, []);
 
   const stats = [
     { label: 'Total Orders', value: orderStats?.total, icon: Package, color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -1006,7 +1033,7 @@ function PointsTab({ points, pointsHistory, pointsSettings, shop }) {
 }
 
 /* ─── ORDERS TAB ─── */
-function OrdersTab({ shopSlug, uid, shop, orders, loading, receiptSettings }) {
+function OrdersTab({ shopSlug, uid, shop, orders, loading, receiptSettings, onNavigate }) {
   const [expandedId, setExpandedId] = useState(null);
   const [downloadOrder, setDownloadOrder] = useState(null);
   const [downloadType, setDownloadType] = useState('invoice');
@@ -1029,13 +1056,13 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading, receiptSettings }) {
         <p className="text-sm text-gray-400 mb-6">
           When you place an order, it will appear here.
         </p>
-        <a
-          href={`/?p=${encodeURIComponent(shopSlug)}`}
+        <button
+          onClick={() => onNavigate?.('shop')}
           className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-indigo-100 hover:shadow-xl transition-all"
         >
           <ShoppingBag className="w-4 h-4" />
           Start Shopping
-        </a>
+        </button>
       </div>
     );
   }

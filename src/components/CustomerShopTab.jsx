@@ -164,7 +164,8 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
             const images = getPublicImageUrls(product.image_url, shop?.id);
             const qty = cartQty(product.id);
             return (
-              <motion.div key={product.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
+              <motion.div key={product.id}
+                initial={{ y: 20 }} whileInView={{ y: 0 }} viewport={{ once: true, margin: "-30px" }} transition={{ duration: 0.2 }}
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer"
                 onClick={() => { setDetailProduct(product); setSelColor(null); setSelOptions({}); }}>
                 {/* Image */}

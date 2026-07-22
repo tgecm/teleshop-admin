@@ -5,7 +5,7 @@ import { useCartState } from '../context/CartContext';
 import { ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
   Minus, Plus, Trash2, LogOut, CheckCircle, CheckCircle2, Loader2, User,
-  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard, Award, Map
+  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard, Award, Map, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -1737,6 +1737,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [oosMap, setOosMap] = useState({});
   const crossSellScrollRef = useRef(null);
   const crossSellDrag = useRef({ isDragging: false, startX: 0, scrollLeft: 0, moved: false });
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const handleCrossSellMouseDown = useCallback((e) => {
     const el = crossSellScrollRef.current;
@@ -2500,6 +2501,17 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       .catch(() => {});
   }, [showCart, shop?.id, cartItems]);
 
+  // Scroll to top button
+  const SCROLL_THRESHOLD = 1;
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (!root) return;
+    const handler = () => setShowScrollTop(root.scrollTop > SCROLL_THRESHOLD);
+    handler();
+    root.addEventListener('scroll', handler, { passive: true });
+    return () => root.removeEventListener('scroll', handler);
+  }, []);
+
   const categoryMap = {};
   categories.forEach(c => { categoryMap[c.id] = c.name; });
 
@@ -3020,7 +3032,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
               return (
                 <motion.div key={product.id} layout
-                  initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04, duration: 0.35 }}
+                  initial={{ y: 20 }} whileInView={{ y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.2 }}
                   className="theme-card rounded-2xl md:rounded-3xl shadow-sm overflow-hidden hover:-translate-y-1 transition-all duration-300 group cursor-pointer"
                   onClick={() => setSelectedProduct(product)}
                 >
@@ -3806,6 +3818,20 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
           </>
         )}
       </AnimatePresence>
+
+      {/* Scroll to top */}
+      {showScrollTop && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          onClick={() => document.getElementById('root')?.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-10 left-5 z-50 w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-white transition-transform active:scale-90 hover:scale-105"
+          style={{ background: theme.css['--theme-btn'] }}
+        >
+          <ChevronUp className="w-5 h-5" />
+        </motion.button>
+      )}
     </div>
   );
 }
