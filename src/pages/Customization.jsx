@@ -22,6 +22,7 @@ import {
   ChevronDown,
   ChevronRight,
   ImageUp,
+  Lock,
   Trash2,
   X,
   CheckCircle2,
@@ -181,21 +182,20 @@ function TemplatePickerSection({ planName }) {
   const { addToast } = useToastStore();
   const plan = (planName || 'free').toLowerCase();
 
+  const isTemplateLocked = (tmplId) => {
+    if (!isFeatureAllowed(planName, 'admin_template')) return true;
+    if (plan === 'pro' && !['classic', 'midnight'].includes(tmplId)) return true;
+    return false;
+  };
+
   const handleTemplateClick = (tmplId, tmplName) => {
-    if (!requireFeature(planName, 'admin_template', addToast)) return;
-    if (plan === 'pro' && !['classic', 'midnight'].includes(tmplId)) {
-      addToast('Classic & Midnight only on Pro plan. Upgrade to Business for all templates.', 'error');
+    if (isTemplateLocked(tmplId)) {
+      addToast('Please upgrade to use more templates', 'error');
       return;
     }
     setTheme(tmplId);
     addToast(`Switched UI template to ${tmplName}`, 'success');
   };
-
-  const availableTemplates = Object.values(TEMPLATE_META).filter((tmpl) => {
-    if (!isFeatureAllowed(planName, 'admin_template')) return true;
-    if (plan === 'pro') return ['classic', 'midnight'].includes(tmpl.id);
-    return true;
-  });
 
   return (
     <section className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-gray-100">
@@ -210,9 +210,10 @@ function TemplatePickerSection({ planName }) {
       </div>
 
       <div className="flex overflow-x-auto pb-2 scrollbar-hide snap-x sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-        {availableTemplates.map((tmpl) => {
+        {Object.values(TEMPLATE_META).map((tmpl) => {
           const isActive = activeTheme === tmpl.id || (activeTheme === `${tmpl.id}-dark`);
           const isHovered = hoveredId === tmpl.id;
+          const locked = isTemplateLocked(tmpl.id);
 
           return (
             <motion.button
@@ -220,12 +221,12 @@ function TemplatePickerSection({ planName }) {
               onClick={() => handleTemplateClick(tmpl.id, tmpl.name)}
               onMouseEnter={() => setHoveredId(tmpl.id)}
               onMouseLeave={() => setHoveredId(null)}
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={locked ? undefined : { y: -2 }}
+              whileTap={locked ? undefined : { scale: 0.98 }}
               className={`text-left rounded-2xl border transition-all overflow-hidden flex flex-col p-2.5 w-[210px] shrink-0 snap-start sm:w-auto ${
                 isActive
                   ? 'ring-2 ring-indigo-500 border-transparent shadow-md'
-                  : 'hover:shadow-md'
+                  : locked ? 'opacity-60' : 'hover:shadow-md'
               }`}
               style={{
                 background: 'var(--card-bg)',
@@ -234,6 +235,11 @@ function TemplatePickerSection({ planName }) {
             >
               <div className="w-full h-20 sm:h-24 rounded-xl overflow-hidden mb-2 relative group">
                 <MiniDashboardPreview p={tmpl.preview} />
+                {locked && (
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-xl">
+                    <Lock className="w-6 h-6 text-white drop-shadow-lg" />
+                  </div>
+                )}
                 {tmpl.badge && (
                   <span
                     className="absolute top-1.5 right-1.5 text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm"
@@ -275,6 +281,11 @@ function TemplatePickerSection({ planName }) {
                       style={{ background: 'var(--accent-light)', color: 'var(--accent-text)' }}
                     >
                       ✓ Applied
+                    </span>
+                  ) : locked ? (
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full text-gray-400 flex items-center gap-1" style={{ background: 'var(--bg-elevated)' }}>
+                      <Lock className="w-2.5 h-2.5" />
+                      Locked
                     </span>
                   ) : (
                     <span
