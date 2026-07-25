@@ -235,9 +235,12 @@ function TemplatePickerSection({ planName }) {
             >
               <div className="w-full h-20 sm:h-24 rounded-xl overflow-hidden mb-2 relative group">
                 <MiniDashboardPreview p={tmpl.preview} />
-                {locked && (
-                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-xl">
-                    <Lock className="w-6 h-6 text-white drop-shadow-lg" />
+                {locked && !isActive && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-xl backdrop-blur-sm">
+                    <div className="flex flex-col items-center gap-1">
+                      <Lock className="w-6 h-6 text-white" />
+                      <span className="text-[9px] font-bold text-white/80">Locked</span>
+                    </div>
                   </div>
                 )}
                 {tmpl.badge && (
