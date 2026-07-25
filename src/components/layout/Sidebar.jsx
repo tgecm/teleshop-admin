@@ -142,9 +142,15 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             className={({ isActive }) => `
               flex items-center gap-2 px-2.5 py-1.5 lg:py-3 rounded-xl text-xs lg:text-sm font-medium transition-all
               ${isActive
-                ? 'bg-indigo-100 text-indigo-700 shadow-sm border border-indigo-300 font-semibold'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-transparent'}
-            `}
+                ? 'font-semibold'
+                : 'border border-transparent hover:bg-[var(--sidebar-hover-bg)] hover:text-[var(--sidebar-text-hover)]'}`}
+            style={({ isActive }) => isActive ? {
+              background: 'var(--sidebar-active-bg)',
+              color: 'var(--sidebar-text-active)',
+              border: '1px solid var(--sidebar-active-border)',
+            } : {
+              color: 'var(--sidebar-text)',
+            }}
           >
             <Icon className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
             <span>{label}</span>
@@ -283,7 +289,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="absolute left-0 top-0 bottom-0 w-56 bg-gradient-to-b from-indigo-50 to-white shadow-2xl flex flex-col overflow-y-auto"
+      className="absolute left-0 top-0 bottom-0 w-56 shadow-2xl flex flex-col overflow-y-auto"
+              style={{ background: 'var(--sidebar-bg)' }}
             >
               <div className="flex items-center justify-between px-2.5 py-2 border-b border-indigo-100 shrink-0">
                 <span className="text-sm font-black text-indigo-600">Menu</span>
@@ -303,7 +310,10 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
       </AnimatePresence>
 
       {/* Desktop sidebar */}
-      <aside className="sidebar-panel hidden md:flex flex-col w-64 lg:w-72 bg-white border-r border-gray-100 h-full overflow-y-auto scrollbar-hide">
+      <aside
+        className="sidebar-panel hidden md:flex flex-col w-64 lg:w-72 h-full overflow-y-auto scrollbar-hide"
+        style={{ background: 'var(--sidebar-bg)', borderRight: '1px solid var(--sidebar-border)' }}
+      >
         {navContent(false)}
       </aside>
     </>

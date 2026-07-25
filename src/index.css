@@ -1,5 +1,681 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+
+/* ============================================================
+   TELESHOP UI TEMPLATE SYSTEM — CSS Design Tokens
+   Each [data-theme] block defines the complete visual identity.
+   ============================================================ */
+
+/* ---- CLASSIC (Default) ---- */
+:root, [data-theme="classic"] {
+  --bg-base:             #f8fafc;
+  --bg-surface:          #ffffff;
+  --bg-elevated:         #f1f5f9;
+  --bg-hover:            #f8fafc;
+  --border:              #e2e8f0;
+  --border-subtle:       #f1f5f9;
+
+  --text-primary:        #0f172a;
+  --text-secondary:      #64748b;
+  --text-muted:          #94a3b8;
+
+  --accent:              #6366f1;
+  --accent-hover:        #4f46e5;
+  --accent-light:        #eef2ff;
+  --accent-text:         #4338ca;
+  --accent-gradient:     linear-gradient(135deg, #6366f1, #8b5cf6);
+
+  --sidebar-bg:          #ffffff;
+  --sidebar-border:      #e2e8f0;
+  --sidebar-text:        #64748b;
+  --sidebar-text-active: #4338ca;
+  --sidebar-active-bg:   #eef2ff;
+  --sidebar-active-border: #c7d2fe;
+  --sidebar-hover-bg:    #f8fafc;
+  --sidebar-section-text: #6366f1;
+  --sidebar-section-bg:  #eef2ff;
+  --sidebar-width:       260px;
+  --sidebar-collapsed:   64px;
+
+  --topbar-bg:           #6366f1;
+  --topbar-text:         #ffffff;
+  --topbar-subtext:      rgba(255,255,255,0.7);
+  --topbar-btn-hover:    rgba(255,255,255,0.15);
+  --topbar-height:       56px;
+
+  --bottomnav-bg:        rgba(255,255,255,0.92);
+  --bottomnav-border:    #e2e8f0;
+  --bottomnav-active:    #6366f1;
+  --bottomnav-inactive:  #94a3b8;
+
+  --card-bg:             #ffffff;
+  --card-border:         #e2e8f0;
+  --card-shadow:         0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --card-shadow-hover:   0 4px 16px rgba(99,102,241,0.1);
+  --card-radius:         16px;
+
+  --input-bg:            #ffffff;
+  --input-border:        #d1d5db;
+  --input-focus-border:  #6366f1;
+  --input-focus-ring:    rgba(99,102,241,0.2);
+  --input-text:          #0f172a;
+  --input-placeholder:   #9ca3af;
+
+  --badge-active-bg:     #dcfce7;
+  --badge-active-text:   #166534;
+  --badge-inactive-bg:   #fee2e2;
+  --badge-inactive-text: #991b1b;
+
+  --skeleton-base:       #f1f5f9;
+  --skeleton-shine:      #e2e8f0;
+
+  --font-heading:        'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body:           'Inter', sans-serif;
+  --transition:          150ms ease;
+}
+
+/* ---- MIDNIGHT (Obsidian Pitch Black) ---- */
+[data-theme="midnight"] {
+  --bg-base:             #050508;
+  --bg-surface:          #0b0b10;
+  --bg-elevated:         #14141c;
+  --bg-hover:            rgba(255,255,255,0.06);
+  --border:              rgba(255,255,255,0.08);
+  --border-subtle:       rgba(255,255,255,0.04);
+
+  --text-primary:        #f8fafc;
+  --text-secondary:      #94a3b8;
+  --text-muted:          #64748b;
+
+  --accent:              #6366f1;
+  --accent-hover:        #818cf8;
+  --accent-light:        rgba(99,102,241,0.18);
+  --accent-text:         #a5b4fc;
+  --accent-gradient:     linear-gradient(135deg, #6366f1, #8b5cf6);
+
+  --sidebar-bg:          #08080c;
+  --sidebar-border:      rgba(255,255,255,0.08);
+  --sidebar-text:        #64748b;
+  --sidebar-text-active: #ffffff;
+  --sidebar-active-bg:   rgba(99,102,241,0.2);
+  --sidebar-active-border: rgba(99,102,241,0.45);
+  --sidebar-hover-bg:    rgba(255,255,255,0.05);
+  --sidebar-section-text: #818cf8;
+  --sidebar-section-bg:  rgba(99,102,241,0.12);
+  --sidebar-width:       260px;
+  --sidebar-collapsed:   64px;
+
+  --topbar-bg:           rgba(5,5,8,0.88);
+  --topbar-text:         #f8fafc;
+  --topbar-subtext:      #94a3b8;
+  --topbar-btn-hover:    rgba(255,255,255,0.1);
+  --topbar-height:       52px;
+
+  --bottomnav-bg:        rgba(8,8,12,0.94);
+  --bottomnav-border:    rgba(255,255,255,0.08);
+  --bottomnav-active:    #818cf8;
+  --bottomnav-inactive:  #64748b;
+
+  --card-bg:             #0d0d14;
+  --card-border:         rgba(255,255,255,0.08);
+  --card-shadow:         0 8px 32px rgba(0,0,0,0.7);
+  --card-shadow-hover:   0 12px 40px rgba(99,102,241,0.25);
+  --card-radius:         16px;
+
+  --input-bg:            rgba(255,255,255,0.04);
+  --input-border:        rgba(255,255,255,0.12);
+  --input-focus-border:  #6366f1;
+  --input-focus-ring:    rgba(99,102,241,0.3);
+  --input-text:          #f8fafc;
+  --input-placeholder:   #64748b;
+
+  --badge-active-bg:     rgba(16,185,129,0.18);
+  --badge-active-text:   #34d399;
+  --badge-inactive-bg:   rgba(239,68,68,0.18);
+  --badge-inactive-text: #f87171;
+
+  --skeleton-base:       rgba(255,255,255,0.04);
+  --skeleton-shine:      rgba(255,255,255,0.08);
+
+  --font-heading:        'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body:           'Inter', sans-serif;
+  --transition:          150ms ease;
+}
+
+/* ---- SLATE PRO (Default: Clean Light Slate, Top Navigation) ---- */
+[data-theme="slate"] {
+  --bg-base:             #f1f5f9;
+  --bg-surface:          #ffffff;
+  --bg-elevated:         #e2e8f0;
+  --bg-hover:            #f8fafc;
+  --border:              #cbd5e1;
+  --border-subtle:       #e2e8f0;
+
+  --text-primary:        #0f172a;
+  --text-secondary:      #475569;
+  --text-muted:          #94a3b8;
+
+  --accent:              #0284c7;
+  --accent-hover:        #0369a1;
+  --accent-light:        #e0f2fe;
+  --accent-text:         #0369a1;
+  --accent-gradient:     linear-gradient(135deg, #0284c7, #38bdf8);
+
+  --sidebar-bg:          #ffffff;
+  --sidebar-border:      #cbd5e1;
+  --sidebar-text:        #475569;
+  --sidebar-text-active: #0284c7;
+  --sidebar-active-bg:   #e0f2fe;
+  --sidebar-active-border: #7dd3fc;
+  --sidebar-hover-bg:    #f8fafc;
+  --sidebar-section-text: #0284c7;
+  --sidebar-section-bg:  #e0f2fe;
+  --sidebar-width:       260px;
+  --sidebar-collapsed:   64px;
+
+  --topbar-bg:           #ffffff;
+  --topbar-text:         #0f172a;
+  --topbar-subtext:      #64748b;
+  --topbar-btn-hover:    rgba(0,0,0,0.06);
+  --topbar-height:       60px;
+
+  --bottomnav-bg:        rgba(255,255,255,0.95);
+  --bottomnav-border:    #cbd5e1;
+  --bottomnav-active:    #0284c7;
+  --bottomnav-inactive:  #94a3b8;
+
+  --card-bg:             #ffffff;
+  --card-border:         #e2e8f0;
+  --card-shadow:         0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --card-shadow-hover:   0 4px 16px rgba(2,132,199,0.12);
+  --card-radius:         12px;
+
+  --input-bg:            #ffffff;
+  --input-border:        #cbd5e1;
+  --input-focus-border:  #0284c7;
+  --input-focus-ring:    rgba(2,132,199,0.2);
+  --input-text:          #0f172a;
+  --input-placeholder:   #94a3b8;
+
+  --badge-active-bg:     #e0f2fe;
+  --badge-active-text:   #0369a1;
+  --badge-inactive-bg:   #fee2e2;
+  --badge-inactive-text: #991b1b;
+
+  --skeleton-base:       #e2e8f0;
+  --skeleton-shine:      #cbd5e1;
+
+  --font-heading:        'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body:           'Inter', sans-serif;
+  --transition:          150ms ease;
+}
+
+/* ---- SLATE PRO DARK (Dark Slate, Top Navigation) ---- */
+[data-theme="slate-dark"] {
+  --bg-base:             #0f172a;
+  --bg-surface:          #1e293b;
+  --bg-elevated:         #334155;
+  --bg-hover:            rgba(148,163,184,0.06);
+  --border:              rgba(148,163,184,0.12);
+  --border-subtle:       rgba(148,163,184,0.06);
+
+  --text-primary:        #f8fafc;
+  --text-secondary:      #94a3b8;
+  --text-muted:          #475569;
+
+  --accent:              #38bdf8;
+  --accent-hover:        #7dd3fc;
+  --accent-light:        rgba(56,189,248,0.12);
+  --accent-text:         #7dd3fc;
+  --accent-gradient:     linear-gradient(135deg, #0ea5e9, #38bdf8);
+
+  --sidebar-bg:          #1e293b;
+  --sidebar-border:      rgba(148,163,184,0.1);
+  --sidebar-text:        #64748b;
+  --sidebar-text-active: #38bdf8;
+  --sidebar-active-bg:   rgba(56,189,248,0.12);
+  --sidebar-active-border: rgba(56,189,248,0.3);
+  --sidebar-hover-bg:    rgba(255,255,255,0.04);
+  --sidebar-section-text: #38bdf8;
+  --sidebar-section-bg:  rgba(56,189,248,0.08);
+  --sidebar-width:       260px;
+  --sidebar-collapsed:   64px;
+
+  --topbar-bg:           #1e293b;
+  --topbar-text:         #f8fafc;
+  --topbar-subtext:      #64748b;
+  --topbar-btn-hover:    rgba(56,189,248,0.12);
+  --topbar-height:       60px;
+
+  --bottomnav-bg:        rgba(15,23,42,0.95);
+  --bottomnav-border:    rgba(148,163,184,0.1);
+  --bottomnav-active:    #38bdf8;
+  --bottomnav-inactive:  #475569;
+
+  --card-bg:             #1e293b;
+  --card-border:         rgba(148,163,184,0.1);
+  --card-shadow:         0 4px 24px rgba(0,0,0,0.3);
+  --card-shadow-hover:   0 8px 32px rgba(56,189,248,0.12);
+  --card-radius:         12px;
+
+  --input-bg:            rgba(255,255,255,0.04);
+  --input-border:        rgba(148,163,184,0.15);
+  --input-focus-border:  #38bdf8;
+  --input-focus-ring:    rgba(56,189,248,0.2);
+  --input-text:          #f8fafc;
+  --input-placeholder:   #475569;
+
+  --badge-active-bg:     rgba(56,189,248,0.15);
+  --badge-active-text:   #7dd3fc;
+  --badge-inactive-bg:   rgba(239,68,68,0.15);
+  --badge-inactive-text: #f87171;
+
+  --skeleton-base:       rgba(255,255,255,0.04);
+  --skeleton-shine:      rgba(255,255,255,0.08);
+
+  --font-heading:        'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body:           'Inter', sans-serif;
+  --transition:          150ms ease;
+}
+
+/* ---- AURORA (Default: Emerald Teal Light) ---- */
+[data-theme="aurora"] {
+  --bg-base:             #f0fdf4;
+  --bg-surface:          #ffffff;
+  --bg-elevated:         #dcfce7;
+  --bg-hover:            #f0fdf4;
+  --border:              #bbf7d0;
+  --border-subtle:       #e2e8f0;
+
+  --text-primary:        #064e3b;
+  --text-secondary:      #047857;
+  --text-muted:          #6ee7b7;
+
+  --accent:              #10b981;
+  --accent-hover:        #059669;
+  --accent-light:        #dcfce7;
+  --accent-text:         #047857;
+  --accent-gradient:     linear-gradient(135deg, #10b981, #14b8a6);
+
+  --sidebar-bg:          #ffffff;
+  --sidebar-border:      #bbf7d0;
+  --sidebar-text:        #047857;
+  --sidebar-text-active: #065f46;
+  --sidebar-active-bg:   #dcfce7;
+  --sidebar-active-border: #86efac;
+  --sidebar-hover-bg:    #f0fdf4;
+  --sidebar-section-text: #10b981;
+  --sidebar-section-bg:  #dcfce7;
+  --sidebar-width:       260px;
+  --sidebar-collapsed:   64px;
+
+  --topbar-bg:           #ffffff;
+  --topbar-text:         #064e3b;
+  --topbar-subtext:      #047857;
+  --topbar-btn-hover:    rgba(16,185,129,0.1);
+  --topbar-height:       56px;
+
+  --bottomnav-bg:        rgba(255,255,255,0.95);
+  --bottomnav-border:    #bbf7d0;
+  --bottomnav-active:    #10b981;
+  --bottomnav-inactive:  #6ee7b7;
+
+  --card-bg:             #ffffff;
+  --card-border:         #bbf7d0;
+  --card-shadow:         0 1px 3px rgba(16,185,129,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --card-shadow-hover:   0 4px 16px rgba(16,185,129,0.15);
+  --card-radius:         16px;
+
+  --input-bg:            #ffffff;
+  --input-border:        #bbf7d0;
+  --input-focus-border:  #10b981;
+  --input-focus-ring:    rgba(16,185,129,0.2);
+  --input-text:          #064e3b;
+  --input-placeholder:   #6ee7b7;
+
+  --badge-active-bg:     #dcfce7;
+  --badge-active-text:   #166534;
+  --badge-inactive-bg:   #fee2e2;
+  --badge-inactive-text: #991b1b;
+
+  --skeleton-base:       #dcfce7;
+  --skeleton-shine:      #bbf7d0;
+
+  --font-heading:        'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body:           'Inter', sans-serif;
+  --transition:          150ms ease;
+}
+
+/* ---- AURORA DARK (Emerald Teal Dark Canvas) ---- */
+[data-theme="aurora-dark"] {
+  --bg-base:             #040d0a;
+  --bg-surface:          #091713;
+  --bg-elevated:         #102620;
+  --bg-hover:            rgba(16,185,129,0.08);
+  --border:              rgba(16,185,129,0.15);
+  --border-subtle:       rgba(16,185,129,0.08);
+
+  --text-primary:        #f0fdf4;
+  --text-secondary:      #a7f3d0;
+  --text-muted:          #047857;
+
+  --accent:              #10b981;
+  --accent-hover:        #34d399;
+  --accent-light:        rgba(16,185,129,0.18);
+  --accent-text:         #6ee7b7;
+  --accent-gradient:     linear-gradient(135deg, #10b981, #14b8a6);
+
+  --sidebar-bg:          #07130f;
+  --sidebar-border:      rgba(16,185,129,0.15);
+  --sidebar-text:        #6ee7b7;
+  --sidebar-text-active: #ffffff;
+  --sidebar-active-bg:   rgba(16,185,129,0.2);
+  --sidebar-active-border: rgba(16,185,129,0.45);
+  --sidebar-hover-bg:    rgba(255,255,255,0.05);
+  --sidebar-section-text: #34d399;
+  --sidebar-section-bg:  rgba(16,185,129,0.12);
+  --sidebar-width:       260px;
+  --sidebar-collapsed:   64px;
+
+  --topbar-bg:           rgba(4,13,10,0.88);
+  --topbar-text:         #f0fdf4;
+  --topbar-subtext:      #a7f3d0;
+  --topbar-btn-hover:    rgba(16,185,129,0.15);
+  --topbar-height:       56px;
+
+  --bottomnav-bg:        rgba(7,19,15,0.94);
+  --bottomnav-border:    rgba(16,185,129,0.15);
+  --bottomnav-active:    #34d399;
+  --bottomnav-inactive:  #047857;
+
+  --card-bg:             #0b1c17;
+  --card-border:         rgba(16,185,129,0.15);
+  --card-shadow:         0 8px 32px rgba(0,0,0,0.7);
+  --card-shadow-hover:   0 12px 40px rgba(16,185,129,0.25);
+  --card-radius:         16px;
+
+  --input-bg:            rgba(255,255,255,0.04);
+  --input-border:        rgba(16,185,129,0.2);
+  --input-focus-border:  #10b981;
+  --input-focus-ring:    rgba(16,185,129,0.3);
+  --input-text:          #f0fdf4;
+  --input-placeholder:   #047857;
+
+  --badge-active-bg:     rgba(16,185,129,0.2);
+  --badge-active-text:   #34d399;
+  --badge-inactive-bg:   rgba(239,68,68,0.2);
+  --badge-inactive-text: #f87171;
+
+  --skeleton-base:       rgba(255,255,255,0.04);
+  --skeleton-shine:      rgba(255,255,255,0.08);
+
+  --font-heading:        'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body:           'Inter', sans-serif;
+  --transition:          150ms ease;
+}
+
+/* ---- ROSE GOLD (Default: Rose Gold Luxury Light) ---- */
+[data-theme="rose"] {
+  --bg-base:             #fff5f7;
+  --bg-surface:          #ffffff;
+  --bg-elevated:         #ffe4e6;
+  --bg-hover:            #fff5f7;
+  --border:              #fecdd3;
+  --border-subtle:       #ffe4e6;
+
+  --text-primary:        #881337;
+  --text-secondary:      #9f1239;
+  --text-muted:          #fda4af;
+
+  --accent:              #f43f5e;
+  --accent-hover:        #e11d48;
+  --accent-light:        #ffe4e6;
+  --accent-text:         #9f1239;
+  --accent-gradient:     linear-gradient(135deg, #f43f5e, #fb923c);
+
+  --sidebar-bg:          #ffffff;
+  --sidebar-border:      #fecdd3;
+  --sidebar-text:        #9f1239;
+  --sidebar-text-active: #881337;
+  --sidebar-active-bg:   #ffe4e6;
+  --sidebar-active-border: #fca5a5;
+  --sidebar-hover-bg:    #fff5f7;
+  --sidebar-section-text: #f43f5e;
+  --sidebar-section-bg:  #ffe4e6;
+  --sidebar-width:       260px;
+  --sidebar-collapsed:   64px;
+
+  --topbar-bg:           #ffffff;
+  --topbar-text:         #881337;
+  --topbar-subtext:      #9f1239;
+  --topbar-btn-hover:    rgba(244,63,94,0.1);
+  --topbar-height:       56px;
+
+  --bottomnav-bg:        rgba(255,255,255,0.95);
+  --bottomnav-border:    #fecdd3;
+  --bottomnav-active:    #f43f5e;
+  --bottomnav-inactive:  #fda4af;
+
+  --card-bg:             #ffffff;
+  --card-border:         #fecdd3;
+  --card-shadow:         0 1px 3px rgba(244,63,94,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --card-shadow-hover:   0 4px 16px rgba(244,63,94,0.15);
+  --card-radius:         16px;
+
+  --input-bg:            #ffffff;
+  --input-border:        #fecdd3;
+  --input-focus-border:  #f43f5e;
+  --input-focus-ring:    rgba(244,63,94,0.2);
+  --input-text:          #881337;
+  --input-placeholder:   #fda4af;
+
+  --badge-active-bg:     #ffe4e6;
+  --badge-active-text:   #9f1239;
+  --badge-inactive-bg:   #fee2e2;
+  --badge-inactive-text: #991b1b;
+
+  --skeleton-base:       #ffe4e6;
+  --skeleton-shine:      #fecdd3;
+
+  --font-heading:        'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body:           'Inter', sans-serif;
+  --transition:          150ms ease;
+}
+
+/* ---- ROSE GOLD DARK (Rose Velvet Dark Canvas) ---- */
+[data-theme="rose-dark"] {
+  --bg-base:             #120508;
+  --bg-surface:          #1f0a0f;
+  --bg-elevated:         #2d1117;
+  --bg-hover:            rgba(244,63,94,0.08);
+  --border:              rgba(244,63,94,0.15);
+  --border-subtle:       rgba(244,63,94,0.08);
+
+  --text-primary:        #fff1f2;
+  --text-secondary:      #fecdd3;
+  --text-muted:          #9f1239;
+
+  --accent:              #f43f5e;
+  --accent-hover:        #fb7185;
+  --accent-light:        rgba(244,63,94,0.18);
+  --accent-text:         #fda4af;
+  --accent-gradient:     linear-gradient(135deg, #f43f5e, #fb923c);
+
+  --sidebar-bg:          #19070b;
+  --sidebar-border:      rgba(244,63,94,0.15);
+  --sidebar-text:        #fda4af;
+  --sidebar-text-active: #ffffff;
+  --sidebar-active-bg:   rgba(244,63,94,0.2);
+  --sidebar-active-border: rgba(244,63,94,0.45);
+  --sidebar-hover-bg:    rgba(255,255,255,0.05);
+  --sidebar-section-text: #fb7185;
+  --sidebar-section-bg:  rgba(244,63,94,0.12);
+  --sidebar-width:       260px;
+  --sidebar-collapsed:   64px;
+
+  --topbar-bg:           rgba(18,5,8,0.88);
+  --topbar-text:         #fff1f2;
+  --topbar-subtext:      #fecdd3;
+  --topbar-btn-hover:    rgba(244,63,94,0.15);
+  --topbar-height:       56px;
+
+  --bottomnav-bg:        rgba(25,7,11,0.94);
+  --bottomnav-border:    rgba(244,63,94,0.15);
+  --bottomnav-active:    #fb7185;
+  --bottomnav-inactive:  #9f1239;
+
+  --card-bg:             #220b11;
+  --card-border:         rgba(244,63,94,0.15);
+  --card-shadow:         0 8px 32px rgba(0,0,0,0.7);
+  --card-shadow-hover:   0 12px 40px rgba(244,63,94,0.25);
+  --card-radius:         16px;
+
+  --input-bg:            rgba(255,255,255,0.04);
+  --input-border:        rgba(244,63,94,0.2);
+  --input-focus-border:  #f43f5e;
+  --input-focus-ring:    rgba(244,63,94,0.3);
+  --input-text:          #fff1f2;
+  --input-placeholder:   #9f1239;
+
+  --badge-active-bg:     rgba(244,63,94,0.2);
+  --badge-active-text:   #fb7185;
+  --badge-inactive-bg:   rgba(239,68,68,0.2);
+  --badge-inactive-text: #f87171;
+
+  --skeleton-base:       rgba(255,255,255,0.04);
+  --skeleton-shine:      rgba(255,255,255,0.08);
+
+  --font-heading:        'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body:           'Inter', sans-serif;
+  --transition:          150ms ease;
+}
+
+/* ============================================================
+   AUTOMATIC DARK THEME OVERRIDES FOR TAILWIND UTILITIES
+   When Midnight, Slate Dark, Aurora Dark, or Rose Dark theme is active,
+   neutral light classes automatically map to theme surface and text colors!
+   ============================================================ */
+
+[data-theme="midnight"],
+[data-theme="slate-dark"],
+[data-theme="aurora-dark"],
+[data-theme="rose-dark"] {
+  /* Backgrounds */
+  .bg-white {
+    background-color: var(--card-bg) !important;
+    border-color: var(--card-border);
+  }
+  .bg-gray-50,
+  .bg-gray-100,
+  .bg-slate-50,
+  .bg-slate-100 {
+    background-color: var(--bg-elevated) !important;
+  }
+  .bg-gray-200,
+  .bg-slate-200 {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  /* Color Tints (-50, -100) -> Semi-transparent Dark Glows */
+  .bg-indigo-50, .bg-indigo-100 { background-color: rgba(99, 102, 241, 0.15) !important; }
+  .bg-emerald-50, .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.15) !important; }
+  .bg-rose-50, .bg-rose-100 { background-color: rgba(244, 63, 94, 0.15) !important; }
+  .bg-amber-50, .bg-amber-100 { background-color: rgba(245, 158, 11, 0.15) !important; }
+  .bg-purple-50, .bg-purple-100 { background-color: rgba(168, 85, 247, 0.15) !important; }
+  .bg-blue-50, .bg-blue-100 { background-color: rgba(59, 130, 246, 0.15) !important; }
+  .bg-sky-50, .bg-sky-100 { background-color: rgba(14, 165, 233, 0.15) !important; }
+
+  .hover\:bg-gray-50:hover,
+  .hover\:bg-gray-100:hover,
+  .hover\:bg-slate-50:hover {
+    background-color: var(--bg-hover) !important;
+  }
+
+  /* Shadows */
+  .shadow-sm, .shadow, .shadow-md, .shadow-lg, .shadow-xl {
+    box-shadow: var(--card-shadow) !important;
+  }
+  .shadow-indigo-100, .shadow-indigo-200, .shadow-indigo-500\/10 {
+    box-shadow: none !important;
+  }
+
+
+  /* Text colors */
+  .text-gray-900,
+  .text-gray-800,
+  .text-slate-900,
+  .text-slate-800 {
+    color: var(--text-primary) !important;
+  }
+  .text-gray-700,
+  .text-gray-600,
+  .text-gray-500,
+  .text-slate-700,
+  .text-slate-600,
+  .text-slate-500 {
+    color: var(--text-secondary) !important;
+  }
+  .text-gray-400,
+  .text-slate-400 {
+    color: var(--text-muted) !important;
+  }
+
+  /* Borders & Dividers */
+  .border-gray-50,
+  .border-gray-100,
+  .border-gray-200,
+  .border-gray-300,
+  .border-slate-100,
+  .border-slate-200 {
+    border-color: var(--border) !important;
+  }
+  .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--border) !important;
+  }
+
+  /* Form Elements */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]),
+  select,
+  textarea {
+    background-color: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--input-text) !important;
+  }
+  select option {
+    background-color: var(--card-bg, #0d0d14) !important;
+    color: var(--text-primary, #f8fafc) !important;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--input-placeholder) !important;
+  }
+
+  /* Tables & Headers */
+  table th {
+    color: var(--text-secondary) !important;
+    background-color: var(--bg-elevated) !important;
+  }
+
+  /* Recharts SVGs & Tooltips */
+  .recharts-cartesian-grid-horizontal line,
+  .recharts-cartesian-grid-vertical line {
+    stroke: var(--border) !important;
+    opacity: 0.5;
+  }
+  .recharts-default-tooltip {
+    background-color: var(--bg-surface) !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+  }
+  .recharts-tooltip-item-name,
+  .recharts-tooltip-item-value {
+    color: var(--text-primary) !important;
+  }
+}
+
 
 /* Disable text selection globally, allow only in input/textarea/editable areas */
 body {
@@ -37,7 +713,8 @@ input[type="number"] {
 }
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
@@ -49,9 +726,13 @@ input[type="number"] {
   }
 
   body {
-    @apply font-sans text-gray-900 bg-gray-50 antialiased overflow-hidden;
+    font-family: var(--font-body, 'Inter', sans-serif);
+    color: var(--text-primary);
+    background-color: var(--bg-base);
+    @apply antialiased overflow-hidden;
     height: 100%;
     -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   #root {
@@ -155,8 +836,23 @@ input[type="number"] {
   border-radius: inherit;
 }
 
+/* ── Bottom padding variants ───────────────────────────── */
 .pb-nav {
   padding-bottom: calc(max(env(safe-area-inset-bottom), 8px) + 68px);
+}
+
+/* Slate Pro mobile: topnav is ~90px tall (2 rows) on mobile,
+   content needs bottom padding only for bottom nav */
+.pb-nav-slate {
+  padding-bottom: calc(max(env(safe-area-inset-bottom), 8px) + 68px);
+}
+
+/* Extra top padding guard for pages under a 2-row sticky nav */
+.pt-slate-mobile {
+  padding-top: 4px;
+}
+@media (min-width: 768px) {
+  .pt-slate-mobile { padding-top: 0; }
 }
 
 .pb-sheet {
@@ -210,3 +906,133 @@ input[type="number"] {
   white-space: pre-wrap;
 }
 
+/* ============================================================
+   THEME-AWARE UTILITY CLASSES
+   Use these in components to automatically adapt to any theme.
+   ============================================================ */
+
+/* Surfaces */
+.theme-bg         { background-color: var(--bg-base); }
+.theme-surface    { background-color: var(--bg-surface); }
+.theme-elevated   { background-color: var(--bg-elevated); }
+
+/* Text */
+.theme-text       { color: var(--text-primary); }
+.theme-text-muted { color: var(--text-secondary); }
+.theme-text-dim   { color: var(--text-muted); }
+.theme-accent     { color: var(--accent-text); }
+
+/* Borders */
+.theme-border     { border-color: var(--border); }
+.theme-border-subtle { border-color: var(--border-subtle); }
+
+/* Cards */
+.theme-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  transition: box-shadow var(--transition), background-color 0.25s ease;
+}
+.theme-card:hover {
+  box-shadow: var(--card-shadow-hover);
+}
+
+/* Inputs */
+.theme-input {
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--input-text);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.theme-input:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--input-focus-ring);
+}
+.theme-input::placeholder { color: var(--input-placeholder); }
+
+/* Accent button */
+.theme-btn-accent {
+  background: var(--accent-gradient);
+  color: #ffffff;
+  border: none;
+  transition: opacity var(--transition), transform var(--transition);
+}
+.theme-btn-accent:hover  { opacity: 0.9; }
+.theme-btn-accent:active { transform: scale(0.97); }
+
+/* Ghost button */
+.theme-btn-ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  transition: background-color var(--transition), color var(--transition);
+}
+.theme-btn-ghost:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Skeleton shimmer animation adapted to theme */
+@keyframes theme-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.theme-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base)   25%,
+    var(--skeleton-shine)  50%,
+    var(--skeleton-base)   75%
+  );
+  background-size: 200% 100%;
+  animation: theme-shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Glow accent keyframe for dark themes */
+@keyframes accent-glow {
+  0%, 100% { box-shadow: 0 0 8px  var(--accent-light); }
+  50%       { box-shadow: 0 0 20px var(--accent-light); }
+}
+.theme-glow { animation: accent-glow 2s ease-in-out infinite; }
+
+/* Sidebar nav item */
+.theme-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: var(--sidebar-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: all var(--transition);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.theme-nav-item:hover {
+  background-color: var(--sidebar-hover-bg);
+  color: var(--text-primary);
+}
+.theme-nav-item.active {
+  background-color: var(--sidebar-active-bg);
+  border-color: var(--sidebar-active-border);
+  color: var(--sidebar-text-active);
+  font-weight: 600;
+}
+
+/* Smooth theme transition on key elements */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+/* But NOT on animations/transforms */
+.animate-spin, .animate-pulse, .motion-safe\:animate-none,
+[class*='animate-'], [style*='transform'] {
+  transition: none !important;
+}

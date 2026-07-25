@@ -24,7 +24,8 @@ import { useDisableDevTools } from './hooks/useDisableDevTools';
 import { useAppBadge } from './hooks/useAppBadge';
 import { useBackgroundSync } from './hooks/useBackgroundSync';
 
-const Layout = React.lazy(() => import('./components/layout/Layout'));
+const ThemedLayout = React.lazy(() => import('./components/layout/ThemedLayout'));
+
 const PublicLayout = React.lazy(() => import('./components/layout/PublicLayout'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
@@ -488,8 +489,9 @@ export default function App() {
                   <PublicLayout><Suspense fallback={<SuspenseFallback />}><WebPanel /></Suspense></PublicLayout>
                 } />
                 <Route path="/" element={
-                  <Suspense fallback={<SuspenseFallback />}><Layout /></Suspense>
+                  <Suspense fallback={<SuspenseFallback />}><ThemedLayout /></Suspense>
                 }>
+
                   <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="dashboard" element={<PermissionGuard><PlanGate><ErrorBoundary><Dashboard /></ErrorBoundary></PlanGate></PermissionGuard>} />
                   <Route path="orders" element={<PermissionGuard><PlanGate><Orders /></PlanGate></PermissionGuard>} />

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
+import { useThemeStore, THEMES } from '../store/themeStore';
 import { updateBot, getBot, deleteBot } from '../api/bots';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { getUsers, updateUser } from '../api/customers';
@@ -79,7 +80,10 @@ import Subscription from './Subscription';
 import { Capacitor } from '@capacitor/core';
 import { registerFCMToken } from '../lib/pushNotifications';
 
+
+
 export default function Settings() {
+
   const { isSuperadmin, user, isStaff } = useAuthStore();
   const { selectedBotId, bots, setBots } = useBotStore();
   const { addToast } = useToastStore();
@@ -510,6 +514,7 @@ export default function Settings() {
       </div>
 
       <div className="space-y-6">
+
         {activeTab === 'shop' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
 

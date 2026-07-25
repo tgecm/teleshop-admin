@@ -44,7 +44,10 @@ export default function TopBar({ onToggleSidebar }) {
 
 
   return (
-    <header className="topbar-panel sticky top-0 z-40 w-full bg-indigo-600 shadow-[0_2px_16px_rgba(99,102,241,0.3)] relative">
+    <header
+      className="topbar-panel sticky top-0 z-40 w-full relative"
+      style={{ background: 'var(--topbar-bg)', boxShadow: '0 2px 16px rgba(0,0,0,0.12)' }}
+    >
       {/* Mobile header */}
       <div className="md:hidden grid grid-cols-[1fr_auto_1fr] items-center h-10 px-2">
         <button onClick={onToggleSidebar} className="justify-self-start text-white bg-white/15 hover:bg-white/25 rounded-xl p-1.5 -ml-1.5 transition-colors">

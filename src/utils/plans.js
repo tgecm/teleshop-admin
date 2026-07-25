@@ -22,6 +22,7 @@ const PLAN_FEATURES = {
     watermark_removed: false,
     qr_menu: false,
     staff_accounts: false,
+    admin_template: false,
   },
   standard: {
     ai_agent: 'own_api',
@@ -33,6 +34,7 @@ const PLAN_FEATURES = {
     watermark_removed: true,
     qr_menu: false,
     staff_accounts: true,
+    admin_template: false,
   },
   pro: {
     ai_agent: 'api_provided',
@@ -44,6 +46,7 @@ const PLAN_FEATURES = {
     watermark_removed: true,
     qr_menu: true,
     staff_accounts: true,
+    admin_template: 'limited',
   },
   business: {
     ai_agent: 'api_provided',
@@ -55,6 +58,7 @@ const PLAN_FEATURES = {
     watermark_removed: true,
     qr_menu: true,
     staff_accounts: true,
+    admin_template: true,
   },
 };
 
