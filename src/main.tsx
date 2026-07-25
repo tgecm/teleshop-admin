@@ -4,9 +4,13 @@ import {AuthProvider} from './context/AuthContext';
 import {TelegramAuthProvider} from './context/TelegramAuthContext';
 import App from './App.tsx';
 import {initPushNotifications} from './lib/pushNotifications';
+import {initTheme} from './store/themeStore.js';
 import './index.css';
 
+// Apply saved theme before first render to avoid FOUC
+initTheme();
 initPushNotifications();
+
 
 if (!import.meta.env.DEV) {
   import('virtual:pwa-register').then(({registerSW}) => {

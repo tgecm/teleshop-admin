@@ -29,7 +29,11 @@ export default function BotSwitcher({ light }) {
           >
             {!selectedBotId && <option value="" disabled>Select Bot</option>}
             {bots.map(bot => (
-              <option key={bot.id} value={bot.id} className="text-gray-900">
+              <option
+                key={bot.id}
+                value={bot.id}
+                style={{ background: 'var(--bg-surface, #121218)', color: 'var(--text-primary, #f8fafc)' }}
+              >
                 {bot.bot_username || bot.bot_full_name}
               </option>
             ))}

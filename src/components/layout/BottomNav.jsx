@@ -43,22 +43,35 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="bottomnav-panel md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 z-50 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] pb-safe">
+    <nav
+      className="bottomnav-panel md:hidden fixed bottom-0 left-0 right-0 z-50 pb-safe"
+      style={{
+        background: 'var(--bottomnav-bg)',
+        borderTop: '1px solid var(--bottomnav-border)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 -4px 24px rgba(0,0,0,0.06)',
+      }}
+    >
       <div className="flex justify-around items-center h-[68px] px-1">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
             data-haptic
-            className={({ isActive }) => `
-              flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all active:scale-95
-              ${isActive ? 'text-indigo-600' : 'text-gray-400'}
-            `}
+            className="flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all active:scale-95"
           >
             {({ isActive }) => (
               <>
-                <div className={`relative p-1.5 rounded-xl transition-all ${isActive ? 'bg-indigo-50' : ''}`}>
-                  <Icon className="w-[22px] h-[22px]" strokeWidth={isActive ? 2.5 : 1.8} />
+                <div
+                  className={`relative p-1.5 rounded-xl transition-all`}
+                  style={{ background: isActive ? 'var(--accent-light)' : 'transparent' }}
+                >
+                  <Icon
+                    className="w-[22px] h-[22px]"
+                    strokeWidth={isActive ? 2.5 : 1.8}
+                    style={{ color: isActive ? 'var(--bottomnav-active)' : 'var(--bottomnav-inactive)' }}
+                  />
                   {(to === '/chats' && unread?.total > 0) || (to === '/orders' && pendingOrders?.pending > 0) ? (
                     <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[8px] font-bold min-w-[14px] h-[14px] flex items-center justify-center rounded-full px-0.5 leading-none shadow-sm">
                       {to === '/chats'
@@ -67,7 +80,12 @@ export default function BottomNav() {
                     </span>
                   ) : null}
                 </div>
-                <span className={`text-[10px] font-semibold tracking-tight ${isActive ? 'text-indigo-600' : 'text-gray-400'}`}>{label}</span>
+                <span
+                  className="text-[10px] font-semibold tracking-tight"
+                  style={{ color: isActive ? 'var(--bottomnav-active)' : 'var(--bottomnav-inactive)' }}
+                >
+                  {label}
+                </span>
               </>
             )}
           </NavLink>

@@ -18,7 +18,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="h-full bg-gray-50 flex flex-col">
+    <div className="h-full flex flex-col" style={{ background: 'var(--bg-base)' }}>
       <TopBar onToggleSidebar={() => setSidebarOpen(s => !s)} />
       <NotificationPopup />
 
@@ -31,7 +31,7 @@ export default function Layout() {
               const keys = await caches.keys();
               await Promise.all(keys.map(k => caches.delete(k)));
             }
-            const keep = ['token', 'auth-storage', 'selectedBotId'];
+            const keep = ['token', 'auth-storage', 'selectedBotId', 'ui-theme'];
             Object.keys(localStorage).forEach(k => {
               if (!keep.includes(k)) localStorage.removeItem(k);
             });
@@ -48,4 +48,5 @@ export default function Layout() {
       <BottomNav />
     </div>
   );
+
 }

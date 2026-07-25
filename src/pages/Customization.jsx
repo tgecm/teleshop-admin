@@ -35,6 +35,267 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
 import { requireFeature, isFeatureAllowed } from '../utils/plans';
+import { useThemeStore } from '../store/themeStore';
+
+const TEMPLATE_META = {
+  classic: {
+    id: 'classic',
+    name: 'Classic',
+    description: 'Clean, familiar light design with indigo accents. The original Teleshop experience.',
+    colors: ['#ffffff', '#6366f1', '#f8fafc', '#eef2ff'],
+    layout: 'sidebar',
+    badge: 'Default',
+    preview: {
+      bg: '#f8fafc',
+      sidebar: '#ffffff',
+      topbar: '#6366f1',
+      card: '#ffffff',
+      accent: '#6366f1',
+      text: '#0f172a',
+      textMuted: '#64748b',
+    },
+  },
+  midnight: {
+    id: 'midnight',
+    name: 'Midnight',
+    description: 'Pitch black OLED mode with indigo glow accents.',
+    colors: ['#050508', '#6366f1', '#818cf8', '#0d0d14'],
+    layout: 'sidebar-collapse',
+    badge: 'Dark',
+    preview: {
+      bg: '#050508',
+      sidebar: '#08080c',
+      topbar: '#08080c',
+      card: '#0d0d14',
+      accent: '#6366f1',
+      text: '#f8fafc',
+      textMuted: '#64748b',
+    },
+  },
+  slate: {
+    id: 'slate',
+    name: 'Slate Pro',
+    description: 'Clean light slate with top navigation bar.',
+    colors: ['#ffffff', '#0284c7', '#f1f5f9', '#cbd5e1'],
+    layout: 'top-nav',
+    badge: 'Light / Dark',
+    preview: {
+      bg: '#f1f5f9',
+      sidebar: '#ffffff',
+      topbar: '#ffffff',
+      card: '#ffffff',
+      accent: '#0284c7',
+      text: '#0f172a',
+      textMuted: '#64748b',
+    },
+  },
+  aurora: {
+    id: 'aurora',
+    name: 'Aurora',
+    description: 'Emerald teal design with white & dark modes.',
+    colors: ['#ffffff', '#10b981', '#f0fdf4', '#bbf7d0'],
+    layout: 'sidebar',
+    badge: 'Light / Dark',
+    preview: {
+      bg: '#f0fdf4',
+      sidebar: '#ffffff',
+      topbar: '#ffffff',
+      card: '#ffffff',
+      accent: '#10b981',
+      text: '#064e3b',
+      textMuted: '#6ee7b7',
+    },
+  },
+  rose: {
+    id: 'rose',
+    name: 'Rose Gold',
+    description: 'Luxury rose & gold luxury with white & dark modes.',
+    colors: ['#ffffff', '#f43f5e', '#fff5f7', '#fecdd3'],
+    layout: 'sidebar',
+    badge: 'Light / Dark',
+    preview: {
+      bg: '#fff5f7',
+      sidebar: '#ffffff',
+      topbar: '#ffffff',
+      card: '#ffffff',
+      accent: '#f43f5e',
+      text: '#881337',
+      textMuted: '#fda4af',
+    },
+  },
+};
+
+const LAYOUT_LABELS = {
+  'sidebar': 'Collapsible Sidebar',
+  'sidebar-collapse': 'Collapsible Sidebar',
+  'top-nav': 'Top Navigation',
+};
+
+function MiniDashboardPreview({ p }) {
+  return (
+    <div
+      className="w-full h-full rounded-xl overflow-hidden flex"
+      style={{ background: p.bg, border: `1px solid ${p.topbar}22` }}
+    >
+      <div
+        className="w-[22%] h-full flex flex-col gap-1 p-1.5"
+        style={{ background: p.sidebar }}
+      >
+        <div className="flex items-center gap-1 mb-1.5">
+          <div className="w-3 h-3 rounded-full" style={{ background: p.accent }} />
+          <div className="h-1.5 w-8 rounded-full" style={{ background: p.accent, opacity: 0.5 }} />
+        </div>
+        {[1,2,3,4].map(i => (
+          <div
+            key={i}
+            className="h-1.5 rounded-full"
+            style={{ background: i === 1 ? p.accent : p.textMuted, opacity: i === 1 ? 0.8 : 0.25, width: `${55 + i * 8}%` }}
+          />
+        ))}
+      </div>
+      <div className="flex-1 flex flex-col">
+        <div className="h-[18%] flex items-center px-2" style={{ background: p.topbar }}>
+          <div className="h-1.5 w-12 rounded-full" style={{ background: p.text, opacity: 0.6 }} />
+        </div>
+        <div className="flex-1 p-1.5 grid grid-cols-2 gap-1">
+          {[p.accent, p.accent + 'aa', '#10b981', '#f59e0b'].map((c, i) => (
+            <div
+              key={i}
+              className="rounded-lg p-1 flex flex-col gap-0.5"
+              style={{ background: p.card, border: `1px solid ${p.textMuted}22` }}
+            >
+              <div className="w-3 h-3 rounded-md" style={{ background: c, opacity: 0.8 }} />
+              <div className="h-1 rounded" style={{ background: p.text, opacity: 0.5, width: '70%' }} />
+              <div className="h-1 rounded" style={{ background: p.textMuted, opacity: 0.3, width: '40%' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TemplatePickerSection({ planName }) {
+  const { theme: activeTheme, setTheme } = useThemeStore();
+  const [hoveredId, setHoveredId] = React.useState(null);
+  const { addToast } = useToastStore();
+  const plan = (planName || 'free').toLowerCase();
+
+  const handleTemplateClick = (tmplId, tmplName) => {
+    if (!requireFeature(planName, 'admin_template', addToast)) return;
+    if (plan === 'pro' && !['classic', 'midnight'].includes(tmplId)) {
+      addToast('Classic & Midnight only on Pro plan. Upgrade to Business for all templates.', 'error');
+      return;
+    }
+    setTheme(tmplId);
+    addToast(`Switched UI template to ${tmplName}`, 'success');
+  };
+
+  const availableTemplates = Object.values(TEMPLATE_META).filter((tmpl) => {
+    if (!isFeatureAllowed(planName, 'admin_template')) return true;
+    if (plan === 'pro') return ['classic', 'midnight'].includes(tmpl.id);
+    return true;
+  });
+
+  return (
+    <section className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+          <Palette className="w-5 h-5" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-gray-900">Admin UI Templates</h3>
+          <p className="text-[10px] text-gray-500">Switch between different dashboard UI & navigation layouts</p>
+        </div>
+      </div>
+
+      <div className="flex overflow-x-auto pb-2 scrollbar-hide snap-x sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+        {availableTemplates.map((tmpl) => {
+          const isActive = activeTheme === tmpl.id || (activeTheme === `${tmpl.id}-dark`);
+          const isHovered = hoveredId === tmpl.id;
+
+          return (
+            <motion.button
+              key={tmpl.id}
+              onClick={() => handleTemplateClick(tmpl.id, tmpl.name)}
+              onMouseEnter={() => setHoveredId(tmpl.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              className={`text-left rounded-2xl border transition-all overflow-hidden flex flex-col p-2.5 w-[210px] shrink-0 snap-start sm:w-auto ${
+                isActive
+                  ? 'ring-2 ring-indigo-500 border-transparent shadow-md'
+                  : 'hover:shadow-md'
+              }`}
+              style={{
+                background: 'var(--card-bg)',
+                borderColor: isActive ? 'var(--accent)' : 'var(--border)',
+              }}
+            >
+              <div className="w-full h-20 sm:h-24 rounded-xl overflow-hidden mb-2 relative group">
+                <MiniDashboardPreview p={tmpl.preview} />
+                {tmpl.badge && (
+                  <span
+                    className="absolute top-1.5 right-1.5 text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm"
+                    style={{
+                      background: isActive ? 'var(--accent)' : 'var(--card-bg)',
+                      color: isActive ? '#ffffff' : 'var(--text-primary)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    {tmpl.badge}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                      {tmpl.name}
+                    </h4>
+                    <div className="flex gap-0.5 shrink-0">
+                      {tmpl.colors.slice(0, 4).map((c, i) => (
+                        <div
+                          key={i}
+                          className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border"
+                          style={{ background: c, borderColor: 'var(--border)' }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-1 mt-0.5 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <span className="text-[9px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                    {LAYOUT_LABELS[tmpl.layout] || tmpl.layout}
+                  </span>
+                  {isActive ? (
+                    <span
+                      className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: 'var(--accent-light)', color: 'var(--accent-text)' }}
+                    >
+                      ✓ Applied
+                    </span>
+                  ) : (
+                    <span
+                      className="text-[9px] font-bold px-2 py-0.5 rounded-full transition-all"
+                      style={{
+                        background: isHovered ? 'var(--accent)' : 'var(--bg-elevated)',
+                        color: isHovered ? '#ffffff' : 'var(--text-secondary)',
+                      }}
+                    >
+                      Apply
+                    </span>
+                  )}
+                </div>
+              </div>
+            </motion.button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 function BannerEditor({ contentBlocks, onSave, botId, planName }) {
   const { addToast } = useToastStore();
@@ -413,6 +674,9 @@ export default function Customization() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:gap-6 items-start">
+
+        {/* Admin UI Templates */}
+        <TemplatePickerSection planName={bot?.plan_name} />
 
         {/* Shop Theme */}
         <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
