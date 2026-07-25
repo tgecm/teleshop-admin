@@ -557,7 +557,7 @@ export default function CustomerDashboard({ shopSlug }) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.15 }}
           >
-            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} orderStats={orderStats} banners={shopData?.banners || []} points={customerPoints} pointsSettings={shopData?.ecommerce_points_settings} />}
+            {activeTab === 'overview' && <OverviewTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} shopName={shopName} onNavigate={setActiveTab} shop={shopData?.shop} orderStats={orderStats} banners={shopData?.banners || []} points={customerPoints} pointsSettings={shopData?.ecommerce_points_settings} mainRef={mainRef} setShowScrollTop={setShowScrollTop} />}
             {activeTab === 'shop' && <CustomerShopTab shopSlug={shopSlug} shop={shopData?.shop} user={user} onNavigate={setActiveTab} />}
             {activeTab === 'newsfeed' && (
               <div className="pb-20">
@@ -573,7 +573,7 @@ export default function CustomerDashboard({ shopSlug }) {
               </div>
             )}
             {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
-            {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} receiptSettings={receiptSettings} />}
+            {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
             {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} shop={shopData?.shop} />}
             {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
           </motion.div>
@@ -699,7 +699,7 @@ export default function CustomerDashboard({ shopSlug }) {
 }
 
 /* ─── OVERVIEW TAB ─── */
-function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate, shop, orderStats, banners, points, pointsSettings }) {
+function OverviewTab({ shopSlug, user, uid, displayName, photoUrl, shopName, onNavigate, shop, orderStats, banners, points, pointsSettings, mainRef, setShowScrollTop }) {
   const { cartCount } = useCartState(shop?.id, shopSlug, user, 'ecommerce');
   const [shopBio, setShopBio] = useState('');
   const [bannerIndex, setBannerIndex] = useState(0);
@@ -1200,7 +1200,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading, receiptSettings, onNa
 }
 
 /* ─── CART TAB ─── */
-function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSettings }) {
+function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSettings, onNavigate }) {
   const [shopData, setShopData] = useState(null);
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
   const [customerPoints, setCustomerPoints] = useState(null);
@@ -1341,13 +1341,13 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
         <p className="text-sm text-gray-400 mb-6">
           Items you add from the shop will appear here.
         </p>
-        <a
-          href={`/?p=${encodeURIComponent(shopSlug)}`}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-indigo-100 hover:shadow-xl transition-all"
+        <button
+          onClick={() => onNavigate?.('shop')}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-indigo-100 hover:shadow-xl transition-all active:scale-95"
         >
           <ShoppingBag className="w-4 h-4" />
           Browse Products
-        </a>
+        </button>
       </div>
     );
   }
