@@ -63,7 +63,7 @@ const allNavGroups = [
     title: 'System & Admin',
     items: [
       { to: '/settings', icon: Settings, label: 'Settings' },
-      { to: '/customization', icon: Palette, label: 'Web Store Customization' },
+      { to: '/customization', icon: Palette, label: 'Customization' },
       { to: '/faqs', icon: HelpCircle, label: 'FAQs' },
       { to: '/subscription', icon: ShieldCheck, label: 'Subscription Plan' },
       { to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' },
