@@ -42,7 +42,7 @@ export default function Customers() {
   const { data: webCustomers, isLoading: webLoading, refetch: refetchWeb } = useQuery({
     queryKey: ['web-customers', selectedBotId],
     queryFn: () => getWebCustomers(Number(selectedBotId)),
-    enabled: !!selectedBotId && section === 'website',
+    enabled: !!selectedBotId,
     placeholderData: (prev) => prev,
   });
 

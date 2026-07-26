@@ -373,15 +373,15 @@ export default function Orders() {
                     return (
                       <div className="bg-gray-50 rounded-2xl border border-gray-100 p-3 md:p-4 space-y-2 md:space-y-3">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
-                        {cust.telegram_id && <DetailRow icon={Hash} label="Telegram ID" value={String(cust.telegram_id)} />}
-                        {!cust.telegram_id && bs.telegram_id && <DetailRow icon={Hash} label="Telegram ID" value={String(bs.telegram_id)} />}
+                        {isTelegramSelected && (cust.telegram_id && <DetailRow icon={Hash} label="Telegram ID" value={String(cust.telegram_id)} />)}
+                        {isTelegramSelected && (!cust.telegram_id && bs.telegram_id && <DetailRow icon={Hash} label="Telegram ID" value={String(bs.telegram_id)} />)}
                         <DetailRow icon={User} label="Name" value={bs.name || bs.full_name || cust.first_name || 'Unknown'} />
                         <DetailRow icon={Phone} label="Phone" value={bs.phone || cust.phone_number || '—'} />
                         <DetailRow icon={Mail} label="Email" value={bs.email || cust.email || '—'} />
                         <DetailRow icon={AtSign} label="Telegram" value={bs.telegram_username || cust.username || '—'} />
                         <DetailRow icon={MessageCircle} label="Viber" value={bs.viber_number || '—'} />
                         <DetailRow icon={MapPin} label="Address" value={bs.address && bs.address !== 'N/A' ? bs.address : '—'} />
-                        <DetailRow icon={FileText} label="Notes" value={bs.notes || '—'} />
+                        {isTelegramSelected && <DetailRow icon={FileText} label="Notes" value={bs.notes || '—'} />}
                       </div>
                     );
                   })()}
