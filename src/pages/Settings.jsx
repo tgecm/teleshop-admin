@@ -2194,18 +2194,20 @@ function DiscountsManager() {
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">
                   Total Cards <span className="text-gray-300 normal-case">(number of uses)</span>
                 </label>
-                <div className="flex items-center gap-3">
-                  <input type="number" min="1" value={form.total_cards} onChange={e => setForm(f => ({ ...f, total_cards: e.target.value.replace(/\D/g, '') }))}
-                    disabled={form.is_unlimited}
-                    placeholder="e.g. 5"
-                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed" />
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <button onClick={() => setForm(f => ({ ...f, is_unlimited: !f.is_unlimited }))}
-                      className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${form.is_unlimited ? 'bg-indigo-600' : 'bg-gray-300'}`}>
-                      <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${form.is_unlimited ? 'left-5.5' : 'left-0.5'}`} />
-                    </button>
-                    <span className="text-xs font-bold text-gray-500">Unlimited</span>
-                  </label>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <div className="flex items-center gap-3 flex-1">
+                    <input type="number" min="1" value={form.total_cards} onChange={e => setForm(f => ({ ...f, total_cards: e.target.value.replace(/\D/g, '') }))}
+                      disabled={form.is_unlimited}
+                      placeholder="e.g. 5"
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed" />
+                    <label className="flex items-center gap-2 cursor-pointer select-none flex-shrink-0">
+                      <button onClick={() => setForm(f => ({ ...f, is_unlimited: !f.is_unlimited }))}
+                        className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${form.is_unlimited ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${form.is_unlimited ? 'left-5' : 'left-0.5'}`} />
+                      </button>
+                      <span className="text-xs font-bold text-gray-500 whitespace-nowrap">Unlimited</span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
