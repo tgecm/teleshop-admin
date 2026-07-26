@@ -1,5 +1,6 @@
 import { API_BASE } from '../api/config';
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
@@ -179,7 +180,9 @@ function MiniDashboardPreview({ p }) {
 function TemplatePickerSection({ planName }) {
   const { theme: activeTheme, setTheme } = useThemeStore();
   const [hoveredId, setHoveredId] = React.useState(null);
+  const [lockedTmplName, setLockedTmplName] = React.useState(null);
   const { addToast } = useToastStore();
+  const navigate = useNavigate();
   const plan = (planName || 'free').toLowerCase();
 
   const isTemplateLocked = (tmplId) => {
@@ -190,7 +193,8 @@ function TemplatePickerSection({ planName }) {
 
   const handleTemplateClick = (tmplId, tmplName) => {
     if (isTemplateLocked(tmplId)) {
-      addToast('Please upgrade to use more templates', 'error');
+      addToast(`🔒 Please upgrade your plan to use ${tmplName}`, 'error');
+      setLockedTmplName(tmplName);
       return;
     }
     setTheme(tmplId);
@@ -307,6 +311,19 @@ function TemplatePickerSection({ planName }) {
           );
         })}
       </div>
+
+      <ConfirmDialog
+        open={!!lockedTmplName}
+        onClose={() => setLockedTmplName(null)}
+        onConfirm={() => {
+          setLockedTmplName(null);
+          navigate('/subscription');
+        }}
+        title="Upgrade Required"
+        message={`The "${lockedTmplName}" UI template is available on Standard and Business plans. Would you like to upgrade your plan now?`}
+        confirmText="Upgrade Plan"
+        variant="primary"
+      />
     </section>
   );
 }
