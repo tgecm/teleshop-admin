@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, deleteCategory, getImageUrl, uploadImage } from '../api/products';
+import { getProducts, createProduct, updateProduct, deleteProduct, getCategories, createCategory, deleteCategory, updateCategory, getImageUrl, uploadImage } from '../api/products';
 import client from '../api/client';
 import { createCoupon, getCoupons, deleteCoupon } from '../api/coupons';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
@@ -1682,6 +1682,16 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
   const queryClient = useQueryClient();
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [catDropdownOpen, setCatDropdownOpen] = useState(false);
+  const [editingCatId, setEditingCatId] = useState(null);
+  const [editingCatValue, setEditingCatValue] = useState('');
+  const catDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handle = (e) => { if (catDropdownRef.current && !catDropdownRef.current.contains(e.target)) setCatDropdownOpen(false); };
+    document.addEventListener('pointerdown', handle);
+    return () => document.removeEventListener('pointerdown', handle);
+  }, []);
   const [images, setImages] = useState(() => {
     if (product?.image_url) {
       try {
@@ -1835,6 +1845,18 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     },
   });
 
+  const renameCategoryMutation = useMutation({
+    mutationFn: ({ id, name }) => updateCategory(id, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['categories', selectedBotId]);
+      setEditingCatId(null);
+      setEditingCatValue('');
+    },
+    onError: (err) => {
+      addToast(err.response?.data?.detail || 'Failed to rename category', 'error');
+    },
+  });
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setNameError(false);
@@ -1896,32 +1918,89 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm font-bold text-gray-700 ml-1">Category</label>
-          <select
-            required
-            value={formData.category_id}
-            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-sm"
-          >
-            <option value="">Select Category</option>
-            {categories?.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => {
-              if (atCategoryLimit) {
-                addToast('Your account has reached total limits of category', 'error');
-                return;
-              }
-              setShowNewCategory(true);
-            }}
-            className={`text-sm font-bold flex items-center gap-1.5 px-1 py-1 ${atCategoryLimit ? 'text-gray-300 cursor-not-allowed' : 'text-indigo-600 hover:text-indigo-700'}`}
-            disabled={atCategoryLimit}
-          >
-            <FolderPlus className="w-4 h-4" />
-            Create New Category
-          </button>
+          <div className="relative" ref={catDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setCatDropdownOpen(!catDropdownOpen)}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-sm flex items-center justify-between gap-2"
+            >
+              <span className={formData.category_id ? 'text-gray-900' : 'text-gray-400'}>
+                {formData.category_id
+                  ? categories?.find(c => String(c.id) === String(formData.category_id))?.name || 'Select Category'
+                  : 'Select Category'}
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${catDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {catDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-60 overflow-y-auto">
+                {categories?.map(cat => (
+                  <div key={cat.id} className="flex items-center px-3 py-2 text-sm font-bold transition-colors hover:bg-gray-50 gap-1">
+                    {editingCatId === cat.id ? (
+                      <input
+                        type="text"
+                        value={editingCatValue}
+                        onChange={(e) => setEditingCatValue(e.target.value)}
+                        onBlur={() => {
+                          const trimmed = editingCatValue.trim();
+                          if (trimmed && trimmed !== cat.name) {
+                            renameCategoryMutation.mutate({ id: cat.id, name: trimmed });
+                          } else {
+                            setEditingCatId(null);
+                            setEditingCatValue('');
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.target.blur();
+                          if (e.key === 'Escape') { setEditingCatId(null); setEditingCatValue(''); }
+                        }}
+                        className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setFormData({ ...formData, category_id: cat.id }); setCatDropdownOpen(false); }}
+                          className={`flex-1 text-left truncate ${String(formData.category_id) === String(cat.id) ? 'text-indigo-600' : 'text-gray-700'}`}
+                        >
+                          {cat.name}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setEditingCatId(cat.id); setEditingCatValue(cat.name); }}
+                          className="p-1 text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {(!categories || categories.length === 0) && (
+                  <div className="px-3 py-4 text-sm text-gray-400 text-center">No categories yet</div>
+                )}
+                <div className="border-t border-gray-100 mt-1 pt-1 px-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (atCategoryLimit) {
+                        addToast('Your account has reached total limits of category', 'error');
+                        return;
+                      }
+                      setCatDropdownOpen(false);
+                      setShowNewCategory(true);
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl transition-colors ${atCategoryLimit ? 'text-gray-300 cursor-not-allowed' : 'text-indigo-600 hover:bg-indigo-50'}`}
+                    disabled={atCategoryLimit}
+                  >
+                    <FolderPlus className="w-4 h-4" />
+                    Create New Category
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           {showNewCategory && (
             <div className="flex gap-2 items-center mt-1">
               <input

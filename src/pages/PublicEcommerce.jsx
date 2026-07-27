@@ -2503,7 +2503,7 @@ const [showModePopup, setShowModePopup] = useState(false);
   }, [showCart, shop?.id, cartItems]);
 
   // Scroll to top button
-  const SCROLL_THRESHOLD = 1;
+  const SCROLL_THRESHOLD = 500;
   useEffect(() => {
     const root = document.getElementById('root');
     if (!root) return;
