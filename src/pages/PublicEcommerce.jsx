@@ -1737,8 +1737,17 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [oosMap, setOosMap] = useState({});
   const crossSellScrollRef = useRef(null);
   const crossSellDrag = useRef({ isDragging: false, startX: 0, scrollLeft: 0, moved: false });
-  const [showScrollTop, setShowScrollTop] = useState(false);
-const [showModePopup, setShowModePopup] = useState(false);
+  const [showScrollFabs, setShowScrollFabs] = useState(false);
+  const [showModePopup, setShowModePopup] = useState(false);
+
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (!root) return;
+    const handler = () => setShowScrollFabs(root.scrollTop > 1000);
+    handler();
+    root.addEventListener('scroll', handler, { passive: true });
+    return () => root.removeEventListener('scroll', handler);
+  }, []);
 
   const handleCrossSellMouseDown = useCallback((e) => {
     const el = crossSellScrollRef.current;
@@ -2502,16 +2511,6 @@ const [showModePopup, setShowModePopup] = useState(false);
       .catch(() => {});
   }, [showCart, shop?.id, cartItems]);
 
-  // Scroll to top button
-  const SCROLL_THRESHOLD = 500;
-  useEffect(() => {
-    const root = document.getElementById('root');
-    if (!root) return;
-    const handler = () => setShowScrollTop(root.scrollTop > SCROLL_THRESHOLD);
-    handler();
-    root.addEventListener('scroll', handler, { passive: true });
-    return () => root.removeEventListener('scroll', handler);
-  }, []);
 
   const categoryMap = {};
   categories.forEach(c => { categoryMap[c.id] = c.name; });
@@ -3821,7 +3820,7 @@ const [showModePopup, setShowModePopup] = useState(false);
       </AnimatePresence>
 
       {/* Scroll to top & mode switcher */}
-      {showScrollTop && (
+      {showScrollFabs && (
         <>
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
