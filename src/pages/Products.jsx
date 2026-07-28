@@ -27,17 +27,55 @@ import townshipsData, { REGION_NAMES, getDistricts, getTownships } from '../data
 
 const PREDEFINED_COLORS = [
   { name: 'Red', hex: '#FF0000' },
-  { name: 'Blue', hex: '#2563EB' },
-  { name: 'Green', hex: '#16A34A' },
-  { name: 'Yellow', hex: '#EAB308' },
-  { name: 'Orange', hex: '#EA580C' },
-  { name: 'Purple', hex: '#9333EA' },
-  { name: 'Pink', hex: '#EC4899' },
-  { name: 'Black', hex: '#000000' },
+  { name: 'Dark Red', hex: '#8B0000' },
+  { name: 'Crimson', hex: '#DC143C' },
+  { name: 'Maroon', hex: '#800000' },
+  { name: 'Orange Red', hex: '#FF4500' },
+  { name: 'Tomato', hex: '#FF6347' },
+  { name: 'Coral', hex: '#FF7F50' },
+  { name: 'Orange', hex: '#FFA500' },
+  { name: 'Dark Orange', hex: '#FF8C00' },
+  { name: 'Amber', hex: '#FFBF00' },
+  { name: 'Yellow', hex: '#FFD700' },
+  { name: 'Gold', hex: '#FFC107' },
+  { name: 'Goldenrod', hex: '#DAA520' },
+  { name: 'Lemon', hex: '#FFF44F' },
+  { name: 'Lime', hex: '#00FF00' },
+  { name: 'Lime Green', hex: '#32CD32' },
+  { name: 'Green', hex: '#008000' },
+  { name: 'Forest Green', hex: '#228B22' },
+  { name: 'Dark Green', hex: '#006400' },
+  { name: 'Olive', hex: '#808000' },
+  { name: 'Teal', hex: '#008080' },
+  { name: 'Cyan', hex: '#00CED1' },
+  { name: 'Sky Blue', hex: '#87CEEB' },
+  { name: 'Light Blue', hex: '#ADD8E6' },
+  { name: 'Blue', hex: '#0000FF' },
+  { name: 'Royal Blue', hex: '#4169E1' },
+  { name: 'Navy', hex: '#000080' },
+  { name: 'Indigo', hex: '#4B0082' },
+  { name: 'Purple', hex: '#800080' },
+  { name: 'Violet', hex: '#8A2BE2' },
+  { name: 'Lavender', hex: '#E6E6FA' },
+  { name: 'Magenta', hex: '#FF00FF' },
+  { name: 'Pink', hex: '#FFC0CB' },
+  { name: 'Hot Pink', hex: '#FF69B4' },
+  { name: 'Deep Pink', hex: '#FF1493' },
+  { name: 'Plum', hex: '#DDA0DD' },
+  { name: 'Orchid', hex: '#DA70D6' },
+  { name: 'Brown', hex: '#A52A2A' },
+  { name: 'Saddle Brown', hex: '#8B4513' },
+  { name: 'Sienna', hex: '#A0522D' },
+  { name: 'Chocolate', hex: '#D2691E' },
+  { name: 'Beige', hex: '#F5F5DC' },
+  { name: 'Tan', hex: '#D2B48C' },
   { name: 'White', hex: '#FFFFFF' },
-  { name: 'Gray', hex: '#6B7280' },
-  { name: 'Brown', hex: '#78350F' },
-  { name: 'Teal', hex: '#0D9488' },
+  { name: 'Ivory', hex: '#FFFFF0' },
+  { name: 'Gray', hex: '#808080' },
+  { name: 'Silver', hex: '#C0C0C0' },
+  { name: 'Charcoal', hex: '#36454F' },
+  { name: 'Mint', hex: '#98FF98' },
+  { name: 'Black', hex: '#000000' },
 ];
 
 export default function Products() {
@@ -1790,6 +1828,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
   const [uploadingColor, setUploadingColor] = useState(null);
   const colorFileInputRef = useRef(null);
   const pendingColorRef = useRef(null);
+  const customColorInputRef = useRef(null);
 
   const handleColorSelect = (hex) => {
     if (colors.some(c => c.color === hex)) {
@@ -1807,6 +1846,13 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     pendingColorRef.current = null;
     setShowPhotoConfirm(false);
     setColors(prev => [...prev, { color: hex }]);
+  };
+
+  const handleCustomColorPick = (e) => {
+    const hex = e.target.value;
+    if (!hex) return;
+    e.target.value = '';
+    handleColorSelect(hex);
   };
 
   const handleColorImageUpload = async (e) => {
@@ -2305,7 +2351,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                       <X className="w-3 h-3" />
                     </button>
                   </div>
-                  <span className="text-[9px] text-gray-400 font-medium uppercase">{PREDEFINED_COLORS.find(pc => pc.hex === c.color)?.name || ''}</span>
+                  <span className="text-[9px] text-gray-400 font-medium uppercase">{PREDEFINED_COLORS.find(pc => pc.hex === c.color)?.name || c.color}</span>
                 </div>
               ))}
             </div>
@@ -2331,6 +2377,16 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                     title={c.name}
                   />
                 ))}
+                <button
+                  type="button"
+                  disabled={uploadingColor !== null}
+                  onClick={() => customColorInputRef.current?.click()}
+                  className="w-9 h-9 rounded-xl border-2 border-dashed border-gray-300 bg-white transition-all active:scale-90 hover:scale-110 hover:shadow-md flex items-center justify-center"
+                  title="Custom Color"
+                >
+                  <span className="text-lg font-bold text-gray-400 leading-none">+</span>
+                </button>
+                <input ref={customColorInputRef} type="color" onChange={handleCustomColorPick} className="hidden" />
               </div>
               <p className="text-[10px] text-gray-400 mt-3 text-center">Select a color, then upload its product image</p>
             </div>
@@ -2353,7 +2409,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
           )}
 
           <div className="flex items-center gap-2">
-            {!showColorPicker && !showPhotoConfirm && colors.length < 8 && (
+            {!showColorPicker && !showPhotoConfirm && (
               <button
                 type="button"
                 onClick={() => setShowColorPicker(true)}
