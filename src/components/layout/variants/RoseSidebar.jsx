@@ -71,7 +71,7 @@ export default function RoseSidebar({ mobileOpen, onMobileClose, collapsed, onTo
       </div>
 
       {/* Nav List */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide space-y-1.5 px-1">
+      <div className="flex-1 overflow-y-auto scrollbar-sidebar space-y-1.5 px-1">
         {navItems.map(item => {
           const badge = getBadge(item.badgeKey);
           return (

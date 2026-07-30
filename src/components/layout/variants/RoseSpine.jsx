@@ -144,7 +144,7 @@ export default function RoseSpine({ mobileOpen, onMobileClose }) {
               </div>
 
               {/* Links list */}
-              <div className="flex-1 overflow-y-auto scrollbar-hide space-y-1 py-1">
+              <div className="flex-1 overflow-y-auto scrollbar-sidebar space-y-1 py-1">
                 {allNavGroups.flatMap(g => g.items).map(item => {
                   if (item.superadminOnly && !user?.is_superadmin) return null;
                   const badge = getBadge(item.badgeKey);
@@ -198,7 +198,7 @@ export default function RoseSpine({ mobileOpen, onMobileClose }) {
         </div>
 
         {/* Vertical Icon Rail */}
-        <div className="flex-1 flex flex-col gap-2 overflow-y-auto scrollbar-hide py-1">
+        <div className="flex-1 flex flex-col gap-2 overflow-y-auto scrollbar-sidebar py-1">
           {spinePrimaryItems.map((item, idx) => {
             const badge = getBadge(item.badgeKey);
             const isHovered = hoveredIdx === idx;

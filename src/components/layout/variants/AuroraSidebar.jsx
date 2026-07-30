@@ -90,7 +90,7 @@ export default function AuroraSidebar({ mobileOpen, onMobileClose, collapsed, on
       </div>
 
       {/* Nav groups */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide space-y-4 px-1">
+      <div className="flex-1 overflow-y-auto scrollbar-sidebar space-y-4 px-1">
         {navGroups.map((group, idx) => (
           <div key={idx} className="space-y-1">
             {(!collapsed || isMobile) && (

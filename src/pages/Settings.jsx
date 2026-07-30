@@ -74,7 +74,7 @@ import {
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
-import { requireFeature } from '../utils/plans';
+import { requireFeature, getPlanLimit } from '../utils/plans';
 import { DEFAULT_DOMAINS } from '../utils/domains';
 import Subscription from './Subscription';
 import { Capacitor } from '@capacitor/core';
@@ -243,6 +243,8 @@ export default function Settings() {
     queryFn: () => listBotDomains(selectedBotId),
     enabled: !!selectedBotId,
   });
+
+  const maxDomains = getPlanLimit(bot?.plan_name, 'custom_domains');
 
   const [showAddInput, setShowAddInput] = useState(false);
   const [addDomainInput, setAddDomainInput] = useState('');
@@ -850,7 +852,7 @@ export default function Settings() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-sm font-bold text-gray-900">Custom Domains</h3>
-                  <p className="text-[10px] text-gray-500">Use up to 3 custom domains for the public shop</p>
+                  <p className="text-[10px] text-gray-500">{maxDomains > 0 ? `Use up to ${maxDomains} custom domains for the public shop` : 'Custom domains not available on your plan'}</p>
                 </div>
                 <button
                   onClick={() => setShowDomainGuide(true)}
@@ -983,7 +985,7 @@ export default function Settings() {
                   </div>
                 ))}
 
-                {domains.length < 3 && !hasUnverifiedDomain && (
+                {maxDomains > 0 && !hasUnverifiedDomain && (maxDomains <= 1 || domains.length < maxDomains) && (
                   showAddInput ? (
                     <div className="flex gap-2">
                       <input
@@ -1016,6 +1018,10 @@ export default function Settings() {
                     <button
                       onClick={() => {
                         if (!requireFeature(bot?.plan_name, 'custom_domain', addToast)) return;
+                        if (domains.length >= maxDomains) {
+                          addToast('Your plan has reach total limits of custom domains', 'error');
+                          return;
+                        }
                         setShowAddInput(true);
                       }}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl hover:bg-gray-100 hover:border-gray-300 transition-all text-sm font-bold text-gray-500"
@@ -1028,7 +1034,7 @@ export default function Settings() {
 
                 {domains.length === 0 && !showAddInput && (
                   <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 text-center">
-                    <p className="text-xs text-gray-400">Add up to 3 custom domains for your public shop</p>
+                    <p className="text-xs text-gray-400">{maxDomains > 0 ? `Add up to ${maxDomains} custom domains for your public shop` : 'Custom domains not available on your plan'}</p>
                   </div>
                 )}
               </div>
