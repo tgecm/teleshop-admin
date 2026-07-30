@@ -226,7 +226,7 @@ export default function MidnightSidebar({ mobileOpen, onMobileClose, collapsed, 
 
   /** Full nav content block shared by mobile drawer and desktop sidebar */
   const navContent = (isMobile) => (
-    <div className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto scrollbar-hide">
+    <div className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto scrollbar-sidebar">
       {/* Main nav items */}
       {(isMobile ? mobileNavItems : navItems).map(({ to, icon: Icon, label }) => {
         const badge =
@@ -448,7 +448,7 @@ export default function MidnightSidebar({ mobileOpen, onMobileClose, collapsed, 
 
       {/* Desktop sidebar */}
       <aside
-        className="sidebar-panel hidden md:flex flex-col h-full overflow-y-auto scrollbar-hide relative"
+        className="sidebar-panel hidden md:flex flex-col h-full overflow-y-auto scrollbar-sidebar relative"
         style={{
           background: 'var(--sidebar-bg)',
           borderRight: '1px solid var(--sidebar-border)',

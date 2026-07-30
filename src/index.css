@@ -771,6 +771,25 @@ input[type="number"] {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Thin, modern scrollbar for sidebars */
+  .scrollbar-sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sidebar-scrollbar, rgba(128,128,128,0.35)) transparent;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar-thumb {
+    background: var(--sidebar-scrollbar, rgba(128,128,128,0.35));
+    border-radius: 999px;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--sidebar-scrollbar-hover, rgba(128,128,128,0.55));
+  }
   
   .pb-safe {
     padding-bottom: max(env(safe-area-inset-bottom), 8px);

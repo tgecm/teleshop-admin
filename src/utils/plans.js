@@ -1,9 +1,9 @@
 const PLAN_LIMITS = {
-  free:     { products: 5, categories: 1, payment_methods: 1 },
-  basic:    { products: 30, categories: 7, payment_methods: 3 },
-  standard: { products: 70, categories: 15, payment_methods: 5 },
-  pro:      { products: 150, categories: 35, payment_methods: 10 },
-  business: { products: Infinity, categories: Infinity, payment_methods: Infinity },
+  free:     { products: 5, categories: 1, payment_methods: 1, custom_domains: 0 },
+  basic:    { products: 30, categories: 7, payment_methods: 3, custom_domains: 0 },
+  standard: { products: 70, categories: 15, payment_methods: 5, custom_domains: 0 },
+  pro:      { products: 150, categories: 35, payment_methods: 10, custom_domains: 1 },
+  business: { products: Infinity, categories: Infinity, payment_methods: Infinity, custom_domains: 3 },
 };
 
 export function getPlanLimit(planName, type) {
