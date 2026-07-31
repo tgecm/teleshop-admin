@@ -1,0 +1,189 @@
+import { useState, useEffect } from 'react';
+import { Printer, Save, CheckCircle2, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { LABEL_PRESETS, getLabelSettings, saveLabelSettings } from '../orders/PrintLabelConfirmModal';
+import { useBotStore } from '../../store/botStore';
+import { useToastStore } from '../../store/toastStore';
+import { getContentBlocks, updateContentBlock } from '../../api/contentBlocks';
+
+export default function ShippingLabelSettingsSection() {
+  const queryClient = useQueryClient();
+  const { selectedBotId } = useBotStore();
+  const addToast = useToastStore(state => state.addToast);
+  const [showCustomForm, setShowCustomForm] = useState(false);
+
+  // Fetch content blocks from database
+  const { data: contentBlocks } = useQuery({
+    queryKey: ['content-blocks', selectedBotId],
+    queryFn: () => getContentBlocks({ bot_id: Number(selectedBotId) }),
+    enabled: !!selectedBotId,
+  });
+
+  const receiptBlock = contentBlocks?.find(b => b.key === 'receipt_settings');
+  const dbLabelSettings = receiptBlock?.content_data || {};
+
+  const [settings, setSettings] = useState(() => getLabelSettings(dbLabelSettings));
+
+  // Sync state whenever database label settings are fetched or updated
+  useEffect(() => {
+    if (receiptBlock?.content_data) {
+      setSettings(prev => ({
+        ...prev,
+        ...receiptBlock.content_data,
+      }));
+    }
+  }, [receiptBlock]);
+
+  // Database Save Mutation
+  const saveMutation = useMutation({
+    mutationFn: (newSettings) => {
+      const mergedData = {
+        ...(receiptBlock?.content_data || {}),
+        ...newSettings,
+      };
+      return updateContentBlock(Number(selectedBotId), 'receipt_settings', mergedData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['content-blocks', selectedBotId]);
+      saveLabelSettings(settings); // Backup locally for offline fallback
+      setShowCustomForm(false); // Hide custom form after successful save
+      addToast('Label settings saved to database successfully!', 'success');
+    },
+    onError: (err) => {
+      console.error('Failed to save label settings to database', err);
+      addToast(err?.message || 'Failed to save settings to database', 'error');
+    }
+  });
+
+  const handleSave = () => {
+    setShowCustomForm(false); // Hide custom form on save
+    saveLabelSettings(settings);
+    if (selectedBotId) {
+      saveMutation.mutate(settings);
+    } else {
+      addToast('Saved locally', 'success');
+    }
+  };
+
+  return (
+    <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <Printer className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Shipping Label & Paper Settings</h3>
+            <p className="text-xs text-gray-500">Configure default paper sizes & label preferences stored in your account database</p>
+          </div>
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saveMutation.isPending}
+          className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+        >
+          {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saveMutation.isPending ? 'Saving to Database...' : 'Save Label Settings'}
+        </button>
+      </div>
+
+      {/* Preset Selector */}
+      <div className="space-y-2">
+        <label className="text-xs font-bold text-gray-700">Select Default Paper Size Preset:</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+          {LABEL_PRESETS.map((preset) => {
+            const isSelected = settings.presetId === preset.id;
+            return (
+              <div
+                key={preset.id}
+                onClick={() => {
+                  setSettings(prev => ({ ...prev, presetId: preset.id }));
+                  if (preset.id === 'custom') {
+                    setShowCustomForm(prev => !prev);
+                  } else {
+                    setShowCustomForm(false);
+                  }
+                }}
+                className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
+                  isSelected
+                    ? 'border-indigo-600 bg-indigo-50/60 shadow-sm'
+                    : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100/50'
+                }`}
+              >
+                <div>
+                  <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                    {preset.name}
+                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />}
+                  </div>
+                  <div className="text-[10px] text-gray-500 mt-0.5">{preset.desc}</div>
+                  <div className="text-[10px] font-bold text-indigo-600 mt-1">
+                    {preset.id === 'custom' ? `${settings.customWidthMm || 100} × ${settings.customHeightMm || 150} mm` : `${preset.widthMm} × ${preset.heightMm} mm`}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Custom Dimension Inputs if Custom selected & showCustomForm is true */}
+      {settings.presetId === 'custom' && showCustomForm && (
+        <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold text-amber-900">Custom Paper Dimensions (in millimeters)</div>
+            <button
+              onClick={handleSave}
+              disabled={saveMutation.isPending}
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+            >
+              {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              {saveMutation.isPending ? 'Saving...' : 'Save Custom Dimensions'}
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-gray-600">Width (mm):</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={settings.customWidthMm ?? ''}
+                placeholder="100"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSettings(prev => ({ ...prev, customWidthMm: val }));
+                }}
+                onBlur={() => {
+                  const num = Number(settings.customWidthMm);
+                  if (!num || num <= 0) {
+                    setSettings(prev => ({ ...prev, customWidthMm: 100 }));
+                  }
+                }}
+                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-600">Height (mm):</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={settings.customHeightMm ?? ''}
+                placeholder="150"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSettings(prev => ({ ...prev, customHeightMm: val }));
+                }}
+                onBlur={() => {
+                  const num = Number(settings.customHeightMm);
+                  if (!num || num <= 0) {
+                    setSettings(prev => ({ ...prev, customHeightMm: 150 }));
+                  }
+                }}
+                className="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
