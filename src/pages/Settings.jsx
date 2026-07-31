@@ -26,6 +26,7 @@ import { getBotPublicSlug, generateBotSlug, listBotDomains, addBotDomain, verify
 import { getPaymentMethods, getCodSettings } from '../api/payments';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
+import ShippingLabelSettingsSection from '../components/settings/ShippingLabelSettingsSection';
 import client from '../api/client';
 import { getGuidePrompt, updateGuidePrompt } from '../api/ai';
 import {
@@ -518,7 +519,9 @@ export default function Settings() {
       <div className="space-y-6">
 
         {activeTab === 'shop' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
+          <div className="space-y-6">
+            <ShippingLabelSettingsSection />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
 
             <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-3">
@@ -1265,6 +1268,7 @@ export default function Settings() {
             </section>
             )}
           </div>
+        </div>
         )}
 
         {activeTab === 'account' && (

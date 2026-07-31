@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Download, Loader2, FileText } from 'lucide-react';
+import { X, Download, Loader2, FileText, Printer } from 'lucide-react';
+import PrintLabelConfirmModal, { LABEL_PRESETS, getLabelSettings } from './PrintLabelConfirmModal';
 import { myanmarFormat } from '../../utils/date';
 import { useToastStore } from '../../store/toastStore';
 import { normalizeText } from '../../utils/normalizeText';
@@ -621,39 +622,28 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
     .dc{font-family:'Dancing Script',cursive}
     .w{fill:#fff}
   </style>
+  <clipPath id="wmCircleClip">
+    <circle cx="400" cy="${Math.max(180, Math.floor(TOTAL_H / 2))}" r="140"/>
+  </clipPath>
   </defs>
   <rect width="${W}" height="${TOTAL_H}" fill="#fff"/>
   <!-- TOP BAR -->
   <rect width="${W}" height="10" fill="${MB}"/>
 
-  <!-- ============ HEADER (y=${HDR_Y}) ============ -->
-  <defs>
-    <clipPath id="logoClip">
-      <circle cx="50" cy="50" r="50"/>
-    </clipPath>
-  </defs>
-  <g transform="translate(${PAD}, ${HDR_Y})">
-    <!-- Logo -->
-    <circle cx="50" cy="50" r="50" fill="#fff" stroke="${MB}" stroke-width="2"/>
-    ${botLogo ? `<image href="${esc(botLogo)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid slice" clip-path="url(#logoClip)"/>` : `<text x="50" y="56" text-anchor="middle" fill="${MB}" font-size="16" font-weight="600" class="r">${initial}</text>`}
+  <!-- BACKGROUND WATERMARK LOGO (CIRCLE SHAPE, 5% OPACITY) -->
+  ${botLogo ? `<image href="${esc(botLogo)}" x="260" y="${Math.max(180, Math.floor(TOTAL_H / 2)) - 140}" width="280" height="280" opacity="0.05" preserveAspectRatio="xMidYMid slice" clip-path="url(#wmCircleClip)"/>` : ''}
 
-    <!-- Shop info -->
-    ${_st(botName, 140, 22, 24, MB, SVG_FF, ' font-weight="700" class="r"')}
-    ${taglineImg ? `<image href="${esc(taglineImg.url)}" x="140" y="${44 - taglineImg.h + 4}" width="${taglineImg.w}" height="${taglineImg.h}"/>` : `<text x="140" y="44" fill="${TM}" font-size="13">${esc(shopTagline)}</text>`}
+  <!-- ============ HEADER (y=${HDR_Y}) ============ -->
+  <g transform="translate(${PAD}, ${HDR_Y})">
+    <!-- Shop info (Moved to Far Left at x=0) -->
+    ${_st(botName, 0, 22, 24, MB, SVG_FF, ' font-weight="700" class="r"')}
+    ${taglineImg ? `<image href="${esc(taglineImg.url)}" x="0" y="${44 - taglineImg.h + 4}" width="${taglineImg.w}" height="${taglineImg.h}"/>` : `<text x="0" y="44" fill="${TM}" font-size="13">${esc(shopTagline)}</text>`}
 
     <!-- Contacts -->
-    ${emojis.phone ? `<image href="${esc(emojis.phone)}" x="132" y="56" width="16" height="16"/>` : `<text x="140" y="68" fill="${TM}" font-size="12">📞</text>`}
-    ${_st(svgPhone, 152, 68, 12, TM, SVG_FF, '')}
-
-    ${emojis.email ? `<image href="${esc(emojis.email)}" x="132" y="78" width="16" height="16"/>` : `<text x="140" y="90" fill="${TM}" font-size="12">✉️</text>`}
-    ${_st(svgEmail, 152, 90, 12, TM, SVG_FF, '')}
-
-    ${emojis.globe ? `<image href="${esc(emojis.globe)}" x="132" y="100" width="16" height="16"/>` : `<text x="140" y="112" fill="${TM}" font-size="12">🌐</text>`}
-    ${_st(svgWebsite, 152, 112, 12, TM, SVG_FF, '')}
-
-    ${emojis.pin ? `<image href="${esc(emojis.pin)}" x="132" y="122" width="16" height="16"/>` : `<text x="140" y="134" fill="${TM}" font-size="12">📍</text>`}
-    ${_st(svgAddress.slice(0, 40), 152, 134, 12, TM, SVG_FF, '')}
-    ${svgAddress.length > 40 ? _st(svgAddress.slice(40, 80), 152, 152, 12, TM, SVG_FF, '') : ''}
+    ${svgPhone ? `${emojis.phone ? `<image href="${esc(emojis.phone)}" x="0" y="56" width="16" height="16"/>` : `<text x="0" y="68" fill="${TM}" font-size="12">📞</text>`}${_st(svgPhone, 20, 68, 12, TM, SVG_FF, '')}` : ''}
+    ${svgEmail ? `${emojis.email ? `<image href="${esc(emojis.email)}" x="0" y="78" width="16" height="16"/>` : `<text x="0" y="90" fill="${TM}" font-size="12">✉️</text>`}${_st(svgEmail, 20, 90, 12, TM, SVG_FF, '')}` : ''}
+    ${svgWebsite ? `${emojis.globe ? `<image href="${esc(emojis.globe)}" x="0" y="100" width="16" height="16"/>` : `<text x="0" y="112" fill="${TM}" font-size="12">🌐</text>`}${_st(svgWebsite, 20, 112, 12, TM, SVG_FF, '')}` : ''}
+    ${svgAddress ? `${emojis.pin ? `<image href="${esc(emojis.pin)}" x="0" y="122" width="16" height="16"/>` : `<text x="0" y="134" fill="${TM}" font-size="12">📍</text>`}${_st(svgAddress.slice(0, 45), 20, 134, 12, TM, SVG_FF, '')}${svgAddress.length > 45 ? _st(svgAddress.slice(45, 90), 20, 152, 12, TM, SVG_FF, '') : ''}` : ''}
 
     ${isInvoice ? `<!-- INVOICE heading (right) -->
     <text x="720" y="22" text-anchor="end" fill="${MB}" font-size="44" font-weight="700" class="r">INVOICE</text>
@@ -799,6 +789,7 @@ function buildSvgData(order, bot, botName, items, subtotal, total, orderDate, pa
 export default function Receipt({ order, bot, open, onClose, receiptType = 'receipt', receiptSettings = {} }) {
   const receiptRef = useRef(null);
   const [generating, setGenerating] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [scale, setScale] = useState(1);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const { addToast } = useToastStore();
@@ -853,41 +844,49 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
     notes: shopNotes = '',
   } = receiptSettings;
 
+const dataUrlToBlob = (dataUrl) => {
+  const parts = dataUrl.split(',');
+  const mime = parts[0].match(/:(.*?);/)[1];
+  const bstr = atob(parts[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+};
+
   const handleDownload = async () => {
     setGenerating(true);
     try {
-      const botLogo = await getBotLogoDataUrl(bot?.profile_picture || '');
-      const emojis = {
-        phone: renderEmoji('\u{1F4DE}'), email: renderEmoji('✉️'), globe: renderEmoji('\u{1F310}'),
-        pin: renderEmoji('\u{1F4CD}'), person: renderEmoji('\u{1F464}'), receipt: renderEmoji('\u{1F9FE}'),
-        card: renderEmoji('\u{1F4B3}'), money: renderEmoji('\u{1F4B0}'),
-      };
-      const taglineImg = tagline ? renderSvgTextLine(tagline, 13, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
-      const notesImg = shopNotes ? renderSvgTextLine(shopNotes.slice(0, 100), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
-      const notesImg2 = shopNotes && shopNotes.length > 100 ? renderSvgTextLine(shopNotes.slice(100, 200), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, currency, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo, emojis, taglineImg, notesImg, notesImg2 });
-      const fileName = `${receiptType}-${order.order_number || order.id}`;
+      const activeSettings = getLabelSettings(receiptSettings || {});
+      const pId = activeSettings.presetId || '80mm';
+      const presetObj = LABEL_PRESETS.find(p => p.id === pId) || LABEL_PRESETS.find(p => p.id === '80mm');
+      const wMm = pId === 'custom' ? Number(activeSettings.customWidthMm) || 100 : (presetObj?.widthMm || 80);
+      const hMm = pId === 'custom' ? Number(activeSettings.customHeightMm) || 150 : (presetObj?.heightMm || 160);
 
-      // Client-side SVG to PNG (uses browser fonts for all languages)
-      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-      const img = await new Promise((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => { URL.revokeObjectURL(url); resolve(i); };
-        i.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG image failed to load')); };
-        i.src = url;
+      const { pngDataUrl } = await generateReceiptPdfBlob({
+        order,
+        bot,
+        isInvoice: receiptType === 'invoice',
+        docTitle: receiptType === 'invoice' ? 'INVOICE' : 'RECEIPT',
+        invoiceNumber,
+        receiptNumber,
+        receiptSettings: activeSettings,
+        targetWidthMm: wMm,
+        targetHeightMm: hMm,
+        orientation: activeSettings.orientation || 'portrait'
       });
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      const pngBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      await downloadBlob(pngBlob, `${fileName}.png`);
 
-      addToast('Receipt downloaded successfully');
+      const orderIdShort = (order.order_number || String(order.id)).slice(-6);
+      const fileName = `${receiptType === 'invoice' ? 'Invoice' : 'Receipt'}_${orderIdShort}_${wMm}x${hMm}mm.png`;
+      
+      const pngBlob = dataUrlToBlob(pngDataUrl);
+      await downloadBlob(pngBlob, fileName);
+      addToast('PNG image downloaded successfully!', 'success');
     } catch (err) {
-      console.error('Receipt export failed:', err);
-      addToast('Failed to generate receipt image', 'error');
+      console.error('Receipt PNG export failed:', err);
+      addToast('Failed to generate PNG image', 'error');
     } finally {
       setGenerating(false);
     }
@@ -896,52 +895,29 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
   const handleDownloadPdf = async () => {
     setGenerating(true);
     try {
-      const botLogo = await getBotLogoDataUrl(bot?.profile_picture || '');
-      const emojis = {
-        phone: renderEmoji('\u{1F4DE}'), email: renderEmoji('✉️'), globe: renderEmoji('\u{1F310}'),
-        pin: renderEmoji('\u{1F4CD}'), person: renderEmoji('\u{1F464}'), receipt: renderEmoji('\u{1F9FE}'),
-        card: renderEmoji('\u{1F4B3}'), money: renderEmoji('\u{1F4B0}'),
-      };
-      const taglineImg = tagline ? renderSvgTextLine(tagline, 13, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
-      const notesImg = shopNotes ? renderSvgTextLine(shopNotes.slice(0, 100), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
-      const notesImg2 = shopNotes && shopNotes.length > 100 ? renderSvgTextLine(shopNotes.slice(100, 200), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
-      const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invoiceNumber, receiptNumber, receiptType, currency, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo, taglineImg, notesImg, notesImg2 });
+      const activeSettings = getLabelSettings(receiptSettings || {});
+      const pId = activeSettings.presetId || '80mm';
+      const presetObj = LABEL_PRESETS.find(p => p.id === pId) || LABEL_PRESETS.find(p => p.id === '80mm');
+      const wMm = pId === 'custom' ? Number(activeSettings.customWidthMm) || 100 : (presetObj?.widthMm || 80);
+      const hMm = pId === 'custom' ? Number(activeSettings.customHeightMm) || 150 : (presetObj?.heightMm || 160);
 
-      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-      const img = await new Promise((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => { URL.revokeObjectURL(url); resolve(i); };
-        i.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG image failed to load')); };
-        i.src = url;
+      const { pdf } = await generateReceiptPdfBlob({
+        order,
+        bot,
+        isInvoice: receiptType === 'invoice',
+        docTitle: receiptType === 'invoice' ? 'INVOICE' : 'RECEIPT',
+        invoiceNumber,
+        receiptNumber,
+        receiptSettings: activeSettings,
+        targetWidthMm: wMm,
+        targetHeightMm: hMm,
+        orientation: activeSettings.orientation || 'portrait'
       });
-
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = (canvas.height * pdfW) / canvas.width;
-      const pageH = pdf.internal.pageSize.getHeight();
-      let heightLeft = pdfH;
-      let position = 0;
-      pdf.addImage(imgData, 'PNG', 0, position, pdfW, pdfH);
-      heightLeft -= pageH;
-      while (heightLeft > 0) {
-        position -= pageH;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfW, pdfH);
-        heightLeft -= pageH;
-      }
-
-      const fileName = `${receiptType}-${order.order_number || order.id}.pdf`;
+      const orderIdShort = (order.order_number || String(order.id)).slice(-6);
+      const fileName = `${receiptType === 'invoice' ? 'Invoice' : 'Receipt'}_${orderIdShort}_${wMm}x${hMm}mm.pdf`;
       const pdfBlob = pdf.output('blob');
       await downloadBlob(pdfBlob, fileName);
-      addToast('PDF downloaded successfully');
+      addToast('PDF downloaded successfully!', 'success');
     } catch (err) {
       console.error('PDF export failed:', err);
       addToast('Failed to generate PDF', 'error');
@@ -977,6 +953,15 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
               <div className="flex-1 min-w-4 max-w-[30%] md:max-w-[50%]" />
               <div className="flex items-center gap-1.5">
                 <button
+                  onClick={() => setShowPrintModal(true)}
+                  disabled={generating}
+                  className="px-2.5 py-2 md:px-4 md:py-2 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1 md:gap-1.5 text-[11px] md:text-sm shadow-sm"
+                >
+                  <Printer className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  <span className="hidden sm:inline">Print</span>
+                  <span className="sm:hidden">Print</span>
+                </button>
+                <button
                   onClick={handleDownloadPdf}
                   disabled={generating}
                   className="px-2.5 py-2 md:px-4 md:py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-1 md:gap-1.5 text-[11px] md:text-sm"
@@ -1007,6 +992,16 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
                 </button>
               </div>
             </div>
+
+            <PrintLabelConfirmModal
+              open={showPrintModal}
+              onClose={() => setShowPrintModal(false)}
+              order={order}
+              bot={bot}
+              receiptType={receiptType}
+              invoiceNumber={invoiceNumber}
+              receiptSettings={receiptSettings}
+            />
 
             <div className="flex-1 overflow-y-hidden px-4 pb-6">
               <div className="flex justify-center">
@@ -1217,4 +1212,82 @@ export default function Receipt({ order, bot, open, onClose, receiptType = 'rece
       )}
     </AnimatePresence>
   );
+}
+
+export async function generateReceiptPdfBlob({
+  order,
+  bot,
+  receiptType = 'receipt',
+  invoiceNumber = '',
+  receiptNumber = '',
+  receiptSettings = {},
+  targetWidthMm = 210,
+  targetHeightMm = 297,
+  orientation = 'portrait'
+}) {
+  const botName = bot ? normalizeText(bot.bot_full_name || bot.bot_username || 'Shop') : 'Shop';
+  const items = order.items || order.order_items || [];
+  const subtotal = items.reduce((s, it) => s + ((it.price || 0) * (it.quantity || 1)), 0);
+  const deliveryFee = Number(order.delivery_fee) || 0;
+  const total = subtotal + deliveryFee;
+  const orderDate = order.created_at ? new Date(order.created_at) : new Date();
+  const paymentMethod = order.payment_method || 'Cash';
+  const currency = bot?.currency || 'MMK';
+  const initials = botName.split(' ').map(w => w.charAt(0).toUpperCase()).join('');
+  const recNo = receiptNumber || order.receipt_no || `${initials}-ECM-${myanmarFormat(orderDate, 'yyyyMMdd')}-${(order.order_number || String(order.id)).slice(-3)}`;
+  const invNo = invoiceNumber || order.invoice_number || `INV-${order.id}`;
+
+  const minTableRows = Math.max(5, items.length);
+
+  const {
+    tagline = 'Your Trusted Online Store',
+    phone: shopPhone = 'Phone',
+    email: shopEmail = bot?.admin_notification_email || 'Email',
+    website: shopWebsite = 'Website',
+    address: shopAddress = 'Address',
+    notes: shopNotes = '',
+  } = receiptSettings;
+
+  const botLogo = await getBotLogoDataUrl(bot?.profile_picture || '');
+  const emojis = {
+    phone: renderEmoji('\u{1F4DE}'), email: renderEmoji('✉️'), globe: renderEmoji('\u{1F310}'),
+    pin: renderEmoji('\u{1F4CD}'), person: renderEmoji('\u{1F464}'), receipt: renderEmoji('\u{1F9FE}'),
+    card: renderEmoji('\u{1F4B3}'), money: renderEmoji('\u{1F4B0}'),
+  };
+  const taglineImg = tagline ? renderSvgTextLine(tagline, 13, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
+  const notesImg = shopNotes ? renderSvgTextLine(shopNotes.slice(0, 100), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
+  const notesImg2 = shopNotes && shopNotes.length > 100 ? renderSvgTextLine(shopNotes.slice(100, 200), 10, "'Open Sans', system-ui, -apple-system, sans-serif", '#666') : null;
+
+  const svg = buildSvgData(order, bot, botName, items, subtotal, total, orderDate, paymentMethod, minTableRows, invNo, recNo, receiptType, currency, { tagline, phone: shopPhone, email: shopEmail, website: shopWebsite, address: shopAddress, notes: shopNotes, botLogo, emojis, taglineImg, notesImg, notesImg2 });
+
+  const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => { URL.revokeObjectURL(url); resolve(i); };
+    i.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG image failed to load')); };
+    i.src = url;
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+
+  const imgData = canvas.toDataURL('image/png');
+  const isLandscape = orientation === 'landscape';
+  const pdfW = isLandscape ? targetHeightMm : targetWidthMm;
+  const initialH = isLandscape ? targetWidthMm : targetHeightMm;
+  const contentHeightMm = (canvas.height * pdfW) / canvas.width;
+  const pdfH = Math.max(initialH, contentHeightMm);
+
+  const pdf = new jsPDF({
+    orientation: isLandscape ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: [pdfW, pdfH]
+  });
+
+  pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+  return { pdf, pngDataUrl: imgData, pdfW, pdfH };
 }

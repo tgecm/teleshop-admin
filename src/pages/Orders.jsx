@@ -8,9 +8,11 @@ import { useAuthStore } from '../store/authStore';
 import { useToastStore } from '../store/toastStore';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import { formatPrice } from '../utils/formatPrice';
+import { useNavigate } from 'react-router-dom';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
 import Receipt from '../components/orders/Receipt';
+import PrintLabelConfirmModal from '../components/orders/PrintLabelConfirmModal';
 import { Capacitor } from '@capacitor/core';
 import { downloadBlob } from '../utils/download';
 import {
@@ -38,6 +40,7 @@ import {
   Hash,
   Store,
   Download,
+  Printer,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -60,10 +63,12 @@ export default function Orders() {
   const bots = useBotStore(s => s.bots);
   const currentBot = bots.find(b => b.id === Number(selectedBotId));
   const botUsername = currentBot?.bot_username;
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [receiptType, setReceiptType] = useState('invoice');
   const [orderTab, setOrderTab] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -677,20 +682,20 @@ export default function Orders() {
                     </>
                   )}
 
-                  {['confirmed', 'processing', 'shipped', 'delivered'].includes(selectedOrder.status) && (
+                  {(['confirmed', 'processing', 'shipped', 'delivered'].includes(selectedOrder.status) || selectedOrder.payment_method === 'COD') && (
                     <div className="flex gap-3">
                       <button
                         onClick={() => { setReceiptType('invoice'); setShowReceipt(true); }}
                         className="flex-1 py-3 bg-white text-gray-700 font-bold rounded-2xl border border-gray-200 hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                       >
-                        <ReceiptIcon className="w-5 h-5" />
+                        <ReceiptIcon className="w-5 h-5 text-gray-500" />
                         Download Invoice
                       </button>
                       <button
                         onClick={() => { setReceiptType('receipt'); setShowReceipt(true); }}
                         className="flex-1 py-3 bg-white text-gray-700 font-bold rounded-2xl border border-gray-200 hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                       >
-                        <ReceiptIcon className="w-5 h-5" />
+                        <ReceiptIcon className="w-5 h-5 text-gray-500" />
                         Download Receipt
                       </button>
                     </div>
@@ -702,6 +707,14 @@ export default function Orders() {
           </>
         )}
       </AnimatePresence>
+
+      <PrintLabelConfirmModal
+        open={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        order={selectedOrder}
+        bot={currentBot}
+        onOpenSettings={() => navigate('/settings')}
+      />
 
       <Receipt
         order={selectedOrder}
