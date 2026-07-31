@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Printer, Save, CheckCircle2, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LABEL_PRESETS, getLabelSettings, saveLabelSettings } from '../orders/PrintLabelConfirmModal';
@@ -11,6 +11,7 @@ export default function ShippingLabelSettingsSection() {
   const { selectedBotId } = useBotStore();
   const addToast = useToastStore(state => state.addToast);
   const [showCustomForm, setShowCustomForm] = useState(false);
+  const savedSnapshot = useRef(null);
 
   // Fetch content blocks from database
   const { data: contentBlocks } = useQuery({
@@ -22,17 +23,32 @@ export default function ShippingLabelSettingsSection() {
   const receiptBlock = contentBlocks?.find(b => b.key === 'receipt_settings');
   const dbLabelSettings = receiptBlock?.content_data || {};
 
-  const [settings, setSettings] = useState(() => getLabelSettings(dbLabelSettings));
+  const [settings, setSettings] = useState(() => {
+    const initial = getLabelSettings(dbLabelSettings);
+    savedSnapshot.current = { ...initial };
+    return initial;
+  });
 
   // Sync state whenever database label settings are fetched or updated
   useEffect(() => {
     if (receiptBlock?.content_data) {
-      setSettings(prev => ({
-        ...prev,
-        ...receiptBlock.content_data,
-      }));
+      setSettings(prev => {
+        const merged = { ...prev, ...receiptBlock.content_data };
+        savedSnapshot.current = { ...merged };
+        return merged;
+      });
     }
   }, [receiptBlock]);
+
+  const hasChanges = (() => {
+    if (!savedSnapshot.current) return false;
+    const s = savedSnapshot.current;
+    return (
+      s.presetId !== settings.presetId ||
+      s.customWidthMm !== settings.customWidthMm ||
+      s.customHeightMm !== settings.customHeightMm
+    );
+  })();
 
   // Database Save Mutation
   const saveMutation = useMutation({
@@ -47,16 +63,17 @@ export default function ShippingLabelSettingsSection() {
       queryClient.invalidateQueries(['content-blocks', selectedBotId]);
       saveLabelSettings(settings); // Backup locally for offline fallback
       setShowCustomForm(false); // Hide custom form after successful save
-      addToast('Label settings saved to database successfully!', 'success');
+      addToast('Label settings saved successfully!', 'success');
     },
     onError: (err) => {
-      console.error('Failed to save label settings to database', err);
-      addToast(err?.message || 'Failed to save settings to database', 'error');
+      console.error('Failed to Save', err);
+      addToast(err?.message || 'Failed to save settings', 'error');
     }
   });
 
   const handleSave = () => {
-    setShowCustomForm(false); // Hide custom form on save
+    setShowCustomForm(false);
+    savedSnapshot.current = { ...settings };
     saveLabelSettings(settings);
     if (selectedBotId) {
       saveMutation.mutate(settings);
@@ -73,18 +90,20 @@ export default function ShippingLabelSettingsSection() {
             <Printer className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Shipping Label & Paper Settings</h3>
-            <p className="text-xs text-gray-500">Configure default paper sizes & label preferences stored in your account database</p>
+            <h3 className="text-sm font-bold text-gray-900">Print Settings</h3>
+            <p className="text-xs text-gray-500">Print Preferences</p>
           </div>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saveMutation.isPending}
-          className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
-        >
-          {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saveMutation.isPending ? 'Saving to Database...' : 'Save Label Settings'}
-        </button>
+        {hasChanges && (
+          <button
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+            className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+          >
+            {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {saveMutation.isPending ? 'Saving...' : 'Save'}
+          </button>
+        )}
       </div>
 
       {/* Preset Selector */}
@@ -131,14 +150,16 @@ export default function ShippingLabelSettingsSection() {
         <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-3">
           <div className="flex items-center justify-between">
             <div className="text-xs font-bold text-amber-900">Custom Paper Dimensions (in millimeters)</div>
-            <button
-              onClick={handleSave}
-              disabled={saveMutation.isPending}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
-            >
-              {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-              {saveMutation.isPending ? 'Saving...' : 'Save Custom Dimensions'}
-            </button>
+            {hasChanges && (
+              <button
+                onClick={handleSave}
+                disabled={saveMutation.isPending}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+              >
+                {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                {saveMutation.isPending ? 'Saving...' : 'Save'}
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

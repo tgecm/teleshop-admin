@@ -49,7 +49,7 @@ export function saveLabelSettings(settings) {
   try {
     localStorage.setItem('teleshop_label_settings', JSON.stringify(settings));
   } catch (e) {
-    console.error('Failed to save label settings', e);
+    console.error('Failed to Save', e);
   }
 }
 
