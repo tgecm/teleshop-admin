@@ -397,11 +397,17 @@ export default function Orders() {
                       <Package className="w-3 h-3" /> Products
                     </h3>
                     <div className="space-y-1">
-                      {selectedOrder.items?.map((item, idx) => (
-                        <div key={idx} className="text-sm text-gray-700">
-                          • {item.product_name || item.name}{item.variant_label ? <span className="text-gray-400"> [{item.variant_label}]</span> : null} (x{item.quantity}) - {formatPrice(item.price * item.quantity, selectedBot?.currency || 'MMK')}
-                        </div>
-                      ))}
+                      {selectedOrder.items?.map((item, idx) => {
+                        const pName = item.product_name || item.name || 'Product';
+                        const vLabel = item.variant_label || item.variant || item.options || item.color;
+                        const hasParens = pName.includes('(');
+                        const displayLabel = !hasParens && vLabel ? `${pName} (${vLabel})` : pName;
+                        return (
+                          <div key={idx} className="text-sm font-semibold text-gray-800">
+                            • {displayLabel} <span className="text-gray-500 font-normal">(x{item.quantity})</span> - <span className="font-bold text-gray-900">{formatPrice(item.price * item.quantity, selectedBot?.currency || 'MMK')}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 

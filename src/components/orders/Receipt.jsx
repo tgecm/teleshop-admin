@@ -1141,7 +1141,14 @@ const dataUrlToBlob = (dataUrl) => {
                           return (
                             <div key={i} style={s.tableRow}>
                               <div style={s.tdId}>{i + 1}</div>
-                              <div style={s.tdProduct}>{item.product_name || item.name || '—'}{item.variant_label ? <span style={{color:'#9ca3af',fontSize:10}}> [{item.variant_label}]</span> : null}</div>
+                              <div style={s.tdProduct}>
+                                {(() => {
+                                  const pName = item.product_name || item.name || '—';
+                                  const vLabel = item.variant_label || item.variant || item.options || item.color;
+                                  const hasParens = pName.includes('(');
+                                  return !hasParens && vLabel ? `${pName} (${vLabel})` : pName;
+                                })()}
+                              </div>
                               <div style={s.tdQty}>{item.quantity || '—'}</div>
                               <div style={isInv ? s.tdUnitInv : s.tdUnit}>{formatPrice(item.price || 0, currency)}</div>
                               <div style={isInv ? s.tdTotalInv : s.tdTotal}>{formatPrice(lineTotal, currency)}</div>

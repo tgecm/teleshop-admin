@@ -3812,7 +3812,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       </AnimatePresence>
 
       {/* Scroll to top & mode switcher */}
-      {showScrollFabs && (
+      {showScrollFabs && !selectedProduct && (
         <>
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}
