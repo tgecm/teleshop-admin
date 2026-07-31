@@ -1733,12 +1733,6 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     }
     return [];
   });
-  const telegramDisabled = colors.length > 0 || options.length > 0;
-  useEffect(() => {
-    if (telegramDisabled && formData.show_on_telegram) {
-      setFormData(prev => ({ ...prev, show_on_telegram: false }));
-    }
-  }, [telegramDisabled]);
   const uid = () => Math.random().toString(36).substring(2, 9);
 
   const addOption = () => {
@@ -1771,49 +1765,114 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
       return updated;
     });
   };
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showColorPickerModal, setShowColorPickerModal] = useState(false);
+  const [previewColorHex, setPreviewColorHex] = useState('#FF0000');
+  const [previewColorName, setPreviewColorName] = useState('Red');
+  const [previewColorError, setPreviewColorError] = useState('');
+  const [isCustomPicker, setIsCustomPicker] = useState(false);
   const [showPhotoConfirm, setShowPhotoConfirm] = useState(false);
   const [uploadingColor, setUploadingColor] = useState(null);
   const colorFileInputRef = useRef(null);
   const pendingColorRef = useRef(null);
-  const customColorInputRef = useRef(null);
 
-  const handleColorSelect = (hex) => {
-    if (colors.some(c => c.color === hex)) {
-      addToast('Color already added', 'error');
+  const openColorPickerModal = () => {
+    const availablePreset = PREDEFINED_COLORS.find(p => !colors.some(c => c.color.toLowerCase() === p.hex.toLowerCase())) || PREDEFINED_COLORS[0];
+    setPreviewColorHex(availablePreset.hex);
+    setPreviewColorName(availablePreset.name);
+    setPreviewColorError('');
+    setIsCustomPicker(false);
+    setShowColorPickerModal(true);
+  };
+
+  const handleSelectPresetSwatch = (preset) => {
+    setPreviewColorHex(preset.hex);
+    setPreviewColorName(preset.name);
+    setPreviewColorError('');
+    setIsCustomPicker(false);
+  };
+
+  const handleCustomColorInput = (e) => {
+    const hex = e.target.value;
+    if (!hex) return;
+    setPreviewColorHex(hex);
+    if (!isCustomPicker) {
+      setIsCustomPicker(true);
+      setPreviewColorName(getColorName(hex));
+    }
+  };
+
+  const saveSelectedColor = () => {
+    const trimmedName = previewColorName.trim();
+    if (!trimmedName) {
+      setPreviewColorError('Please enter a color name.');
       return;
     }
-    pendingColorRef.current = hex;
-    setShowColorPicker(false);
+
+    if (colors.some(c => c.color.toLowerCase() === previewColorHex.toLowerCase())) {
+      setPreviewColorError(`Color hex ${previewColorHex} is already added to this product.`);
+      return;
+    }
+
+    if (colors.some(c => (c.name && c.name.toLowerCase() === trimmedName.toLowerCase()))) {
+      setPreviewColorError(`Color name "${trimmedName}" is already added to this product.`);
+      return;
+    }
+
+    if (isCustomPicker) {
+      const presetMatch = PREDEFINED_COLORS.find(
+        p => p.name.toLowerCase() === trimmedName.toLowerCase()
+      );
+      if (presetMatch && presetMatch.hex.toLowerCase() !== previewColorHex.toLowerCase()) {
+        setPreviewColorError(`"${trimmedName}" is a preset color name. Please select it from the preset grid or enter a unique custom name.`);
+        return;
+      }
+    }
+
+    pendingColorRef.current = { color: previewColorHex, name: trimmedName };
+    setShowColorPickerModal(false);
     setShowPhotoConfirm(true);
   };
 
   const handleColorNoPhoto = () => {
-    const hex = pendingColorRef.current;
-    if (!hex) return;
+    const target = pendingColorRef.current;
+    if (!target) return;
     pendingColorRef.current = null;
     setShowPhotoConfirm(false);
-    setColors(prev => [...prev, { color: hex }]);
+    setColors(prev => [...prev, typeof target === 'string' ? { color: target, name: getColorName(target) } : target]);
   };
 
   const handleCustomColorPick = (e) => {
     const hex = e.target.value;
     if (!hex) return;
     e.target.value = '';
-    handleColorSelect(hex);
+    const name = pendingCustomNameRef.current || getColorName(hex);
+    pendingCustomNameRef.current = null;
+
+    if (colors.some(c => c.color === hex)) {
+      addToast('Color already added', 'error');
+      return;
+    }
+
+    pendingColorRef.current = { color: hex, name };
+    setShowColorPicker(false);
+    setShowPhotoConfirm(true);
   };
 
   const handleColorImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || !pendingColorRef.current) return;
-    const hex = pendingColorRef.current;
+    const target = pendingColorRef.current;
     pendingColorRef.current = null;
     setShowPhotoConfirm(false);
-    setUploadingColor(hex);
+    const colorHex = typeof target === 'string' ? target : target.color;
+    setUploadingColor(colorHex);
     try {
       const compressed = await compressImage(file, 720);
       const res = await uploadImage(compressed, selectedBotId);
-      setColors(prev => [...prev, { color: hex, file_id: res.file_id }]);
+      const colorObj = typeof target === 'string'
+        ? { color: target, name: getColorName(target), file_id: res.file_id }
+        : { ...target, file_id: res.file_id };
+      setColors(prev => [...prev, colorObj]);
     } catch (err) {
       addToast('Failed to upload color image', 'error');
     } finally {
@@ -2299,44 +2358,139 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                       <X className="w-3 h-3" />
                     </button>
                   </div>
-                  <span className="text-[9px] text-gray-400 font-medium uppercase">{getColorName(c.color)}</span>
+                  <span className="text-[9px] text-gray-400 font-medium uppercase">{c.name || getColorName(c.color)}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {showColorPicker && (
-            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Select Color</span>
-                <button type="button" onClick={() => setShowColorPicker(false)} className="text-gray-400 hover:text-gray-600">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {PREDEFINED_COLORS.filter(c => !colors.some(cc => cc.color === c.hex)).map(c => (
+          {showColorPickerModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+              <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 overflow-hidden relative">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <Palette className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800">Select Color</h3>
+                  </div>
                   <button
-                    key={c.hex}
                     type="button"
-                    disabled={uploadingColor !== null}
-                    onClick={() => handleColorSelect(c.hex)}
-                    className={`w-9 h-9 rounded-xl border-2 border-gray-300 transition-all active:scale-90 hover:scale-110 hover:shadow-md ${c.hex === '#FFFFFF' ? 'shadow-inner' : ''}`}
-                    style={{ backgroundColor: c.hex }}
-                    title={c.name}
-                  />
-                ))}
-                <button
-                  type="button"
-                  disabled={uploadingColor !== null}
-                  onClick={() => customColorInputRef.current?.click()}
-                  className="w-9 h-9 rounded-xl border-2 border-dashed border-gray-300 bg-white transition-all active:scale-90 hover:scale-110 hover:shadow-md flex items-center justify-center"
-                  title="Custom Color"
-                >
-                  <span className="text-lg font-bold text-gray-400 leading-none">+</span>
-                </button>
-                <input ref={customColorInputRef} type="color" onChange={handleCustomColorPick} className="hidden" />
+                    onClick={() => setShowColorPickerModal(false)}
+                    className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Live Color Preview Card */}
+                <div className="bg-gray-50 border border-gray-200/80 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center gap-4">
+                    {/* Color Swatch */}
+                    <div
+                      className="w-16 h-16 rounded-2xl border-4 border-white shadow-md flex-shrink-0 transition-all duration-300 transform hover:scale-105"
+                      style={{ backgroundColor: previewColorHex }}
+                    />
+                    
+                    {/* Color Name & Hex Input */}
+                    <div className="flex-1 space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Color Name</label>
+                      <input
+                        type="text"
+                        value={previewColorName}
+                        onChange={(e) => {
+                          setPreviewColorName(e.target.value);
+                          if (previewColorError) setPreviewColorError('');
+                        }}
+                        placeholder="Color Name (e.g. Red, Rose Gold)"
+                        className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 outline-none transition-all"
+                      />
+                      <div className="flex items-center justify-between text-xs font-mono text-gray-400 font-semibold px-1">
+                        <span>HEX: {previewColorHex.toUpperCase()}</span>
+                        {isCustomPicker && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-sans font-bold">Custom</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {previewColorError && (
+                    <div className="bg-rose-50 border border-rose-200 rounded-xl p-2.5 text-xs text-rose-600 font-medium flex items-center gap-2">
+                      <span>⚠️</span>
+                      <span>{previewColorError}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Preset Color Swatches */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Preset Colors</span>
+                    <span className="text-[11px] text-gray-400 font-medium">{PREDEFINED_COLORS.length} colors available</span>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto pr-1 flex flex-wrap gap-2.5 custom-scrollbar">
+                    {PREDEFINED_COLORS.map((p) => {
+                      const isSelected = previewColorHex.toLowerCase() === p.hex.toLowerCase() && !isCustomPicker;
+                      const isAdded = colors.some(c => c.color.toLowerCase() === p.hex.toLowerCase());
+                      return (
+                        <button
+                          key={p.hex}
+                          type="button"
+                          disabled={isAdded}
+                          onClick={() => handleSelectPresetSwatch(p)}
+                          title={`${p.name} (${p.hex})`}
+                          className={`w-9 h-9 rounded-xl border-2 transition-all relative flex items-center justify-center ${
+                            isSelected
+                              ? 'border-indigo-600 shadow-lg scale-110 ring-2 ring-indigo-500/30'
+                              : isAdded
+                              ? 'opacity-30 cursor-not-allowed border-gray-200'
+                              : 'border-gray-200 hover:scale-105 hover:border-gray-400'
+                          }`}
+                          style={{ backgroundColor: p.hex }}
+                        >
+                          {isSelected && (
+                            <span className={`w-2.5 h-2.5 rounded-full ${p.hex === '#FFFFFF' || p.hex === '#FFF44F' || p.hex === '#E6E6FA' ? 'bg-black' : 'bg-white'}`} />
+                          )}
+                        </button>
+                      );
+                    })}
+
+                    {/* Custom Color Wheel Button */}
+                    <label
+                      title="Pick Custom Color"
+                      className={`w-9 h-9 rounded-xl border-2 border-dashed border-gray-300 bg-gradient-to-br from-red-400 via-green-400 to-blue-500 transition-all hover:scale-105 cursor-pointer flex items-center justify-center ${
+                        isCustomPicker ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110 border-indigo-600' : ''
+                      }`}
+                    >
+                      <span className="w-5 h-5 rounded-full bg-white/90 text-indigo-700 font-bold text-xs flex items-center justify-center shadow-sm">+</span>
+                      <input
+                        type="color"
+                        value={previewColorHex}
+                        onChange={handleCustomColorInput}
+                        className="opacity-0 w-0 h-0 absolute pointer-events-none"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowColorPickerModal(false)}
+                    className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 rounded-2xl text-xs font-bold text-gray-600 transition-all active:scale-95"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveSelectedColor}
+                    className="flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-indigo-200 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    Save Color ✨
+                  </button>
+                </div>
               </div>
-              <p className="text-[10px] text-gray-400 mt-3 text-center">Select a color, then upload its product image</p>
             </div>
           )}
 
@@ -2357,10 +2511,10 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
           )}
 
           <div className="flex items-center gap-2">
-            {!showColorPicker && !showPhotoConfirm && (
+            {!showColorPickerModal && !showPhotoConfirm && (
               <button
                 type="button"
-                onClick={() => setShowColorPicker(true)}
+                onClick={openColorPickerModal}
                 className="px-4 py-2.5 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all active:scale-[0.98] flex items-center gap-1.5"
               >
                 <Palette className="w-4 h-4" />
@@ -2454,20 +2608,16 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
               { key: 'show_on_telegram', label: 'Telegram' },
               { key: 'show_on_website', label: 'Website' },
               { key: 'show_on_guest', label: 'Guest' },
-            ].map(({ key, label }) => {
-              const disabled = key === 'show_on_telegram' && telegramDisabled;
-              return (
+            ].map(({ key, label }) => (
               <label
                 key={key}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all select-none ${
-                  disabled ? 'opacity-40 cursor-not-allowed border-gray-200 bg-gray-50' :
                   formData[key] ? 'border-indigo-300 bg-indigo-50/50' : 'border-gray-200 bg-white hover:border-gray-300'
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={formData[key]}
-                  disabled={disabled}
                   onChange={(e) => {
                     // Prevent unchecking the last channel
                     const checked = e.target.checked;
@@ -2484,8 +2634,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                 />
                 <span className={`text-xs font-bold ${formData[key] ? 'text-indigo-700' : 'text-gray-600'}`}>{label}</span>
               </label>
-            );
-            })}
+            ))}
           </div>
         </div>
 

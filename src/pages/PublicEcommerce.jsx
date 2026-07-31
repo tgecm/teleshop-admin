@@ -1852,10 +1852,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const products = useMemo(() => {
     const all = data?.products || [];
     return all.filter(p => {
-      if (viewMode === 'telegram') {
-        if (p.specifications?.colors?.length > 0 || p.specifications?.options?.length > 0) return false;
-        return p.show_on_telegram !== false;
-      }
+      if (viewMode === 'telegram') return p.show_on_telegram !== false;
       if (viewMode === 'ecommerce') return p.show_on_website !== false;
       if (viewMode === 'guest') return p.show_on_guest !== false;
       return true;
