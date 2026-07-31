@@ -7,6 +7,7 @@ import { useCartState } from '../context/CartContext';
 
 import { API_BASE } from '../api/config';
 import { formatPrice } from '../utils/formatPrice';
+import { getColorName } from '../data/colors';
 
 function getPublicImageUrls(image_url, bot_id) {
   if (!image_url) return [];
@@ -41,14 +42,6 @@ function normalizeSearchText(text) {
   }
   return result.join('');
 }
-
-const COLOR_NAMES = {
-  '#FF0000': 'Red', '#00FF00': 'Green', '#0000FF': 'Blue', '#FFFF00': 'Yellow',
-  '#FF00FF': 'Magenta', '#00FFFF': 'Cyan', '#000000': 'Black', '#FFFFFF': 'White',
-  '#808080': 'Gray', '#C0C0C0': 'Silver', '#800000': 'Maroon', '#808000': 'Olive',
-  '#008000': 'Dark Green', '#800080': 'Purple', '#008080': 'Teal', '#000080': 'Navy',
-  '#FFA500': 'Orange', '#FFC0CB': 'Pink', '#A52A2A': 'Brown', '#F5F5DC': 'Beige',
-};
 
 export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecommerce', onNavigate }) {
   const currency = shop?.currency || 'MMK';
@@ -350,7 +343,7 @@ function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selCol
                       <div className={`w-10 h-10 rounded-full border-[3px] transition-all ${isSelected ? 'border-white ring-2 ring-offset-2 ring-indigo-500 shadow-lg' : 'border-gray-300'}`}
                         style={{ backgroundColor: c.color }} />
                       <span className={`text-[10px] font-bold ${isSelected ? 'text-indigo-600' : 'text-gray-500'}`}>
-                        {COLOR_NAMES[c.color] || c.color.replace('#', '')}
+                        {getColorName(c.color)}
                       </span>
                     </button>
                   );

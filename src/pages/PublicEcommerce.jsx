@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
 import SearchableSelect from '../components/shared/SearchableSelect';
 import { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
+import { getColorName } from '../data/colors';
 import { useToastStore } from '../store/toastStore';
 import ShopBanner from '../components/shared/ShopBanner';
 import { useAuth } from '../context/AuthContext';
@@ -58,12 +59,6 @@ function getCartKey(slug, viaDomain, viewMode) {
   if (viewMode === 'ecommerce') return base + '_user';
   return base;
 }
-
-const COLOR_NAMES = {
-  '#FF0000': 'Red', '#2563EB': 'Blue', '#16A34A': 'Green', '#EAB308': 'Yellow',
-  '#EA580C': 'Orange', '#9333EA': 'Purple', '#EC4899': 'Pink', '#000000': 'Black',
-  '#FFFFFF': 'White', '#6B7280': 'Gray', '#78350F': 'Brown', '#0D9488': 'Teal',
-};
 
 function linkifyText(text) {
   const urlRegex = /(https?:\/\/[^\s<]+)|((?:www\.)[^\s<]+\.[^\s<]{2,})|([a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z]{2,})+(?:\/[^\s<]*)?)/gi;
@@ -291,7 +286,7 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
                         isSelected ? 'border-white ring-2 ring-offset-2 ring-indigo-500 shadow-lg' : 'border-gray-300'
                       }`} style={{ backgroundColor: c.color }} />
                       <span className={`text-[10px] font-bold transition-all ${isSelected ? 'text-indigo-600' : 'text-gray-500'}`}>
-                        {COLOR_NAMES[c.color] || c.color.replace('#', '')}
+                        {getColorName(c.color)}
                       </span>
                     </button>
                   );
@@ -784,7 +779,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
         township: contactForm.township,
         items: cartItems.map(i => {
           const variantParts = [];
-          if (i.selected_color) variantParts.push(COLOR_NAMES[i.selected_color] || i.selected_color);
+          if (i.selected_color) variantParts.push(getColorName(i.selected_color));
           if (i.selected_options) {
             const p = products.find(pp => pp.id === i.product_id);
             const opts = p?.specifications?.options || [];
@@ -2705,7 +2700,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                                   isSelected ? 'border-white ring-2 ring-offset-2 ring-indigo-500 shadow-lg' : 'border-gray-300'
                                 }`} style={{ backgroundColor: c.color }} />
                                 <span className={`text-[10px] font-bold transition-all ${isSelected ? 'text-indigo-600' : 'text-gray-500'}`}>
-                                  {COLOR_NAMES[c.color] || c.color.replace('#', '')}
+                                  {getColorName(c.color)}
                                 </span>
                               </button>
                             );
@@ -3095,7 +3090,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                                   isSelected ? 'border-indigo-500 scale-110 shadow-md' : 'border-gray-300 hover:scale-110'
                                 }`}
                                 style={{ backgroundColor: c.color }}
-                                title={COLOR_NAMES[c.color] || c.color}
+                                title={getColorName(c.color)}
                               >
                                 {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white shadow-sm" />}
                               </button>
