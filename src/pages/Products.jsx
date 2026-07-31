@@ -24,59 +24,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import townshipsData, { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
-
-const PREDEFINED_COLORS = [
-  { name: 'Red', hex: '#FF0000' },
-  { name: 'Dark Red', hex: '#8B0000' },
-  { name: 'Crimson', hex: '#DC143C' },
-  { name: 'Maroon', hex: '#800000' },
-  { name: 'Orange Red', hex: '#FF4500' },
-  { name: 'Tomato', hex: '#FF6347' },
-  { name: 'Coral', hex: '#FF7F50' },
-  { name: 'Orange', hex: '#FFA500' },
-  { name: 'Dark Orange', hex: '#FF8C00' },
-  { name: 'Amber', hex: '#FFBF00' },
-  { name: 'Yellow', hex: '#FFD700' },
-  { name: 'Gold', hex: '#FFC107' },
-  { name: 'Goldenrod', hex: '#DAA520' },
-  { name: 'Lemon', hex: '#FFF44F' },
-  { name: 'Lime', hex: '#00FF00' },
-  { name: 'Lime Green', hex: '#32CD32' },
-  { name: 'Green', hex: '#008000' },
-  { name: 'Forest Green', hex: '#228B22' },
-  { name: 'Dark Green', hex: '#006400' },
-  { name: 'Olive', hex: '#808000' },
-  { name: 'Teal', hex: '#008080' },
-  { name: 'Cyan', hex: '#00CED1' },
-  { name: 'Sky Blue', hex: '#87CEEB' },
-  { name: 'Light Blue', hex: '#ADD8E6' },
-  { name: 'Blue', hex: '#0000FF' },
-  { name: 'Royal Blue', hex: '#4169E1' },
-  { name: 'Navy', hex: '#000080' },
-  { name: 'Indigo', hex: '#4B0082' },
-  { name: 'Purple', hex: '#800080' },
-  { name: 'Violet', hex: '#8A2BE2' },
-  { name: 'Lavender', hex: '#E6E6FA' },
-  { name: 'Magenta', hex: '#FF00FF' },
-  { name: 'Pink', hex: '#FFC0CB' },
-  { name: 'Hot Pink', hex: '#FF69B4' },
-  { name: 'Deep Pink', hex: '#FF1493' },
-  { name: 'Plum', hex: '#DDA0DD' },
-  { name: 'Orchid', hex: '#DA70D6' },
-  { name: 'Brown', hex: '#A52A2A' },
-  { name: 'Saddle Brown', hex: '#8B4513' },
-  { name: 'Sienna', hex: '#A0522D' },
-  { name: 'Chocolate', hex: '#D2691E' },
-  { name: 'Beige', hex: '#F5F5DC' },
-  { name: 'Tan', hex: '#D2B48C' },
-  { name: 'White', hex: '#FFFFFF' },
-  { name: 'Ivory', hex: '#FFFFF0' },
-  { name: 'Gray', hex: '#808080' },
-  { name: 'Silver', hex: '#C0C0C0' },
-  { name: 'Charcoal', hex: '#36454F' },
-  { name: 'Mint', hex: '#98FF98' },
-  { name: 'Black', hex: '#000000' },
-];
+import { PREDEFINED_COLORS, getColorName } from '../data/colors';
 
 export default function Products() {
   const { selectedBotId } = useBotStore();
@@ -2351,7 +2299,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                       <X className="w-3 h-3" />
                     </button>
                   </div>
-                  <span className="text-[9px] text-gray-400 font-medium uppercase">{PREDEFINED_COLORS.find(pc => pc.hex === c.color)?.name || c.color}</span>
+                  <span className="text-[9px] text-gray-400 font-medium uppercase">{getColorName(c.color)}</span>
                 </div>
               ))}
             </div>
