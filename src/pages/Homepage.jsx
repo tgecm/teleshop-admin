@@ -258,6 +258,8 @@ const PLANS = [
       { ok: true, text: 'AI Agent (API Provided)' },
       { ok: true, text: 'Free API' },
       { ok: true, text: 'Shop Banners' },
+      { ok: true, text: 'UI Templates' },
+      { ok: true, text: 'Custom Printer Presets' },
       { ok: true, text: 'Multi-Platform Website' },
       { ok: true, text: 'QR Menu System' },
       { ok: true, text: 'Multi-Currency (180+ currencies)' },
@@ -273,6 +275,8 @@ const PLANS = [
       { ok: true, text: 'Admin: Unlimited' },
       { ok: true, text: 'Total Bots: 50' },
       { ok: true, text: 'Custom Domains (up to 3)' },
+      { ok: true, text: 'UI Templates (Unlimited)' },
+      { ok: true, text: 'Custom Printer Presets' },
       { ok: true, text: 'Email Notifications' },
     ]
   },
@@ -560,6 +564,8 @@ Set Up လုပ်တာကလည်း တစ်မိနစ်အတွင်
                 items: ['Optimized for speed', 'Fast load times on mobile', 'Built with React & Node.js', 'Efficient database queries'] },  
               { icon: '🍽️', title: 'QR Ordering System', desc: 'Let customers scan QR codes to browse menu, place orders, and pay directly from their phone.', bg: 'rgba(56,189,248,.1)',
                 items: ['Scan QR to view full menu', 'Self-service ordering', 'Direct payment integration', 'Order management in admin panel'] },
+              { icon: '🖨️', title: 'Thermal Printer & Presets', desc: 'Custom thermal receipt and shipping label printing presets (58mm, 80mm, A4, A5, A6, Custom).', bg: 'rgba(255,182,39,.1)',
+                items: ['58mm Bluetooth & 80mm POS Printers', 'A4/A5/A6 Shipping Label Presets', 'Custom MM Dimensions', 'Print Receipts directly from Orders'] },
             ].map((f, i) => (
               <div key={i} className="feat-card reveal" style={{ animationDelay: `${i * 0.05}s` }}>
                 <div className="feat-content">
