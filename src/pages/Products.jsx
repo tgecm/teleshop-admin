@@ -1552,10 +1552,12 @@ function CategoryDropdown({ categories, selected, onSelect }) {
     mutationFn: (id) => deleteCategory(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       if (selected === String(deletingCategory?.id)) onSelect('');
       setDeletingCategory(null);
       setConfirmStep(1);
       setOpen(false);
+      addToast('Category and its products deleted', 'success');
     },
   });
 
@@ -1616,7 +1618,7 @@ function CategoryDropdown({ categories, selected, onSelect }) {
           onClose={handleCloseConfirm}
           onConfirm={() => setConfirmStep(2)}
           title="Delete Category"
-          message={`Every product in "` + (deletingCategory?.name || '') + `" will be deleted. Are you sure?`}
+          message={`Every product in "${deletingCategory?.name || ''}" will be deleted. Are you sure?`}
           confirmText="Delete"
           variant="danger"
         />
