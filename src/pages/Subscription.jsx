@@ -146,7 +146,9 @@ export default function Subscription() {
         'Free API: ✅', 'Help Setting Up Product: ✅',
         'AI Agent: Yes (API Provided)',
         'E-commerce Website: Yes (Multi-Platform)',
-        'Custom Domain: Yes (1)', 'E-commerce Shop Banner: Yes', 'Multi-Currency: Yes (180+ currencies)', 'QR Menu System: ✅', 'Staff Accounts: ✅'
+        'Custom Domain: Yes (1)', 'E-commerce Shop Banner: Yes',
+        'UI Templates: ✅', 'Custom Printer Presets: ✅',
+        'Multi-Currency: Yes (180+ currencies)', 'QR Menu System: ✅', 'Staff Accounts: ✅'
       ],
     },
     {
@@ -165,7 +167,9 @@ export default function Subscription() {
         'Categories: Unlimited', 'Products: Unlimited', 'Admin: Unlimited',
         'Automation: Unlimited', 'Custom Commands: Unlimited',
         'Payment Methods: Unlimited', 'Broadcasts: Unlimited', 'Total Bots: 50',
-        'Custom Domain: Yes (up to 3)', 'Multi-Currency: Yes (180+ currencies)', 'New Order Email Notification: Yes',
+        'Custom Domain: Yes (up to 3)', 'Multi-Currency: Yes (180+ currencies)',
+        'UI Templates: Unlimited', 'Custom Printer Presets: ✅',
+        'New Order Email Notification: Yes',
         'QR Menu System: ✅', 'Staff Accounts: ✅', 'Feature Request: ✅'
       ],
     }
