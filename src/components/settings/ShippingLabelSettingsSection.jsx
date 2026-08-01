@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Printer, Save, CheckCircle2, Loader2 } from 'lucide-react';
+import { Printer, Save, CheckCircle2, Loader2, Lock } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LABEL_PRESETS, getLabelSettings, saveLabelSettings } from '../orders/PrintLabelConfirmModal';
 import { useBotStore } from '../../store/botStore';
@@ -8,10 +8,16 @@ import { getContentBlocks, updateContentBlock } from '../../api/contentBlocks';
 
 export default function ShippingLabelSettingsSection() {
   const queryClient = useQueryClient();
-  const { selectedBotId } = useBotStore();
+  const { selectedBotId, bots } = useBotStore();
   const addToast = useToastStore(state => state.addToast);
   const [showCustomForm, setShowCustomForm] = useState(false);
   const savedSnapshot = useRef(null);
+
+  const selectedBot = Array.isArray(bots) ? bots.find(b => b.id?.toString() === selectedBotId?.toString()) : null;
+  const rawPlan = selectedBot?.plan_name || 'Standard';
+  const planKey = rawPlan.toLowerCase();
+  const isPrinterAllowed = planKey === 'pro' || planKey === 'business';
+  const displayPlanName = rawPlan.charAt(0).toUpperCase() + rawPlan.slice(1);
 
   // Fetch content blocks from database
   const { data: contentBlocks } = useQuery({
@@ -72,6 +78,10 @@ export default function ShippingLabelSettingsSection() {
   });
 
   const handleSave = () => {
+    if (!isPrinterAllowed) {
+      addToast(`${displayPlanName} Plan not allow to change Printers. Please Upgarde`, 'error');
+      return;
+    }
     setShowCustomForm(false);
     savedSnapshot.current = { ...settings };
     saveLabelSettings(settings);
@@ -79,6 +89,19 @@ export default function ShippingLabelSettingsSection() {
       saveMutation.mutate(settings);
     } else {
       addToast('Saved locally', 'success');
+    }
+  };
+
+  const handlePresetSelect = (presetId) => {
+    if (!isPrinterAllowed) {
+      addToast(`${displayPlanName} Plan not allow to change Printers. Please Upgarde`, 'error');
+      return;
+    }
+    setSettings(prev => ({ ...prev, presetId }));
+    if (presetId === 'custom') {
+      setShowCustomForm(prev => !prev);
+    } else {
+      setShowCustomForm(false);
     }
   };
 
@@ -90,7 +113,14 @@ export default function ShippingLabelSettingsSection() {
             <Printer className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Print Settings</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-gray-900">Print Settings</h3>
+              {!isPrinterAllowed && (
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-md flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-amber-600" /> Pro & Business Only
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500">Print Preferences</p>
           </div>
         </div>
@@ -115,24 +145,20 @@ export default function ShippingLabelSettingsSection() {
             return (
               <div
                 key={preset.id}
-                onClick={() => {
-                  setSettings(prev => ({ ...prev, presetId: preset.id }));
-                  if (preset.id === 'custom') {
-                    setShowCustomForm(prev => !prev);
-                  } else {
-                    setShowCustomForm(false);
-                  }
-                }}
-                className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
-                  isSelected
-                    ? 'border-indigo-600 bg-indigo-50/60 shadow-sm'
-                    : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100/50'
+                onClick={() => handlePresetSelect(preset.id)}
+                className={`p-3 rounded-xl border transition-all flex items-start justify-between ${
+                  !isPrinterAllowed
+                    ? 'opacity-70 cursor-not-allowed bg-gray-50 border-gray-200'
+                    : isSelected
+                    ? 'border-indigo-600 bg-indigo-50/60 shadow-sm cursor-pointer'
+                    : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100/50 cursor-pointer'
                 }`}
               >
                 <div>
                   <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
                     {preset.name}
                     {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />}
+                    {!isPrinterAllowed && <Lock className="w-3 h-3 text-amber-500 ml-auto" />}
                   </div>
                   <div className="text-[10px] text-gray-500 mt-0.5">{preset.desc}</div>
                   <div className="text-[10px] font-bold text-indigo-600 mt-1">

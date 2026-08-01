@@ -510,6 +510,28 @@ export default function PublicShop({ slug, viaDomain }) {
     return <ShopClosed shop={shop} theme={theme} />;
   }
 
+  const plan = shop?.plan_name?.toLowerCase() || 'free';
+  const isWebSupported = plan === 'standard' || plan === 'pro' || plan === 'business';
+  if (!isWebSupported) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center border border-gray-100"
+        >
+          <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Shop Unavailable</h2>
+          <p className="text-gray-500 text-sm leading-relaxed">
+            This shop is currently unavailable...
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen" style={{
       backgroundColor: theme.css['--theme-bg'],
