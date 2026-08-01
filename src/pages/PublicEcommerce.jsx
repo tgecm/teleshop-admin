@@ -1953,8 +1953,12 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     : `/${(slug || shop?.public_slug || shop?.bot_username || 'shop')}-user-dashboard`;
 
   const getProductColors = useCallback((product) => {
-    if (product.specifications?.colors && Array.isArray(product.specifications.colors)) {
-      return product.specifications.colors;
+    let specs = product?.specifications;
+    if (typeof specs === 'string') {
+      try { specs = JSON.parse(specs); } catch (e) { specs = null; }
+    }
+    if (specs?.colors && Array.isArray(specs.colors)) {
+      return specs.colors;
     }
     return [];
   }, []);
