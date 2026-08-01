@@ -119,6 +119,22 @@ export default function Settings() {
   const hasCod = codSettings?.cod_enabled === true;
   const shopOpen = hasPaymentMethod || hasCod;
 
+  const shopSettingsBlock = Array.isArray(contentBlocks) ? contentBlocks.find(b => b.key === 'shop_settings') : null;
+  const shopSettingsData = shopSettingsBlock?.content_data || {};
+  const isManualOpen = shopSettingsData.is_open !== false;
+  const isEffectiveOpen = shopOpen && isManualOpen;
+
+  const handleToggleShopManual = () => {
+    const nextData = {
+      ...shopSettingsData,
+      is_open: !isManualOpen,
+    };
+    updateContentMutation.mutate({
+      key: 'shop_settings',
+      data: nextData,
+    });
+  };
+
   const { data: admins } = useQuery({
     queryKey: ['users', 'admins', selectedBotId],
     queryFn: () => getUsers({ bot_id: Number(selectedBotId), is_admin: true }),
@@ -526,21 +542,40 @@ export default function Settings() {
             <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${shopOpen ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isEffectiveOpen ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
                     <Power className="w-4 h-4" />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-gray-900">Shop Status</h3>
-                    <p className="text-[10px] text-gray-500">Auto-managed based on payment availability</p>
+                    <p className="text-[10px] text-gray-500">Toggle shop online/offline for Website & Telegram</p>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={handleToggleShopManual}
+                  disabled={updateContentMutation.isPending}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5 active:scale-95 ${
+                    isManualOpen
+                      ? 'bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200'
+                  }`}
+                >
+                  <Power className="w-3.5 h-3.5" />
+                  {isManualOpen ? 'Close Shop' : 'Open Shop'}
+                </button>
               </div>
-              <p className={`text-xs font-bold text-center py-2 rounded-xl ${shopOpen ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                {shopOpen ? 'SHOP OPEN' : 'SHOP CLOSED'}
+              <p className={`text-xs font-bold text-center py-2 rounded-xl ${isEffectiveOpen ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                {isEffectiveOpen ? 'SHOP OPEN' : 'SHOP CLOSED'}
               </p>
-              {!shopOpen && (
-                <p className="text-[10px] text-gray-400 text-center mt-2">Add a payment method or enable COD to open the shop</p>
-              )}
+              {!isManualOpen ? (
+                <p className="text-[10px] text-rose-500 font-medium text-center mt-2">
+                  ⚠️ Shop is manually closed. Click "Open Shop" to resume orders on Website & Telegram.
+                </p>
+              ) : !shopOpen ? (
+                <p className="text-[10px] text-gray-400 text-center mt-2">
+                  Add a payment method or enable COD to open the shop.
+                </p>
+              ) : null}
             </section>
 
 
