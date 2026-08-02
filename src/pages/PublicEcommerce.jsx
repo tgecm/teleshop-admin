@@ -711,7 +711,7 @@ function TelegramIcon({ className }) {
   );
 }
 
-function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlug }) {
+function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlug, shop }) {
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState('');
   const { status, timeLeft, loginUrl, botUsername, initLogin, reset } = useTelegramLogin();
@@ -758,8 +758,14 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
         initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
         className="bg-white rounded-[32px] p-8 max-w-sm w-full text-center shadow-2xl"
       >
-        <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-[20px] flex items-center justify-center mx-auto mb-4 shadow-lg">
-          <User className="w-8 h-8 text-indigo-600" />
+        <div className="w-16 h-16 rounded-[20px] overflow-hidden flex items-center justify-center mx-auto mb-4 shadow-lg border border-gray-100 bg-white">
+          {shop?.profile_picture ? (
+            <img src={shop.profile_picture} alt={shop.bot_full_name || 'Shop Logo'} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center">
+              <User className="w-8 h-8 text-indigo-600" />
+            </div>
+          )}
         </div>
         <h2 className="text-xl font-bold text-gray-900 mb-2">Sign in to Purchase</h2>
         <p className="text-sm text-gray-500 mb-6">
@@ -3555,7 +3561,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       {/* Sign In Modal */}
       <AnimatePresence>
         {showSignIn && (
-          <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} botUsername={shop?.bot_username} shopSlug={slug || shop?.public_slug || shop?.bot_username || ''} />
+          <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} botUsername={shop?.bot_username} shopSlug={slug || shop?.public_slug || shop?.bot_username || ''} shop={shop} />
         )}
       </AnimatePresence>
 

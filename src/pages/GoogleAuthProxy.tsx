@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
@@ -50,6 +50,7 @@ function getProxyParams(): { shopSlug: string; redirectUri: string } | null {
 export default function GoogleAuthProxy() {
   const [error, setError] = useState('');
   const [signingIn, setSigningIn] = useState(false);
+  const [autoStarted, setAutoStarted] = useState(false);
 
   const proxyParams = getProxyParams();
   const paramError = !proxyParams
@@ -63,13 +64,16 @@ export default function GoogleAuthProxy() {
     const { shopSlug, redirectUri } = proxyParams;
     const qs = redirectUri.includes('?') ? '&' : '?';
     setSigningIn(true);
+    setError('');
 
     let accessToken: string;
     try {
       accessToken = await requestGoogleIdToken();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Authentication cancelled';
-      window.location.href = `${redirectUri}${qs}auth_status=failed&auth_error=${encodeURIComponent(msg)}`;
+      console.error('Google token request failed:', msg);
+      setError(msg);
+      setSigningIn(false);
       return;
     }
 
@@ -90,13 +94,23 @@ export default function GoogleAuthProxy() {
       result = await exchangeGoogleToken(accessToken, shopSlug, firebaseUid);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
-      window.location.href = `${redirectUri}${qs}auth_status=failed&auth_error=${encodeURIComponent(msg)}`;
+      console.error('Token exchange failed:', msg);
+      setError(msg);
+      setSigningIn(false);
       return;
     }
 
     const userEncoded = encodeURIComponent(JSON.stringify(result.user));
     window.location.href = `${redirectUri}${qs}auth_token=${result.token}&auth_status=success&auth_user=${userEncoded}`;
   }, [proxyParams]);
+
+  // Auto trigger Google sign-in on mount
+  useEffect(() => {
+    if (proxyParams && !paramError && !autoStarted && !error) {
+      setAutoStarted(true);
+      handleSignIn();
+    }
+  }, [proxyParams, paramError, autoStarted, handleSignIn, error]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -105,13 +119,13 @@ export default function GoogleAuthProxy() {
         animate={{ opacity: 1, scale: 1 }}
         className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center"
       >
-        {paramError || error ? (
+        {paramError ? (
           <>
             <div className="w-16 h-16 bg-gradient-to-br from-red-50 to-red-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
               <AlertCircle className="w-8 h-8 text-red-400" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Authentication Error</h2>
-            <p className="text-sm text-gray-500 mb-6">{paramError || error}</p>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Configuration Error</h2>
+            <p className="text-sm text-gray-500 mb-6">{paramError}</p>
             <button
               onClick={() => window.history.back()}
               className="inline-flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all"
@@ -132,9 +146,11 @@ export default function GoogleAuthProxy() {
             <div className="w-16 h-16 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
               <img src="/google-logo.svg" alt="" className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Sign in to Continue</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              {error ? 'Authentication Failed' : 'Sign in to Continue'}
+            </h2>
             <p className="text-sm text-gray-500 mb-6">
-              Sign in with your Google account to access this shop.
+              {error || 'Sign in with your Google account to access this shop.'}
             </p>
             <button
               onClick={handleSignIn}
@@ -143,6 +159,14 @@ export default function GoogleAuthProxy() {
               <img src="/google-logo.svg" alt="" className="w-5 h-5" />
               Sign in with Google
             </button>
+            {error && (
+              <button
+                onClick={() => window.history.back()}
+                className="w-full mt-3 flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm"
+              >
+                Go Back
+              </button>
+            )}
           </>
         )}
       </motion.div>
