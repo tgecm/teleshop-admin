@@ -4,7 +4,7 @@ import { getPublicShop, getPublicShopByDomain } from '../api/public';
 import {
   ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, TrendingUp, Clock, Star, Search, X, ChevronLeft,
-  ArrowUpDown
+  ArrowUpDown, ZoomIn
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -60,8 +60,216 @@ function LoadingSkeleton() {
   );
 }
 
+function FullScreenImageViewer({ images, initialIndex = 0, onClose, title }) {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  const touchStartRef = useRef(null);
+  const initialPinchDistRef = useRef(null);
+  const initialScaleRef = useRef(1);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+
+  useEffect(() => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  }, [currentIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (scale === 1) {
+        if (e.key === 'ArrowLeft' && currentIndex > 0) setCurrentIndex(i => i - 1);
+        if (e.key === 'ArrowRight' && currentIndex < images.length - 1) setCurrentIndex(i => i + 1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, currentIndex, images.length, scale]);
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      initialPinchDistRef.current = dist;
+      initialScaleRef.current = scale;
+    } else if (e.touches.length === 1) {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      if (scale > 1) {
+        isDraggingRef.current = true;
+        dragStartRef.current = { x: e.touches[0].clientX - position.x, y: e.touches[0].clientY - position.y };
+      }
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && initialPinchDistRef.current) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = dist / initialPinchDistRef.current;
+      const newScale = Math.min(Math.max(initialScaleRef.current * factor, 1), 4);
+      setScale(newScale);
+      if (newScale === 1) {
+        setPosition({ x: 0, y: 0 });
+      }
+    } else if (e.touches.length === 1 && isDraggingRef.current && scale > 1) {
+      setPosition({
+        x: e.touches[0].clientX - dragStartRef.current.x,
+        y: e.touches[0].clientY - dragStartRef.current.y
+      });
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (e.touches.length < 2) {
+      initialPinchDistRef.current = null;
+    }
+    if (e.touches.length === 0) {
+      isDraggingRef.current = false;
+      if (touchStartRef.current && scale === 1) {
+        const diffX = e.changedTouches[0].clientX - touchStartRef.current.x;
+        const diffY = e.changedTouches[0].clientY - touchStartRef.current.y;
+        if (Math.abs(diffX) > 60 && Math.abs(diffY) < 50) {
+          if (diffX > 0 && currentIndex > 0) setCurrentIndex(i => i - 1);
+          else if (diffX < 0 && currentIndex < images.length - 1) setCurrentIndex(i => i + 1);
+        }
+      }
+      touchStartRef.current = null;
+    }
+  };
+
+  const handleMouseDown = (e) => {
+    if (scale > 1) {
+      isDraggingRef.current = true;
+      dragStartRef.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDraggingRef.current && scale > 1) {
+      setPosition({
+        x: e.clientX - dragStartRef.current.x,
+        y: e.clientY - dragStartRef.current.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+  };
+
+  const handleDoubleTap = (e) => {
+    e.stopPropagation();
+    if (scale > 1) {
+      setScale(1);
+      setPosition({ x: 0, y: 0 });
+    } else {
+      setScale(2.5);
+    }
+  };
+
+  const handleWheel = (e) => {
+    const zoomFactor = 0.15;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const newScale = Math.min(Math.max(scale + direction * zoomFactor, 1), 4);
+    setScale(newScale);
+    if (newScale === 1) {
+      setPosition({ x: 0, y: 0 });
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col justify-between select-none touch-none"
+      onClick={() => { if (scale === 1) onClose(); }}
+    >
+      <div className="p-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/55 to-transparent pointer-events-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          {images.length > 1 && (
+            <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-white text-xs font-bold shadow-md">
+              {currentIndex + 1} / {images.length}
+            </span>
+          )}
+          {title && <span className="text-white font-medium text-sm truncate max-w-[200px] drop-shadow">{title}</span>}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-white/40 text-xs hidden sm:inline-block">Double click / Pinch to zoom</span>
+          <button
+            onClick={onClose}
+            className="p-2.5 bg-white/10 hover:bg-white/25 text-white rounded-full transition-all active:scale-95 shadow"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div
+        className="flex-1 relative flex items-center justify-center overflow-hidden w-full h-full cursor-zoom-in"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onDoubleClick={handleDoubleTap}
+        onWheel={handleWheel}
+        onClick={() => { if (scale === 1) onClose(); }}
+      >
+        <div
+          className="transition-transform duration-100 ease-out select-none flex items-center justify-center"
+          style={{
+            transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+          }}
+        >
+          <img
+            src={images[currentIndex] || '/placeholder.svg'}
+            alt=""
+            className="max-w-[100vw] max-h-[85vh] object-contain select-none pointer-events-none"
+            draggable="false"
+          />
+        </div>
+
+        {images.length > 1 && scale === 1 && (
+          <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none z-10">
+            {currentIndex > 0 ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); setCurrentIndex(i => i - 1); }}
+                className="p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all active:scale-90 pointer-events-auto backdrop-blur-sm"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            ) : <div />}
+            {currentIndex < images.length - 1 ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); setCurrentIndex(i => i + 1); }}
+                className="p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all active:scale-90 pointer-events-auto backdrop-blur-sm"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            ) : <div />}
+          </div>
+        )}
+      </div>
+
+      <div className="p-6 text-center text-white/50 text-xs bg-gradient-to-t from-black/55 to-transparent pointer-events-none">
+        {scale > 1 ? 'Drag to pan around' : 'Pinch or double tap to zoom'}
+      </div>
+    </motion.div>
+  );
+}
+
 function ProductDetailModal({ product, shop, onClose, onBuyNow, isSent }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showFullScreen, setShowFullScreen] = useState(false);
   const touchStartX = useRef(null);
   const images = getPublicImageUrls(product.image_url, shop?.id);
 
@@ -102,6 +310,20 @@ function ProductDetailModal({ product, shop, onClose, onBuyNow, isSent }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, prevImage, nextImage]);
 
+  const [imgRatio, setImgRatio] = useState('landscape');
+
+  const containerClass = imgRatio === 'landscape'
+    ? 'relative aspect-[16/9] bg-gray-900/5 overflow-hidden flex items-center justify-center'
+    : imgRatio === 'portrait'
+    ? 'relative aspect-[4/5] sm:aspect-square bg-gray-900/5 overflow-hidden flex items-center justify-center'
+    : 'relative aspect-square bg-gray-900/5 overflow-hidden flex items-center justify-center';
+
+  const imgClass = imgRatio === 'landscape'
+    ? 'w-full h-full object-cover relative z-10'
+    : imgRatio === 'portrait'
+    ? 'w-full h-full object-contain relative z-10 p-2 md:p-4 drop-shadow-md'
+    : 'w-full h-full object-cover relative z-10';
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <motion.div
@@ -119,28 +341,48 @@ function ProductDetailModal({ product, shop, onClose, onBuyNow, isSent }) {
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
         className="relative bg-white w-full max-w-lg md:rounded-[32px] md:mx-4 max-h-[92svh] overflow-y-auto rounded-t-[32px] shadow-2xl"
       >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-20 p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all"
-        >
-          <X className="w-5 h-5 text-gray-700" />
-        </button>
-
         <div
-          className="relative aspect-square bg-gray-100 overflow-hidden"
+          className={containerClass}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
+          <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all"
+            >
+              <X className="w-5 h-5 text-gray-700" />
+            </button>
+          </div>
+          {images[currentImageIndex] && imgRatio === 'portrait' && (
+            <img
+              src={images[currentImageIndex]}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-125 pointer-events-none transition-all duration-500"
+            />
+          )}
           <AnimatePresence mode="wait">
             <motion.img
               key={currentImageIndex}
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2 }}
               src={images[currentImageIndex] || '/placeholder.svg'}
               alt={product.name}
-              className="w-full h-full object-cover"
+              className={`${imgClass} cursor-zoom-in`}
+              onClick={() => setShowFullScreen(true)}
+              onLoad={(e) => {
+                const w = e.target.naturalWidth;
+                const h = e.target.naturalHeight;
+                if (w && h) {
+                  const r = w / h;
+                  if (r > 1.3) setImgRatio('landscape');
+                  else if (r < 0.85) setImgRatio('portrait');
+                  else setImgRatio('square');
+                }
+              }}
               onError={(e) => {
                 e.target.style.display = 'none';
               }}
@@ -166,7 +408,7 @@ function ProductDetailModal({ product, shop, onClose, onBuyNow, isSent }) {
                 </button>
               )}
 
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
                 {images.map((_, i) => (
                   <button
                     key={i}
@@ -180,7 +422,7 @@ function ProductDetailModal({ product, shop, onClose, onBuyNow, isSent }) {
                 ))}
               </div>
 
-              <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full">
+              <div className="absolute top-4 left-4 z-20 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full">
                 <span className="text-white text-xs font-bold">
                   {currentImageIndex + 1}/{images.length}
                 </span>
@@ -194,12 +436,20 @@ function ProductDetailModal({ product, shop, onClose, onBuyNow, isSent }) {
             </div>
           )}
 
-          <div className="absolute bottom-4 right-4">
-            <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider backdrop-blur-sm shadow-sm ${
+          {images.length > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowFullScreen(true); }}
+              className="absolute bottom-4 left-4 z-20 p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all pointer-events-auto"
+              title="View Fullscreen"
+            >
+              <ZoomIn className="w-4 h-4 text-gray-700" />
+            </button>
+          )}
+
+          <div className="absolute bottom-4 right-4 z-20">
+            <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider backdrop-blur-sm shadow-md ${
               isOutOfStock ? 'bg-rose-500/90 text-white' :
-              product.stock_quantity !== null && product.stock_quantity <= 5
-                ? 'bg-amber-500/90 text-white'
-                : 'bg-emerald-500/90 text-white'
+              product.stock_quantity !== null && product.stock_quantity <= 5 ? 'bg-amber-500/90 text-white' : 'bg-emerald-500/90 text-white'
             }`}>
               {isOutOfStock ? 'Out of Stock' :
                product.stock_quantity !== null && product.stock_quantity <= 5
@@ -247,6 +497,17 @@ function ProductDetailModal({ product, shop, onClose, onBuyNow, isSent }) {
           </p>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {showFullScreen && (
+          <FullScreenImageViewer
+            images={images}
+            initialIndex={currentImageIndex}
+            onClose={() => setShowFullScreen(false)}
+            title={product.name}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -896,6 +1157,7 @@ export default function PublicShop({ slug, viaDomain }) {
           slug={slug}
           theme={theme}
           getProductUrl={getProductUrl}
+          hide={Boolean(selectedProduct)}
         />
       )}
     </div>

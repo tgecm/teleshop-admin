@@ -5,7 +5,7 @@ import { useCartState } from '../context/CartContext';
 import { ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
   Minus, Plus, Trash2, LogOut, CheckCircle, CheckCircle2, Loader2, User,
-  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard, Award, Map, ChevronUp
+  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard, Award, Map, ChevronUp, ZoomIn
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -138,10 +138,218 @@ function LoadingSkeleton() {
   );
 }
 
-function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, viewMode, sentProducts, setSentProducts, slug, orderButtonLabel, onOpenCart, onUpdateQty, totalCartCount }) {
+function FullScreenImageViewer({ images, initialIndex = 0, onClose, title }) {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  const touchStartRef = useRef(null);
+  const initialPinchDistRef = useRef(null);
+  const initialScaleRef = useRef(1);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+
+  useEffect(() => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  }, [currentIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (scale === 1) {
+        if (e.key === 'ArrowLeft' && currentIndex > 0) setCurrentIndex(i => i - 1);
+        if (e.key === 'ArrowRight' && currentIndex < images.length - 1) setCurrentIndex(i => i + 1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, currentIndex, images.length, scale]);
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      initialPinchDistRef.current = dist;
+      initialScaleRef.current = scale;
+    } else if (e.touches.length === 1) {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      if (scale > 1) {
+        isDraggingRef.current = true;
+        dragStartRef.current = { x: e.touches[0].clientX - position.x, y: e.touches[0].clientY - position.y };
+      }
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && initialPinchDistRef.current) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = dist / initialPinchDistRef.current;
+      const newScale = Math.min(Math.max(initialScaleRef.current * factor, 1), 4);
+      setScale(newScale);
+      if (newScale === 1) {
+        setPosition({ x: 0, y: 0 });
+      }
+    } else if (e.touches.length === 1 && isDraggingRef.current && scale > 1) {
+      setPosition({
+        x: e.touches[0].clientX - dragStartRef.current.x,
+        y: e.touches[0].clientY - dragStartRef.current.y
+      });
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (e.touches.length < 2) {
+      initialPinchDistRef.current = null;
+    }
+    if (e.touches.length === 0) {
+      isDraggingRef.current = false;
+      if (touchStartRef.current && scale === 1) {
+        const diffX = e.changedTouches[0].clientX - touchStartRef.current.x;
+        const diffY = e.changedTouches[0].clientY - touchStartRef.current.y;
+        if (Math.abs(diffX) > 60 && Math.abs(diffY) < 50) {
+          if (diffX > 0 && currentIndex > 0) setCurrentIndex(i => i - 1);
+          else if (diffX < 0 && currentIndex < images.length - 1) setCurrentIndex(i => i + 1);
+        }
+      }
+      touchStartRef.current = null;
+    }
+  };
+
+  const handleMouseDown = (e) => {
+    if (scale > 1) {
+      isDraggingRef.current = true;
+      dragStartRef.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDraggingRef.current && scale > 1) {
+      setPosition({
+        x: e.clientX - dragStartRef.current.x,
+        y: e.clientY - dragStartRef.current.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+  };
+
+  const handleDoubleTap = (e) => {
+    e.stopPropagation();
+    if (scale > 1) {
+      setScale(1);
+      setPosition({ x: 0, y: 0 });
+    } else {
+      setScale(2.5);
+    }
+  };
+
+  const handleWheel = (e) => {
+    const zoomFactor = 0.15;
+    const direction = e.deltaY < 0 ? 1 : -1;
+    const newScale = Math.min(Math.max(scale + direction * zoomFactor, 1), 4);
+    setScale(newScale);
+    if (newScale === 1) {
+      setPosition({ x: 0, y: 0 });
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col justify-between select-none touch-none"
+      onClick={() => { if (scale === 1) onClose(); }}
+    >
+      <div className="p-4 flex items-center justify-between z-20 bg-gradient-to-b from-black/55 to-transparent pointer-events-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          {images.length > 1 && (
+            <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-white text-xs font-bold shadow-md">
+              {currentIndex + 1} / {images.length}
+            </span>
+          )}
+          {title && <span className="text-white font-medium text-sm truncate max-w-[200px] drop-shadow">{title}</span>}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-white/40 text-xs hidden sm:inline-block">Double click / Pinch to zoom</span>
+          <button
+            onClick={onClose}
+            className="p-2.5 bg-white/10 hover:bg-white/25 text-white rounded-full transition-all active:scale-95 shadow"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div
+        className="flex-1 relative flex items-center justify-center overflow-hidden w-full h-full cursor-zoom-in"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onDoubleClick={handleDoubleTap}
+        onWheel={handleWheel}
+        onClick={() => { if (scale === 1) onClose(); }}
+      >
+        <div
+          className="transition-transform duration-100 ease-out select-none flex items-center justify-center"
+          style={{
+            transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+          }}
+        >
+          <img
+            src={images[currentIndex] || '/placeholder.svg'}
+            alt=""
+            className="max-w-[100vw] max-h-[85vh] object-contain select-none pointer-events-none"
+            draggable="false"
+          />
+        </div>
+
+        {images.length > 1 && scale === 1 && (
+          <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none z-10">
+            {currentIndex > 0 ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); setCurrentIndex(i => i - 1); }}
+                className="p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all active:scale-90 pointer-events-auto backdrop-blur-sm"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            ) : <div />}
+            {currentIndex < images.length - 1 ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); setCurrentIndex(i => i + 1); }}
+                className="p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all active:scale-90 pointer-events-auto backdrop-blur-sm"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            ) : <div />}
+          </div>
+        )}
+      </div>
+
+      <div className="p-6 text-center text-white/50 text-xs bg-gradient-to-t from-black/55 to-transparent pointer-events-none">
+        {scale > 1 ? 'Drag to pan around' : 'Pinch or double tap to zoom'}
+      </div>
+    </motion.div>
+  );
+}
+
+function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, viewMode, sentProducts, setSentProducts, slug, orderButtonLabel, onOpenCart, onUpdateQty, totalCartCount, onBuyNow }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedOptions, setSelectedOptions] = useState({});
+  const [showFullScreen, setShowFullScreen] = useState(false);
   const touchStartX = useRef(null);
   const images = getPublicImageUrls(product.image_url, shop?.id);
   const isOutOfStock = product.stock_quantity !== null && product.stock_quantity === 0;
@@ -170,6 +378,8 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
     return () => window.removeEventListener('keydown', h);
   }, [onClose, prevImage, nextImage]);
 
+  const [imgRatio, setImgRatio] = useState('landscape');
+
   const colorImages = productColors.filter(c => c.file_id).map(c => ({
     file_id: c.file_id,
     color: c.color,
@@ -180,6 +390,18 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
     ? [...(colorImages.filter(c => c.color === selectedColor).map(c => c.url)), ...images]
     : images;
 
+  const containerClass = imgRatio === 'landscape'
+    ? 'sticky top-0 z-10 aspect-[16/9] bg-gray-900/5 overflow-hidden relative flex items-center justify-center'
+    : imgRatio === 'portrait'
+    ? 'sticky top-0 z-10 aspect-[4/5] sm:aspect-square bg-gray-900/5 overflow-hidden relative flex items-center justify-center'
+    : 'sticky top-0 z-10 aspect-square bg-gray-900/5 overflow-hidden relative flex items-center justify-center';
+
+  const imgClass = imgRatio === 'landscape'
+    ? 'w-full h-full object-cover relative z-10'
+    : imgRatio === 'portrait'
+    ? 'w-full h-full object-contain relative z-10 p-2 md:p-4 drop-shadow-md'
+    : 'w-full h-full object-cover relative z-10';
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -188,28 +410,61 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
         className="relative bg-white w-full max-w-lg md:rounded-[32px] md:mx-4 max-h-[92svh] overflow-y-auto rounded-t-xl shadow-2xl"
       >
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-          {viewMode !== 'telegram' && (
-            <button onClick={onOpenCart} className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all relative">
-              <ShoppingCart className="w-5 h-5 text-gray-700" />
-              {totalCartCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md">
-                  {totalCartCount > 99 ? '99+' : totalCartCount}
-                </span>
-              )}
+        <div className={containerClass} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+          {/* Top Sticky Header Buttons (Copy Link, Cart, Close) */}
+          <div className="absolute top-4 left-4 right-4 z-30 flex items-center justify-between pointer-events-none">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = window.location.origin + window.location.pathname + '?product=' + (product.code || product.id);
+                navigator.clipboard.writeText(url);
+                if (typeof addToast === 'function') addToast('Link copied!', 'success');
+              }}
+              className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all pointer-events-auto"
+              title="Copy product link"
+            >
+              <Copy className="w-5 h-5 text-gray-700" />
             </button>
+            <div className="flex items-center gap-2 pointer-events-auto">
+              {viewMode !== 'telegram' && (
+                <button onClick={onOpenCart} className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all relative">
+                  <ShoppingCart className="w-5 h-5 text-gray-700" />
+                  {totalCartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md">
+                      {totalCartCount > 99 ? '99+' : totalCartCount}
+                    </span>
+                  )}
+                </button>
+              )}
+              <button onClick={onClose} className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all">
+                <X className="w-5 h-5 text-gray-700" />
+              </button>
+            </div>
+          </div>
+          {allImages[currentImageIndex] && imgRatio === 'portrait' && (
+            <img
+              src={allImages[currentImageIndex]}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-125 pointer-events-none transition-all duration-500"
+            />
           )}
-          <button onClick={onClose} className="p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all">
-            <X className="w-5 h-5 text-gray-700" />
-          </button>
-        </div>
-
-        <div className="sticky top-0 z-10 aspect-[16/9] bg-gray-100 overflow-hidden" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           <AnimatePresence mode="wait">
             <motion.img
-              key={currentImageIndex} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ duration: 0.2 }}
+              key={currentImageIndex} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}
               src={allImages[currentImageIndex] || '/placeholder.svg'} alt={product.name}
-              className="w-full h-full object-contain"
+              className={`${imgClass} cursor-zoom-in`}
+              onClick={() => setShowFullScreen(true)}
+              onLoad={(e) => {
+                const w = e.target.naturalWidth;
+                const h = e.target.naturalHeight;
+                if (w && h) {
+                  const r = w / h;
+                  if (r > 1.3) setImgRatio('landscape');
+                  else if (r < 0.85) setImgRatio('portrait');
+                  else setImgRatio('square');
+                }
+              }}
               onError={(e) => { e.target.style.display = 'none'; }}
             />
           </AnimatePresence>
@@ -225,13 +480,13 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
                   <ChevronRight className="w-5 h-5 text-gray-700" />
                 </button>
               )}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
                 {allImages.map((_, i) => (
                   <button key={i} onClick={() => setCurrentImageIndex(i)}
                     className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-white w-6 shadow-md' : 'bg-white/50'}`} />
                 ))}
               </div>
-              <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full">
+              <div className="absolute top-4 left-4 z-20 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full">
                 <span className="text-white text-xs font-bold">{currentImageIndex + 1}/{allImages.length}</span>
               </div>
             </>
@@ -239,8 +494,17 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
           {!allImages.length && (
             <div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="w-20 h-20" /></div>
           )}
-          <div className="absolute bottom-4 right-4">
-            <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider backdrop-blur-sm shadow-sm ${
+          {allImages.length > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowFullScreen(true); }}
+              className="absolute bottom-4 left-4 z-20 p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all pointer-events-auto"
+              title="View Fullscreen"
+            >
+              <ZoomIn className="w-4 h-4 text-gray-700" />
+            </button>
+          )}
+          <div className="absolute bottom-4 right-4 z-20">
+            <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider backdrop-blur-sm shadow-md ${
               isOutOfStock ? 'bg-rose-500/90 text-white' :
               product.stock_quantity !== null && product.stock_quantity <= 5 ? 'bg-amber-500/90 text-white' : 'bg-emerald-500/90 text-white'
             }`}>
@@ -251,8 +515,8 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
         </div>
 
         <div className="p-5 pt-3 pb-6">
-          {colorImages.length > 0 && colorImages.map(c => (
-            <img key={c.color} src={c.url} alt="" className="hidden" aria-hidden="true" />
+          {colorImages.length > 0 && colorImages.map((c, idx) => (
+            <img key={`${c.color || 'color'}-${idx}`} src={c.url} alt="" className="hidden" aria-hidden="true" />
           ))}
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
           <div className="mb-4">
@@ -270,10 +534,10 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
             <div className="mb-5">
               <p className="text-xs text-gray-500 font-medium mb-2.5">Color</p>
               <div className="flex flex-wrap gap-3">
-                {productColors.map(c => {
+                {productColors.map((c, idx) => {
                   const isSelected = selectedColor === c.color;
                   return (
-                    <button key={c.color}
+                    <button key={`${c.color || 'c'}-${idx}`}
                       onClick={() => {
                         setSelectedColor(isSelected ? null : c.color);
                         setCurrentImageIndex(0);
@@ -361,10 +625,9 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
               )}
               <button
                 onClick={() => {
-                  if (cartQty === 0) onAddToCart(product, selectedColor, selectedOptions);
-                  onOpenCart();
+                  onBuyNow(product, selectedColor, selectedOptions);
                 }}
-                disabled={isOutOfStock || cartQty === 0 && ((productColors.length > 0 && !selectedColor) || (productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id])))}
+                disabled={isOutOfStock || ((productColors.length > 0 && !selectedColor) || (productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id])))}
                 className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg theme-btn hover:shadow-xl active:scale-[0.98] disabled:opacity-50"
               >
                 <ShoppingCart className="w-4 h-4" />
@@ -397,23 +660,19 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
               You have {cartQty} of this item in your cart
             </p>
           )}
-
-          {viewMode !== 'telegram' && product.link_code && (
-            <button
-              onClick={() => {
-                const url = slug
-                  ? window.location.origin + '/?p=/' + slug + '&product=' + product.link_code
-                  : window.location.href.split('?')[0] + '?product=' + product.link_code;
-                navigator.clipboard.writeText(url).catch(() => {});
-              }}
-              className="absolute top-4 left-4 z-20 p-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all"
-              title="Copy product link"
-            >
-              <Copy className="w-4 h-4 text-gray-600" />
-            </button>
-          )}
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {showFullScreen && (
+          <FullScreenImageViewer
+            images={allImages}
+            initialIndex={currentImageIndex}
+            onClose={() => setShowFullScreen(false)}
+            title={product.name}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1696,7 +1955,37 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
-  const [contactForm, setContactForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' });
+  const [contactForm, setContactForm] = useState(() => {
+    try {
+      const cached = localStorage.getItem('teleshop_contact_form');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return {
+          name: parsed.name || '',
+          phones: Array.isArray(parsed.phones) ? parsed.phones : [''],
+          emails: Array.isArray(parsed.emails) ? parsed.emails : [''],
+          telegram: parsed.telegram || '',
+          viber: parsed.viber || '',
+          region: parsed.region || '',
+          district: parsed.district || '',
+          township: parsed.township || '',
+          address: parsed.address || '',
+          notes: parsed.notes || ''
+        };
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return { name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' };
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('teleshop_contact_form', JSON.stringify(contactForm));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [contactForm]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [orderPlaced, setOrderPlaced] = useState(null);
   const [registered, setRegistered] = useState(null); // null=checking, true, false
@@ -1734,6 +2023,19 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const crossSellDrag = useRef({ isDragging: false, startX: 0, scrollLeft: 0, moved: false });
   const [showScrollFabs, setShowScrollFabs] = useState(false);
   const [showModePopup, setShowModePopup] = useState(false);
+
+  const anyModalOpen = Boolean(
+    selectedProduct ||
+    showCart ||
+    showSignIn ||
+    checkoutOpen ||
+    showPaymentSelect ||
+    showContactInfo ||
+    showVisitorForm ||
+    showTrackOrder ||
+    orderPlaced ||
+    showRegister
+  );
 
   useEffect(() => {
     const root = document.getElementById('root');
@@ -1972,18 +2274,29 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     }
   }, [user]);
 
-  const handleBuyNow = useCallback((product) => {
+  const handleBuyNow = useCallback((product, colorHex, selectedOptions) => {
     const colors = getProductColors(product);
-    const selColor = selectedColors[product.id];
+    const selColor = colorHex !== undefined ? colorHex : selectedColors[product.id];
     if (colors.length > 0 && !selColor) return;
-    // Replace entire cart with just this product (instant buy, no cart accumulation)
-    clearCart();
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: Number(product.price),
-      image_url: (getPublicImageUrls(product.image_url, shop?.id) || [''])[0],
-    }, selColor || null);
+
+    const opts = selectedOptions && typeof selectedOptions === 'object' && Object.keys(selectedOptions).length > 0
+      ? selectedOptions : null;
+
+    const isInCart = cartItems.some(item => 
+      item.product_id === product.id && 
+      (!selColor || item.color === selColor) &&
+      (!opts || JSON.stringify(item.specifications?.options) === JSON.stringify(opts))
+    );
+
+    if (!isInCart) {
+      addItem({
+        id: product.id,
+        name: product.name,
+        price: Number(product.price),
+        image_url: (getPublicImageUrls(product.image_url, shop?.id) || [''])[0],
+      }, selColor || null, opts);
+    }
+
     if (viewMode === 'guest') {
       setShowCart(false);
       paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
@@ -1998,7 +2311,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         setShowRegister(true);
       }
     }
-  }, [user, tgLoggedIn, registered, getProductColors, selectedColors, viewMode, paymentMethods.length, codEnabled, shop?.id]);
+  }, [user, tgLoggedIn, registered, getProductColors, selectedColors, viewMode, paymentMethods.length, codEnabled, shop?.id, cartItems, addItem]);
 
   const handleSignInSuccess = useCallback(() => {
     setShowSignIn(false);
@@ -2685,8 +2998,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                   )}
                   <div className="p-5 space-y-4">
                     <div>
-                      {colorImages.length > 0 && colorImages.map(c => (
-                        <img key={c.color} src={c.url} alt="" className="hidden" aria-hidden="true" />
+                      {colorImages.length > 0 && colorImages.map((c, idx) => (
+                        <img key={`${c.color || 'color'}-${idx}`} src={c.url} alt="" className="hidden" aria-hidden="true" />
                       ))}
                       <h2 className="text-xl font-bold text-gray-900">{productLinkProduct.name}</h2>
                       <div className="mt-1">
@@ -2737,7 +3050,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                           <div key={opt.id}>
                             <p className="text-xs text-gray-500 font-medium mb-2">{opt.name}</p>
                             <div className="flex flex-wrap gap-2">
-                              {opt.values.map(v => {
+                              {opt.values.map((v, idx) => {
                                 const isSelected = linkSelectedOptions[opt.id] === v.id;
                                 return (
                                   <button key={v.id}
@@ -3049,7 +3362,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               const atStockMax = product.stock_quantity !== null && inCartQty >= product.stock_quantity;
 
               return (
-                <motion.div key={product.id} layout
+                <motion.div key={`${product.id}-${index}`} layout
                   initial={{ scale: 0.9 }} whileInView={{ scale: 1 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.2 }}
                   className="theme-card rounded-2xl md:rounded-3xl shadow-sm overflow-hidden hover:-translate-y-1 transition-all duration-300 group cursor-pointer"
                   onClick={() => setSelectedProduct(product)}
@@ -3058,7 +3371,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                     {product.image_url && productImages[0] ? (
                       <img src={productImages[0]} alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+                        onError={(e) => { e.target.style.display = 'none'; }} />
                     ) : null}
                     <div className="w-full h-full items-center justify-center text-gray-300"
                       style={{ display: product.image_url && productImages[0] ? 'none' : 'flex' }}>
@@ -3104,10 +3417,10 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                       if (!productColors.length) return null;
                       return (
                         <div className="flex flex-wrap gap-1.5 mb-2.5" onClick={e => e.stopPropagation()}>
-                          {productColors.map(c => {
+                          {productColors.map((c, idx) => {
                             const isSelected = selectedColors[product.id] === c.color;
                             return (
-                              <button key={c.color}
+                              <button key={`${c.color || 'c'}-${idx}`}
                                 onClick={() => setSelectedColors(prev => ({ ...prev, [product.id]: isSelected ? null : c.color }))}
                                 className={`w-6 h-6 rounded-full border-2 transition-all active:scale-90 flex items-center justify-center ${
                                   isSelected ? 'border-indigo-500 scale-110 shadow-md' : 'border-gray-300 hover:scale-110'
@@ -3218,7 +3531,6 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         </div>
       </footer>
 
-      {/* Product Detail Modal */}
       <AnimatePresence>
         {selectedProduct && (
           <ProductDetailModal
@@ -3235,6 +3547,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             totalCartCount={cartCount}
             onOpenCart={() => setShowCart(true)}
             onUpdateQty={updateQty}
+            onBuyNow={handleBuyNow}
           />
         )}
       </AnimatePresence>
@@ -3463,14 +3776,14 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
       {/* Floating cart FAB */}
       <AnimatePresence>
-        {viewMode !== 'telegram' && cartCount > 0 && (
+        {viewMode !== 'telegram' && cartCount > 0 && !anyModalOpen && (
           <motion.button
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: 'spring', damping: 15, stiffness: 300 }}
             onClick={() => setShowCart(true)}
-            className={`fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-xl flex items-center justify-center active:scale-90 hover:scale-105 ${selectedProduct ? 'z-[70]' : 'z-40'}`}
+            className="fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-xl flex items-center justify-center active:scale-90 hover:scale-105 z-40"
             style={{ background: theme.css['--theme-btn'] }}
           >
             <ShoppingCart className="w-6 h-6 text-white" />
@@ -3481,7 +3794,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         )}
       </AnimatePresence>
 
-      {data?.ai_agent_enabled && (
+      {data?.ai_agent_enabled && (!anyModalOpen || chatOpen) && (
         <>
           <button
             onClick={() => setChatOpen(!chatOpen)}
@@ -3838,7 +4151,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       </AnimatePresence>
 
       {/* Scroll to top & mode switcher */}
-      {showScrollFabs && !selectedProduct && (
+      {showScrollFabs && !anyModalOpen && !chatOpen && (
         <>
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}

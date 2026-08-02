@@ -4,7 +4,8 @@ import { MessageCircle, Send, ImageUp, Loader2, X } from 'lucide-react';
 import { RichMessage } from './RichMessage';
 import { API_BASE } from '../../api/config';
 
-export default function AiChatWidget({ botId, botUsername, slug, theme, getProductUrl }) {
+export default function AiChatWidget({ botId, botUsername, slug, theme, getProductUrl, hide }) {
+  if (hide) return null;
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
