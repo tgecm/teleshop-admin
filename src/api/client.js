@@ -41,6 +41,35 @@ client.interceptors.response.use(
       if (url.includes('/auth/login') || url.includes('/auth/staff-login')) {
         return Promise.reject(error);
       }
+
+      const isMainDomain = () => {
+        if (typeof window === 'undefined') return true;
+        const host = window.location.hostname;
+        const mainDomains = ['telegramecommerce.shop', 'localhost', '127.0.0.1'];
+        return mainDomains.some(d => host === d || host.endsWith(`.${d}`));
+      };
+
+      const isAdminPath = (() => {
+        if (typeof window === 'undefined') return false;
+        if (!isMainDomain()) return false;
+        
+        const hash = window.location.hash.replace(/^#/, '');
+        if (hash.startsWith('/auth/google/proxy')) return false;
+
+        const p = new URLSearchParams(window.location.search).get('p');
+        if (p) return false;
+
+        const pathname = window.location.pathname.replace(/^\//, '');
+        const firstSegment = pathname.split('/')[0];
+        const ADMIN_PATHS = new Set([
+          'dashboard', 'orders', 'products', 'customers', 'broadcast', 'commands',
+          'payments', 'profit', 'subscription', 'settings', 'chats', 'customization',
+          'bot-customization', 'superadmin', 'send-message', 'subscribers', 'faqs', 'qr-menu', 'staff-accounts', 'newsfeed'
+        ]);
+        
+        return pathname === '' || ADMIN_PATHS.has(firstSegment);
+      })();
+
       const hasTelegramToken = !!localStorage.getItem('telegram_token');
       const hasFirebaseToken = !!useAuthStore.getState().token;
       if (hasTelegramToken && !hasFirebaseToken) {
@@ -48,7 +77,9 @@ client.interceptors.response.use(
         localStorage.removeItem('telegram_user');
       } else {
         useAuthStore.getState().logout();
-        window.location.href = '/login';
+        if (isAdminPath) {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
