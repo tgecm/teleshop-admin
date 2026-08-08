@@ -574,14 +574,21 @@ export default function Chats() {
     const term = search.toLowerCase();
     return (
       (c.first_name || '').toLowerCase().includes(term) ||
-      c.user_id.toString().includes(term)
+      (c.last_name || '').toLowerCase().includes(term) ||
+      (c.username || '').toLowerCase().includes(term) ||
+      (c.user_id ? c.user_id.toString() : '').includes(term)
     );
   });
 
   const filteredWebVisitors = displayedWebVisitors.filter(v => {
     if (!search.trim()) return true;
     const term = search.toLowerCase();
-    return v.name.toLowerCase().includes(term) || v.phone.includes(term);
+    return (
+      (v.name || '').toLowerCase().includes(term) ||
+      (v.phone || '').toString().toLowerCase().includes(term) ||
+      (v.visitor_id || '').toString().toLowerCase().includes(term) ||
+      (v.last_message || '').toLowerCase().includes(term)
+    );
   });
 
   const selectedChat = displayedChats.find(c => c.user_id === selectedUser);
