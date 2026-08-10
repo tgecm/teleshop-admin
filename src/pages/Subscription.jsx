@@ -238,8 +238,8 @@ export default function Subscription() {
           ...result,
           planName: plan.name,
           planType,
-          amountFormatted: formatPrice(0, selectedBot?.currency || 'MMK'),
-          originalAmountFormatted: formatPrice(result.original_amount || 0, selectedBot?.currency || 'MMK'),
+          amountFormatted: formatPrice(0, 'MMK'),
+          originalAmountFormatted: formatPrice(result.original_amount || 0, 'MMK'),
           discountPercent: 100,
         });
         if (discountCode) {
@@ -260,10 +260,10 @@ export default function Subscription() {
         planName: plan.name,
         planType,
         amountFormatted: result.original_amount
-          ? formatPrice(result.amount || 0, selectedBot?.currency || 'MMK')
+          ? formatPrice(result.amount || 0, 'MMK')
           : originalPrice,
         originalAmountFormatted: result.discount_percent > 0
-          ? formatPrice(result.original_amount || 0, selectedBot?.currency || 'MMK')
+          ? formatPrice(result.original_amount || 0, 'MMK')
           : null,
         discountPercent: result.discount_percent || 0,
       });
