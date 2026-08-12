@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import { useThemeStore, THEMES } from '../store/themeStore';
-import { updateBot, getBot, deleteBot } from '../api/bots';
+import { updateBot, getBot, deleteBot, getAiSettings, updateAiSettings } from '../api/bots';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { getUsers, updateUser } from '../api/customers';
 import {
@@ -63,6 +63,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Clock,
   Percent,
   ArrowLeftRight,
   TabletSmartphone,
@@ -113,6 +114,23 @@ export default function Settings() {
     queryKey: ['cod-settings', selectedBotId],
     queryFn: () => getCodSettings(selectedBotId),
     enabled: !!selectedBotId,
+  });
+
+  const { data: aiSettings, refetch: refetchAiSettings } = useQuery({
+    queryKey: ['aiSettings', selectedBotId],
+    queryFn: () => getAiSettings(selectedBotId),
+    enabled: !!selectedBotId,
+  });
+
+  const updateAiSettingsMutation = useMutation({
+    mutationFn: (data) => updateAiSettings(selectedBotId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['aiSettings', selectedBotId]);
+      addToast('AI Auto Follow-Up settings updated successfully');
+    },
+    onError: (err) => {
+      addToast(err?.response?.data?.detail || 'Failed to update settings', 'error');
+    }
   });
 
   const hasPaymentMethod = Array.isArray(paymentMethods) ? paymentMethods.length > 0 : false;
@@ -710,6 +728,88 @@ export default function Settings() {
                   <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${soundEnabled ? 'left-6.5' : 'left-0.5'}`} />
                 </button>
               </div>
+            </section>
+
+            <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+              {(() => {
+                const isFollowupActive = Boolean(aiSettings?.is_followup_enabled === true || aiSettings?.is_followup_enabled === 't');
+                return (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center">
+                          <Clock className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                            AI Auto Follow-Up
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-100 text-cyan-700 uppercase">Smart AI</span>
+                          </h3>
+                          <p className="text-[10px] text-gray-500">Auto follow-up with inactive chats based on conversation context</p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateAiSettingsMutation.mutate({
+                            is_followup_enabled: !isFollowupActive,
+                            followup_interval: aiSettings?.followup_interval || '24h'
+                          });
+                        }}
+                        className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 cursor-pointer ${
+                          isFollowupActive ? 'bg-cyan-500' : 'bg-gray-300'
+                        }`}
+                      >
+                        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${
+                          isFollowupActive ? 'left-6.5' : 'left-0.5'
+                        }`} />
+                      </button>
+                    </div>
+
+                    {isFollowupActive && (
+                      <div className="pt-3 border-t border-gray-100 space-y-3 animate-in fade-in duration-200">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                            Follow-Up Interval (After Last Message)
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { label: '12 Hours', value: '12h' },
+                              { label: '24 Hours', value: '24h' },
+                              { label: '2 Days', value: '2d' },
+                              { label: '3 Days', value: '3d' },
+                              { label: '7 Days', value: '7d' },
+                              { label: '10 Days', value: '10d' },
+                            ].map(opt => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => {
+                                  updateAiSettingsMutation.mutate({
+                                    is_followup_enabled: true,
+                                    followup_interval: opt.value
+                                  });
+                                }}
+                                className={`py-2 px-1 rounded-xl text-xs font-bold text-center border whitespace-nowrap transition-all cursor-pointer ${
+                                  (aiSettings?.followup_interval || '24h') === opt.value
+                                    ? 'bg-cyan-500 text-white border-cyan-500 shadow-sm'
+                                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="bg-cyan-50/60 p-2.5 rounded-xl border border-cyan-100 text-[11px] text-cyan-900 leading-relaxed">
+                          💡 <strong>Smart AI Context:</strong> AI reads chat history & language to send smart follow-ups across Telegram, Website & Guest chats.
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </section>
 
 

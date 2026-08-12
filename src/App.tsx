@@ -47,6 +47,7 @@ const CustomerLogin = React.lazy(() => import('./pages/CustomerLogin'));
 const CustomerDashboard = React.lazy(() => import('./pages/CustomerDashboard'));
 const PublicEcommerce = React.lazy(() => import('./pages/PublicEcommerce'));
 const Customization = React.lazy(() => import('./pages/Customization'));
+const AiAgent = React.lazy(() => import('./pages/AiAgent'));
 const BotCustomization = React.lazy(() => import('./pages/BotCustomization'));
 const NewsfeedAdmin = React.lazy(() => import('./pages/NewsfeedAdmin'));
 const SuperadminDashboard = React.lazy(() => import('./pages/SuperadminDashboard'));
@@ -505,6 +506,7 @@ export default function App() {
                   <Route path="settings" element={<PermissionGuard><PlanGate><Settings /></PlanGate></PermissionGuard>} />
                   <Route path="chats" element={<PermissionGuard><PlanGate><Chats /></PlanGate></PermissionGuard>} />
                   <Route path="customization" element={<PermissionGuard><PlanGate><Customization /></PlanGate></PermissionGuard>} />
+                  <Route path="ai-agent" element={<PermissionGuard><PlanGate><AiAgent /></PlanGate></PermissionGuard>} />
                   <Route path="bot-customization" element={<PermissionGuard><PlanGate><BotCustomization /></PlanGate></PermissionGuard>} />
                   <Route path="superadmin" element={<SuperadminDashboard />} />
                   <Route path="send-message" element={<SendMessage />} />

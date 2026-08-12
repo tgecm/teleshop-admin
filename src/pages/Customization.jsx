@@ -966,7 +966,7 @@ export default function Customization() {
                 <div className="flex items-center gap-2">
                   <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
                     <MessageSquare className="w-3.5 h-3.5 text-cyan-600" />
-                    Web Chat Quick Questions
+                    Quick Questions
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-700 ml-1">
                       {quickQuestions.length}
                     </span>

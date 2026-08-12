@@ -47,6 +47,7 @@ const pageModules = {
   '/profit': () => import('../../../pages/Profit'),
   '/settings': () => import('../../../pages/Settings'),
   '/customization': () => import('../../../pages/Customization'),
+  '/ai-agent': () => import('../../../pages/AiAgent'),
   '/bot-customization': () => import('../../../pages/BotCustomization'),
   '/newsfeed': () => import('../../../pages/NewsfeedAdmin'),
   '/faqs': () => import('../../../pages/FAQs'),
@@ -148,6 +149,7 @@ export default function MidnightSidebar({ mobileOpen, onMobileClose, collapsed, 
     { to: '/newsfeed', icon: Newspaper, label: 'Newsfeed' },
     { to: '/payments', icon: CreditCard, label: 'Payments' },
     { to: '/customization', icon: Palette, label: 'Customize' },
+    { to: '/ai-agent', icon: Bot, label: 'AI Agent' },
     ...(isStaff ? [] : [{ to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' }]),
   ];
 
