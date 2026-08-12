@@ -20,6 +20,73 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
   const [visitorForm, setVisitorForm] = useState({ name: '', phone: '', email: '' });
   const visitorIdRef = useRef('');
 
+  // Quick Questions State
+  const [quickQuestions, setQuickQuestions] = useState([]);
+  const [activeChipIndex, setActiveChipIndex] = useState(0);
+
+  useEffect(() => {
+    if (!botId) return;
+    fetch(API_BASE + '/public/quick-questions/' + botId)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.questions) {
+          setQuickQuestions(data.questions);
+        }
+      })
+      .catch(err => console.error('Failed to fetch quick questions:', err));
+  }, [botId]);
+
+  const visibleQuestions = React.useMemo(() => {
+    if (!quickQuestions || quickQuestions.length === 0) return [];
+    if (quickQuestions.length <= 3) return quickQuestions;
+    const len = quickQuestions.length;
+    const items = [];
+    for (let i = 0; i < 3; i++) {
+      items.push(quickQuestions[(activeChipIndex + i) % len]);
+    }
+    return items;
+  }, [quickQuestions, activeChipIndex]);
+
+  const handleQuickQuestionClick = useCallback(async (q) => {
+    if (chatLoading || !q) return;
+
+    setChatMessages(prev => [...prev, { role: 'user', content: q.question, file_id: null, file_type: null }]);
+    
+    if (quickQuestions.length > 3) {
+      setActiveChipIndex(prev => (prev + 3) % quickQuestions.length);
+    }
+
+    if (q.response_type === 'preset' && q.preset_answer) {
+      setChatMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: q.preset_answer, file_id: null, file_type: null }
+      ]);
+    } else {
+      setChatLoading(true);
+      try {
+        const history = chatMessages.slice(-100).map(m => ({ role: m.role, content: m.content }));
+        const res = await fetch(API_BASE + '/public/chat/' + botId, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: q.question,
+            history,
+            visitor_id: visitorIdRef.current,
+            name: visitorForm.name || undefined,
+            phone: visitorForm.phone || undefined,
+            email: visitorForm.email || undefined,
+          }),
+        });
+        const data = await res.json();
+        setChatMessages(prev => [...prev, { role: 'assistant', content: data.reply || 'Sorry, I could not process your request.', file_id: null, file_type: null }]);
+      } catch (err) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.', file_id: null, file_type: null }]);
+      } finally {
+        setChatLoading(false);
+      }
+    }
+  }, [chatLoading, quickQuestions, chatMessages, botId, visitorForm]);
+
   function generateVisitorId() {
     return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
@@ -285,6 +352,23 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Quick Question Chips */}
+          {visibleQuestions && visibleQuestions.length > 0 && !showVisitorForm && (
+            <div className="px-4 py-2 border-t border-gray-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-gray-50/60">
+              {visibleQuestions.map((q) => (
+                <button
+                  key={q.id}
+                  onClick={() => handleQuickQuestionClick(q)}
+                  disabled={chatLoading}
+                  className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-200 rounded-full text-xs font-semibold text-gray-700 whitespace-nowrap shadow-2xs transition-all active:scale-95 disabled:opacity-50 flex-shrink-0 flex items-center gap-1"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${q.response_type === 'preset' ? 'bg-indigo-500' : 'bg-purple-500'}`} />
+                  <span>{q.question}</span>
+                </button>
+              ))}
             </div>
           )}
 
