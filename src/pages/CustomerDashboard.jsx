@@ -401,6 +401,53 @@ export default function CustomerDashboard({ shopSlug }) {
     sendMessage(msg);
   }, [chatInput, sendMessage]);
 
+  // Quick Questions State
+  const [quickQuestions, setQuickQuestions] = useState([]);
+  const [activeChipIndex, setActiveChipIndex] = useState(0);
+
+  useEffect(() => {
+    const bId = shopData?.shop?.id;
+    if (!bId) return;
+    fetch(API_BASE + '/public/quick-questions/' + bId)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.questions) {
+          setQuickQuestions(data.questions);
+        }
+      })
+      .catch(err => console.error('Failed to fetch quick questions:', err));
+  }, [shopData?.shop?.id]);
+
+  const visibleQuestions = useMemo(() => {
+    if (!quickQuestions || quickQuestions.length === 0) return [];
+    if (quickQuestions.length <= 3) return quickQuestions;
+    const len = quickQuestions.length;
+    const items = [];
+    for (let i = 0; i < 3; i++) {
+      items.push(quickQuestions[(activeChipIndex + i) % len]);
+    }
+    return items;
+  }, [quickQuestions, activeChipIndex]);
+
+  const handleQuickQuestionClick = useCallback(async (q) => {
+    if (chatLoading || !q) return;
+
+    setChatMessages(prev => [...prev, { role: 'user', content: q.question }]);
+
+    if (quickQuestions.length > 3) {
+      setActiveChipIndex(prev => (prev + 3) % quickQuestions.length);
+    }
+
+    if (q.response_type === 'preset' && q.preset_answer) {
+      setChatMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: q.preset_answer }
+      ]);
+    } else {
+      sendMessage(q.question);
+    }
+  }, [chatLoading, quickQuestions, sendMessage]);
+
   const handleAction = useCallback((actionId, value) => {
     sendAction(`__action__${actionId}:${value}`);
   }, [sendAction]);
@@ -657,6 +704,23 @@ export default function CustomerDashboard({ shopSlug }) {
               </div>
             )}
           </div>
+
+          {/* Quick Question Chips */}
+          {visibleQuestions && visibleQuestions.length > 0 && (
+            <div className="px-4 py-2 border-t border-gray-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-gray-50/60 shrink-0">
+              {visibleQuestions.map((q) => (
+                <button
+                  key={q.id}
+                  onClick={() => handleQuickQuestionClick(q)}
+                  disabled={chatLoading}
+                  className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-200 rounded-full text-xs font-semibold text-gray-700 whitespace-nowrap shadow-2xs transition-all active:scale-95 disabled:opacity-50 flex-shrink-0 flex items-center gap-1 cursor-pointer"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${q.response_type === 'preset' ? 'bg-indigo-500' : 'bg-purple-500'}`} />
+                  <span>{q.question}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Input */}
           <div className="shrink-0 border-t border-gray-200 px-4 py-3 bg-white">

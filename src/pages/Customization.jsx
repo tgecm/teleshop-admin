@@ -11,6 +11,7 @@ import { uploadImage } from '../api/products';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import currencies, { getCurrencyByCode } from '../utils/currencies';
+import { getAdminQuickQuestions, createQuickQuestion, updateQuickQuestion, deleteQuickQuestion } from '../api/quickQuestions';
 import {
   Palette,
   Camera,
@@ -33,6 +34,10 @@ import {
   Globe,
   DollarSign,
   Search,
+  Plus,
+  ToggleLeft,
+  ToggleRight,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -608,6 +613,58 @@ export default function Customization() {
   const [showBioPopup, setShowBioPopup] = useState(false);
   const [showOrderBtnPopup, setShowOrderBtnPopup] = useState(false);
 
+  // Quick Questions State
+  const [showQuickQuestionModal, setShowQuickQuestionModal] = useState(false);
+  const [quickQuestionsExpanded, setQuickQuestionsExpanded] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [questionText, setQuestionText] = useState('');
+  const [responseType, setResponseType] = useState('preset');
+  const [presetAnswerText, setPresetAnswerText] = useState('');
+
+  const { data: quickQuestions = [], refetch: refetchQuickQuestions } = useQuery({
+    queryKey: ['quickQuestions', selectedBotId],
+    queryFn: () => getAdminQuickQuestions(selectedBotId),
+    enabled: !!selectedBotId,
+  });
+
+  const createQuestionMutation = useMutation({
+    mutationFn: createQuickQuestion,
+    onSuccess: () => {
+      addToast('Quick question created', 'success');
+      setShowQuickQuestionModal(false);
+      resetQuestionForm();
+      refetchQuickQuestions();
+    },
+    onError: (err) => addToast(err.response?.data?.detail || 'Failed to create question', 'error'),
+  });
+
+  const updateQuestionMutation = useMutation({
+    mutationFn: updateQuickQuestion,
+    onSuccess: () => {
+      addToast('Quick question updated', 'success');
+      setShowQuickQuestionModal(false);
+      resetQuestionForm();
+      refetchQuickQuestions();
+    },
+    onError: (err) => addToast(err.response?.data?.detail || 'Failed to update question', 'error'),
+  });
+
+  const deleteQuestionMutation = useMutation({
+    mutationFn: deleteQuickQuestion,
+    onSuccess: () => {
+      addToast('Quick question deleted', 'success');
+      refetchQuickQuestions();
+    },
+    onError: (err) => addToast(err.response?.data?.detail || 'Failed to delete question', 'error'),
+  });
+
+  const resetQuestionForm = () => {
+    setEditingQuestion(null);
+    setQuestionText('');
+    setResponseType('preset');
+    setPresetAnswerText('');
+  };
+
   const fileInputRef = React.useRef(null);
   const bioTextareaRef = useRef(null);
 
@@ -899,6 +956,128 @@ export default function Customization() {
               {updateAiMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save AI Settings
             </button>
+
+            {/* Web Chat Quick Questions Sub-Section */}
+            <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+              <div
+                className="flex items-center justify-between cursor-pointer select-none group"
+                onClick={() => setQuickQuestionsExpanded(prev => !prev)}
+              >
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-cyan-600" />
+                    Web Chat Quick Questions
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-700 ml-1">
+                      {quickQuestions.length}
+                    </span>
+                  </h4>
+                  <button
+                    type="button"
+                    className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 group-hover:text-gray-700 transition-colors"
+                  >
+                    {quickQuestionsExpanded ? (
+                      <ChevronDown className="w-4 h-4 text-cyan-600" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    resetQuestionForm();
+                    setShowQuickQuestionModal(true);
+                  }}
+                  className="px-2.5 py-1 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 font-bold rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Question
+                </button>
+              </div>
+
+              {quickQuestionsExpanded && (
+                <div className="space-y-2 pt-1">
+                  {quickQuestions.length === 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetQuestionForm();
+                        setShowQuickQuestionModal(true);
+                      }}
+                      className="w-full p-3 rounded-xl bg-gray-50 hover:bg-cyan-50/50 text-center text-xs text-gray-500 border border-dashed border-gray-200 hover:border-cyan-300 transition-all cursor-pointer block"
+                    >
+                      No quick questions added yet. Click "+ Add Question" above to create one.
+                    </button>
+                  ) : (
+                    quickQuestions.map((q) => (
+                      <div key={q.id} className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                              q.response_type === 'preset' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-purple-50 text-purple-600 border border-purple-100'
+                            }`}>
+                              {q.response_type === 'preset' ? 'Preset Message' : 'AI Answer'}
+                            </span>
+                            {!q.is_active && (
+                              <span className="text-[9px] font-semibold text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded">Disabled</span>
+                            )}
+                          </div>
+                          <p className="text-xs font-bold text-gray-800 truncate">{q.question}</p>
+                          {q.response_type === 'preset' && q.preset_answer && (
+                            <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5 italic">"{q.preset_answer}"</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateQuestionMutation.mutate({
+                                id: q.id,
+                                question: q.question,
+                                response_type: q.response_type,
+                                preset_answer: q.preset_answer,
+                                is_active: !q.is_active
+                              });
+                            }}
+                            className={`p-1.5 rounded-lg text-xs transition-colors ${q.is_active ? 'text-cyan-600 hover:bg-cyan-50' : 'text-gray-400 hover:bg-gray-200'}`}
+                            title={q.is_active ? "Disable" : "Enable"}
+                          >
+                            {q.is_active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingQuestion(q);
+                              setQuestionText(q.question);
+                              setResponseType(q.response_type);
+                              setPresetAnswerText(q.preset_answer || '');
+                              setShowQuickQuestionModal(true);
+                            }}
+                            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm('Delete this quick question?')) {
+                                deleteQuestionMutation.mutate(q.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
@@ -1163,6 +1342,140 @@ export default function Customization() {
                     </button>
                   );
                 })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Quick Question Modal */}
+      <AnimatePresence>
+        {showQuickQuestionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setShowQuickQuestionModal(false); resetQuestionForm(); }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full mx-auto space-y-4 z-10"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <h3 className="text-base font-bold text-gray-900">
+                  {editingQuestion ? 'Edit Quick Question' : 'Add Quick Question'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => { setShowQuickQuestionModal(false); resetQuestionForm(); }}
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-700 mb-1 block">Question Text</label>
+                  <input
+                    type="text"
+                    value={questionText}
+                    onChange={(e) => setQuestionText(e.target.value)}
+                    placeholder="e.g. What are your delivery fees?"
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-700 mb-1.5 block">Response Type</label>
+                  <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-2xl">
+                    <button
+                      type="button"
+                      onClick={() => setResponseType('preset')}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                        responseType === 'preset' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <span>Preset Message</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResponseType('ai')}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                        responseType === 'ai' ? 'bg-white text-purple-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <span>AI Answer</span>
+                    </button>
+                  </div>
+                </div>
+
+                {responseType === 'preset' && (
+                  <div>
+                    <label className="text-xs font-bold text-gray-700 mb-1 block">Preset Answer Message</label>
+                    <textarea
+                      value={presetAnswerText}
+                      onChange={(e) => setPresetAnswerText(e.target.value)}
+                      placeholder="Type the exact answer to display when tapped..."
+                      rows={3}
+                      className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    />
+                  </div>
+                )}
+
+                {responseType === 'ai' && (
+                  <div className="p-3 rounded-xl bg-purple-50 border border-purple-100 text-purple-800 text-xs leading-relaxed">
+                    🤖 When the customer taps this question, the AI Agent will generate a smart answer based on your shop's products and context.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowQuickQuestionModal(false); resetQuestionForm(); }}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl text-sm hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!questionText.trim()) return addToast('Please enter question text', 'error');
+                    if (responseType === 'preset' && !presetAnswerText.trim()) return addToast('Please enter preset answer', 'error');
+
+                    if (editingQuestion) {
+                      updateQuestionMutation.mutate({
+                        id: editingQuestion.id,
+                        question: questionText.trim(),
+                        response_type: responseType,
+                        preset_answer: presetAnswerText.trim(),
+                        is_active: editingQuestion.is_active,
+                      });
+                    } else {
+                      createQuestionMutation.mutate({
+                        bot_id: selectedBotId,
+                        question: questionText.trim(),
+                        response_type: responseType,
+                        preset_answer: presetAnswerText.trim(),
+                      });
+                    }
+                  }}
+                  disabled={createQuestionMutation.isPending || updateQuestionMutation.isPending}
+                  className="flex-1 py-2.5 bg-cyan-500 text-white font-bold rounded-xl text-sm hover:bg-cyan-600 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {(createQuestionMutation.isPending || updateQuestionMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{editingQuestion ? 'Save Changes' : 'Create Question'}</span>
+                </button>
               </div>
             </motion.div>
           </motion.div>
