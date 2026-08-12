@@ -29,13 +29,13 @@ function processQueue() {
 async function doFetch(url, key) {
   try {
     const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!resp.ok) throw new Error('fetch failed');
+    if (!resp.ok) return url;
     const cache = await caches.open(CACHE_NAME);
     const clone = resp.clone();
     cache.put(key, clone).catch(() => {});
     return URL.createObjectURL(await resp.blob());
   } catch {
-    throw new Error('fetch failed');
+    return url;
   }
 }
 
