@@ -39,6 +39,7 @@ const navGroups = [
     items: [
       { to: '/settings', icon: Settings, label: 'Settings' },
       { to: '/customization', icon: Palette, label: 'Web Customization' },
+      { to: '/ai-agent', icon: Bot, label: 'AI Agent' },
       { to: '/bot-customization', icon: Bot, label: 'Bot Settings' },
     ],
   },
