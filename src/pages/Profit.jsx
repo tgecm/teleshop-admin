@@ -51,10 +51,53 @@ export default function Profit() {
 
   const today = new Date().toISOString().split('T')[0];
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState(today);
-  const [salesLogStartDate, setSalesLogStartDate] = useState(today);
-  const [salesLogEndDate, setSalesLogEndDate] = useState(today);
+
+  const getDatesForPreset = (preset) => {
+    const t = new Date().toISOString().split('T')[0];
+    if (preset === 'weekly') {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      return { start: d.toISOString().split('T')[0], end: t };
+    }
+    if (preset === 'monthly') {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      return { start: d.toISOString().split('T')[0], end: t };
+    }
+    return { start: t, end: t };
+  };
+
+  const [productPeriod, setProductPeriod] = useState(() => {
+    return localStorage.getItem('profit_product_period') || 'today';
+  });
+
+  const [salesLogPeriod, setSalesLogPeriod] = useState(() => {
+    return localStorage.getItem('profit_sales_period') || 'today';
+  });
+
+  const initialProductDates = getDatesForPreset(productPeriod);
+  const initialSalesDates = getDatesForPreset(salesLogPeriod);
+
+  const [startDate, setStartDate] = useState(initialProductDates.start);
+  const [endDate, setEndDate] = useState(initialProductDates.end);
+  const [salesLogStartDate, setSalesLogStartDate] = useState(initialSalesDates.start);
+  const [salesLogEndDate, setSalesLogEndDate] = useState(initialSalesDates.end);
+
+  const handleProductPeriodChange = (val) => {
+    setProductPeriod(val);
+    localStorage.setItem('profit_product_period', val);
+    const { start, end } = getDatesForPreset(val);
+    setStartDate(start);
+    setEndDate(end);
+  };
+
+  const handleSalesLogPeriodChange = (val) => {
+    setSalesLogPeriod(val);
+    localStorage.setItem('profit_sales_period', val);
+    const { start, end } = getDatesForPreset(val);
+    setSalesLogStartDate(start);
+    setSalesLogEndDate(end);
+  };
 
   const params = { bot_id: Number(selectedBotId) };
   if (startDate && endDate) {
@@ -205,19 +248,11 @@ export default function Profit() {
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold text-gray-900">Product Breakdown</h2>
               <div className="flex items-center gap-1">
-                <select onChange={e => {
-                  const val = e.target.value;
-                  if (val === 'today') { setStartDate(today); setEndDate(today); }
-                  else if (val === 'weekly') {
-                    const d = new Date(); d.setDate(d.getDate() - 7);
-                    setStartDate(d.toISOString().split('T')[0]); setEndDate(today);
-                  }
-                  else if (val === 'monthly') {
-                    const d = new Date(); d.setDate(d.getDate() - 30);
-                    setStartDate(d.toISOString().split('T')[0]); setEndDate(today);
-                  }
-                }}
-                  className="text-[10px] border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer">
+                <select
+                  value={productPeriod}
+                  onChange={e => handleProductPeriodChange(e.target.value)}
+                  className="text-[10px] border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer"
+                >
                   <option value="today">Today</option>
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
@@ -374,19 +409,11 @@ export default function Profit() {
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold text-gray-900">Sales Log</h2>
               <div className="flex items-center gap-1">
-                <select onChange={e => {
-                  const val = e.target.value;
-                  if (val === 'today') { setSalesLogStartDate(today); setSalesLogEndDate(today); }
-                  else if (val === 'weekly') {
-                    const d = new Date(); d.setDate(d.getDate() - 7);
-                    setSalesLogStartDate(d.toISOString().split('T')[0]); setSalesLogEndDate(today);
-                  }
-                  else if (val === 'monthly') {
-                    const d = new Date(); d.setDate(d.getDate() - 30);
-                    setSalesLogStartDate(d.toISOString().split('T')[0]); setSalesLogEndDate(today);
-                  }
-                }}
-                  className="text-[10px] border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer">
+                <select
+                  value={salesLogPeriod}
+                  onChange={e => handleSalesLogPeriodChange(e.target.value)}
+                  className="text-[10px] border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 cursor-pointer"
+                >
                   <option value="today">Today</option>
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
