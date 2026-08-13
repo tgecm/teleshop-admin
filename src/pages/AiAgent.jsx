@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
-import { getBot, getAiSettings, updateAiSettings } from '../api/bots';
+import { getBot, getAiSettings, updateAiSettings, testAiFollowup } from '../api/bots';
 import { getAdminQuickQuestions, createQuickQuestion, updateQuickQuestion, deleteQuickQuestion } from '../api/quickQuestions';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import BotSwitcher from '../components/shared/BotSwitcher';
@@ -23,6 +23,7 @@ import {
   ToggleRight,
   Clock,
   Sparkles,
+  Zap,
   UserCircle,
   HelpCircle,
   Send,
@@ -34,6 +35,7 @@ import {
 export default function AiAgent() {
   const queryClient = useQueryClient();
   const addToast = useToastStore((state) => state.addToast);
+  const isSuperadmin = useAuthStore((state) => state.isSuperadmin);
   const { selectedBotId, selectedBot } = useSelectedBot();
 
   // Main AI Settings State
@@ -127,6 +129,20 @@ export default function AiAgent() {
       addToast('Quick Question deleted');
     },
     onError: (err) => addToast(err?.response?.data?.detail || 'Failed to delete question', 'error')
+  });
+
+  const testFollowupMutation = useMutation({
+    mutationFn: () => testAiFollowup(selectedBotId),
+    onSuccess: (res) => {
+      const count = res?.processed_count || 0;
+      if (count > 0) {
+        addToast(`⚡ Test Trigger Success! Sent ${count} AI follow-up message(s) to active chat(s).`, 'success');
+      } else {
+        addToast('⚡ Test Run Completed! All chats are up to date.', 'info');
+      }
+      queryClient.invalidateQueries({ queryKey: ['chatMessages'] });
+    },
+    onError: (err) => addToast(err?.response?.data?.detail || 'Failed to trigger test follow-up', 'error')
   });
 
   function resetQuestionForm() {
@@ -475,17 +491,31 @@ export default function AiAgent() {
                   Follows up every <strong className="text-cyan-600 font-bold">{aiSettings?.followup_days ?? 10} Day(s)</strong>, up to <strong className="text-indigo-600 font-bold">{aiSettings?.followup_times ?? 3} Time(s)</strong> maximum.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setFollowupDays(aiSettings?.followup_days ?? 10);
-                  setFollowupTimes(aiSettings?.followup_times ?? 3);
-                  setShowFollowupModal(true);
-                }}
-                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto"
-              >
-                Configure Rules
-              </button>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                {isSuperadmin && (
+                  <button
+                    type="button"
+                    onClick={() => testFollowupMutation.mutate()}
+                    disabled={testFollowupMutation.isPending}
+                    className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 disabled:opacity-50"
+                    title="Force run follow-up immediately for testing (Superadmin only)"
+                  >
+                    {testFollowupMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 fill-current" />}
+                    {testFollowupMutation.isPending ? 'Testing...' : 'Test Run Now'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFollowupDays(aiSettings?.followup_days ?? 10);
+                    setFollowupTimes(aiSettings?.followup_times ?? 3);
+                    setShowFollowupModal(true);
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer whitespace-nowrap"
+                >
+                  Configure Rules
+                </button>
+              </div>
             </div>
 
             <div className="bg-cyan-50/70 p-3 rounded-2xl border border-cyan-100 text-xs text-cyan-950 leading-relaxed">
