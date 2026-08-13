@@ -112,14 +112,14 @@ function DocumentItem({ fileUrl, tgLink, isAdmin, showTelegramLink }) {
   );
 }
 
-function ChatBubble({ message, isAdmin, isAi, botId, botUsername, showTelegramLink }) {
+function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, showTelegramLink }) {
   const token = useAuthStore(s => s.token);
   const currentUser = useAuthStore(s => s.user);
   const isOwner = currentUser?.is_superadmin;
   const copyTimerRef = useRef(null);
   const touchCopiedRef = useRef(false);
   const msgRef = useRef(null);
-  const isRightSide = isAdmin || isAi;
+  const isRightSide = isAdmin || isAi || isFollowup;
 
   const txt = message.message_text || '';
   const isAction = txt.startsWith('__action__') || txt.startsWith('__form__') || txt.startsWith('__file__');
@@ -198,7 +198,10 @@ function ChatBubble({ message, isAdmin, isAi, botId, botUsername, showTelegramLi
       case 'sticker':
         return (
           <div className="mb-2">
-            <img src={fileUrl} alt="Sticker" className="max-w-[128px]" loading="lazy" />
+            <div className="flex items-center gap-2 p-3 bg-white/10 rounded-xl">
+              <Smile className="w-4 h-4 flex-shrink-0" />
+              <p className="text-sm font-medium">Sticker</p>
+            </div>
           </div>
         );
       case 'document':
@@ -207,25 +210,22 @@ function ChatBubble({ message, isAdmin, isAi, botId, botUsername, showTelegramLi
         return (
           <div className="mb-2">
             <div className="flex items-center gap-2 p-3 bg-white/10 rounded-xl">
-              <FileText className="w-5 h-5 flex-shrink-0" />
-              <p className="text-sm font-medium">{fileTypeLabel(message.file_type)}</p>
+              <FileText className="w-4 h-4 flex-shrink-0" />
+              <p className="text-sm font-medium">File</p>
             </div>
-            {showTelegramLink && (
-              <a href={tgLink} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
-                onClick={(e) => e.stopPropagation()}>
-                Open in Telegram ↗
-              </a>
-            )}
           </div>
         );
     }
   };
 
   return (
-    <div className={`flex ${isRightSide ? 'justify-end' : 'justify-start'}`}>
+    <div
+      className={`flex ${
+        isRightSide ? 'justify-end' : 'justify-start'
+      }`}
+    >
       <div
-        className={`max-w-[92%] md:max-w-[88%] rounded-2xl px-4 py-2.5 ${
+        className={`max-w-[85%] sm:max-w-[75%] rounded-3xl p-3 sm:p-4 shadow-sm transition-all ${
           isAi
             ? 'bg-indigo-50 text-indigo-900 border border-indigo-200 rounded-br-md'
             : isAdmin
@@ -1214,7 +1214,7 @@ export default function Chats() {
                         key={msg.id}
                         message={msg}
                         isAdmin={msg.sender_type === 'admin'}
-                        isAi={msg.sender_type === 'ai'}
+                        isAi={msg.sender_type === 'ai' || msg.sender_type === 'assistant' || msg.sender_type === 'followup'}
                         botId={Number(selectedBotId)}
                         botUsername={botUsername}
                         showTelegramLink={chatTab === 'all' || chatTab === 'telegram'}
