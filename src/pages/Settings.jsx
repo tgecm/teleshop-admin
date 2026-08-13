@@ -769,38 +769,13 @@ export default function Settings() {
 
                     {isFollowupActive && (
                       <div className="pt-3 border-t border-gray-100 space-y-3 animate-in fade-in duration-200">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                            Follow-Up Interval (After Last Message)
-                          </label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {[
-                              { label: '12 Hours', value: '12h' },
-                              { label: '24 Hours', value: '24h' },
-                              { label: '2 Days', value: '2d' },
-                              { label: '3 Days', value: '3d' },
-                              { label: '7 Days', value: '7d' },
-                              { label: '10 Days', value: '10d' },
-                            ].map(opt => (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                onClick={() => {
-                                  updateAiSettingsMutation.mutate({
-                                    is_followup_enabled: true,
-                                    followup_interval: opt.value
-                                  });
-                                }}
-                                className={`py-2 px-1 rounded-xl text-xs font-bold text-center border whitespace-nowrap transition-all cursor-pointer ${
-                                  (aiSettings?.followup_interval || '24h') === opt.value
-                                    ? 'bg-cyan-500 text-white border-cyan-500 shadow-sm'
-                                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                                }`}
-                              >
-                                {opt.label}
-                              </button>
-                            ))}
-                          </div>
+                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-200/80">
+                          <p className="text-xs font-bold text-gray-800">
+                            Current Follow-Up Rules
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Follows up every <strong className="text-cyan-600 font-bold">{aiSettings?.followup_days ?? 10} Day(s)</strong>, up to <strong className="text-indigo-600 font-bold">{aiSettings?.followup_times ?? 3} Time(s)</strong> maximum. (Configure in <a href="/ai-agent" className="text-cyan-600 underline font-bold">AI Agent</a> page)
+                          </p>
                         </div>
                         <div className="bg-cyan-50/60 p-2.5 rounded-xl border border-cyan-100 text-[11px] text-cyan-900 leading-relaxed">
                           💡 <strong>Smart AI Context:</strong> AI reads chat history & language to send smart follow-ups across Telegram, Website & Guest chats.

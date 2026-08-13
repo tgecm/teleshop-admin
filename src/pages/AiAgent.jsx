@@ -46,6 +46,11 @@ export default function AiAgent() {
   const [fullscreenPromptType, setFullscreenPromptType] = useState(null); // 'website' | 'telegram' | null
   const [tempPromptText, setTempPromptText] = useState('');
 
+  // Follow-Up Rules Modal State
+  const [showFollowupModal, setShowFollowupModal] = useState(false);
+  const [followupDays, setFollowupDays] = useState(10);
+  const [followupTimes, setFollowupTimes] = useState(3);
+
   // Quick Questions State
   const [showQuickQuestionModal, setShowQuickQuestionModal] = useState(false);
   const [quickQuestionsExpanded, setQuickQuestionsExpanded] = useState(true);
@@ -58,15 +63,7 @@ export default function AiAgent() {
   const { data: aiSettings, isLoading: loadingAi } = useQuery({
     queryKey: ['aiSettings', selectedBotId],
     queryFn: () => getAiSettings(selectedBotId),
-    enabled: !!selectedBotId,
-    onSuccess: (data) => {
-      if (data) {
-        setAiEnabled(Boolean(data.is_enabled));
-        setGender(data.gender || 'female');
-        setWebsitePrompt(data.website_system_context || '');
-        setTelegramPrompt(data.system_context || '');
-      }
-    }
+    enabled: !!selectedBotId
   });
 
   // Sync state when aiSettings changes
@@ -76,6 +73,8 @@ export default function AiAgent() {
       setGender(aiSettings.gender || 'female');
       setWebsitePrompt(aiSettings.website_system_context || '');
       setTelegramPrompt(aiSettings.system_context || '');
+      setFollowupDays(aiSettings.followup_days ?? 10);
+      setFollowupTimes(aiSettings.followup_times ?? 3);
     }
   }, [aiSettings]);
 
@@ -100,7 +99,7 @@ export default function AiAgent() {
 
   // Quick Question Mutations
   const createQuestionMutation = useMutation({
-    mutationFn: (data) => createQuickQuestion(selectedBotId, data),
+    mutationFn: createQuickQuestion,
     onSuccess: () => {
       queryClient.invalidateQueries(['quickQuestions', selectedBotId]);
       addToast('Quick Question created successfully');
@@ -111,7 +110,7 @@ export default function AiAgent() {
   });
 
   const updateQuestionMutation = useMutation({
-    mutationFn: ({ id, ...data }) => updateQuickQuestion(id, data),
+    mutationFn: ({ id, ...data }) => updateQuickQuestion({ id, ...data }),
     onSuccess: () => {
       queryClient.invalidateQueries(['quickQuestions', selectedBotId]);
       addToast('Quick Question updated');
@@ -167,6 +166,7 @@ export default function AiAgent() {
       });
     } else {
       createQuestionMutation.mutate({
+        bot_id: Number(selectedBotId),
         question: questionText.trim(),
         response_type: responseType,
         preset_answer: responseType === 'preset' ? presetAnswerText.trim() : null
@@ -450,7 +450,8 @@ export default function AiAgent() {
             onClick={() => {
               updateAiSettingsMutation.mutate({
                 is_followup_enabled: !isFollowupActive,
-                followup_interval: aiSettings?.followup_interval || '24h'
+                followup_days: aiSettings?.followup_days ?? 10,
+                followup_times: aiSettings?.followup_times ?? 3
               });
             }}
             className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 cursor-pointer ${
@@ -465,38 +466,26 @@ export default function AiAgent() {
 
         {isFollowupActive && (
           <div className="pt-3 border-t border-gray-100 space-y-4 animate-in fade-in duration-200">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">
-                Follow-Up Interval (After Last Customer Message)
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: '12 Hours', value: '12h' },
-                  { label: '24 Hours', value: '24h' },
-                  { label: '2 Days', value: '2d' },
-                  { label: '3 Days', value: '3d' },
-                  { label: '7 Days', value: '7d' },
-                  { label: '10 Days', value: '10d' },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => {
-                      updateAiSettingsMutation.mutate({
-                        is_followup_enabled: true,
-                        followup_interval: opt.value
-                      });
-                    }}
-                    className={`py-2.5 px-2 rounded-2xl text-xs font-bold text-center border whitespace-nowrap transition-all cursor-pointer ${
-                      (aiSettings?.followup_interval || '24h') === opt.value
-                        ? 'bg-cyan-500 text-white border-cyan-500 shadow-sm'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+            <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-gray-800">
+                  Current Follow-Up Rules
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Follows up every <strong className="text-cyan-600 font-bold">{aiSettings?.followup_days ?? 10} Day(s)</strong>, up to <strong className="text-indigo-600 font-bold">{aiSettings?.followup_times ?? 3} Time(s)</strong> maximum.
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowupDays(aiSettings?.followup_days ?? 10);
+                  setFollowupTimes(aiSettings?.followup_times ?? 3);
+                  setShowFollowupModal(true);
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto"
+              >
+                Configure Rules
+              </button>
             </div>
 
             <div className="bg-cyan-50/70 p-3 rounded-2xl border border-cyan-100 text-xs text-cyan-950 leading-relaxed">
@@ -715,6 +704,102 @@ export default function AiAgent() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Follow-Up Rules Modal Popup */}
+      {showFollowupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-gray-100 space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-bold text-gray-900">
+                Configure AI Auto Follow-Up Rules
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowFollowupModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const daysNum = Math.max(1, parseInt(followupDays, 10) || 1);
+                const timesNum = Math.max(1, parseInt(followupTimes, 10) || 1);
+                updateAiSettingsMutation.mutate({
+                  is_followup_enabled: true,
+                  followup_days: daysNum,
+                  followup_times: timesNum
+                });
+                setShowFollowupModal(false);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Follow-Up Days Interval
+                </label>
+                <div className="flex items-center border border-gray-200 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-cyan-400 bg-white">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={followupDays}
+                    onChange={(e) => setFollowupDays(e.target.value.replace(/\D/g, ''))}
+                    placeholder="5"
+                    required
+                    className="flex-1 px-4 py-2.5 text-sm font-bold text-gray-900 outline-none"
+                  />
+                  <span className="px-4 py-2.5 bg-gray-50 border-l border-gray-200 text-xs font-bold text-gray-500">
+                    Days
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">Number of days between follow-up messages.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Maximum Follow-Up Count
+                </label>
+                <div className="flex items-center border border-gray-200 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-cyan-400 bg-white">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={followupTimes}
+                    onChange={(e) => setFollowupTimes(e.target.value.replace(/\D/g, ''))}
+                    placeholder="3"
+                    required
+                    className="flex-1 px-4 py-2.5 text-sm font-bold text-gray-900 outline-none"
+                  />
+                  <span className="px-4 py-2.5 bg-gray-50 border-l border-gray-200 text-xs font-bold text-gray-500">
+                    Times
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">Maximum number of times AI will follow up before stopping.</p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowFollowupModal(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateAiSettingsMutation.isPending}
+                  className="px-5 py-2 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer"
+                >
+                  {updateAiSettingsMutation.isPending ? 'Saving...' : 'Save Rules'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

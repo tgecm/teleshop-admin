@@ -17,3 +17,9 @@ export const getProfitSummary = (params) =>
 
 export const getSalesLog = (params) =>
   client.get('/stats/sales-log', { params }).then(res => res.data);
+
+export const getProfitPeriod = (botId) =>
+  client.get(`/bots/${botId}/profit-period`).then(res => res.data);
+
+export const updateProfitPeriod = (botId, data) =>
+  client.put(`/bots/${botId}/profit-period`, data).then(res => res.data);

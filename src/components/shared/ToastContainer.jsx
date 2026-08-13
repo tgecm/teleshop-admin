@@ -38,7 +38,7 @@ export default function ToastContainer() {
               )}
 
               <p className="text-xs sm:text-sm font-bold text-white leading-tight flex-1">
-                {toast.message}
+                {typeof toast.message === 'string' ? toast.message : JSON.stringify(toast.message)}
               </p>
             </motion.div>
           );
