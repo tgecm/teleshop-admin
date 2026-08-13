@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getProfitSummary, getSalesLog } from '../api/stats';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { getProfitSummary, getSalesLog, getProfitPeriod, updateProfitPeriod } from '../api/stats';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import { motion } from 'motion/react';
 import { TrendingUp, ArrowLeftRight, AlertTriangle, X, Calendar, Zap, Search, ChevronDown, Download, RefreshCw } from 'lucide-react';
@@ -83,12 +83,45 @@ export default function Profit() {
   const [salesLogStartDate, setSalesLogStartDate] = useState(initialSalesDates.start);
   const [salesLogEndDate, setSalesLogEndDate] = useState(initialSalesDates.end);
 
+  // Fetch profit period preference from DB
+  const { data: dbPeriod } = useQuery({
+    queryKey: ['profitPeriod', selectedBotId],
+    queryFn: () => getProfitPeriod(selectedBotId),
+    enabled: !!selectedBotId
+  });
+
+  const periodMutation = useMutation({
+    mutationFn: (data) => updateProfitPeriod(selectedBotId, data)
+  });
+
+  useEffect(() => {
+    if (dbPeriod) {
+      if (dbPeriod.profit_product_period) {
+        setProductPeriod(dbPeriod.profit_product_period);
+        localStorage.setItem('profit_product_period', dbPeriod.profit_product_period);
+        const { start, end } = getDatesForPreset(dbPeriod.profit_product_period);
+        setStartDate(start);
+        setEndDate(end);
+      }
+      if (dbPeriod.profit_sales_period) {
+        setSalesLogPeriod(dbPeriod.profit_sales_period);
+        localStorage.setItem('profit_sales_period', dbPeriod.profit_sales_period);
+        const { start, end } = getDatesForPreset(dbPeriod.profit_sales_period);
+        setSalesLogStartDate(start);
+        setSalesLogEndDate(end);
+      }
+    }
+  }, [dbPeriod]);
+
   const handleProductPeriodChange = (val) => {
     setProductPeriod(val);
     localStorage.setItem('profit_product_period', val);
     const { start, end } = getDatesForPreset(val);
     setStartDate(start);
     setEndDate(end);
+    if (selectedBotId) {
+      periodMutation.mutate({ profit_product_period: val });
+    }
   };
 
   const handleSalesLogPeriodChange = (val) => {
@@ -97,6 +130,9 @@ export default function Profit() {
     const { start, end } = getDatesForPreset(val);
     setSalesLogStartDate(start);
     setSalesLogEndDate(end);
+    if (selectedBotId) {
+      periodMutation.mutate({ profit_sales_period: val });
+    }
   };
 
   const params = { bot_id: Number(selectedBotId) };
