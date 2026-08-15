@@ -29,6 +29,7 @@ import NewsfeedFeed from '../components/NewsfeedFeed';
 
 import { formatPrice } from '../utils/formatPrice';
 import { API_BASE, fileUrl } from '../api/config';
+import { resolveColorName, resolveProductPrice } from '../utils/productPricing';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token');
@@ -138,7 +139,7 @@ function LoadingSkeleton() {
   );
 }
 
-function FullScreenImageViewer({ images, initialIndex = 0, onClose, title }) {
+export function FullScreenImageViewer({ images, initialIndex = 0, onClose, title }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -402,6 +403,21 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
     ? 'w-full h-full object-contain relative z-10 p-2 md:p-4 drop-shadow-md'
     : 'w-full h-full object-cover relative z-10';
 
+  const currentPrice = useMemo(() => {
+    const selOptsMap = {};
+    if (selectedOptions && productOptions.length > 0) {
+      productOptions.forEach(opt => {
+        const selValId = selectedOptions[opt.id];
+        if (selValId) {
+          const valObj = opt.values?.find(v => v.id === selValId);
+          selOptsMap[opt.name || opt.id] = valObj ? valObj.label : selValId;
+        }
+      });
+    }
+    const colorStr = selectedColor ? (getColorName(selectedColor) || selectedColor) : null;
+    return resolveProductPrice(product, colorStr, selOptsMap);
+  }, [product, selectedColor, selectedOptions, productOptions]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -521,7 +537,7 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
           <div className="mb-4">
             {product.original_price > 0 && <p className="text-sm line-through text-red-400 font-medium">{formatPrice(product.original_price, shop?.currency || 'MMK')}</p>}
-            <p className="text-2xl font-bold theme-price inline-flex items-baseline gap-1"><span>{formatPrice(product.price, shop?.currency || 'MMK')}</span></p>
+            <p className="text-2xl font-bold theme-price inline-flex items-baseline gap-1"><span>{formatPrice(currentPrice, shop?.currency || 'MMK')}</span></p>
           </div>
 
           {product.description && (
@@ -598,7 +614,7 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
                   </button>
                   <span className="text-lg font-bold text-gray-900 min-w-[28px] text-center">{cartQty}</span>
                   <button
-                    onClick={() => { onAddToCart(product, selectedColor, selectedOptions); }}
+                    onClick={() => { onAddToCart({ ...product, price: currentPrice }, selectedColor, selectedOptions); }}
                     disabled={isOutOfStock || (product.stock_quantity !== null && cartQty >= product.stock_quantity)}
                     className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-90 transition-all disabled:opacity-40"
                   >
@@ -607,7 +623,7 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
                 </div>
               ) : (
                 <button
-                  onClick={() => { onAddToCart(product, selectedColor, selectedOptions); }}
+                  onClick={() => { onAddToCart({ ...product, price: currentPrice }, selectedColor, selectedOptions); }}
                   disabled={isOutOfStock || (productColors.length > 0 && !selectedColor) || (productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id]))}
                   className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm transition-all shadow-sm ${
                     isOutOfStock
@@ -625,7 +641,7 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
               )}
               <button
                 onClick={() => {
-                  onBuyNow(product, selectedColor, selectedOptions);
+                  onBuyNow({ ...product, price: currentPrice }, selectedColor, selectedOptions);
                 }}
                 disabled={isOutOfStock || ((productColors.length > 0 && !selectedColor) || (productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id])))}
                 className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg theme-btn hover:shadow-xl active:scale-[0.98] disabled:opacity-50"
@@ -1053,9 +1069,9 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
               if (o) { const v = o.values.find(vv => String(vv.id) === String(valId)); if (v) variantParts.push(`${o.name}: ${v.label}`); }
             });
           }
-          // Use latest price from server products array
+          // Use resolved variant price for spec price accuracy
           const currentProduct = products.find(p => p.id === i.product_id);
-          const currentPrice = currentProduct ? Number(currentProduct.price) : i.price;
+          const currentPrice = resolveProductPrice(currentProduct || i, i.selected_color, i.selected_options) || i.price;
           return {
             product_id: i.product_id,
             name: i.name,
@@ -1069,7 +1085,8 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
         total_amount: (() => {
           const latestTotal = cartItems.reduce((sum, i) => {
             const p = products.find(pp => pp.id === i.product_id);
-            return sum + (p ? Number(p.price) : i.price) * i.quantity;
+            const itemPrice = resolveProductPrice(p || i, i.selected_color, i.selected_options) || i.price;
+            return sum + itemPrice * i.quantity;
           }, 0);
           return couponApplied ? latestTotal - appliedDiscount : latestTotal;
         })(),
@@ -2241,15 +2258,17 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     return suggestions.sort(() => Math.random() - 0.5).slice(0, 5);
   }, [cartItems, products]);
 
-  // Wrap addItem to resolve image URLs before saving
+  // Wrap addItem to resolve image URLs and variant spec prices before saving
   const addToCart = useCallback((product, colorHex, selectedOptions) => {
     const images = getPublicImageUrls(product.image_url, shop?.id);
     const opts = selectedOptions && typeof selectedOptions === 'object' && Object.keys(selectedOptions).length > 0
       ? selectedOptions : null;
+    const colorStr = colorHex ? (getColorName(colorHex) || colorHex) : null;
+    const finalPrice = resolveProductPrice(product, colorStr, opts);
     addItem({
       id: product.id,
       name: product.name,
-      price: Number(product.price),
+      price: finalPrice,
       image_url: images[0] || '',
     }, colorHex || null, opts);
   }, [addItem, shop?.id]);
@@ -2314,18 +2333,16 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
     const opts = selectedOptions && typeof selectedOptions === 'object' && Object.keys(selectedOptions).length > 0
       ? selectedOptions : null;
+    const colorStr = selColor ? (getColorName(selColor) || selColor) : null;
+    const finalPrice = resolveProductPrice(product, colorStr, opts);
 
-    const isInCart = cartItems.some(item => 
-      item.product_id === product.id && 
-      (!selColor || item.color === selColor) &&
-      (!opts || JSON.stringify(item.specifications?.options) === JSON.stringify(opts))
-    );
+    const isInCart = cartItems.some(item => (item.product_id || item.id) === product.id);
 
     if (!isInCart) {
       addItem({
         id: product.id,
         name: product.name,
-        price: Number(product.price),
+        price: finalPrice,
         image_url: (getPublicImageUrls(product.image_url, shop?.id) || [''])[0],
       }, selColor || null, opts);
     }
@@ -3454,10 +3471,17 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                     {product.description && (
                       <p className="text-xs text-gray-400 line-clamp-2 mb-2 leading-relaxed">{product.description}</p>
                     )}
-                    <div className="mb-1">
-                      {product.original_price > 0 && <p className="text-[10px] line-through text-red-400 font-medium">{formatPrice(product.original_price, shop?.currency || 'MMK')}</p>}
-                      <p className="font-bold theme-price text-sm md:text-base">{formatPrice(product.price, shop?.currency || 'MMK')}</p>
-                    </div>
+                    {(() => {
+                      const cardSelColor = selectedColors[product.id];
+                      const cardColorStr = cardSelColor ? (getColorName(cardSelColor) || cardSelColor) : null;
+                      const cardPrice = resolveProductPrice(product, cardColorStr);
+                      return (
+                        <div className="mb-1">
+                          {product.original_price > 0 && <p className="text-[10px] line-through text-red-400 font-medium">{formatPrice(product.original_price, shop?.currency || 'MMK')}</p>}
+                          <p className="font-bold theme-price text-sm md:text-base">{formatPrice(cardPrice, shop?.currency || 'MMK')}</p>
+                        </div>
+                      );
+                    })()}
 
                     {viewMode !== 'telegram' && (() => {
                       const productColors = getProductColors(product);

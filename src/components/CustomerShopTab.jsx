@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, X, ShoppingCart, Package, SlidersHorizontal, CheckCircle, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Search, X, ShoppingCart, Package, SlidersHorizontal, CheckCircle, ChevronLeft, ChevronRight, Star, ZoomIn } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getPublicShop } from '../api/public';
 import { useCartState } from '../context/CartContext';
@@ -8,6 +8,8 @@ import { useCartState } from '../context/CartContext';
 import { API_BASE } from '../api/config';
 import { formatPrice } from '../utils/formatPrice';
 import { getColorName } from '../data/colors';
+import { resolveColorName, resolveProductPrice } from '../utils/productPricing';
+import { FullScreenImageViewer } from '../pages/PublicEcommerce';
 
 function getPublicImageUrls(image_url, bot_id) {
   if (!image_url) return [];
@@ -273,6 +275,45 @@ function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selCol
   const productColors = product.specifications?.colors || [];
   const productOptions = product.specifications?.options || [];
   const [curImgIdx, setCurImgIdx] = useState(0);
+  const [imgRatio, setImgRatio] = useState('landscape');
+  const [showFullScreen, setShowFullScreen] = useState(false);
+  const touchStartX = useRef(null);
+
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const diff = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0 && curImgIdx > 0) setCurImgIdx(i => i - 1);
+      else if (diff < 0 && curImgIdx < images.length - 1) setCurImgIdx(i => i + 1);
+    }
+    touchStartX.current = null;
+  };
+
+  const prevImage = useCallback(() => { if (curImgIdx > 0) setCurImgIdx(i => i - 1); }, [curImgIdx]);
+  const nextImage = useCallback(() => { if (curImgIdx < images.length - 1) setCurImgIdx(i => i + 1); }, [curImgIdx, images.length]);
+
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') onClose(); if (e.key === 'ArrowLeft') prevImage(); if (e.key === 'ArrowRight') nextImage(); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [onClose, prevImage, nextImage]);
+
+  const colorStr = selColor ? (getColorName(selColor) || selColor) : null;
+  const opts = selOptions && typeof selOptions === 'object' && Object.keys(selOptions).length > 0 ? selOptions : null;
+  const currentPrice = resolveProductPrice(product, colorStr, opts);
+
+  const containerClass = imgRatio === 'landscape'
+    ? 'sticky top-0 z-10 aspect-[16/9] bg-gray-900/5 overflow-hidden relative flex items-center justify-center'
+    : imgRatio === 'portrait'
+    ? 'sticky top-0 z-10 aspect-[4/5] sm:aspect-square bg-gray-900/5 overflow-hidden relative flex items-center justify-center'
+    : 'sticky top-0 z-10 aspect-square bg-gray-900/5 overflow-hidden relative flex items-center justify-center';
+
+  const imgClass = imgRatio === 'landscape'
+    ? 'w-full h-full object-cover relative z-10'
+    : imgRatio === 'portrait'
+    ? 'w-full h-full object-contain relative z-10 p-2 md:p-4 drop-shadow-md'
+    : 'w-full h-full object-cover relative z-10';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
@@ -282,36 +323,84 @@ function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selCol
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
         className="relative bg-white w-full max-w-lg md:rounded-[32px] md:mx-4 max-h-[92svh] overflow-y-auto rounded-t-xl shadow-2xl"
       >
-        <button onClick={onClose} className="absolute top-4 right-4 z-20 p-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg">
+        <button onClick={onClose} className="absolute top-4 right-4 z-30 p-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all">
           <X className="w-5 h-5 text-gray-700" />
         </button>
 
         {/* Image */}
-        <div className="sticky top-0 z-10 aspect-square bg-gray-100 overflow-hidden">
+        <div className={containerClass} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+          {images[curImgIdx] && imgRatio === 'portrait' && (
+            <img
+              src={images[curImgIdx]}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-125 pointer-events-none transition-all duration-500"
+            />
+          )}
+
           {images.length > 0 ? (
-            <>
-              <img src={images[curImgIdx]} alt={product.name} className="w-full h-full object-cover"
-                onError={(e) => { e.target.style.display = 'none'; }} />
-              {images.length > 1 && (
-                <>
-                  {curImgIdx > 0 && (
-                    <button onClick={() => setCurImgIdx(i => i - 1)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg">
-                      <ChevronLeft className="w-5 h-5 text-gray-700" />
-                    </button>
-                  )}
-                  {curImgIdx < images.length - 1 && (
-                    <button onClick={() => setCurImgIdx(i => i + 1)} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg">
-                      <ChevronRight className="w-5 h-5 text-gray-700" />
-                    </button>
-                  )}
-                </>
-              )}
-            </>
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={curImgIdx} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}
+                src={images[curImgIdx]} alt={product.name}
+                className={`${imgClass} cursor-zoom-in`}
+                onClick={() => setShowFullScreen(true)}
+                onLoad={(e) => {
+                  const w = e.target.naturalWidth;
+                  const h = e.target.naturalHeight;
+                  if (w && h) {
+                    const r = w / h;
+                    if (r > 1.3) setImgRatio('landscape');
+                    else if (r < 0.85) setImgRatio('portrait');
+                    else setImgRatio('square');
+                  }
+                }}
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            </AnimatePresence>
           ) : (
             <div className="w-full h-full flex items-center justify-center"><Package className="w-20 h-20 text-gray-300" /></div>
           )}
-          <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full">
-            <span className="text-white text-xs font-bold">{isOutOfStock ? 'Out of Stock' : product.stock_quantity !== null && product.stock_quantity <= 5 ? `${product.stock_quantity} left` : 'In Stock'}</span>
+
+          {images.length > 1 && (
+            <>
+              {curImgIdx > 0 && (
+                <button onClick={prevImage} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg z-20">
+                  <ChevronLeft className="w-5 h-5 text-gray-700" />
+                </button>
+              )}
+              {curImgIdx < images.length - 1 && (
+                <button onClick={nextImage} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-white/90 backdrop-blur-md rounded-full shadow-lg z-20">
+                  <ChevronRight className="w-5 h-5 text-gray-700" />
+                </button>
+              )}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
+                {images.map((_, i) => (
+                  <button key={i} onClick={() => setCurImgIdx(i)}
+                    className={`w-2 h-2 rounded-full transition-all ${i === curImgIdx ? 'bg-white w-6 shadow-md' : 'bg-white/50'}`} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {images.length > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowFullScreen(true); }}
+              className="absolute bottom-4 left-4 z-20 p-2.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg hover:bg-white active:scale-90 transition-all pointer-events-auto"
+              title="View Fullscreen"
+            >
+              <ZoomIn className="w-4 h-4 text-gray-700" />
+            </button>
+          )}
+
+          <div className="absolute bottom-4 right-4 z-20">
+            <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider backdrop-blur-sm shadow-md ${
+              isOutOfStock ? 'bg-rose-500/90 text-white' :
+              product.stock_quantity !== null && product.stock_quantity <= 5 ? 'bg-amber-500/90 text-white' : 'bg-emerald-500/90 text-white'
+            }`}>
+              {isOutOfStock ? 'Out of Stock' :
+               product.stock_quantity !== null && product.stock_quantity <= 5 ? `${product.stock_quantity} left` : 'In Stock'}
+            </span>
           </div>
         </div>
 
@@ -319,7 +408,7 @@ function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selCol
           <h2 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h2>
           <div className="mb-4 flex items-baseline gap-2">
             {product.original_price > 0 && <p className="text-sm line-through text-red-400 font-medium">{formatPrice(product.original_price, currency)}</p>}
-            <p className="text-2xl font-bold text-indigo-600">{formatPrice(product.price, currency)}</p>
+            <p className="text-2xl font-bold text-indigo-600">{formatPrice(currentPrice, currency)}</p>
           </div>
 
           {product.description && (
@@ -394,11 +483,9 @@ function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selCol
             <button
               onClick={() => {
                 addItem({
-                id: product.id, name: product.name, price: Number(product.price),
-                image_url: images[0] || '',
-                selected_color: selColor || undefined,
-                selected_options: Object.keys(selOptions).length > 0 ? selOptions : undefined,
-              }, null);
+                  id: product.id, name: product.name, price: currentPrice,
+                  image_url: images[0] || '',
+                }, selColor || null, opts);
                 onClose();
               }}
               disabled={isOutOfStock || (productColors.length > 0 && !selColor) || (productOptions.length > 0 && productOptions.some(o => !selOptions[o.id]))}
@@ -414,6 +501,18 @@ function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selCol
           )}
         </div>
       </motion.div>
+
+      {/* Fullscreen Viewer */}
+      <AnimatePresence>
+        {showFullScreen && (
+          <FullScreenImageViewer
+            images={images}
+            initialIndex={curImgIdx}
+            onClose={() => setShowFullScreen(false)}
+            title={product.name}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1666,6 +1666,19 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     if (product?.stock_quantity > 0) return String(product.stock_quantity);
     return '';
   });
+  const [specPrices, setSpecPrices] = useState(() => {
+    if (product?.spec_prices) {
+      if (Array.isArray(product.spec_prices)) return product.spec_prices;
+      if (typeof product.spec_prices === 'string') {
+        try { return JSON.parse(product.spec_prices); } catch (e) { return []; }
+      }
+    }
+    return [];
+  });
+  const [showSpecModal, setShowSpecModal] = useState(false);
+  const [specPriceInput, setSpecPriceInput] = useState('');
+  const [specSelectedColor, setSpecSelectedColor] = useState(null);
+  const [specSelectedOptions, setSpecSelectedOptions] = useState({});
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
   const [showNewCategory, setShowNewCategory] = useState(false);
@@ -1953,6 +1966,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
       category_id: formData.category_id ? Number(formData.category_id) : null,
       image_url: imageUrl,
       specifications: specs,
+      spec_prices: specPrices,
     });
   };
 
@@ -2324,6 +2338,271 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
             </button>
           )}
         </div>
+
+        {/* Price per Specs Button & Modal */}
+        {(() => {
+          const hasColorsOrOptions = (colors && colors.length > 0) || (options && options.some(o => o.name && o.values && o.values.length > 0));
+          const isSpecDisabled = !hasColorsOrOptions;
+          return (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isSpecDisabled) return;
+                  setShowSpecModal(true);
+                }}
+                disabled={isSpecDisabled}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border text-sm font-bold transition-all ${
+                  isSpecDisabled
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+                    : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 shadow-sm active:scale-98'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-purple-600" />
+                  <span>Price per Specs</span>
+                  {specPrices.length > 0 && (
+                    <span className="px-2 py-0.5 text-xs bg-purple-600 text-white rounded-full font-extrabold ml-1">
+                      {specPrices.length}
+                    </span>
+                  )}
+                </div>
+                <ChevronRight className={`w-4 h-4 ${isSpecDisabled ? 'text-gray-300' : 'text-purple-400'}`} />
+              </button>
+
+              <AnimatePresence>
+                {showSpecModal && (
+                  <>
+                    <div
+                      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70]"
+                      onClick={() => setShowSpecModal(false)}
+                    />
+                    <div className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4">
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-5 sm:p-6 max-h-[90vh] overflow-y-auto"
+                      >
+                        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
+                              <Tag className="w-4 h-4" />
+                            </div>
+                            <h3 className="text-base font-bold text-gray-900">Set Price per Specs</h3>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowSpecModal(false)}
+                            className="p-1.5 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Price Input */}
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-gray-700">
+                              Price Amount ({selectedBot?.currency || 'MMK'})
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={specPriceInput}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                setSpecPriceInput(val);
+                              }}
+                              placeholder="e.g. 12000 (digits only)"
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-purple-500 outline-none"
+                            />
+                          </div>
+
+                          {/* Color Selector */}
+                          {colors && colors.length > 0 && (
+                            <div className="space-y-2 pt-1">
+                              <label className="text-xs font-bold text-gray-700 block">
+                                Colors
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {colors.map(c => {
+                                  const cName = c.name || c.color;
+                                  const isSelected = specSelectedColor === cName;
+                                  const bgHex = c.hex || (c.color && c.color.startsWith('#') ? c.color : '#6B7280');
+                                  return (
+                                    <button
+                                      key={c.id || cName}
+                                      type="button"
+                                      onClick={() => {
+                                        const nextColor = isSelected ? null : cName;
+                                        setSpecSelectedColor(nextColor);
+                                        // Auto-fill price if rule exists
+                                        const existing = specPrices.find(sp => sp.color === nextColor && JSON.stringify(sp.options || {}) === JSON.stringify(specSelectedOptions));
+                                        if (existing) setSpecPriceInput(String(existing.price));
+                                      }}
+                                      className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs font-bold transition-all ${
+                                        isSelected
+                                          ? 'bg-purple-600 text-white border-purple-600 shadow-sm scale-105'
+                                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <span
+                                        className="w-3.5 h-3.5 rounded-full border border-black/10 inline-block shadow-inner"
+                                        style={{ backgroundColor: bgHex }}
+                                      />
+                                      <span>{cName}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Options Selector(s) */}
+                          {options && options.length > 0 && options.map(optGroup => {
+                            if (!optGroup.name || !optGroup.values || optGroup.values.length === 0) return null;
+                            return (
+                              <div key={optGroup.id} className="space-y-2 pt-1">
+                                <label className="text-xs font-bold text-gray-700 block">
+                                  {optGroup.name}
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                  {optGroup.values.map(v => {
+                                    if (!v.label) return null;
+                                    const isSelected = specSelectedOptions[optGroup.id] === v.label;
+                                    return (
+                                      <button
+                                        key={v.id || v.label}
+                                        type="button"
+                                        onClick={() => {
+                                          const nextOpts = { ...specSelectedOptions };
+                                          if (isSelected) {
+                                            delete nextOpts[optGroup.id];
+                                          } else {
+                                            nextOpts[optGroup.id] = v.label;
+                                          }
+                                          setSpecSelectedOptions(nextOpts);
+                                          // Auto-fill price if rule exists
+                                          const existing = specPrices.find(sp => sp.color === specSelectedColor && JSON.stringify(sp.options || {}) === JSON.stringify(nextOpts));
+                                          if (existing) setSpecPriceInput(String(existing.price));
+                                        }}
+                                        className={`px-3 py-2 rounded-2xl border text-xs font-bold transition-all ${
+                                          isSelected
+                                            ? 'bg-purple-600 text-white border-purple-600 shadow-sm scale-105'
+                                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        {v.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {/* Save & Cancel */}
+                          {(() => {
+                            const isSelectedAny = specSelectedColor || Object.values(specSelectedOptions).filter(Boolean).length > 0;
+                            const isSaveDisabled = !specPriceInput || Number(specPriceInput) <= 0 || !isSelectedAny;
+                            return (
+                              <div className="flex gap-2 pt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSpecPriceInput('');
+                                    setSpecSelectedColor(null);
+                                    setSpecSelectedOptions({});
+                                    setShowSpecModal(false);
+                                  }}
+                                  className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-colors text-sm"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isSaveDisabled}
+                                  onClick={() => {
+                                    if (isSaveDisabled) return;
+                                    const newPrice = Number(specPriceInput);
+                                    const newRule = {
+                                      id: Date.now().toString(),
+                                      price: newPrice,
+                                      color: specSelectedColor || null,
+                                      options: specSelectedOptions,
+                                    };
+                                    // Remove existing rule if matching color & options
+                                    setSpecPrices(prev => {
+                                      const filtered = prev.filter(sp => !(sp.color === newRule.color && JSON.stringify(sp.options || {}) === JSON.stringify(newRule.options)));
+                                      return [...filtered, newRule];
+                                    });
+                                    addToast('Spec price rule added', 'success');
+                                    setSpecPriceInput('');
+                                    setSpecSelectedColor(null);
+                                    setSpecSelectedOptions({});
+                                  }}
+                                  className={`flex-1 py-3 text-white font-bold rounded-2xl transition-all text-sm ${
+                                    isSaveDisabled
+                                      ? 'bg-purple-300 cursor-not-allowed opacity-50'
+                                      : 'bg-purple-600 hover:bg-purple-700 shadow-md active:scale-98'
+                                  }`}
+                                >
+                                  Add Rule
+                                </button>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Existing Saved Rules List */}
+                          {specPrices.length > 0 && (
+                            <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+                              <p className="text-xs font-bold text-gray-500">Saved Spec Prices ({specPrices.length}):</p>
+                              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                                {specPrices.map((sp, idx) => {
+                                  const optVals = Object.values(sp.options || {}).filter(Boolean);
+                                  return (
+                                    <div key={sp.id || idx} className="flex items-center justify-between p-2.5 bg-purple-50/60 border border-purple-100 rounded-2xl text-xs">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-lg">
+                                          {formatPrice(sp.price, selectedBot?.currency || 'MMK')}
+                                        </span>
+                                        {sp.color && (
+                                          <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-700 font-semibold">
+                                            🎨 {sp.color}
+                                          </span>
+                                        )}
+                                        {optVals.map((ov, oidx) => (
+                                          <span key={oidx} className="px-2 py-0.5 bg-white border border-gray-200 rounded-lg text-gray-700 font-semibold">
+                                            ⚙️ {ov}
+                                          </span>
+                                        ))}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSpecPrices(prev => prev.filter(item => item.id !== sp.id));
+                                          addToast('Rule deleted');
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-rose-500 transition-colors ml-2 flex-shrink-0"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    </div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })()}
 
         {/* Colors Section */}
         <div className="space-y-3">
