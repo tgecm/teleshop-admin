@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { fetchCart, syncCart, clearServerCart } from '../api/cart';
+import { resolveProductPrice } from '../utils/productPricing';
 
 export interface CartItem {
   product_id: number;
@@ -191,14 +192,17 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0);
   const totalAmount = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  const syncPrices = useCallback((products: { id: number; price: number }[]) => {
+  const syncPrices = useCallback((products: any[]) => {
     setItems(prev => {
       let changed = false;
       const updated = prev.map(item => {
         const product = products.find(p => p.id === item.product_id);
-        if (product && Number(product.price) !== Number(item.price)) {
-          changed = true;
-          return { ...item, price: Number(product.price) };
+        if (product) {
+          const resolvedPrice = resolveProductPrice(product, item.selected_color, item.selected_options);
+          if (resolvedPrice && Number(resolvedPrice) !== Number(item.price)) {
+            changed = true;
+            return { ...item, price: Number(resolvedPrice) };
+          }
         }
         return item;
       });
