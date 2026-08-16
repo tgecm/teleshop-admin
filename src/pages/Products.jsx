@@ -1670,7 +1670,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     description: product?.description || '',
     price: product?.price || '',
     original_price: product?.original_price || '',
-    category_id: product?.category_id || (categories && categories.length > 0 ? categories[0].id : ''),
+    category_id: product?.category_id || '',
     apply_delivery_fee: product?.apply_delivery_fee || false,
     cost_price: product?.cost_price || '',
     show_on_telegram: product?.show_on_telegram !== undefined ? product.show_on_telegram : true,
