@@ -8,6 +8,7 @@ import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import { formatPrice } from '../utils/formatPrice';
+import { sanitizeSpecPrices } from '../utils/productPricing';
 import { downloadBlob } from '../utils/download';
 import { getPlanLimit } from '../utils/plans';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
@@ -20,7 +21,7 @@ import {
   Image as ImageIcon, ChevronRight, ChevronDown, AlertCircle, CheckCircle2,
   Loader2, FolderPlus, ImageUp, Palette, Copy, ArrowUpDown,
   Ticket, Percent, CalendarDays, Coins, Users, Truck, Download, Upload,
-  Settings, BadgeDollarSign, ClipboardList, Award
+  Settings, BadgeDollarSign, ClipboardList, Award, Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import townshipsData, { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
@@ -88,6 +89,7 @@ export default function Products() {
     queryFn: () => getProducts({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
     placeholderData: (prev) => prev,
+    refetchInterval: 10000,
   });
 
   const { data: categories } = useQuery({
@@ -601,15 +603,36 @@ export default function Products() {
                   </button>
                 </div>
                 <div className="absolute bottom-2 left-2 md:bottom-3 md:left-3">
-                  <span className={`px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[8px] md:text-[10px] font-bold uppercase tracking-wider ${
-                    product.stock_quantity === 0 ? 'bg-rose-500 text-white' :
-                    product.stock_quantity !== null && product.stock_quantity <= 5 ? 'bg-amber-500 text-white' :
-                    'bg-emerald-500 text-white'
-                  }`}>
-                    {product.stock_quantity === 0 ? 'Out of Stock' :
-                     product.stock_quantity !== null ? `${product.stock_quantity} In Stock` :
-                     'In Stock'}
-                  </span>
+                  {(() => {
+                    const status = product?.specifications?.stock_status || product?.stock_status;
+                    const isOOS = product?.stock_quantity === 0 || status === 'out';
+                    const isLow = product?.stock_quantity !== null && product?.stock_quantity > 0 && product?.stock_quantity <= 5;
+                    if (status === 'preorder') {
+                      return (
+                        <span className="px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[8px] md:text-[10px] font-bold uppercase tracking-wider bg-purple-600 text-white">
+                          {product.stock_quantity !== null && product.stock_quantity > 0 ? `PRE-ORDER (${product.stock_quantity} Left)` : 'PRE-ORDER'}
+                        </span>
+                      );
+                    }
+                    if (status === 'limited') {
+                      return (
+                        <span className="px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[8px] md:text-[10px] font-black uppercase tracking-wider bg-amber-400 text-gray-950 shadow-sm">
+                          {product.stock_quantity !== null && product.stock_quantity > 0 ? `LIMITED (${product.stock_quantity} Left)` : 'LIMITED'}
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className={`px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[8px] md:text-[10px] font-bold uppercase tracking-wider ${
+                        isOOS ? 'bg-rose-500 text-white' :
+                        isLow ? 'bg-amber-500 text-white' :
+                        'bg-emerald-500 text-white'
+                      }`}>
+                        {isOOS ? 'Out of Stock' :
+                         product.stock_quantity !== null ? `${product.stock_quantity} In Stock` :
+                         'In Stock'}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
               <div className="p-3 md:p-4 lg:p-5">
@@ -1658,6 +1681,12 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
   const [showAdditional, setShowAdditional] = useState(() => !!product?.cost_price);
   const [promotion, setPromotion] = useState(() => !!product?.original_price);
   const [stockOption, setStockOption] = useState(() => {
+    if (product?.specifications?.stock_status) {
+      return product.specifications.stock_status;
+    }
+    if (product?.stock_status) {
+      return product.stock_status;
+    }
     if (product?.stock_quantity === null || product?.stock_quantity === undefined) return 'unlimited';
     if (product?.stock_quantity === 0) return 'out';
     return 'custom';
@@ -1665,6 +1694,13 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
   const [customStock, setCustomStock] = useState(() => {
     if (product?.stock_quantity > 0) return String(product.stock_quantity);
     return '';
+  });
+  const [editingStockQtyFor, setEditingStockQtyFor] = useState(() => {
+    const status = product?.specifications?.stock_status || product?.stock_status;
+    if ((status === 'preorder' || status === 'limited') && product?.stock_quantity > 0) {
+      return status;
+    }
+    return null;
   });
   const [specPrices, setSpecPrices] = useState(() => {
     if (product?.spec_prices) {
@@ -1748,6 +1784,74 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     }
     return [];
   });
+
+  const [showUnsavedConfirmModal, setShowUnsavedConfirmModal] = useState(false);
+  const initialSnapshotRef = useRef(null);
+
+  useEffect(() => {
+    initialSnapshotRef.current = JSON.stringify({
+      formData,
+      promotion,
+      stockOption,
+      customStock,
+      images,
+      colors,
+      options,
+      specPrices
+    });
+  }, []);
+
+  const checkIsDirty = useCallback(() => {
+    if (!initialSnapshotRef.current) return false;
+    const currentSnapshot = JSON.stringify({
+      formData,
+      promotion,
+      stockOption,
+      customStock,
+      images,
+      colors,
+      options,
+      specPrices
+    });
+    return currentSnapshot !== initialSnapshotRef.current;
+  }, [formData, promotion, stockOption, customStock, images, colors, options, specPrices]);
+
+  const handleRequestClose = () => {
+    if (checkIsDirty()) {
+      setShowUnsavedConfirmModal(true);
+    } else {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (checkIsDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.history.pushState({ modalOpen: true }, '');
+
+    const handlePopState = () => {
+      if (checkIsDirty()) {
+        window.history.pushState({ modalOpen: true }, '');
+        setShowUnsavedConfirmModal(true);
+      } else {
+        onClose();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [checkIsDirty, onClose]);
   const uid = () => Math.random().toString(36).substring(2, 9);
 
   const addOption = () => {
@@ -1949,12 +2053,13 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     const imageUrl = images.length > 0
       ? JSON.stringify(images.map(img => ({ file_id: img.file_id, type: 'photo' })))
       : null;
-    let specs = null;
-    if (colors.length > 0 || options.length > 0) {
-      specs = {};
-      if (colors.length > 0) specs.colors = colors;
-      if (options.length > 0) specs.options = options;
-    }
+    const specs = {
+      ...(product?.specifications || {}),
+      stock_status: stockOption,
+    };
+    if (colors.length > 0) specs.colors = colors;
+    if (options.length > 0) specs.options = options;
+
     const { cost_price, ...rest } = formData;
     onSubmit({
       ...rest,
@@ -1962,11 +2067,12 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
       apply_delivery_fee: formData.apply_delivery_fee || false,
       price: Number(formData.price),
       original_price: promotion && formData.original_price ? Number(formData.original_price) : null,
-      stock_quantity: stockOption === 'unlimited' ? null : stockOption === 'out' ? 0 : Number(customStock),
+      stock_quantity: stockOption === 'unlimited' ? null : stockOption === 'out' ? 0 : stockOption === 'custom' ? (customStock !== '' ? Number(customStock) : null) : editingStockQtyFor === stockOption && customStock !== '' ? Number(customStock) : null,
+      stock_status: stockOption,
       category_id: formData.category_id ? Number(formData.category_id) : null,
       image_url: imageUrl,
       specifications: specs,
-      spec_prices: specPrices,
+      spec_prices: sanitizeSpecPrices(specPrices, colors, options),
     });
   };
 
@@ -1979,7 +2085,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
         <h2 className="text-xl font-bold text-gray-900">
           {product ? 'Edit Product' : 'New Product'}
         </h2>
-        <button onClick={onClose} className="p-2 bg-gray-100 rounded-full">
+        <button onClick={handleRequestClose} className="p-2 bg-gray-100 rounded-full">
           <X className="w-5 h-5 text-gray-500" />
         </button>
       </div>
@@ -2226,32 +2332,103 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
               {[
                 { value: 'unlimited', label: 'In stock' },
                 { value: 'out', label: 'Out of Stock' },
-                { value: 'custom', label: 'Add' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setStockOption(opt.value)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    stockOption === opt.value
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+                { value: 'preorder', label: 'Pre-order', hasPencil: true },
+                { value: 'limited', label: 'Limited', hasPencil: true },
+                { value: 'custom', label: 'Custom Quantity' },
+              ].map(opt => {
+                const isSelected = stockOption === opt.value;
+                const isPencilOpen = editingStockQtyFor === opt.value;
+                return (
+                  <div key={opt.value} className="flex items-center">
+                    {opt.hasPencil ? (
+                      <div
+                        className={`inline-flex items-center rounded-lg text-xs font-bold transition-all border overflow-hidden ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStockOption(opt.value);
+                            setEditingStockQtyFor(null);
+                          }}
+                          className="px-3 py-1.5 hover:opacity-90 active:scale-95 transition-all"
+                        >
+                          {opt.label}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setStockOption(opt.value);
+                            setEditingStockQtyFor(prev => prev === opt.value ? null : opt.value);
+                          }}
+                          className={`px-2 py-1.5 hover:opacity-80 transition-all border-l ${
+                            isSelected ? 'border-indigo-400/50 hover:bg-indigo-700' : 'border-gray-200 hover:bg-gray-200'
+                          }`}
+                          title="Click to set stock quantity"
+                        >
+                          <Pencil
+                            className={`w-3 h-3 ${
+                              isPencilOpen
+                                ? 'text-amber-300 scale-110'
+                                : isSelected
+                                ? 'text-white'
+                                : 'text-gray-400 hover:text-indigo-600'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStockOption(opt.value);
+                          setEditingStockQtyFor(null);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            {stockOption === 'custom' && (
-              <input
-                required
-                type="number"
-                min="0"
-                value={customStock}
-                onChange={(e) => setCustomStock(e.target.value)}
-                placeholder="Enter quantity"
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium mt-2"
-              />
+            {(stockOption === 'custom' || (editingStockQtyFor === stockOption && (stockOption === 'preorder' || stockOption === 'limited'))) && (
+              <div className="mt-2 space-y-1.5 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between text-xs font-semibold text-gray-600 ml-1">
+                  <span>
+                    {stockOption === 'preorder'
+                      ? 'Pre-order Stock Quantity (optional)'
+                      : stockOption === 'limited'
+                      ? 'Limited Stock Quantity (optional)'
+                      : 'Stock Quantity'}
+                  </span>
+                  {customStock && <span className="text-indigo-600 font-bold">{customStock} items</span>}
+                </div>
+                <input
+                  required={stockOption === 'custom'}
+                  type="number"
+                  min="0"
+                  value={customStock}
+                  onChange={(e) => setCustomStock(e.target.value)}
+                  placeholder={
+                    stockOption === 'preorder'
+                      ? 'Enter pre-order max quantity (e.g. 10)'
+                      : stockOption === 'limited'
+                      ? 'Enter limited stock quantity (e.g. 10)'
+                      : 'Enter quantity'
+                  }
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
+                />
+              </div>
             )}
           </div>
         </div>
@@ -2438,7 +2615,13 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                                         const nextColor = isSelected ? null : cName;
                                         setSpecSelectedColor(nextColor);
                                         // Auto-fill price if rule exists
-                                        const existing = specPrices.find(sp => sp.color === nextColor && JSON.stringify(sp.options || {}) === JSON.stringify(specSelectedOptions));
+                                        const areOptionsEqual = (a = {}, b = {}) => {
+                                          const kA = Object.keys(a || {}).filter(k => a[k]);
+                                          const kB = Object.keys(b || {}).filter(k => b[k]);
+                                          if (kA.length !== kB.length) return false;
+                                          return kA.every(k => String(a[k]).trim().toLowerCase() === String(b[k] || '').trim().toLowerCase());
+                                        };
+                                        const existing = specPrices.find(sp => (sp.color || null) === (nextColor || null) && areOptionsEqual(sp.options, specSelectedOptions));
                                         if (existing) setSpecPriceInput(String(existing.price));
                                       }}
                                       className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs font-bold transition-all ${
@@ -2484,7 +2667,13 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                                           }
                                           setSpecSelectedOptions(nextOpts);
                                           // Auto-fill price if rule exists
-                                          const existing = specPrices.find(sp => sp.color === specSelectedColor && JSON.stringify(sp.options || {}) === JSON.stringify(nextOpts));
+                                          const areOptionsEqual = (a = {}, b = {}) => {
+                                            const kA = Object.keys(a || {}).filter(k => a[k]);
+                                            const kB = Object.keys(b || {}).filter(k => b[k]);
+                                            if (kA.length !== kB.length) return false;
+                                            return kA.every(k => String(a[k]).trim().toLowerCase() === String(b[k] || '').trim().toLowerCase());
+                                          };
+                                          const existing = specPrices.find(sp => (sp.color || null) === (specSelectedColor || null) && areOptionsEqual(sp.options, nextOpts));
                                           if (existing) setSpecPriceInput(String(existing.price));
                                         }}
                                         className={`px-3 py-2 rounded-2xl border text-xs font-bold transition-all ${
@@ -2534,7 +2723,13 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                                     };
                                     // Remove existing rule if matching color & options
                                     setSpecPrices(prev => {
-                                      const filtered = prev.filter(sp => !(sp.color === newRule.color && JSON.stringify(sp.options || {}) === JSON.stringify(newRule.options)));
+                                      const areOptionsEqual = (a = {}, b = {}) => {
+                                        const kA = Object.keys(a || {}).filter(k => a[k]);
+                                        const kB = Object.keys(b || {}).filter(k => b[k]);
+                                        if (kA.length !== kB.length) return false;
+                                        return kA.every(k => String(a[k]).trim().toLowerCase() === String(b[k] || '').trim().toLowerCase());
+                                      };
+                                      const filtered = prev.filter(sp => !((sp.color || null) === (newRule.color || null) && areOptionsEqual(sp.options, newRule.options)));
                                       return [...filtered, newRule];
                                     });
                                     addToast('Spec price rule added', 'success');
@@ -2922,7 +3117,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
         <div className="pt-4 flex gap-3">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleRequestClose}
             className="flex-1 px-3 py-2.5 sm:px-6 sm:py-3 bg-gray-100 text-gray-700 font-bold rounded-xl sm:rounded-2xl hover:bg-gray-200 transition-all text-sm sm:text-base"
           >
             Cancel
@@ -2937,6 +3132,42 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
           </button>
         </div>
       </form>
+
+      {showUnsavedConfirmModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 mx-auto flex items-center justify-center">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900 mb-1">Unsaved Changes</h3>
+              <p className="text-sm font-medium text-gray-600">You have made some changes. Do you want to save?</p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnsavedConfirmModal(false);
+                  onClose();
+                }}
+                className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition-all text-sm active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  setShowUnsavedConfirmModal(false);
+                  handleSubmit(e);
+                }}
+                className="flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-md shadow-indigo-200 transition-all text-sm active:scale-95"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -179,7 +179,9 @@ export default function Subscription() {
   const expiryDate = bot?.plan_expiry ? new Date(bot.plan_expiry) : null;
   const hasExpiry = !!expiryDate;
   const daysRemaining = expiryDate ? differenceInDays(expiryDate, new Date()) : 0;
-  const isSubActive = currentPlan === 'free' || !hasExpiry || daysRemaining > 0;
+  const queuedDays = bot?.queued_plan_data?.days ? Number(bot.queued_plan_data.days) : 0;
+  const totalDaysRemaining = Math.max(0, daysRemaining) + queuedDays;
+  const isSubActive = currentPlan === 'free' || !hasExpiry || totalDaysRemaining > 0;
   const currentRank = PLAN_RANK[currentPlan] || 0;
 
   const handleUpgradeClick = (planKey) => {
@@ -446,9 +448,20 @@ export default function Subscription() {
 
           <div className="bg-gray-50 px-6 py-4 rounded-2xl text-center border border-gray-100 w-full sm:w-auto">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Days Remaining</p>
-            <p className="text-3xl font-bold text-indigo-600">{hasExpiry ? Math.max(0, daysRemaining) : '—'}</p>
+            <p className="text-3xl font-bold text-indigo-600">{hasExpiry ? totalDaysRemaining : '—'}</p>
           </div>
         </motion.div>
+      )}
+
+      {bot?.queued_plan_data && (
+        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-4 flex items-center justify-between text-xs text-purple-900 font-medium shadow-sm">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-purple-600 flex-shrink-0" />
+            <span>
+              Queued Plan: <strong className="capitalize">{bot.queued_plan_data.plan_name || bot.queued_plan_data.plan} Plan</strong> ({bot.queued_plan_data.days} days) will automatically start after your active plan expires.
+            </span>
+          </div>
+        </div>
       )}
 
       {/* Plan Cards */}
@@ -492,10 +505,6 @@ export default function Subscription() {
               </ul>
               <div className="mt-5">
                 {isCurrent ? (
-                  <span className="block w-full py-2.5 text-center text-xs font-bold text-indigo-600 bg-indigo-50 rounded-xl border border-indigo-100">
-                    Current Plan
-                  </span>
-                ) : canUpgrade ? (
                   <button
                     onClick={() => handleUpgradeClick(plan.key)}
                     disabled={orderLoading || cooldown > 0}
@@ -504,13 +513,33 @@ export default function Subscription() {
                     {cooldown > 0 ? (
                       <><Timer className="w-3 h-3" /> Wait {cooldown}s</>
                     ) : (
+                      'Renew / Extend'
+                    )}
+                  </button>
+                ) : canUpgrade ? (
+                  <button
+                    onClick={() => handleUpgradeClick(plan.key)}
+                    disabled={orderLoading || cooldown > 0}
+                    className="w-full py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-xs"
+                  >
+                    {cooldown > 0 ? (
+                      <><Timer className="w-3 h-3" /> Wait {cooldown}s</>
+                    ) : (
                       'Upgrade'
                     )}
                   </button>
                 ) : (
-                  <span className="block w-full py-2.5 text-center text-xs font-bold text-gray-400 bg-gray-50 rounded-xl border border-gray-100">
-                    Downgrade
-                  </span>
+                  <button
+                    onClick={() => handleUpgradeClick(plan.key)}
+                    disabled={orderLoading || cooldown > 0}
+                    className="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-xs"
+                  >
+                    {cooldown > 0 ? (
+                      <><Timer className="w-3 h-3" /> Wait {cooldown}s</>
+                    ) : (
+                      'Buy Plan'
+                    )}
+                  </button>
                 )}
               </div>
             </div>
