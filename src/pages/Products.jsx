@@ -1670,7 +1670,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     description: product?.description || '',
     price: product?.price || '',
     original_price: product?.original_price || '',
-    category_id: product?.category_id || '',
+    category_id: product?.category_id || (categories && categories.length > 0 ? categories[0].id : ''),
     apply_delivery_fee: product?.apply_delivery_fee || false,
     cost_price: product?.cost_price || '',
     show_on_telegram: product?.show_on_telegram !== undefined ? product.show_on_telegram : true,
@@ -1678,6 +1678,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     show_on_guest: product?.show_on_guest !== undefined ? product.show_on_guest : true,
   });
   const [nameError, setNameError] = useState(false);
+  const [categoryError, setCategoryError] = useState(false);
   const [showAdditional, setShowAdditional] = useState(() => !!product?.cost_price);
   const [promotion, setPromotion] = useState(() => !!product?.original_price);
   const [stockOption, setStockOption] = useState(() => {
@@ -2032,6 +2033,18 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
   const handleSubmit = (e) => {
     e.preventDefault();
     setNameError(false);
+    setCategoryError(false);
+
+    if (!formData.category_id) {
+      setCategoryError(true);
+      setCatDropdownOpen(true);
+      addToast('Please select a category for this product.', 'error');
+      if (catDropdownRef.current) {
+        catDropdownRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
     if (promotion && Number(formData.price) > Number(formData.original_price)) {
       addToast('Promotion price cannot exceed original price', 'error');
       return;
@@ -2092,19 +2105,28 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <label className="text-sm font-bold text-gray-700 ml-1">Category</label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-bold text-gray-700 ml-1">Category <span className="text-red-500">*</span></label>
+            {categoryError && (
+              <span className="text-xs font-bold text-red-500 animate-pulse">Category is required</span>
+            )}
+          </div>
           <div className="relative" ref={catDropdownRef}>
             <button
               type="button"
-              onClick={() => setCatDropdownOpen(!catDropdownOpen)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-sm flex items-center justify-between gap-2"
+              onClick={() => { setCatDropdownOpen(!catDropdownOpen); setCategoryError(false); }}
+              className={`w-full px-4 py-3 rounded-2xl outline-none transition-all font-medium text-sm flex items-center justify-between gap-2 ${
+                categoryError
+                  ? 'bg-red-50/50 border-2 border-red-500 text-red-900 focus:ring-2 focus:ring-red-400'
+                  : 'bg-gray-50 border border-gray-100 focus:ring-2 focus:ring-indigo-500'
+              }`}
             >
-              <span className={formData.category_id ? 'text-gray-900' : 'text-gray-400'}>
+              <span className={formData.category_id ? 'text-gray-900 font-semibold' : categoryError ? 'text-red-500 font-bold' : 'text-gray-400'}>
                 {formData.category_id
                   ? categories?.find(c => String(c.id) === String(formData.category_id))?.name || 'Select Category'
                   : 'Select Category'}
               </span>
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${catDropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-4 h-4 transition-transform ${categoryError ? 'text-red-500' : 'text-gray-400'} ${catDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
             {catDropdownOpen && (
               <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-60 overflow-y-auto">
@@ -2136,8 +2158,8 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                       <>
                         <button
                           type="button"
-                          onClick={() => { setFormData({ ...formData, category_id: cat.id }); setCatDropdownOpen(false); }}
-                          className={`flex-1 text-left truncate ${String(formData.category_id) === String(cat.id) ? 'text-indigo-600' : 'text-gray-700'}`}
+                          onClick={() => { setFormData({ ...formData, category_id: cat.id }); setCategoryError(false); setCatDropdownOpen(false); }}
+                          className={`flex-1 text-left truncate ${String(formData.category_id) === String(cat.id) ? 'text-indigo-600 font-bold' : 'text-gray-700'}`}
                         >
                           {cat.name}
                         </button>
