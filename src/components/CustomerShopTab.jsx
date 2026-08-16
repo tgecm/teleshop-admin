@@ -394,13 +394,33 @@ function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selCol
           )}
 
           <div className="absolute bottom-4 right-4 z-20">
-            <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider backdrop-blur-sm shadow-md ${
-              isOutOfStock ? 'bg-rose-500/90 text-white' :
-              product.stock_quantity !== null && product.stock_quantity <= 5 ? 'bg-amber-500/90 text-white' : 'bg-emerald-500/90 text-white'
-            }`}>
-              {isOutOfStock ? 'Out of Stock' :
-               product.stock_quantity !== null && product.stock_quantity <= 5 ? `${product.stock_quantity} left` : 'In Stock'}
-            </span>
+            {(() => {
+              const status = product?.specifications?.stock_status || product?.stock_status;
+              if (status === 'preorder') {
+                return (
+                  <span className="px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider backdrop-blur-sm shadow-md bg-purple-600/90 text-white">
+                    Pre-order
+                  </span>
+                );
+              }
+              if (status === 'limited') {
+                return (
+                  <span className="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider backdrop-blur-sm shadow-md bg-amber-400 text-gray-950">
+                    Limited
+                  </span>
+                );
+              }
+
+              return (
+                <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider backdrop-blur-sm shadow-md ${
+                  isOutOfStock ? 'bg-rose-500/90 text-white' :
+                  product.stock_quantity !== null && product.stock_quantity <= 5 ? 'bg-amber-500/90 text-white' : 'bg-emerald-500/90 text-white'
+                }`}>
+                  {isOutOfStock ? 'Out of Stock' :
+                   product.stock_quantity !== null && product.stock_quantity <= 5 ? `${product.stock_quantity} left` : 'In Stock'}
+                </span>
+              );
+            })()}
           </div>
         </div>
 

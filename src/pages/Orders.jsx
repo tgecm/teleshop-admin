@@ -95,6 +95,7 @@ export default function Orders() {
     queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
     placeholderData: (prev) => prev,
+    refetchInterval: 10000,
   });
 
   const { data: contentBlocks } = useQuery({

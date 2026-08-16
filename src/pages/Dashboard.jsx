@@ -174,6 +174,7 @@ export default function Dashboard() {
     queryFn: () => getStats(statsParams),
     enabled: !!selectedBotId,
     placeholderData: (prev) => prev,
+    refetchInterval: 10000,
   });
 
   // Separate period stats — only fetches items_sold / products_sold by period

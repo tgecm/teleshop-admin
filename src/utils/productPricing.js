@@ -21,6 +21,52 @@ export function resolveColorName(selectedColor, product) {
   return getColorName(colorStr) || colorStr;
 }
 
+export function sanitizeSpecPrices(specPrices, colors = [], options = []) {
+  if (!Array.isArray(specPrices)) return [];
+
+  const colorNames = new Set(colors.map(c => (c.name || c.color || '').trim().toLowerCase()).filter(Boolean));
+
+  const validOptKeys = new Map();
+  options.forEach(opt => {
+    const valSet = new Set((opt.values || []).map(v => (v.label || v.name || v.id || '').trim().toLowerCase()).filter(Boolean));
+    if (opt.id) validOptKeys.set(String(opt.id).trim().toLowerCase(), valSet);
+    if (opt.name) validOptKeys.set(String(opt.name).trim().toLowerCase(), valSet);
+  });
+
+  return specPrices.map(sp => {
+    if (!sp || typeof sp !== 'object') return null;
+    let newColor = sp.color;
+    if (newColor && colorNames.size > 0) {
+      if (!colorNames.has(String(newColor).trim().toLowerCase())) {
+        newColor = null;
+      }
+    }
+
+    const newOpts = {};
+    if (sp.options && typeof sp.options === 'object') {
+      Object.entries(sp.options).forEach(([rk, rv]) => {
+        if (rv === null || rv === undefined || rv === '') return;
+        const keyLower = String(rk).trim().toLowerCase();
+        const valLower = String(rv).trim().toLowerCase();
+
+        if (validOptKeys.size > 0) {
+          const valSet = validOptKeys.get(keyLower);
+          if (!valSet || !valSet.has(valLower)) {
+            return;
+          }
+        }
+        newOpts[rk] = rv;
+      });
+    }
+
+    return {
+      ...sp,
+      color: newColor,
+      options: newOpts
+    };
+  }).filter(Boolean);
+}
+
 export function resolveProductPrice(product, selectedColor, selectedOptions = {}) {
   const basePrice = Number(product?.price || 0);
   if (!product?.spec_prices) return basePrice;
@@ -39,34 +85,38 @@ export function resolveProductPrice(product, selectedColor, selectedOptions = {}
   }
   const productOptions = specs?.options || [];
 
-  const allSelValues = new Set();
-  const selOptMap = {};
+  const normOptions = productOptions.map(opt => {
+    const oId = opt.id ? String(opt.id).trim().toLowerCase() : '';
+    const oName = opt.name ? String(opt.name).trim().toLowerCase() : '';
+    const values = (opt.values || []).map(v => {
+      const vId = v.id ? String(v.id).trim().toLowerCase() : '';
+      const vLabel = v.label ? String(v.label).trim().toLowerCase() : (v.name ? String(v.name).trim().toLowerCase() : '');
+      return { id: vId, label: vLabel };
+    });
+    return { id: oId, name: oName, values };
+  });
+
+  const userSelections = new Map();
 
   if (selectedOptions && typeof selectedOptions === 'object') {
     Object.entries(selectedOptions).forEach(([optKey, valVal]) => {
       if (valVal === null || valVal === undefined || valVal === '') return;
+      const kLower = String(optKey).trim().toLowerCase();
+      const vLower = String(valVal).trim().toLowerCase();
 
-      const optObj = productOptions.find(o => o.id === optKey || o.name === optKey);
-      const valObj = optObj?.values?.find(v => v.id === valVal || v.label === valVal);
-
-      const valLabels = new Set();
-      valLabels.add(String(valVal).trim().toLowerCase());
-      if (valObj) {
-        if (valObj.label) valLabels.add(String(valObj.label).trim().toLowerCase());
-        if (valObj.id) valLabels.add(String(valObj.id).trim().toLowerCase());
+      const optMatch = normOptions.find(o => o.id === kLower || o.name === kLower);
+      if (optMatch) {
+        const valMatch = optMatch.values.find(v => v.id === vLower || v.label === vLower);
+        const identifiers = new Set([vLower]);
+        if (valMatch) {
+          if (valMatch.id) identifiers.add(valMatch.id);
+          if (valMatch.label) identifiers.add(valMatch.label);
+        }
+        userSelections.set(optMatch, identifiers);
+      } else {
+        const fallbackOpt = { id: kLower, name: kLower, values: [] };
+        userSelections.set(fallbackOpt, new Set([vLower]));
       }
-
-      valLabels.forEach(v => allSelValues.add(v));
-
-      const keyNames = new Set([String(optKey).trim().toLowerCase()]);
-      if (optObj) {
-        if (optObj.id) keyNames.add(String(optObj.id).trim().toLowerCase());
-        if (optObj.name) keyNames.add(String(optObj.name).trim().toLowerCase());
-      }
-
-      keyNames.forEach(k => {
-        selOptMap[k] = valLabels;
-      });
     });
   }
 
@@ -101,19 +151,44 @@ export function resolveProductPrice(product, selectedColor, selectedOptions = {}
         const ruleOptKey = String(rk).trim().toLowerCase();
         const ruleOptVal = String(rv).trim().toLowerCase();
 
-        const userValSet = selOptMap[ruleOptKey];
-        if (userValSet) {
-          if (!userValSet.has(ruleOptVal)) {
-            optionsMatch = false;
-            break;
-          }
+        const optMatch = normOptions.find(o => o.id === ruleOptKey || o.name === ruleOptKey);
+        
+        if (normOptions.length > 0 && !optMatch) {
+          continue; // Ignore deleted option rule key
+        }
+
+        let selectedValSet = null;
+        if (optMatch) {
+          selectedValSet = userSelections.get(optMatch);
         } else {
-          if (!allSelValues.has(ruleOptVal)) {
-            optionsMatch = false;
-            break;
+          for (const [optObj, valSet] of userSelections.entries()) {
+            if (optObj.id === ruleOptKey || optObj.name === ruleOptKey) {
+              selectedValSet = valSet;
+              break;
+            }
           }
         }
+
+        if (!selectedValSet) {
+          optionsMatch = false;
+          break;
+        }
+
+        let valMatches = selectedValSet.has(ruleOptVal);
+        if (!valMatches && optMatch) {
+          const ruleValMatch = optMatch.values.find(v => v.id === ruleOptVal || v.label === ruleOptVal);
+          if (ruleValMatch) {
+            if (ruleValMatch.id && selectedValSet.has(ruleValMatch.id)) valMatches = true;
+            if (ruleValMatch.label && selectedValSet.has(ruleValMatch.label)) valMatches = true;
+          }
+        }
+
+        if (!valMatches) {
+          optionsMatch = false;
+          break;
+        }
       }
+
       if (!optionsMatch) continue;
     }
 

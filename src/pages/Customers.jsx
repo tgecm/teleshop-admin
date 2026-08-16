@@ -36,6 +36,7 @@ export default function Customers() {
     queryKey: ['users', 'customers', selectedBotId],
     queryFn: () => getUsers({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId && section === 'telegram',
+    refetchInterval: 10000,
     placeholderData: (prev) => prev,
   });
 

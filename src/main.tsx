@@ -17,7 +17,8 @@ if (!import.meta.env.DEV) {
     const updateSW = registerSW({
       onOfflineReady: () => {},
       onNeedRefresh() {
-        updateSW(true);
+        // Update SW in background without forcing immediate full-page reload
+        updateSW(false);
       },
     });
   });

@@ -12,10 +12,10 @@ export default function AppVersionCheck() {
         if (stored && stored !== data.version) {
           if ('serviceWorker' in navigator) {
             const reg = await navigator.serviceWorker.ready;
-            if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+            if (reg?.waiting) reg.waiting.postMessage('SKIP_WAITING');
           }
           localStorage.setItem(VERSION_KEY, data.version);
-          window.location.reload();
+          // Do not force automatic full page reload to avoid interrupting users
         } else if (!stored) {
           localStorage.setItem(VERSION_KEY, data.version);
         }
