@@ -2129,55 +2129,8 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
               <ChevronDown className={`w-4 h-4 transition-transform ${categoryError ? 'text-red-500' : 'text-gray-400'} ${catDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
             {catDropdownOpen && (
-              <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-60 overflow-y-auto">
-                {categories?.map(cat => (
-                  <div key={cat.id} className="flex items-center px-3 py-2 text-sm font-bold transition-colors hover:bg-gray-50 gap-1">
-                    {editingCatId === cat.id ? (
-                      <input
-                        type="text"
-                        value={editingCatValue}
-                        onChange={(e) => setEditingCatValue(e.target.value)}
-                        onBlur={() => {
-                          const trimmed = editingCatValue.trim();
-                          if (trimmed && trimmed !== cat.name) {
-                            renameCategoryMutation.mutate({ id: cat.id, name: trimmed });
-                          } else {
-                            setEditingCatId(null);
-                            setEditingCatValue('');
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') e.target.blur();
-                          if (e.key === 'Escape') { setEditingCatId(null); setEditingCatValue(''); }
-                        }}
-                        className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => { setFormData({ ...formData, category_id: cat.id }); setCategoryError(false); setCatDropdownOpen(false); }}
-                          className={`flex-1 text-left truncate ${String(formData.category_id) === String(cat.id) ? 'text-indigo-600 font-bold' : 'text-gray-700'}`}
-                        >
-                          {cat.name}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setEditingCatId(cat.id); setEditingCatValue(cat.name); }}
-                          className="p-1 text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ))}
-                {(!categories || categories.length === 0) && (
-                  <div className="px-3 py-4 text-sm text-gray-400 text-center">No categories yet</div>
-                )}
-                <div className="border-t border-gray-100 mt-1 pt-1 px-1">
+              <div className="absolute left-0 top-full mt-1 w-full bg-white rounded-2xl shadow-xl border border-gray-100 z-50 max-h-60 overflow-y-auto">
+                <div className="sticky top-0 bg-white z-10 border-b border-gray-100 p-1 shadow-xs">
                   <button
                     type="button"
                     onClick={() => {
@@ -2188,12 +2141,61 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                       setCatDropdownOpen(false);
                       setShowNewCategory(true);
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl transition-colors ${atCategoryLimit ? 'text-gray-300 cursor-not-allowed' : 'text-indigo-600 hover:bg-indigo-50'}`}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-xl transition-colors ${atCategoryLimit ? 'text-gray-300 cursor-not-allowed' : 'text-indigo-600 hover:bg-indigo-50 bg-indigo-50/50'}`}
                     disabled={atCategoryLimit}
                   >
-                    <FolderPlus className="w-4 h-4" />
+                    <FolderPlus className="w-4 h-4 text-indigo-600 flex-shrink-0" />
                     Create New Category
                   </button>
+                </div>
+                <div className="py-1">
+                  {categories?.map(cat => (
+                    <div key={cat.id} className="flex items-center px-3 py-2 text-sm font-bold transition-colors hover:bg-gray-50 gap-1">
+                      {editingCatId === cat.id ? (
+                        <input
+                          type="text"
+                          value={editingCatValue}
+                          onChange={(e) => setEditingCatValue(e.target.value)}
+                          onBlur={() => {
+                            const trimmed = editingCatValue.trim();
+                            if (trimmed && trimmed !== cat.name) {
+                              renameCategoryMutation.mutate({ id: cat.id, name: trimmed });
+                            } else {
+                              setEditingCatId(null);
+                              setEditingCatValue('');
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.target.blur();
+                            if (e.key === 'Escape') { setEditingCatId(null); setEditingCatValue(''); }
+                          }}
+                          className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => { setFormData({ ...formData, category_id: cat.id }); setCategoryError(false); setCatDropdownOpen(false); }}
+                            className={`flex-1 text-left truncate ${String(formData.category_id) === String(cat.id) ? 'text-indigo-600 font-bold' : 'text-gray-700'}`}
+                          >
+                            {cat.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setEditingCatId(cat.id); setEditingCatValue(cat.name); }}
+                            className="p-1 text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {(!categories || categories.length === 0) && (
+                    <div className="px-3 py-4 text-sm text-gray-400 text-center">No categories yet</div>
+                  )}
                 </div>
               </div>
             )}

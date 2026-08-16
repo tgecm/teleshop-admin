@@ -137,7 +137,14 @@ export default function PublicAddProduct({ username, code, secret1 = '', secret2
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.category_id) return;
+    if (!formData.name.trim()) {
+      setErrorMsg('Please enter a product name');
+      return;
+    }
+    if (!formData.category_id) {
+      setErrorMsg('Please select a category for this product');
+      return;
+    }
     setSubmitting(true);
     const imageUrl = images.length > 0
       ? JSON.stringify(images.map(img => ({ file_id: img.file_id, type: 'photo' })))
