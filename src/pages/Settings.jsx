@@ -377,7 +377,7 @@ export default function Settings() {
 
   React.useEffect(() => {
     // Reset per-bot state when switching bots
-    setModeOrder(['telegram', 'ecommerce', 'guest']);
+    setModeOrder(['ecommerce', 'guest', 'telegram']);
     setModeEnabled({ telegram: true, ecommerce: true, guest: true });
 
     if (bot) {
