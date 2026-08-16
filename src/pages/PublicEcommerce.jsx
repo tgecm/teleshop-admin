@@ -23,6 +23,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { signInWithGoogle } from '../lib/googleSignIn';
 import { isMainDomain } from '../utils/authProxy';
+import { filterAndSortProducts } from '../utils/search';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { RichMessage } from '../components/chat/RichMessage';
 import NewsfeedFeed from '../components/NewsfeedFeed';
@@ -2909,21 +2910,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const categoryMap = {};
   categories.forEach(c => { categoryMap[c.id] = c.name; });
 
-  const filteredProducts = products.filter(p => {
-    if (selectedCategory && p.category_id !== selectedCategory) return false;
-    if (searchQuery) {
-      const q = normalizeSearchText(searchQuery);
-      return normalizeSearchText(p.name).includes(q) || normalizeSearchText(p.description).includes(q);
-    }
-    return true;
-  });
-
-  const displayedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === 'price-low') return (a.price || 0) - (b.price || 0);
-    if (sortBy === 'price-high') return (b.price || 0) - (a.price || 0);
-    if (sortBy === 'newest') return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-    return 0;
-  });
+  const displayedProducts = filterAndSortProducts(products, searchQuery, selectedCategory, categoryMap, sortBy);
 
   const getInitials = (name) => (name || 'S').charAt(0).toUpperCase();
 
@@ -3252,20 +3239,30 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                 <div className="fixed inset-0 z-30" onClick={() => setShowSortMenu(false)} />
                 <div className="absolute right-0 top-full mt-2 z-40 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 min-w-[160px] overflow-hidden">
                   <button onClick={() => { setSortBy('price-low'); setShowSortMenu(false); }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'price-low' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-600'}`}>
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'price-low' ? 'text-indigo-600 bg-indigo-50 font-bold' : 'text-gray-600'}`}>
                     Low to High
                     {sortBy === 'price-low' && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
                   </button>
                   <button onClick={() => { setSortBy('price-high'); setShowSortMenu(false); }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'price-high' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-600'}`}>
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'price-high' ? 'text-indigo-600 bg-indigo-50 font-bold' : 'text-gray-600'}`}>
                     High to Low
                     {sortBy === 'price-high' && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
                   </button>
-                  <div className="border-t border-gray-100 my-1" />
                   <button onClick={() => { setSortBy('newest'); setShowSortMenu(false); }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'newest' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-600'}`}>
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'newest' ? 'text-indigo-600 bg-indigo-50 font-bold' : 'text-gray-600'}`}>
                     Newest First
                     {sortBy === 'newest' && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                  </button>
+                  <div className="border-t border-gray-100 my-1" />
+                  <button onClick={() => { setSortBy('popular'); setShowSortMenu(false); }}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'popular' ? 'text-indigo-600 bg-indigo-50 font-bold' : 'text-gray-600'}`}>
+                    Popular
+                    {sortBy === 'popular' && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                  </button>
+                  <button onClick={() => { setSortBy('promotion'); setShowSortMenu(false); }}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-gray-50 ${sortBy === 'promotion' ? 'text-indigo-600 bg-indigo-50 font-bold' : 'text-gray-600'}`}>
+                    Promotion
+                    {sortBy === 'promotion' && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
                   </button>
                 </div>
               </>

@@ -10,6 +10,7 @@ import { formatPrice } from '../utils/formatPrice';
 import { getColorName } from '../data/colors';
 import { resolveColorName, resolveProductPrice } from '../utils/productPricing';
 import { FullScreenImageViewer } from '../pages/PublicEcommerce';
+import { filterAndSortProducts } from '../utils/search';
 
 function getPublicImageUrls(image_url, bot_id) {
   if (!image_url) return [];
@@ -70,19 +71,8 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
   categories.forEach(c => { categoryMap[c.id] = c.name; });
 
   const filteredProducts = useMemo(() => {
-    let result = products.filter(p => {
-      if (selectedCategory && p.category_id !== selectedCategory) return false;
-      if (searchQuery) {
-        const q = normalizeSearchText(searchQuery);
-        return normalizeSearchText(p.name).includes(q) || normalizeSearchText(p.description || '').includes(q);
-      }
-      return true;
-    });
-    if (sortBy === 'price-low') result.sort((a, b) => (a.price || 0) - (b.price || 0));
-    else if (sortBy === 'price-high') result.sort((a, b) => (b.price || 0) - (a.price || 0));
-    else result.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-    return result;
-  }, [products, selectedCategory, searchQuery, sortBy]);
+    return filterAndSortProducts(products, searchQuery, selectedCategory, categoryMap, sortBy);
+  }, [products, selectedCategory, searchQuery, categoryMap, sortBy]);
 
   const cartQty = (productId) => {
     const item = cartItems.find(i => i.product_id === productId);

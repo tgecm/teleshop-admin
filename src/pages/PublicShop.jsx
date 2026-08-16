@@ -12,6 +12,7 @@ import { THEMES, DEFAULT_THEME } from '../themes/themes';
 import { API_BASE } from '../api/config';
 import AiChatWidget from '../components/chat/AiChatWidget';
 import { formatPrice } from '../utils/formatPrice';
+import { filterAndSortProducts } from '../utils/search';
 
 function getPublicImageUrls(image_url, bot_id) {
   if (!image_url) return [];
@@ -715,22 +716,7 @@ export default function PublicShop({ slug, viaDomain }) {
   const categoryMap = {};
   categories.forEach(c => { categoryMap[c.id] = c.name; });
 
-  const filteredProducts = products.filter(p => {
-    if (selectedCategory && p.category_id !== selectedCategory) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const matchName = p.name?.toLowerCase().includes(q);
-      const matchDesc = p.description?.toLowerCase().includes(q);
-      if (!matchName && !matchDesc) return false;
-    }
-    return true;
-  });
-
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === 'price_asc') return a.price - b.price;
-    if (sortBy === 'price_desc') return b.price - a.price;
-    return 0;
-  });
+  const sortedProducts = filterAndSortProducts(products, searchQuery, selectedCategory, categoryMap, sortBy);
 
   const cycleSort = () => {
     const modes = ['default', 'price_asc', 'price_desc'];
