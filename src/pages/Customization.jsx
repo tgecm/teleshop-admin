@@ -38,6 +38,8 @@ import {
   ToggleLeft,
   ToggleRight,
   Sparkles,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -873,6 +875,25 @@ export default function Customization() {
               <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
             </button>
           </div>
+        </section>
+
+        {/* Social Media & Contact Links */}
+        <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+              <Globe className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Social Media & Contact Links</h3>
+              <p className="text-[10px] text-gray-500">Configure up to 3 links/numbers per platform for your public shop popup</p>
+            </div>
+          </div>
+
+          <SocialLinksEditor
+            contentBlocks={contentBlocks}
+            onSave={(data) => updateContentMutation.mutate({ key: 'social_links', data })}
+            isPending={updateContentMutation.isPending}
+          />
         </section>
 
         {/* AI Agent */}
@@ -1899,5 +1920,280 @@ function PosterEditor({ contentBlocks, onSave, botId }) {
         </div>
       )}
     </>
+  );
+}
+
+const PLATFORMS_CONFIG = [
+  { id: 'phone', label: 'Phone', imgSrc: '/social-icons/Phone.png', color: 'bg-emerald-50 text-emerald-600 border-emerald-200', placeholder: 'e.g. 09123456789 (digits only)' },
+  { id: 'facebook', label: 'Facebook', imgSrc: '/social-icons/Facebook.png', color: 'bg-blue-50 text-blue-600 border-blue-200', placeholder: 'e.g. https://facebook.com/yourpage' },
+  { id: 'telegram', label: 'Telegram', imgSrc: '/social-icons/Telegram.png', color: 'bg-sky-50 text-sky-600 border-sky-200', placeholder: 'e.g. https://t.me/yourchannel' },
+  { id: 'tiktok', label: 'TikTok', imgSrc: '/social-icons/TikTok.png', color: 'bg-neutral-100 text-neutral-800 border-neutral-200', placeholder: 'e.g. https://tiktok.com/@yourprofile' },
+  { id: 'viber', label: 'Viber', imgSrc: '/social-icons/Viber.png', color: 'bg-purple-50 text-purple-600 border-purple-200', placeholder: 'e.g. 09123456789 (digits only)' },
+  { id: 'whatsapp', label: 'WhatsApp', imgSrc: '/social-icons/Whatsapp.png', color: 'bg-emerald-50 text-emerald-600 border-emerald-200', placeholder: 'e.g. 09123456789 (phone number only)' },
+  { id: 'youtube', label: 'YouTube', imgSrc: '/social-icons/YouTube.png', color: 'bg-red-50 text-red-600 border-red-200', placeholder: 'e.g. https://youtube.com/@yourchannel' },
+  { id: 'email', label: 'Email', imgSrc: '/social-icons/mail.png', color: 'bg-amber-50 text-amber-600 border-amber-200', placeholder: 'e.g. support@shop.com' },
+  { id: 'custom', label: 'Custom Link', imgSrc: '/social-icons/Website.png', color: 'bg-indigo-50 text-indigo-600 border-indigo-200', placeholder: 'e.g. https://yourwebsite.com' },
+];
+
+function validateSocialLink(platform, value) {
+  const val = (value || '').trim();
+  if (!val) return 'Value cannot be empty';
+
+  if (platform === 'phone' || platform === 'viber' || platform === 'whatsapp') {
+    const digitsOnly = val.replace(/[^0-9+]/g, '');
+    if (digitsOnly.length < 5) {
+      return `Please enter a valid phone number (digits only)`;
+    }
+    return null;
+  }
+
+  if (platform === 'facebook') {
+    const lower = val.toLowerCase();
+    if (!lower.includes('facebook.com') && !lower.includes('fb.com') && !lower.includes('fb.watch') && !lower.includes('fb.me')) {
+      return 'Must be a valid Facebook URL (e.g. facebook.com/yourpage)';
+    }
+    return null;
+  }
+
+  if (platform === 'telegram') {
+    const lower = val.toLowerCase();
+    if (!lower.includes('t.me') && !lower.includes('telegram.me') && !lower.includes('telegram.dog')) {
+      return 'Must be a valid Telegram link (e.g. t.me/yourchannel)';
+    }
+    return null;
+  }
+
+  if (platform === 'tiktok') {
+    const lower = val.toLowerCase();
+    if (!lower.includes('tiktok.com')) {
+      return 'Must be a valid TikTok link (e.g. tiktok.com/@yourprofile)';
+    }
+    return null;
+  }
+
+  if (platform === 'youtube') {
+    const lower = val.toLowerCase();
+    if (!lower.includes('youtube.com') && !lower.includes('youtu.be')) {
+      return 'Must be a valid YouTube link (e.g. youtube.com/@channel)';
+    }
+    return null;
+  }
+
+  if (platform === 'email') {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(val)) {
+      return 'Please enter a valid email (e.g. support@domain.com)';
+    }
+    return null;
+  }
+
+  if (platform === 'custom') {
+    if (!val.includes('.') && !val.startsWith('http')) {
+      return 'Please enter a valid URL (e.g. https://yourwebsite.com)';
+    }
+    return null;
+  }
+
+  return null;
+}
+
+function SocialLinksEditor({ contentBlocks, onSave, isPending }) {
+  const { addToast } = useToastStore();
+  const block = contentBlocks?.find((b) => b.key === 'social_links');
+  let initialLinks = [];
+  if (block?.content_data) {
+    const cd = block.content_data;
+    if (Array.isArray(cd)) initialLinks = cd;
+    else if (typeof cd === 'object' && Array.isArray(cd.links)) initialLinks = cd.links;
+  }
+
+  const [links, setLinks] = useState(() => initialLinks);
+  const [activeTab, setActiveTab] = useState('phone');
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (block?.content_data) {
+      const cd = block.content_data;
+      if (Array.isArray(cd)) setLinks(cd);
+      else if (typeof cd === 'object' && Array.isArray(cd.links)) setLinks(cd.links);
+    }
+  }, [block?.content_data]);
+
+  const getLinksForPlatform = (platformId) => links.filter((l) => l.platform === platformId);
+
+  const addLink = (platformId) => {
+    const existing = getLinksForPlatform(platformId);
+    if (existing.length >= 3) return;
+    const newLink = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
+      platform: platformId,
+      label: `${PLATFORMS_CONFIG.find(p => p.id === platformId)?.label || 'Link'} ${existing.length + 1}`,
+      value: '',
+    };
+    setLinks([...links, newLink]);
+  };
+
+  const updateLink = (id, field, value) => {
+    setLinks(links.map((l) => (l.id === id ? { ...l, [field]: value } : l)));
+    if (errors[id]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const removeLink = (id) => {
+    setLinks(links.filter((l) => l.id !== id));
+    if (errors[id]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const handleSave = () => {
+    const newErrors = {};
+    for (const item of links) {
+      const err = validateSocialLink(item.platform, item.value);
+      if (err) {
+        newErrors[item.id] = err;
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      const firstErrId = Object.keys(newErrors)[0];
+      const firstErrItem = links.find((l) => l.id === firstErrId);
+      if (firstErrItem) {
+        setActiveTab(firstErrItem.platform);
+      }
+      addToast('Please fix the link format errors before saving', 'error');
+      return;
+    }
+
+    setErrors({});
+    onSave({ links });
+  };
+
+  const activeConfig = PLATFORMS_CONFIG.find((p) => p.id === activeTab) || PLATFORMS_CONFIG[0];
+  const activeItems = getLinksForPlatform(activeTab);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
+        {PLATFORMS_CONFIG.map((p) => {
+          const platformItems = getLinksForPlatform(p.id);
+          const count = platformItems.length;
+          const hasErr = platformItems.some((item) => !!errors[item.id]);
+          const isActive = activeTab === p.id;
+          return (
+            <button
+              key={p.id}
+              onClick={() => setActiveTab(p.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                hasErr
+                  ? 'bg-rose-50 text-rose-600 border border-rose-300'
+                  : isActive
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <img src={p.imgSrc} alt="" className="w-4 h-4 object-contain" />
+              <span>{p.label}</span>
+              {count > 0 && (
+                <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-bold ${
+                  hasErr ? 'bg-rose-600 text-white' : isActive ? 'bg-white text-indigo-600' : 'bg-gray-200 text-gray-700'
+                }`}>
+                  {count}/3
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className={`p-1.5 rounded-lg border text-xs font-bold ${activeConfig.color}`}>
+              {activeConfig.label}
+            </span>
+            <span className="text-xs text-gray-500 font-medium">({activeItems.length}/3 entries)</span>
+          </div>
+          <button
+            onClick={() => addLink(activeTab)}
+            disabled={activeItems.length >= 3}
+            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add {activeConfig.label}
+          </button>
+        </div>
+
+        {activeItems.length === 0 ? (
+          <p className="text-xs text-gray-400 italic text-center py-4">No links added for {activeConfig.label} yet (Max 3)</p>
+        ) : (
+          <div className="space-y-2">
+            {activeItems.map((item) => {
+              const err = errors[item.id];
+              return (
+                <div key={item.id} className="space-y-1">
+                  <div className={`bg-white rounded-xl p-2.5 border transition-colors flex flex-col sm:flex-row items-stretch sm:items-center gap-2 ${
+                    err ? 'border-rose-400 bg-rose-50/20' : 'border-gray-200'
+                  }`}>
+                    <input
+                      type="text"
+                      value={item.label || ''}
+                      onChange={(e) => updateLink(item.id, 'label', e.target.value)}
+                      placeholder="Title (e.g. Main Office)"
+                      className="w-full sm:w-1/3 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-900 focus:outline-none focus:border-indigo-500"
+                    />
+                    <div className="w-full sm:flex-1 relative">
+                      <input
+                        type="text"
+                        value={item.value || ''}
+                        onChange={(e) => updateLink(item.id, 'value', e.target.value)}
+                        placeholder={activeConfig.placeholder}
+                        className={`w-full px-3 py-1.5 bg-gray-50 border rounded-lg text-xs text-gray-900 focus:outline-none ${
+                          err ? 'border-rose-400 focus:border-rose-500' : 'border-gray-200 focus:border-indigo-500'
+                        }`}
+                      />
+                      {activeTab === 'whatsapp' && (
+                        <p className="text-[10px] text-emerald-600 font-medium mt-0.5 ml-1">
+                          System will auto-prefix: <span className="font-mono">https://wa.me/{item.value.replace(/[^0-9]/g, '') || '...' }</span>
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => removeLink(item.id)}
+                      title="Remove link"
+                      className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer self-end sm:self-center"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {err && (
+                    <p className="text-[11px] text-rose-500 font-semibold px-2">⚠️ {err}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={isPending}
+        className="w-full px-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm cursor-pointer shadow-xs"
+      >
+        {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        Save Social & Contact Links
+      </button>
+    </div>
   );
 }
