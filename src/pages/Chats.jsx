@@ -388,10 +388,25 @@ export default function Chats() {
     }
   }, [location.state]);
 
+  const getCustomerDisplayName = (cust) => {
+    if (!cust) return 'Website Customer';
+    const name = (cust.name || '').trim();
+    if (name && name !== 'Website Customer' && name !== 'Shop Visitor' && name !== 'User') {
+      return name;
+    }
+    if (cust.email && cust.email.includes('@')) {
+      const handle = cust.email.split('@')[0];
+      return handle.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+    return 'Website Customer';
+  };
+
   const { data: websiteCustomers = [], isLoading: loadingWebCust } = useQuery({
     queryKey: ['websiteCustomers', selectedBotId],
     queryFn: () => getWebsiteCustomersForChat(Number(selectedBotId)),
     enabled: !!selectedBotId && showStartChatModal,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const initiateChatMutation = useMutation({
@@ -1408,43 +1423,46 @@ export default function Chats() {
                       </div>
                     );
                   }
-                  return filtered.map((cust) => (
-                    <button
-                      key={cust.firebase_uid || cust.email || cust.name}
-                      onClick={() => {
-                        initiateChatMutation.mutate({
-                          firebaseUid: cust.firebase_uid,
-                          name: cust.name,
-                          phone: cust.phone,
-                          email: cust.email,
-                          visitorId: cust.visitor_id
-                        });
-                      }}
-                      disabled={initiateChatMutation.isPending}
-                      className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-indigo-50/70 border border-gray-100 transition-all text-left group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {cust.photo_url ? (
-                          <img src={cust.photo_url} alt="" className="w-9 h-9 rounded-full object-cover border border-gray-200 flex-shrink-0" />
-                        ) : (
-                          <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                            {(cust.name || 'W')[0].toUpperCase()}
+                  return filtered.map((cust) => {
+                    const displayName = getCustomerDisplayName(cust);
+                    return (
+                      <button
+                        key={cust.visitor_id || cust.firebase_uid || cust.email || cust.name}
+                        onClick={() => {
+                          initiateChatMutation.mutate({
+                            firebaseUid: cust.firebase_uid || cust.visitor_id,
+                            name: displayName,
+                            phone: cust.phone,
+                            email: cust.email,
+                            visitorId: cust.visitor_id
+                          });
+                        }}
+                        disabled={initiateChatMutation.isPending}
+                        className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-indigo-50/70 border border-gray-100 transition-all text-left group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          {cust.photo_url ? (
+                            <img src={cust.photo_url} alt="" className="w-9 h-9 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                              {(displayName || 'W')[0].toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-900 text-sm truncate group-hover:text-indigo-600">
+                              {displayName}
+                            </p>
+                            <p className="text-[11px] text-gray-500 truncate">
+                              {cust.email || cust.phone || 'Website User'}
+                            </p>
                           </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="font-bold text-gray-900 text-sm truncate group-hover:text-indigo-600">
-                            {cust.name || 'Website Customer'}
-                          </p>
-                          <p className="text-[11px] text-gray-500 truncate">
-                            {cust.email || cust.phone || 'Website User'}
-                          </p>
                         </div>
-                      </div>
-                      <div className="px-2.5 py-1 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all flex-shrink-0">
-                        Chat
-                      </div>
-                    </button>
-                  ));
+                        <div className="px-2.5 py-1 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all flex-shrink-0">
+                          Chat
+                        </div>
+                      </button>
+                    );
+                  });
                 })()}
               </div>
             </motion.div>
