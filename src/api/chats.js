@@ -41,3 +41,10 @@ export const markWebVisitorUnread = (visitorId, botId) =>
 
 export const getUnreadCount = (botId) =>
   client.get('/chats/unread-count', { params: { bot_id: botId } }).then(res => res.data);
+
+export const initiateWebVisitorChat = (botId, payload) =>
+  client.post('/web-visitors/initiate', { bot_id: botId, ...payload }).then(res => res.data);
+
+export const getWebsiteCustomersForChat = (botId) =>
+  client.get(`/website-customers/${botId}`).then(res => res.data);
+

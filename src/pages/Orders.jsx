@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrders, updateOrder } from '../api/orders';
+import { initiateWebVisitorChat } from '../api/chats';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import client from '../api/client';
 import { useBotStore } from '../store/botStore';
@@ -344,9 +345,39 @@ export default function Orders() {
                       lines.push('Address: ' + (bs.address && bs.address !== 'N/A' ? bs.address : '—'));
                       lines.push('Notes: ' + (bs.notes || '—'));
                       navigator.clipboard.writeText(lines.join('\n')).then(() => addToast('Profile copied to clipboard')).catch(() => {});
-                    }} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-indigo-100 transition-all active:scale-95">
+                    }} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-indigo-100 transition-all active:scale-95 cursor-pointer">
                       <Copy className="w-3.5 h-3.5" />
                       Copy Info
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const bs = selectedOrder.buyer_snapshot || {};
+                        const cust = selectedOrder.customer || {};
+                        const isTelegramSelected = selectedOrder.user_id != null;
+
+                        const customerName = bs.name || bs.full_name || cust.first_name || 'Customer';
+                        if (isTelegramSelected) {
+                          navigate('/chats', { state: { userId: selectedOrder.user_id, name: customerName, tab: 'telegram' } });
+                          setSelectedOrder(null);
+                        } else {
+                          try {
+                            const res = await initiateWebVisitorChat(selectedBotId, {
+                              firebaseUid: bs.firebase_uid || cust.firebase_uid,
+                              name: customerName,
+                              phone: bs.phone || cust.phone_number || '',
+                              email: bs.email || cust.email || '',
+                            });
+                            navigate('/chats', { state: { visitorId: res.visitor_id, name: customerName, tab: 'web' } });
+                            setSelectedOrder(null);
+                          } catch (err) {
+                            addToast('Failed to open chat conversation', 'error');
+                          }
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      Send Message
                     </button>
                     <button onClick={() => setSelectedOrder(null)} className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform">
                       <X className="w-5 h-5 text-gray-500" />
@@ -359,7 +390,19 @@ export default function Orders() {
                   <div className="bg-gray-50 rounded-2xl border border-gray-100 p-3 md:p-4 space-y-2 md:space-y-3">
                     <div>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Order ID</p>
-                      <p className="text-base font-bold text-gray-900 break-all mt-0.5">{selectedOrder.order_number || `#${selectedOrder.id}`}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-base font-bold text-gray-900 break-all">{selectedOrder.order_number || `#${selectedOrder.id}`}</p>
+                        <button
+                          onClick={() => {
+                            const orderIdStr = selectedOrder.order_number || `#${selectedOrder.id}`;
+                            navigator.clipboard.writeText(orderIdStr).then(() => addToast('Order ID copied to clipboard')).catch(() => {});
+                          }}
+                          title="Copy Order ID"
+                          className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-90 cursor-pointer flex-shrink-0"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-900">
@@ -388,6 +431,28 @@ export default function Orders() {
                         <DetailRow icon={MessageCircle} label="Viber" value={bs.viber_number || '—'} />
                         <DetailRow icon={MapPin} label="Address" value={bs.address && bs.address !== 'N/A' ? bs.address : '—'} />
                         {isTelegramSelected && <DetailRow icon={FileText} label="Notes" value={bs.notes || '—'} />}
+                        {isWebsiteSelected && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await initiateWebVisitorChat(selectedBotId, {
+                                  firebaseUid: bs.firebase_uid || cust.firebase_uid,
+                                  name: bs.name || bs.full_name || cust.first_name || 'Website Customer',
+                                  phone: bs.phone || cust.phone_number || '',
+                                  email: bs.email || cust.email || '',
+                                });
+                                navigate('/chats', { state: { visitorId: res.visitor_id, tab: 'web' } });
+                              } catch (err) {
+                                addToast('Failed to open chat with customer', 'error');
+                              }
+                            }}
+                            className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold text-xs transition-colors cursor-pointer border border-indigo-100 mt-2 active:scale-95"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            Contact Customer on Website Chat
+                          </button>
+                        )}
                       </div>
                     );
                   })()}

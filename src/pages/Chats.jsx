@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { getChats, getChatMessages, sendChatMessage, deleteChat, markChatRead, markChatUnread,
   getWebVisitors, getWebVisitorMessages, sendWebVisitorMessage, deleteWebVisitor, toggleWebVisitorAI,
-  markWebVisitorRead, markWebVisitorUnread } from '../api/chats';
+  markWebVisitorRead, markWebVisitorUnread, initiateWebVisitorChat, getWebsiteCustomersForChat } from '../api/chats';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
@@ -25,6 +26,8 @@ import {
   Globe,
   Smartphone,
   BadgeCheck,
+  Plus,
+  UserPlus,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { MarkdownRenderer } from '../utils/linkify';
@@ -352,6 +355,7 @@ function ConversationItem({ chat, isActive, onClick, onContextMenu }) {
 }
 
 export default function Chats() {
+  const location = useLocation();
   const { selectedBotId, bots } = useBotStore();
   const botUsername = bots.find(b => b.id === Number(selectedBotId))?.bot_username;
   const { addToast } = useToastStore();
@@ -363,6 +367,46 @@ export default function Chats() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [chatTab, setChatTab] = useState('all');
   const [selectedVisitor, setSelectedVisitor] = useState(null);
+  const [showStartChatModal, setShowStartChatModal] = useState(false);
+  const [startChatSearch, setStartChatSearch] = useState('');
+
+  const [selectedChatName, setSelectedChatName] = useState(null);
+
+  useEffect(() => {
+    if (location.state?.visitorId) {
+      setChatTab(location.state.tab || 'web');
+      setSelectedVisitor(location.state.visitorId);
+      setSelectedUser(null);
+      if (location.state.name) setSelectedChatName(location.state.name);
+      window.history.replaceState({}, document.title);
+    } else if (location.state?.userId) {
+      setChatTab(location.state.tab || 'telegram');
+      setSelectedUser(location.state.userId);
+      setSelectedVisitor(null);
+      if (location.state.name) setSelectedChatName(location.state.name);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  const { data: websiteCustomers = [], isLoading: loadingWebCust } = useQuery({
+    queryKey: ['websiteCustomers', selectedBotId],
+    queryFn: () => getWebsiteCustomersForChat(Number(selectedBotId)),
+    enabled: !!selectedBotId && showStartChatModal,
+  });
+
+  const initiateChatMutation = useMutation({
+    mutationFn: (payload) => initiateWebVisitorChat(Number(selectedBotId), payload),
+    onSuccess: (data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
+      setChatTab('web');
+      setSelectedVisitor(data.visitor_id);
+      setSelectedUser(null);
+      setShowStartChatModal(false);
+      addToast(`Chat thread opened with ${vars.name || 'Website Customer'}`);
+    },
+    onError: () => addToast('Failed to start chat session', 'error'),
+  });
+
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
@@ -561,9 +605,16 @@ export default function Chats() {
     return () => document.removeEventListener('pointerdown', handle);
   }, [contextMenu]);
 
+  const isGuestVisitor = (v) => {
+    if (!v) return false;
+    if (v.name === 'E-commerce Support') return false;
+    if (v.firebase_uid || v.email) return false;
+    return true;
+  };
+
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-  const webVisitorsWithUid = displayedWebVisitors.filter(v => v.firebase_uid || v.telegram_id);
-  const webVisitorsGuest = displayedWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id && v.name !== 'E-commerce Support');
+  const webVisitorsWithUid = displayedWebVisitors.filter(v => !isGuestVisitor(v) && v.name !== 'E-commerce Support');
+  const webVisitorsGuest = displayedWebVisitors.filter(v => isGuestVisitor(v));
   const websiteUnread = webVisitorsWithUid.reduce((sum, v) => sum + (v.unread_count || 0), 0);
   const guestUnread = webVisitorsGuest.reduce((sum, v) => sum + (v.unread_count || 0), 0);
   const supportVisitor = displayedWebVisitors.find(v => v.name === 'E-commerce Support');
@@ -709,6 +760,14 @@ export default function Chats() {
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
             />
           </div>
+          <button
+            onClick={() => setShowStartChatModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold transition-all flex-shrink-0 shadow-sm active:scale-95 cursor-pointer"
+            title="Start chat with website customer"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Start Chat</span>
+          </button>
           {supportVisitor && (
             <button
               onClick={() => {
@@ -791,7 +850,7 @@ export default function Chats() {
 
       {chatTab === 'web' || chatTab === 'guest' ? (
         <>
-          {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id) : filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id && v.name !== 'E-commerce Support')).length === 0 ? (
+          {(chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v) && v.name !== 'E-commerce Support') : filteredWebVisitors.filter(v => isGuestVisitor(v))).length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <MessageCircle className="w-8 h-8 text-gray-300" />
@@ -805,7 +864,7 @@ export default function Chats() {
             </div>
           ) : (
             <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
-              {(chatTab === 'web' ? filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id) : filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id && v.name !== 'E-commerce Support')).map(v => (
+              {(chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v) && v.name !== 'E-commerce Support') : filteredWebVisitors.filter(v => isGuestVisitor(v))).map(v => (
                 <div key={v.visitor_id} className="relative group">
                   <button
                     onClick={() => {
@@ -1166,7 +1225,7 @@ export default function Chats() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
-                      {selectedWebChat?.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || `User ${selectedUser}`)}
+                      {selectedWebChat?.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || selectedChatName || 'Customer')}
                     </p>
                     {selectedChat?.username && (
                       <p className="text-[11px] text-gray-500 truncate">@{selectedChat.username}</p>
@@ -1287,6 +1346,109 @@ export default function Chats() {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Start Chat with Website Customer Modal */}
+      <AnimatePresence>
+        {showStartChatModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <UserPlus className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-base">Start Web Chat</h3>
+                    <p className="text-xs text-gray-500">Select a website customer to chat with</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowStartChatModal(false)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, phone..."
+                  value={startChatSearch}
+                  onChange={(e) => setStartChatSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+                {loadingWebCust ? (
+                  <div className="py-8 text-center text-gray-400 flex flex-col items-center gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                    <span className="text-xs font-medium">Loading website customers...</span>
+                  </div>
+                ) : (() => {
+                  const filtered = websiteCustomers.filter(c =>
+                    !startChatSearch ||
+                    (c.name && c.name.toLowerCase().includes(startChatSearch.toLowerCase())) ||
+                    (c.email && c.email.toLowerCase().includes(startChatSearch.toLowerCase())) ||
+                    (c.phone && c.phone.includes(startChatSearch))
+                  );
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="py-8 text-center text-gray-400 text-xs font-medium">
+                        No registered website customers found
+                      </div>
+                    );
+                  }
+                  return filtered.map((cust) => (
+                    <button
+                      key={cust.firebase_uid || cust.email || cust.name}
+                      onClick={() => {
+                        initiateChatMutation.mutate({
+                          firebaseUid: cust.firebase_uid,
+                          name: cust.name,
+                          phone: cust.phone,
+                          email: cust.email,
+                          visitorId: cust.visitor_id
+                        });
+                      }}
+                      disabled={initiateChatMutation.isPending}
+                      className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-indigo-50/70 border border-gray-100 transition-all text-left group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {cust.photo_url ? (
+                          <img src={cust.photo_url} alt="" className="w-9 h-9 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                            {(cust.name || 'W')[0].toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 text-sm truncate group-hover:text-indigo-600">
+                            {cust.name || 'Website Customer'}
+                          </p>
+                          <p className="text-[11px] text-gray-500 truncate">
+                            {cust.email || cust.phone || 'Website User'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="px-2.5 py-1 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all flex-shrink-0">
+                        Chat
+                      </div>
+                    </button>
+                  ));
+                })()}
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
