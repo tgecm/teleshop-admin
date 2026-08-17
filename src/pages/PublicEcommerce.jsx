@@ -18,6 +18,7 @@ import ShopBanner from '../components/shared/ShopBanner';
 import { useAuth } from '../context/AuthContext';
 import { useTelegramAuth } from '../context/TelegramAuthContext';
 import { useTelegramLogin } from '../hooks/useTelegramLogin';
+import { isFeatureAllowed } from '../utils/plans';
 import TelegramLoginModal from '../components/TelegramLoginModal';
 import Receipt from '../components/orders/Receipt';
 import { signOut } from 'firebase/auth';
@@ -2200,19 +2201,23 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const shop = data?.shop;
 
   const socialLinksList = useMemo(() => {
+    if (!isFeatureAllowed(shop?.plan_name, 'social_links')) {
+      return [];
+    }
+    let raw = [];
     if (Array.isArray(data?.social_links) && data.social_links.length > 0) {
-      return data.social_links;
+      raw = data.social_links;
+    } else if (Array.isArray(shop?.social_links) && shop.social_links.length > 0) {
+      raw = shop.social_links;
+    } else {
+      const block = data?.content_blocks?.find?.((b) => b.key === 'social_links');
+      if (block?.content_data) {
+        const cd = block.content_data;
+        if (Array.isArray(cd)) raw = cd;
+        else if (typeof cd === 'object' && Array.isArray(cd.links)) raw = cd.links;
+      }
     }
-    if (Array.isArray(shop?.social_links) && shop.social_links.length > 0) {
-      return shop.social_links;
-    }
-    const block = data?.content_blocks?.find?.((b) => b.key === 'social_links');
-    if (block?.content_data) {
-      const cd = block.content_data;
-      if (Array.isArray(cd)) return cd;
-      if (typeof cd === 'object' && Array.isArray(cd.links)) return cd.links;
-    }
-    return [];
+    return raw.filter((item) => item.platform !== 'instagram' && item.value && item.value.trim().length > 0);
   }, [data, shop]);
 
   // Quick Questions State
@@ -3230,10 +3235,12 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             )}
           </button>
           <div className="ml-auto flex items-center gap-1.5 relative -mt-6 md:-mt-12">
-            <button onClick={() => setShowSocialModal(true)} title="Social & Contact Links"
-              className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-indigo-600 hover:bg-indigo-50 border border-gray-200 shadow-sm transition-all active:scale-90 cursor-pointer">
-              <Share2 className="w-[15px] h-[15px]" />
-            </button>
+            {socialLinksList.length > 0 && (
+              <button onClick={() => setShowSocialModal(true)} title="Social & Contact Links"
+                className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-indigo-600 hover:bg-indigo-50 border border-gray-200 shadow-sm transition-all active:scale-90 cursor-pointer">
+                <Share2 className="w-[15px] h-[15px]" />
+              </button>
+            )}
             <button onClick={() => setShowNewsfeed(true)} title="Newsfeed"
               className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90 cursor-pointer">
               <Newspaper className="w-[15px] h-[15px]" />

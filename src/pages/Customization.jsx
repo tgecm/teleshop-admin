@@ -884,13 +884,21 @@ export default function Customization() {
               <Globe className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-gray-900">Social Media & Contact Links</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-gray-900">Social Media & Contact Links</h3>
+                {!isFeatureAllowed(bot?.plan_name, 'social_links') && (
+                  <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> Requires Business Plan
+                  </span>
+                )}
+              </div>
               <p className="text-[10px] text-gray-500">Configure up to 3 links/numbers per platform for your public shop popup</p>
             </div>
           </div>
 
           <SocialLinksEditor
             contentBlocks={contentBlocks}
+            planName={bot?.plan_name}
             onSave={(data) => updateContentMutation.mutate({ key: 'social_links', data })}
             isPending={updateContentMutation.isPending}
           />
@@ -1997,7 +2005,7 @@ function validateSocialLink(platform, value) {
   return null;
 }
 
-function SocialLinksEditor({ contentBlocks, onSave, isPending }) {
+function SocialLinksEditor({ contentBlocks, planName, onSave, isPending }) {
   const { addToast } = useToastStore();
   const block = contentBlocks?.find((b) => b.key === 'social_links');
   let initialLinks = [];
@@ -2011,6 +2019,14 @@ function SocialLinksEditor({ contentBlocks, onSave, isPending }) {
   const [activeTab, setActiveTab] = useState('phone');
   const [errors, setErrors] = useState({});
 
+  const checkPlanAccess = () => {
+    if (!isFeatureAllowed(planName, 'social_links')) {
+      addToast("Your plan now allowed to use this featuer, Please Upgrade!", "warning");
+      return false;
+    }
+    return true;
+  };
+
   useEffect(() => {
     if (block?.content_data) {
       const cd = block.content_data;
@@ -2022,6 +2038,7 @@ function SocialLinksEditor({ contentBlocks, onSave, isPending }) {
   const getLinksForPlatform = (platformId) => links.filter((l) => l.platform === platformId);
 
   const addLink = (platformId) => {
+    if (!checkPlanAccess()) return;
     const existing = getLinksForPlatform(platformId);
     if (existing.length >= 3) return;
     const newLink = {
@@ -2056,6 +2073,7 @@ function SocialLinksEditor({ contentBlocks, onSave, isPending }) {
   };
 
   const handleSave = () => {
+    if (!checkPlanAccess()) return;
     const newErrors = {};
     for (const item of links) {
       const err = validateSocialLink(item.platform, item.value);
