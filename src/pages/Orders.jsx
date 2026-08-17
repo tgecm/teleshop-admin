@@ -353,8 +353,9 @@ export default function Orders() {
                       onClick={async () => {
                         const bs = selectedOrder.buyer_snapshot || {};
                         const cust = selectedOrder.customer || {};
-                        const telegramIdStr = bs.telegram_id || cust.telegram_id || selectedOrder.user_id;
-                        const isTelegramSelected = telegramIdStr != null && String(telegramIdStr).trim() !== '' && String(telegramIdStr) !== 'N/A' && String(telegramIdStr) !== 'null';
+                        const isWebsiteSelected = selectedOrder.payment_method === 'website' || selectedOrder.payment_method === 'cod' || selectedOrder.order_number?.startsWith('WS') || selectedOrder.buyer_snapshot?.firebase_uid != null;
+                        const telegramIdStr = bs.telegram_id || cust.telegram_id;
+                        const isTelegramSelected = !isWebsiteSelected && telegramIdStr != null && String(telegramIdStr).trim() !== '' && String(telegramIdStr) !== 'N/A' && String(telegramIdStr) !== 'null';
 
                         const customerName = bs.name || bs.full_name || cust.first_name || 'Customer';
                         if (isTelegramSelected) {
@@ -419,8 +420,8 @@ export default function Orders() {
                   {(() => {
                     const bs = selectedOrder.buyer_snapshot || {};
                     const cust = selectedOrder.customer || {};
-                    const isTelegramSelected = selectedOrder.user_id != null;
-                    const isWebsiteSelected = selectedOrder.payment_method === 'website' || selectedOrder.buyer_snapshot?.firebase_uid != null;
+                    const isWebsiteSelected = selectedOrder.payment_method === 'website' || selectedOrder.payment_method === 'cod' || selectedOrder.order_number?.startsWith('WS') || selectedOrder.buyer_snapshot?.firebase_uid != null;
+                    const isTelegramSelected = !isWebsiteSelected && (cust.telegram_id != null || bs.telegram_id != null);
                     const label = isTelegramSelected ? 'Telegram Customer Info' : isWebsiteSelected ? 'Customer Profile' : 'Guest Info';
                     return (
                       <div className="bg-gray-50 rounded-2xl border border-gray-100 p-3 md:p-4 space-y-2 md:space-y-3">
