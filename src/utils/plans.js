@@ -13,6 +13,7 @@ export function getPlanLimit(planName, type) {
 
 const PLAN_FEATURES = {
   basic: {
+    social_links: false,
     ai_agent: false,
     ecommerce_website: false,
     custom_domain: false,
@@ -25,6 +26,7 @@ const PLAN_FEATURES = {
     admin_template: false,
   },
   standard: {
+    social_links: false,
     ai_agent: 'own_api',
     ecommerce_website: true,
     custom_domain: false,
@@ -37,6 +39,7 @@ const PLAN_FEATURES = {
     admin_template: false,
   },
   pro: {
+    social_links: false,
     ai_agent: 'api_provided',
     ecommerce_website: 'multi_platform',
     custom_domain: true,
@@ -49,6 +52,7 @@ const PLAN_FEATURES = {
     admin_template: 'limited',
   },
   business: {
+    social_links: true,
     ai_agent: 'api_provided',
     ecommerce_website: 'multi_platform',
     custom_domain: 'up_to_3',

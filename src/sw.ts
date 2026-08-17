@@ -26,14 +26,14 @@ registerRoute(
 
 registerRoute(
   ({request}) => request.destination === 'image',
-  new CacheFirst({cacheName: 'image-cache'}),
+  new StaleWhileRevalidate({cacheName: 'image-cache'}),
 );
 
 self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-const PRESERVE_CACHES = ['image-cache', 'img-cache-v1'];
+const PRESERVE_CACHES = [];
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
