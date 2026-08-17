@@ -5,7 +5,8 @@ import { useCartState } from '../context/CartContext';
 import { ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
   Minus, Plus, Trash2, LogOut, CheckCircle, CheckCircle2, Loader2, User,
-  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard, Award, Map, ChevronUp, ZoomIn
+  MessageCircle, Send, ImageUp, Copy, Ticket, CreditCard, Award, Map, ChevronUp, ZoomIn,
+  Share2, ExternalLink, Globe, Phone, Mail, MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
@@ -1992,6 +1993,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [sortBy, setSortBy] = useState('default');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showNewsfeed, setShowNewsfeed] = useState(false);
+  const [showSocialModal, setShowSocialModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showCart, setShowCart] = useState(false);
@@ -2196,6 +2198,22 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
 
   const shop = data?.shop;
+
+  const socialLinksList = useMemo(() => {
+    if (Array.isArray(data?.social_links) && data.social_links.length > 0) {
+      return data.social_links;
+    }
+    if (Array.isArray(shop?.social_links) && shop.social_links.length > 0) {
+      return shop.social_links;
+    }
+    const block = data?.content_blocks?.find?.((b) => b.key === 'social_links');
+    if (block?.content_data) {
+      const cd = block.content_data;
+      if (Array.isArray(cd)) return cd;
+      if (typeof cd === 'object' && Array.isArray(cd.links)) return cd.links;
+    }
+    return [];
+  }, [data, shop]);
 
   // Quick Questions State
   const [quickQuestions, setQuickQuestions] = useState([]);
@@ -3212,15 +3230,19 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             )}
           </button>
           <div className="ml-auto flex items-center gap-1.5 relative -mt-6 md:-mt-12">
-            <button onClick={() => setShowNewsfeed(true)}
-              className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90">
+            <button onClick={() => setShowSocialModal(true)} title="Social & Contact Links"
+              className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-indigo-600 hover:bg-indigo-50 border border-gray-200 shadow-sm transition-all active:scale-90 cursor-pointer">
+              <Share2 className="w-[15px] h-[15px]" />
+            </button>
+            <button onClick={() => setShowNewsfeed(true)} title="Newsfeed"
+              className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90 cursor-pointer">
               <Newspaper className="w-[15px] h-[15px]" />
             </button>
-            <button onClick={() => setShowSearch(!showSearch)}
+            <button onClick={() => setShowSearch(!showSearch)} title="Search"
               className={`w-[44px] h-[44px] rounded-full flex items-center justify-center transition-all ${showSearch ? 'theme-filter-active' : 'bg-white text-gray-400 hover:bg-gray-100 border border-gray-200 shadow-sm'}`}>
               {showSearch ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
             </button>
-            <button onClick={() => setShowSortMenu(!showSortMenu)}
+            <button onClick={() => setShowSortMenu(!showSortMenu)} title="Sort"
               className={`w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all active:scale-90 ${
                 sortBy !== 'default'
                   ? 'bg-indigo-600 text-white shadow-sm'
@@ -3229,8 +3251,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               <ArrowUpDown className="w-[15px] h-[15px]" />
             </button>
             {viewMode === 'guest' && (
-              <button onClick={() => { setShowTrackOrder(true); setTrackSearch(''); setTrackResult(null); setTrackError(''); }}
-                className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90">
+              <button onClick={() => { setShowTrackOrder(true); setTrackSearch(''); setTrackResult(null); setTrackError(''); }} title="Track Order"
+                className="w-[38px] h-[38px] rounded-full flex items-center justify-center bg-white text-gray-500 hover:bg-gray-100 border border-gray-200 shadow-sm transition-all active:scale-90 cursor-pointer">
                 <Map className="w-[15px] h-[15px]" />
               </button>
             )}
@@ -4048,6 +4070,119 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
           userName={user?.displayName || telegramUser?.name || null}
         />
       )}
+
+      {/* Social Media & Contact Links Modal */}
+      <AnimatePresence>
+        {showSocialModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs"
+            onClick={() => setShowSocialModal(false)}
+          >
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-[32px] max-h-[85vh] overflow-y-auto shadow-2xl p-5"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <Share2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">Connect with Us</h3>
+                    <p className="text-[11px] text-gray-500">Contact & Social Channels</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSocialModal(false)}
+                  className="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {socialLinksList.length === 0 ? (
+                <div className="text-center py-8 px-4">
+                  <Globe className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-gray-700">No Social Links Added</p>
+                  <p className="text-xs text-gray-400 mt-1">The shop owner hasn't added social or contact channels yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {socialLinksList.filter(item => item.platform !== 'instagram').map((item, idx) => {
+                    const platformMeta = {
+                      phone: { label: 'Phone Call', color: 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100', imgSrc: '/social-icons/Phone.png' },
+                      facebook: { label: 'Facebook', color: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100', imgSrc: '/social-icons/Facebook.png' },
+                      telegram: { label: 'Telegram', color: 'bg-sky-50 text-sky-600 border-sky-200 hover:bg-sky-100', imgSrc: '/social-icons/Telegram.png' },
+                      tiktok: { label: 'TikTok', color: 'bg-neutral-100 text-neutral-800 border-neutral-200 hover:bg-neutral-200', imgSrc: '/social-icons/TikTok.png' },
+                      viber: { label: 'Viber', color: 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100', imgSrc: '/social-icons/Viber.png' },
+                      whatsapp: { label: 'WhatsApp', color: 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100', imgSrc: '/social-icons/Whatsapp.png' },
+                      youtube: { label: 'YouTube', color: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100', imgSrc: '/social-icons/YouTube.png' },
+                      email: { label: 'Email', color: 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100', imgSrc: '/social-icons/mail.png' },
+                      custom: { label: 'Link', color: 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100', imgSrc: '/social-icons/Website.png' },
+                    }[item.platform] || { label: 'Link', color: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100', imgSrc: '/social-icons/Website.png' };
+
+                    const handleSocialClick = () => {
+                      const val = (item.value || '').trim();
+                      if (!val) return;
+
+                      if (item.platform === 'phone') {
+                        window.location.href = `tel:${val.replace(/[^0-9+]/g, '')}`;
+                      } else if (item.platform === 'email') {
+                        window.location.href = `mailto:${val}`;
+                      } else if (item.platform === 'viber') {
+                        if (val.startsWith('http://') || val.startsWith('https://')) {
+                          window.open(val, '_blank', 'noopener,noreferrer');
+                        } else {
+                          window.location.href = `viber://chat?number=${encodeURIComponent(val.replace(/[^0-9+]/g, ''))}`;
+                        }
+                      } else if (item.platform === 'whatsapp') {
+                        if (val.startsWith('http://') || val.startsWith('https://')) {
+                          window.open(val, '_blank', 'noopener,noreferrer');
+                        } else {
+                          const digitsOnly = val.replace(/[^0-9]/g, '');
+                          window.open(`https://wa.me/${digitsOnly}`, '_blank', 'noopener,noreferrer');
+                        }
+                      } else {
+                        let targetUrl = val;
+                        if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+                          targetUrl = 'https://' + targetUrl;
+                        }
+                        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+                      }
+                    };
+
+                    return (
+                      <button
+                        key={item.id || idx}
+                        onClick={handleSocialClick}
+                        className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer active:scale-[0.98] ${platformMeta.color}`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-white/90 border border-current/20 flex items-center justify-center flex-shrink-0 shadow-2xs overflow-hidden p-1.5">
+                            <img src={platformMeta.imgSrc} alt="" className="w-full h-full object-contain" />
+                          </div>
+                          <div className="text-left min-w-0">
+                            <p className="text-xs font-bold truncate text-gray-900">{item.label || platformMeta.label}</p>
+                            <p className="text-[11px] opacity-75 truncate text-gray-600">{item.value}</p>
+                          </div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 flex-shrink-0 opacity-60 ml-2" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Fullscreen Logo */}
       <AnimatePresence>

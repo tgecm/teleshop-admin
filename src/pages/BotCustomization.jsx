@@ -19,6 +19,10 @@ import {
   X,
   Loader2,
   Globe,
+  Plus,
+  Trash2,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
