@@ -469,13 +469,16 @@ export default function Customers() {
                       type="button"
                       onClick={async () => {
                         try {
+                          const targetUid = detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? String(detailCustomer.telegram_id) : '') || String(detailCustomer.id || '');
+                          const targetName = detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name || 'Website Customer';
                           const res = await initiateWebVisitorChat(selectedBotId, {
-                            firebaseUid: detailCustomer.firebase_uid,
-                            name: detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name,
+                            firebaseUid: targetUid,
+                            visitorId: targetUid,
+                            name: targetName,
                             phone: detailCustomer.phone || detailCustomer.phone_number || '',
                             email: detailCustomer.email || '',
                           });
-                          navigate('/chats', { state: { visitorId: res.visitor_id, tab: 'web' } });
+                          navigate('/chats', { state: { visitorId: res.visitor_id || targetUid, name: targetName, tab: 'web' } });
                           setDetailCustomer(null);
                         } catch (err) {
                           addToast('Failed to open chat with customer', 'error');

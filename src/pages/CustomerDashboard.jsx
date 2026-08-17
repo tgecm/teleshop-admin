@@ -163,12 +163,26 @@ export default function CustomerDashboard({ shopSlug }) {
       return u ? JSON.parse(u) : null;
     } catch { return null; }
   })();
-  // Use Firebase UID when available (Google auth), fall back to JWT sub (telegram_id)
+  const googleUser = (() => {
+    try {
+      const g = localStorage.getItem('google_user');
+      return g ? JSON.parse(g) : null;
+    } catch { return null; }
+  })();
+  // Use Firebase UID when available (Google auth), fall back to google_user id or JWT sub (telegram_id)
   const uid = user?.uid
+    || (googleUser?.id ? String(googleUser.id) : '')
     || (telegramToken ? (getUserIdFromToken() || '') : '')
     || (telegramUser?.id ? String(telegramUser.id) : '');
-  const displayName = user?.displayName || telegramUser?.name || telegramUser?.first_name || 'User';
-  const photoUrl = user?.photoURL || telegramUser?.photo_url || null;
+  const userEmail = user?.email || googleUser?.email || '';
+  const displayName = user?.displayName
+    || googleUser?.name
+    || (userEmail ? userEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '')
+    || telegramUser?.name
+    || telegramUser?.first_name
+    || (telegramUser?.username ? `@${telegramUser.username}` : '')
+    || 'Customer';
+  const photoUrl = user?.photoURL || googleUser?.photo_url || telegramUser?.photo_url || null;
 
   useAuthTokenFromUrl();
 
@@ -181,23 +195,23 @@ export default function CustomerDashboard({ shopSlug }) {
         if (s?.bot_full_name) {
           setPageMeta(s.bot_full_name, s.profile_picture);
         }
-        // Sync website customer to backend (Firebase only)
-        if (s?.id && user?.uid) {
+        // Sync website customer to backend (Google & Telegram logins)
+        if (s?.id && uid) {
           fetch(`${API_BASE}/website-customers/sync`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               bot_id: s.id,
-              firebase_uid: user.uid,
-              display_name: user.displayName,
-              email: user.email,
-              photo_url: user.photoURL,
+              firebase_uid: uid,
+              display_name: displayName !== 'Customer' ? displayName : '',
+              email: userEmail || '',
+              photo_url: photoUrl || '',
             }),
           }).catch(() => {});
         }
       })
       .catch(() => {});
-  }, [shopSlug, user?.uid, user?.displayName, user?.email, user?.photoURL]);
+  }, [shopSlug, uid, displayName, userEmail, photoUrl]);
 
   // Fetch order stats (cached in parent so OverviewTab doesn't re-fetch on switch)
   useEffect(() => {
@@ -577,17 +591,25 @@ export default function CustomerDashboard({ shopSlug }) {
             </div>
             <h1 className="text-white text-sm font-bold truncate">Hello, {savedName || displayName}!</h1>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <button onClick={() => { setRefreshing(true); setRefreshKey(k => k + 1); }}
-              className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all">
+              title="Refresh"
+              className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all cursor-pointer">
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
             <button onClick={() => setChatOpen(true)}
-              className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all mr-1">
-              <MessageCircle className="w-4 h-4" />
+              title="Support Chat"
+              className="px-2.5 py-1 bg-white text-indigo-600 font-bold text-xs rounded-full shadow-md hover:bg-indigo-50 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer border border-white/40 shrink-0">
+              <div className="relative flex items-center justify-center">
+                <MessageCircle className="w-3.5 h-3.5 text-indigo-600 fill-indigo-100" />
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+              </div>
+              <span className="hidden sm:inline">Support Chat</span>
+              <span className="sm:hidden">Chat</span>
             </button>
             {photoUrl && (
-              <img src={photoUrl} alt="" className="w-6 h-6 rounded-full ring-2 ring-white/30"
+              <img src={photoUrl} alt="" className="w-7 h-7 rounded-full ring-2 ring-white/40 object-cover"
                 onError={(e) => { e.target.style.display = 'none'; }} />
             )}
           </div>
@@ -622,7 +644,7 @@ export default function CustomerDashboard({ shopSlug }) {
             {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
             {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
             {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} shop={shopData?.shop} />}
-            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} uid={uid} displayName={displayName} photoUrl={photoUrl} email={user?.email || null} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
+            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} googleUser={googleUser} uid={uid} displayName={displayName} photoUrl={photoUrl} email={userEmail} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -645,8 +667,8 @@ export default function CustomerDashboard({ shopSlug }) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex flex-col items-center justify-center py-2 transition-all relative ${
-                  isActive ? 'text-indigo-600' : 'text-gray-400'
+                className={`flex-1 flex flex-col items-center justify-center py-2 transition-all relative cursor-pointer ${
+                  isActive ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
                 {isActive && (
@@ -1556,7 +1578,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
 }
 
 /* ─── PROFILE TAB ─── */
-function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser, onProfileSaved, shop: profileShopProp }) {
+function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser, onProfileSaved, shop: profileShopProp }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1565,9 +1587,12 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(photoUrl);
   const photoInputRef = useRef(null);
 
-  const [displayName, setDisplayName] = useState('');
+  const fallbackEmail = user?.email || email || googleUser?.email || '';
+  const fallbackName = (defaultName && defaultName !== 'Customer') ? defaultName : (fallbackEmail.includes('@') ? fallbackEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '');
+
+  const [displayName, setDisplayName] = useState(fallbackName);
   const [phones, setPhones] = useState(['']);
-  const [emails, setEmails] = useState(['']);
+  const [emails, setEmails] = useState(fallbackEmail ? [fallbackEmail] : ['']);
   const [telegram, setTelegram] = useState('');
   const [viber, setViber] = useState('');
   const [profileRegion, setProfileRegion] = useState('');
@@ -1628,15 +1653,16 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
     setResolving(true);
     // Use parent-cached shop data if available to avoid API call
     const existingBotId = profileShopProp?.id;
+    const fetchEmail = fallbackEmail;
     if (existingBotId) {
       botIdRef.current = existingBotId;
-      fetch(`${API_BASE}/api/customer-profile?bot_id=${existingBotId}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(email || '')}`)
+      fetch(`${API_BASE}/api/customer-profile?bot_id=${existingBotId}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(fetchEmail)}`)
         .then(r => r.ok ? r.json() : {})
         .then(data => {
-          if (data && data.id) {
-            setDisplayName(data.display_name || '');
+          if (data && (data.id || data.display_name || data.email)) {
+            setDisplayName(data.display_name && data.display_name.trim() && data.display_name.trim() !== 'User' && data.display_name.trim() !== 'Customer' ? data.display_name.trim() : (fallbackName || ''));
             setPhones(data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : ['']);
-            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [email || '']);
+            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : (fetchEmail ? [fetchEmail] : ['']));
             setTelegram(data.telegram_username || '');
             setViber(data.viber_number || '');
             setProfileRegion(data.region || '');
@@ -1645,8 +1671,8 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
             setAddress(data.address || '');
             setNotes(data.notes || '');
           } else {
-            setDisplayName(defaultName || '');
-            setEmails([email || '']);
+            setDisplayName(fallbackName || '');
+            setEmails(fetchEmail ? [fetchEmail] : ['']);
           }
           setLoading(false);
           setResolving(false);
@@ -1660,14 +1686,14 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
           const botId = shopData?.shop?.id;
           if (!botId) { setLoading(false); setResolving(false); return; }
           botIdRef.current = botId;
-          return fetch(`${API_BASE}/api/customer-profile?bot_id=${botId}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(email || '')}`);
+          return fetch(`${API_BASE}/api/customer-profile?bot_id=${botId}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(fetchEmail)}`);
         })
         .then(r => r && r.ok ? r.json() : {})
         .then(data => {
-          if (data && data.id) {
-            setDisplayName(data.display_name || '');
+          if (data && (data.id || data.display_name || data.email)) {
+            setDisplayName(data.display_name && data.display_name.trim() && data.display_name.trim() !== 'User' && data.display_name.trim() !== 'Customer' ? data.display_name.trim() : (fallbackName || ''));
             setPhones(data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : ['']);
-            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [email || '']);
+            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : (fetchEmail ? [fetchEmail] : ['']));
             setTelegram(data.telegram_username || '');
             setViber(data.viber_number || '');
             setProfileRegion(data.region || '');
@@ -1676,15 +1702,15 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
             setAddress(data.address || '');
             setNotes(data.notes || '');
           } else {
-            setDisplayName(defaultName || '');
-            setEmails([email || '']);
+            setDisplayName(fallbackName || '');
+            setEmails(fetchEmail ? [fetchEmail] : ['']);
           }
           setLoading(false);
           setResolving(false);
         })
         .catch(() => { setLoading(false); setResolving(false); });
     }
-  }, [uid, shopSlug, defaultName, email, profileShopProp?.id]);
+  }, [uid, shopSlug, fallbackName, fallbackEmail, profileShopProp?.id]);
 
   const addPhone = () => setPhones(prev => [...prev, '']);
   const removePhone = (idx) => { if (phones.length > 1) setPhones(prev => prev.filter((_, i) => i !== idx)); };
@@ -1763,77 +1789,90 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
   }
 
   return (
-    <div className="px-4 md:px-8 xl:px-16 py-6 space-y-5 max-w-[1600px] mx-auto">
-      {/* User Card */}
+    <div className="px-4 py-6 space-y-5 max-w-2xl mx-auto">
+      {/* User Header Card */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
+        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between gap-4"
       >
-        <div className="flex items-start gap-4">
-          <div className="flex flex-col items-center gap-2">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="relative shrink-0">
             {profilePhotoUrl ? (
               <img src={profilePhotoUrl} alt=""
-                className="w-16 h-16 rounded-full ring-2 ring-indigo-100 object-cover"
+                className="w-16 h-16 rounded-full ring-2 ring-indigo-500/20 object-cover"
                 onError={(e) => { e.target.style.display = 'none'; setProfilePhotoUrl(''); }} />
             ) : (
-              <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
-                <User className="w-8 h-8 text-indigo-400" />
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-md">
+                <User className="w-8 h-8 text-white/90" />
               </div>
             )}
             <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-            <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto}
-              className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50 transition-colors">
-              {uploadingPhoto ? 'Uploading...' : 'Update Profile Photo'}
+            <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} title="Update Profile Photo"
+              className="absolute -bottom-1 -right-1 w-7 h-7 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-md transition-transform active:scale-90 border-2 border-white cursor-pointer disabled:opacity-50">
+              {uploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
             </button>
           </div>
           <div className="min-w-0">
-            <h3 className="text-lg font-bold text-gray-900 truncate">{displayName || 'User'}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold text-gray-900 truncate">{displayName || 'Customer'}</h3>
+              <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">Profile</span>
+            </div>
             {email && (
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <Mail className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-sm text-gray-500 truncate">{email}</span>
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-500 truncate">
+                <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <span className="truncate">{email}</span>
               </div>
             )}
           </div>
         </div>
+
+        <button onClick={handleSignOut} title="Sign Out"
+          className="p-2.5 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-all cursor-pointer shrink-0">
+          <LogOut className="w-5 h-5" />
+        </button>
       </motion.div>
 
       {/* Contact Information */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
+        className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-5"
       >
-        <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <Phone className="w-4 h-4 text-gray-400" />
-          Contact Information
-        </h4>
+        <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <Phone className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-gray-900">Contact & Delivery Information</h4>
+            <p className="text-[11px] text-gray-400">Keep your delivery details updated for faster checkout</p>
+          </div>
+        </div>
 
         <div className="space-y-4">
           {/* Name */}
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Full Name *</label>
+            <label className="text-xs font-bold text-gray-700 mb-1.5 block">Full Name <span className="text-rose-500">*</span></label>
             <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              className="w-full px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm font-medium transition-all" />
           </div>
 
           {/* Phone Numbers */}
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Phone Numbers *</label>
+            <label className="text-xs font-bold text-gray-700 mb-1.5 block">Phone Numbers <span className="text-rose-500">*</span></label>
             <div className="space-y-2">
               {phones.map((phone, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <input type="tel" value={phone} onChange={e => {
                     const next = [...phones]; next[idx] = e.target.value.replace(/\D/g, '').slice(0, 15); setPhones(next);
-                  }} placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone"}
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                  }} placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone number"}
+                    className="flex-1 px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm font-medium transition-all" />
                   {idx === 0 ? (
-                    <button onClick={addPhone} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
+                    <button onClick={addPhone} title="Add Phone Number" className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-all shrink-0 cursor-pointer">
                       <Plus className="w-4 h-4" />
                     </button>
                   ) : (
-                    <button onClick={() => removePhone(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
+                    <button onClick={() => removePhone(idx)} title="Remove Phone Number" className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-all shrink-0 cursor-pointer">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
@@ -1844,20 +1883,20 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
 
           {/* Emails */}
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Email Addresses *</label>
+            <label className="text-xs font-bold text-gray-700 mb-1.5 block">Email Addresses <span className="text-rose-500">*</span></label>
             <div className="space-y-2">
               {emails.map((email, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <input type="email" value={email} onChange={e => {
                     const next = [...emails]; next[idx] = e.target.value; setEmails(next);
                   }} placeholder={idx === 0 ? "your@email.com" : "Additional email"}
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                    className="flex-1 px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm font-medium transition-all" />
                   {idx === 0 ? (
-                    <button onClick={addEmail} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
+                    <button onClick={addEmail} title="Add Email" className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-all shrink-0 cursor-pointer">
                       <Plus className="w-4 h-4" />
                     </button>
                   ) : (
-                    <button onClick={() => removeEmail(idx)} className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-400 hover:bg-rose-100 transition-all shrink-0">
+                    <button onClick={() => removeEmail(idx)} title="Remove Email" className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-all shrink-0 cursor-pointer">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
@@ -1866,74 +1905,76 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
             </div>
           </div>
 
-          {/* Telegram Username */}
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Telegram Username</label>
-            <input type="text" value={telegram} onChange={e => setTelegram(e.target.value)}
-              placeholder="@username"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
-          </div>
-
-          {/* Viber Number */}
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Viber Number</label>
-            <input type="tel" value={viber} onChange={e => setViber(e.target.value.replace(/\D/g, '').slice(0, 15))}
-              placeholder="09xxxxxxxxx"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+          {/* Telegram & Viber Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gray-700 mb-1.5 block">Telegram Username</label>
+              <input type="text" value={telegram} onChange={e => setTelegram(e.target.value)}
+                placeholder="@username"
+                className="w-full px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm transition-all" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-700 mb-1.5 block">Viber Number</label>
+              <input type="tel" value={viber} onChange={e => setViber(e.target.value.replace(/\D/g, '').slice(0, 15))}
+                placeholder="09xxxxxxxxx"
+                className="w-full px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm transition-all" />
+            </div>
           </div>
 
           {/* Region / District / Township */}
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Region (တိုင်း/ပြည်နယ်)</label>
-            <SearchableSelect
-              value={profileRegion}
-              onChange={v => { setProfileRegion(v); setProfileDistrict(''); setProfileTownship(''); }}
-              options={REGION_NAMES}
-              placeholder="Select Region"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">District (ခရိုင်)</label>
-            <SearchableSelect
-              value={profileDistrict}
-              onChange={v => { setProfileDistrict(v); setProfileTownship(''); }}
-              options={getDistricts(profileRegion)}
-              placeholder="Select District"
-              disabled={!profileRegion}
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Township (မြို့နယ်)</label>
-            <SearchableSelect
-              value={profileTownship}
-              onChange={setProfileTownship}
-              options={getTownships(profileRegion, profileDistrict)}
-              placeholder="Select Township"
-              disabled={!profileDistrict}
-            />
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-bold text-gray-700 mb-1.5 block">Region / State (တိုင်း/ပြည်နယ်)</label>
+              <SearchableSelect
+                value={profileRegion}
+                onChange={v => { setProfileRegion(v); setProfileDistrict(''); setProfileTownship(''); }}
+                options={REGION_NAMES}
+                placeholder="Select Region"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-700 mb-1.5 block">District (ခရိုင်)</label>
+              <SearchableSelect
+                value={profileDistrict}
+                onChange={v => { setProfileDistrict(v); setProfileTownship(''); }}
+                options={getDistricts(profileRegion)}
+                placeholder="Select District"
+                disabled={!profileRegion}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-700 mb-1.5 block">Township (မြို့နယ်)</label>
+              <SearchableSelect
+                value={profileTownship}
+                onChange={setProfileTownship}
+                options={getTownships(profileRegion, profileDistrict)}
+                placeholder="Select Township"
+                disabled={!profileDistrict}
+              />
+            </div>
           </div>
 
           {/* Address */}
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Full Address *</label>
+            <label className="text-xs font-bold text-gray-700 mb-1.5 block">Full Address <span className="text-rose-500">*</span></label>
             <textarea value={address} onChange={e => setAddress(e.target.value)} rows={3}
-              placeholder="Street, city, postal code..."
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
+              placeholder="Street, house number, ward, city..."
+              className="w-full px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm resize-none font-medium transition-all" />
           </div>
 
           {/* Notes */}
           <div>
-            <label className="text-xs text-gray-500 font-medium mb-1.5 block">Notes</label>
+            <label className="text-xs font-bold text-gray-700 mb-1.5 block">Notes</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              placeholder="Any additional information..."
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
+              placeholder="Delivery instructions or additional info..."
+              className="w-full px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm resize-none transition-all" />
           </div>
 
           {/* Error message */}
           {saveError && (
-            <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-2xl">
-              <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <p className="text-xs font-medium text-rose-700">{saveError}</p>
+            <div className="flex items-center gap-2 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700">
+              <XCircle className="w-4 h-4 shrink-0" />
+              <p className="text-xs font-semibold">{saveError}</p>
             </div>
           )}
 
@@ -1941,25 +1982,25 @@ function ProfileTab({ shopSlug, user, uid, displayName: defaultName, photoUrl, e
           <button
             onClick={handleSave}
             disabled={saving || !displayName.trim() || !phones[0]?.trim() || !emails[0]?.trim()}
-            className={`w-full py-3 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
-              saved ? 'bg-emerald-500 text-white' : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
-            } disabled:opacity-50`}
+            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-md ${
+              saved ? 'bg-emerald-600 text-white shadow-emerald-500/20' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-indigo-500/25'
+            } disabled:opacity-50 cursor-pointer`}
           >
-            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : saved ? <><CheckCircle2 className="w-4 h-4" /> Saved!</> : 'Save Profile'}
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving Profile...</> : saved ? <><CheckCircle2 className="w-4 h-4" /> Profile Saved Successfully!</> : 'Save Profile'}
           </button>
         </div>
       </motion.div>
 
-      {/* Sign Out */}
+      {/* Sign Out Button */}
       <button
         onClick={handleSignOut}
-        className="w-full py-3 bg-rose-50 border border-rose-200 text-rose-600 font-bold rounded-2xl text-sm hover:bg-rose-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+        className="w-full py-3.5 bg-white border border-rose-200 text-rose-600 font-bold rounded-2xl text-sm hover:bg-rose-50 hover:border-rose-300 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
       >
         <LogOut className="w-4 h-4" />
-        Sign Out
+        Sign Out Account
       </button>
 
-      <p className="text-[10px] text-gray-400 text-center pb-4">
+      <p className="text-[10px] text-gray-400 text-center pb-6 font-medium">
         Powered by Telegram E-Commerce Platform
       </p>
     </div>

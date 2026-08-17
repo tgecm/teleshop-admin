@@ -362,13 +362,15 @@ export default function Orders() {
                           setSelectedOrder(null);
                         } else {
                           try {
+                            const targetUid = bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
                             const res = await initiateWebVisitorChat(selectedBotId, {
-                              firebaseUid: bs.firebase_uid || cust.firebase_uid,
+                              firebaseUid: targetUid,
+                              visitorId: targetUid,
                               name: customerName,
                               phone: bs.phone || cust.phone_number || '',
                               email: bs.email || cust.email || '',
                             });
-                            navigate('/chats', { state: { visitorId: res.visitor_id, name: customerName, tab: 'web' } });
+                            navigate('/chats', { state: { visitorId: res.visitor_id || targetUid, name: customerName, tab: 'web' } });
                             setSelectedOrder(null);
                           } catch (err) {
                             addToast('Failed to open chat conversation', 'error');
@@ -452,13 +454,15 @@ export default function Orders() {
                             onClick={async () => {
                               try {
                                 const customerName = bs.name || bs.full_name || cust.first_name || 'Website Customer';
+                                const targetUid = bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
                                 const res = await initiateWebVisitorChat(selectedBotId, {
-                                  firebaseUid: bs.firebase_uid || cust.firebase_uid,
+                                  firebaseUid: targetUid,
+                                  visitorId: targetUid,
                                   name: customerName,
                                   phone: bs.phone || cust.phone_number || '',
                                   email: bs.email || cust.email || '',
                                 });
-                                navigate('/chats', { state: { visitorId: res.visitor_id, name: customerName, tab: 'web' } });
+                                navigate('/chats', { state: { visitorId: res.visitor_id || targetUid, name: customerName, tab: 'web' } });
                                 setSelectedOrder(null);
                               } catch (err) {
                                 addToast('Failed to open chat with customer', 'error');
