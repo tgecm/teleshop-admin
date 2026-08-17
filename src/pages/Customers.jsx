@@ -381,18 +381,22 @@ export default function Customers() {
                       ? detailCustomer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
                       : 'bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600'
                   }`}>
-                    {detailCustomer.photo_url && !brokenImages.has(detailCustomer.id) ? (
-                      <img src={detailCustomer.photo_url} alt="" onError={() => addBrokenImage(detailCustomer.id)} className="w-full h-full object-cover" />
-                    ) : detailCustomer.first_name ? (
-                      detailCustomer.first_name[0]
-                    ) : detailCustomer.display_name ? (
-                      detailCustomer.display_name[0]?.toUpperCase()
+                    {detailCustomer.photo_url || customerProfile?.photo_url ? (
+                      <img src={detailCustomer.photo_url || customerProfile?.photo_url} alt="" onError={() => addBrokenImage(detailCustomer.id)} className="w-full h-full object-cover" />
+                    ) : (customerProfile?.display_name && customerProfile.display_name.trim()) ? (
+                      customerProfile.display_name[0]?.toUpperCase()
+                    ) : (detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name) ? (
+                      (detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name)[0]?.toUpperCase()
                     ) : (
                       '?'
                     )}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-lg font-bold text-gray-900 truncate">{detailCustomer.first_name || detailCustomer.display_name || 'User'}</h3>
+                    <h3 className="text-lg font-bold text-gray-900 truncate">
+                      {(customerProfile?.display_name && customerProfile.display_name.trim() && customerProfile.display_name.trim() !== 'User')
+                        ? customerProfile.display_name.trim()
+                        : (detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name || 'User')}
+                    </h3>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -400,7 +404,7 @@ export default function Customers() {
                     <button
                       onClick={() => {
                         const tgId = detailCustomer.telegram_id || detailCustomer.user_id;
-                        const custName = customerProfile?.display_name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
+                        const custName = (customerProfile?.display_name && customerProfile.display_name.trim()) || detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
                         navigate('/chats', { state: { userId: Number(tgId), name: custName, tab: 'telegram' } });
                         setDetailCustomer(null);
                       }}
@@ -430,13 +434,19 @@ export default function Customers() {
                     <DetailRow icon={Hash} label="Telegram ID" value={detailCustomer.telegram_id.toString()} />
                   )}
                   <DetailRow icon={User} label="Full Name" value={
-                    customerProfile?.display_name || detailCustomer.display_name || detailCustomer.first_name || null
+                    (customerProfile?.display_name && customerProfile.display_name.trim() && customerProfile.display_name.trim() !== 'User')
+                      ? customerProfile.display_name.trim()
+                      : (detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name || null)
                   } />
                   <DetailRow icon={Phone} label="Phone" value={
-                    customerProfile?.phone || detailCustomer.phone || detailCustomer.phone_number || null
+                    (customerProfile?.phone && customerProfile.phone.trim())
+                      ? customerProfile.phone.trim()
+                      : (detailCustomer.phone || detailCustomer.phone_number || null)
                   } />
                   <DetailRow icon={Mail} label="Email" value={
-                    customerProfile?.email || detailCustomer.email || null
+                    (customerProfile?.email && customerProfile.email.trim())
+                      ? customerProfile.email.trim()
+                      : (detailCustomer.email || null)
                   } />
                   <DetailRow icon={AtSign} label="Telegram Username" value={
                     customerProfile?.telegram_username || detailCustomer.telegram_username || detailCustomer.username || null
