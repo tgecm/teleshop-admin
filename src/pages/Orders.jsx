@@ -353,11 +353,12 @@ export default function Orders() {
                       onClick={async () => {
                         const bs = selectedOrder.buyer_snapshot || {};
                         const cust = selectedOrder.customer || {};
-                        const isTelegramSelected = selectedOrder.user_id != null;
+                        const telegramIdStr = bs.telegram_id || cust.telegram_id || selectedOrder.user_id;
+                        const isTelegramSelected = telegramIdStr != null && String(telegramIdStr).trim() !== '' && String(telegramIdStr) !== 'N/A' && String(telegramIdStr) !== 'null';
 
                         const customerName = bs.name || bs.full_name || cust.first_name || 'Customer';
                         if (isTelegramSelected) {
-                          navigate('/chats', { state: { userId: selectedOrder.user_id, name: customerName, tab: 'telegram' } });
+                          navigate('/chats', { state: { userId: Number(telegramIdStr), name: customerName, tab: 'telegram' } });
                           setSelectedOrder(null);
                         } else {
                           try {
@@ -431,18 +432,34 @@ export default function Orders() {
                         <DetailRow icon={MessageCircle} label="Viber" value={bs.viber_number || '—'} />
                         <DetailRow icon={MapPin} label="Address" value={bs.address && bs.address !== 'N/A' ? bs.address : '—'} />
                         {isTelegramSelected && <DetailRow icon={FileText} label="Notes" value={bs.notes || '—'} />}
-                        {isWebsiteSelected && (
+                        {isTelegramSelected ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const telegramIdStr = bs.telegram_id || cust.telegram_id || selectedOrder.user_id;
+                              const customerName = bs.name || bs.full_name || cust.first_name || 'Customer';
+                              navigate('/chats', { state: { userId: Number(telegramIdStr), name: customerName, tab: 'telegram' } });
+                              setSelectedOrder(null);
+                            }}
+                            className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold text-xs transition-colors cursor-pointer border border-indigo-100 mt-2 active:scale-95"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            Contact Customer on Telegram Chat
+                          </button>
+                        ) : isWebsiteSelected && (
                           <button
                             type="button"
                             onClick={async () => {
                               try {
+                                const customerName = bs.name || bs.full_name || cust.first_name || 'Website Customer';
                                 const res = await initiateWebVisitorChat(selectedBotId, {
                                   firebaseUid: bs.firebase_uid || cust.firebase_uid,
-                                  name: bs.name || bs.full_name || cust.first_name || 'Website Customer',
+                                  name: customerName,
                                   phone: bs.phone || cust.phone_number || '',
                                   email: bs.email || cust.email || '',
                                 });
-                                navigate('/chats', { state: { visitorId: res.visitor_id, tab: 'web' } });
+                                navigate('/chats', { state: { visitorId: res.visitor_id, name: customerName, tab: 'web' } });
+                                setSelectedOrder(null);
                               } catch (err) {
                                 addToast('Failed to open chat with customer', 'error');
                               }
