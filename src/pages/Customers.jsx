@@ -396,6 +396,20 @@ export default function Customers() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {(detailCustomer.telegram_id || detailCustomer.user_id || section === 'telegram') && (
+                    <button
+                      onClick={() => {
+                        const tgId = detailCustomer.telegram_id || detailCustomer.user_id;
+                        const custName = customerProfile?.display_name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
+                        navigate('/chats', { state: { userId: Number(tgId), name: custName, tab: 'telegram' } });
+                        setDetailCustomer(null);
+                      }}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      Send Message
+                    </button>
+                  )}
                   <button onClick={handleCopyProfile}
                     className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-indigo-100 transition-all active:scale-95">
                     <Copy className="w-3.5 h-3.5" />
@@ -436,7 +450,21 @@ export default function Customers() {
                   <DetailRow icon={FileText} label="Notes" value={
                     customerProfile?.notes || detailCustomer.notes || null
                   } />
-                  {(detailCustomer.firebase_uid || section === 'website') && (
+                  {(detailCustomer.telegram_id || detailCustomer.user_id || section === 'telegram') ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tgId = detailCustomer.telegram_id || detailCustomer.user_id;
+                        const custName = customerProfile?.display_name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
+                        navigate('/chats', { state: { userId: Number(tgId), name: custName, tab: 'telegram' } });
+                        setDetailCustomer(null);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-xs mt-2 active:scale-95"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Contact Customer on Telegram Chat
+                    </button>
+                  ) : (detailCustomer.firebase_uid || section === 'website') && (
                     <button
                       type="button"
                       onClick={async () => {
@@ -448,6 +476,7 @@ export default function Customers() {
                             email: detailCustomer.email || '',
                           });
                           navigate('/chats', { state: { visitorId: res.visitor_id, tab: 'web' } });
+                          setDetailCustomer(null);
                         } catch (err) {
                           addToast('Failed to open chat with customer', 'error');
                         }
