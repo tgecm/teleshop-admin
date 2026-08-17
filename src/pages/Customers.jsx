@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useReducer } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { getUsers, updateUser, getWebCustomers } from '../api/customers';
+import { initiateWebVisitorChat } from '../api/chats';
 import { getOrders } from '../api/orders';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
@@ -21,6 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { API_BASE } from '../api/config';
 
 export default function Customers() {
+  const navigate = useNavigate();
   const { selectedBotId } = useBotStore();
   const { selectedBot } = useSelectedBot();
   const { addToast } = useToastStore();
@@ -433,6 +436,28 @@ export default function Customers() {
                   <DetailRow icon={FileText} label="Notes" value={
                     customerProfile?.notes || detailCustomer.notes || null
                   } />
+                  {(detailCustomer.firebase_uid || section === 'website') && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const res = await initiateWebVisitorChat(selectedBotId, {
+                            firebaseUid: detailCustomer.firebase_uid,
+                            name: detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name,
+                            phone: detailCustomer.phone || detailCustomer.phone_number || '',
+                            email: detailCustomer.email || '',
+                          });
+                          navigate('/chats', { state: { visitorId: res.visitor_id, tab: 'web' } });
+                        } catch (err) {
+                          addToast('Failed to open chat with customer', 'error');
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-xs mt-2 active:scale-95"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Contact Customer on Website Chat
+                    </button>
+                  )}
                 </div>
 
                 <div>

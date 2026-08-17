@@ -282,7 +282,7 @@ export default function CustomerDashboard({ shopSlug }) {
       .then(msgs => {
         if (msgs.length > 0) {
           const formatted = msgs.map(m => ({
-            role: m.sender_type === 'admin' ? 'assistant' : 'user',
+            role: m.sender_type === 'user' ? 'user' : 'assistant',
             content: m.message_text || '',
             file_id: m.file_id,
             file_type: m.file_type,
@@ -306,7 +306,7 @@ export default function CustomerDashboard({ shopSlug }) {
         const msgs = await res.json();
         if (!msgs.length) return;
         const formatted = msgs.map(m => ({
-          role: m.sender_type === 'admin' || m.sender_type === 'ai' ? 'assistant' : 'user',
+          role: m.sender_type === 'user' ? 'user' : 'assistant',
           content: m.message_text || '',
           file_id: m.file_id,
           file_type: m.file_type,
