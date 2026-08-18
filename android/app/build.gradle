@@ -17,7 +17,7 @@ android {
         }
     }
     signingConfigs {
-        debug {
+        release {
             def props = new Properties()
             def propsFile = rootProject.file('keystore.properties')
             if (propsFile.exists()) {
@@ -31,10 +31,9 @@ android {
     }
     buildTypes {
         debug {
-            signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

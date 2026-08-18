@@ -7,6 +7,7 @@ import { getChats, getChatMessages, sendChatMessage, deleteChat, markChatRead, m
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
+import ConfirmDialog from '../components/shared/ConfirmDialog';
 import {
   Search,
   MessageCircle,
@@ -506,7 +507,32 @@ export default function Chats() {
   const [inputText, setInputText] = useState('');
   const [contextMenu, setContextMenu] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [chatToDelete, setChatToDelete] = useState(null);
   const [chatTab, setChatTab] = useState('all');
+
+  const deleteMutation = useMutation({
+    mutationFn: ({ userId, visitorId }) => {
+      if (visitorId) return deleteWebVisitor(visitorId, Number(selectedBotId));
+      return deleteChat(userId, Number(selectedBotId));
+    },
+    onSuccess: (_data, vars) => {
+      if (vars.visitorId) {
+        queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
+        setContextMenu(null);
+        setDeleteConfirm(null);
+        setChatToDelete(null);
+        if (selectedVisitor === vars.visitorId) setSelectedVisitor(null);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+        setContextMenu(null);
+        setDeleteConfirm(null);
+        setChatToDelete(null);
+        if (selectedUser === vars.userId) setSelectedUser(null);
+      }
+      addToast('Chat deleted');
+    },
+    onError: () => addToast('Failed to delete chat', 'error'),
+  });
   const [selectedVisitor, setSelectedVisitor] = useState(null);
   const [showStartChatModal, setShowStartChatModal] = useState(false);
   const [startChatSearch, setStartChatSearch] = useState('');
@@ -687,28 +713,6 @@ export default function Chats() {
       setInputText('');
     },
     onError: () => addToast('Failed to send message', 'error'),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: ({ userId, visitorId }) => {
-      if (visitorId) return deleteWebVisitor(visitorId, Number(selectedBotId));
-      return deleteChat(userId, Number(selectedBotId));
-    },
-    onSuccess: (_data, vars) => {
-      if (vars.visitorId) {
-        queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
-        setContextMenu(null);
-        setDeleteConfirm(null);
-        if (selectedVisitor === vars.visitorId) setSelectedVisitor(null);
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
-        setContextMenu(null);
-        setDeleteConfirm(null);
-        if (selectedUser === vars.userId) setSelectedUser(null);
-      }
-      addToast('Chat deleted');
-    },
-    onError: () => addToast('Failed to delete chat', 'error'),
   });
 
   const readMutation = useMutation({
@@ -1226,8 +1230,10 @@ export default function Chats() {
               exit={{ opacity: 0, scale: 0.95 }}
               style={{
                 position: 'fixed',
-                left: Math.min(contextMenu.x, window.innerWidth - 240),
-                top: Math.min(contextMenu.y, window.innerHeight - 380),
+                left: Math.min(Math.max(10, contextMenu.x), Math.max(10, window.innerWidth - 240)),
+                top: Math.min(Math.max(10, contextMenu.y), Math.max(10, window.innerHeight - 360)),
+                maxHeight: 'calc(100vh - 40px)',
+                overflowY: 'auto',
                 zIndex: 60,
               }}
               className="w-56 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 py-1.5 overflow-hidden divide-y divide-gray-100/60"
@@ -1370,39 +1376,39 @@ export default function Chats() {
 
               {/* Delete Chat */}
               <div className="pt-1">
-                {deleteConfirm === (contextMenu.chat.visitor_id || contextMenu.chat.user_id) ? (
-                  <div className="px-3.5 py-2 space-y-1.5 bg-rose-50/60">
-                    <p className="text-[11px] font-bold text-rose-600 text-center">Delete chat history?</p>
-                    <div className="flex gap-1.5">
-                      <button
-                        onClick={handleDeleteClick}
-                        disabled={deleteMutation.isPending}
-                        className="flex-1 py-1.5 bg-rose-600 text-white text-[11px] font-bold rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-all"
-                      >
-                        {deleteMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Delete'}
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm(null)}
-                        className="flex-1 py-1.5 bg-white text-gray-700 text-[11px] font-bold rounded-lg border border-gray-200 hover:bg-gray-50 transition-all"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleDeleteClick}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Delete Chat
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    const chat = contextMenu.chat;
+                    setContextMenu(null);
+                    setChatToDelete(chat);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Chat
+                </button>
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={!!chatToDelete}
+        onClose={() => setChatToDelete(null)}
+        onConfirm={() => {
+          if (!chatToDelete) return;
+          deleteMutation.mutate({
+            userId: chatToDelete.user_id,
+            visitorId: chatToDelete.visitor_id,
+          });
+        }}
+        title="Delete Chat History"
+        message={`Are you sure you want to delete all chat history with ${chatToDelete?.name || chatToDelete?.first_name || 'this customer'}?`}
+        confirmText="Delete Chat"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
 
       <AnimatePresence>
         {(selectedUser || selectedVisitor) && (
