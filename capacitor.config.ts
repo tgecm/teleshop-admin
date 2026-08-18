@@ -9,6 +9,11 @@ const config: CapacitorConfig = {
     cleartext: true,
     allowNavigation: ['*'],
   },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
+  },
 };
 
 export default config;

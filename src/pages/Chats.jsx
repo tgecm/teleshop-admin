@@ -511,24 +511,20 @@ export default function Chats() {
   const [chatTab, setChatTab] = useState('all');
 
   const deleteMutation = useMutation({
-    mutationFn: ({ userId, visitorId }) => {
-      if (visitorId) return deleteWebVisitor(visitorId, Number(selectedBotId));
-      return deleteChat(userId, Number(selectedBotId));
+    mutationFn: async ({ userId, visitorId }) => {
+      const promises = [];
+      if (userId) promises.push(deleteChat(userId, Number(selectedBotId)).catch(() => {}));
+      if (visitorId) promises.push(deleteWebVisitor(visitorId, Number(selectedBotId)).catch(() => {}));
+      await Promise.all(promises);
     },
     onSuccess: (_data, vars) => {
-      if (vars.visitorId) {
-        queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
-        setContextMenu(null);
-        setDeleteConfirm(null);
-        setChatToDelete(null);
-        if (selectedVisitor === vars.visitorId) setSelectedVisitor(null);
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
-        setContextMenu(null);
-        setDeleteConfirm(null);
-        setChatToDelete(null);
-        if (selectedUser === vars.userId) setSelectedUser(null);
-      }
+      queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
+      setContextMenu(null);
+      setDeleteConfirm(null);
+      setChatToDelete(null);
+      if (vars.visitorId && selectedVisitor === vars.visitorId) setSelectedVisitor(null);
+      if (vars.userId && selectedUser === vars.userId) setSelectedUser(null);
       addToast('Chat deleted');
     },
     onError: () => addToast('Failed to delete chat', 'error'),

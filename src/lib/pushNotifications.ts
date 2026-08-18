@@ -25,6 +25,20 @@ export async function registerFCMToken(): Promise<void> {
       permStatus = await PushNotifications.requestPermissions();
     }
 
+    try {
+      await PushNotifications.createChannel({
+        id: 'default',
+        name: 'Default Notifications',
+        description: 'General notifications and updates',
+        importance: 5,
+        visibility: 1,
+        sound: 'default',
+        vibration: true,
+      });
+    } catch {
+      // Ignore channel creation errors if unsupported
+    }
+
     await PushNotifications.register();
   } catch {
     // Silently handle
