@@ -30,6 +30,7 @@ import ErrorBoundary from '../components/shared/ErrorBoundary';
 import ShippingLabelSettingsSection from '../components/settings/ShippingLabelSettingsSection';
 import client from '../api/client';
 import { getGuidePrompt, updateGuidePrompt } from '../api/ai';
+import { openExternalUrl } from '../utils/openExternal';
 import {
   Settings as SettingsIcon,
   ShieldCheck,
@@ -828,7 +829,8 @@ export default function Settings() {
                             href={`${domain.url}/${publicSlug.slug}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 break-all"
+                            onClick={(e) => openExternalUrl(`${domain.url}/${publicSlug.slug}`, e)}
+                            className="flex-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 break-all cursor-pointer"
                           >
                             {domain.name}/{publicSlug.slug}
                             <ExternalLink className="w-3 h-3 flex-shrink-0" />
@@ -862,7 +864,8 @@ export default function Settings() {
                                 href={`${domain.url}/${publicSlug.slug}${mode.suffix}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 break-all"
+                                onClick={(e) => openExternalUrl(`${domain.url}/${publicSlug.slug}${mode.suffix}`, e)}
+                                className="flex-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 break-all cursor-pointer"
                               >
                                 <span className="text-[10px]">{mode.icon}</span>
                                 /{publicSlug.slug}{mode.suffix}
@@ -1079,7 +1082,8 @@ export default function Settings() {
                           href={`https://${domain.domain}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] text-emerald-600 font-medium hover:underline flex items-center gap-1"
+                          onClick={(e) => openExternalUrl(`https://${domain.domain}`, e)}
+                          className="text-[10px] text-emerald-600 font-medium hover:underline flex items-center gap-1 cursor-pointer"
                         >
                           <ExternalLink className="w-3 h-3" />
                           https://{domain.domain}
@@ -1095,7 +1099,8 @@ export default function Settings() {
                                 href={`https://${domain.domain}${m.suffix}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[9px] text-gray-500 hover:text-indigo-600 font-medium flex items-center gap-1 bg-gray-100 hover:bg-indigo-50 px-1.5 py-0.5 rounded-l-md transition-all"
+                                onClick={(e) => openExternalUrl(`https://${domain.domain}${m.suffix}`, e)}
+                                className="text-[9px] text-gray-500 hover:text-indigo-600 font-medium flex items-center gap-1 bg-gray-100 hover:bg-indigo-50 px-1.5 py-0.5 rounded-l-md transition-all cursor-pointer"
                               >
                                 {m.icon} /{m.label.toLowerCase()}
                               </a>
@@ -1780,12 +1785,13 @@ export default function Settings() {
                 <p className="text-[10px] text-gray-500">Download the latest APK</p>
               </div>
             </div>
-            <a
-              href="http://dl.telegramecommerce.shop/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm"
-            >
+        <a
+          href="http://dl.telegramecommerce.shop/"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => openExternalUrl('http://dl.telegramecommerce.shop/', e)}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm cursor-pointer"
+        >
               <Download className="w-4 h-4" />
               Download Android App
             </a>
@@ -2199,7 +2205,8 @@ function AppSettings() {
           href="http://dl.telegramecommerce.shop/"
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm"
+          onClick={(e) => openExternalUrl('http://dl.telegramecommerce.shop/', e)}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm cursor-pointer"
         >
           <Download className="w-4 h-4" />
           Download Latest Version

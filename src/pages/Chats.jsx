@@ -797,9 +797,9 @@ export default function Chats() {
   const isGuestVisitor = (v) => {
     if (!v) return false;
     if (v.name === 'E-commerce Support') return false;
-    if (v.firebase_uid || v.email) return false;
-    if (v.name && v.name !== 'Website Customer' && v.name !== 'Shop Visitor' && v.name !== 'User') return false;
-    if (v.visitor_id && !v.visitor_id.startsWith('v')) return false;
+    if (v.email && v.email.includes('@')) return false;
+    if (v.phone && v.phone !== 'N/A' && v.phone.trim() !== '') return false;
+    if (v.name && v.name !== 'Website Customer' && v.name !== 'Shop Visitor' && v.name !== 'User' && (v.email || v.phone)) return false;
     return true;
   };
 
@@ -1158,7 +1158,38 @@ export default function Chats() {
                   isSelected={selectedVisitor === v.visitor_id}
                   onClick={() => {
                     setSelectedVisitor(v.visitor_id);
+                    setSelectedUser(null);
                     setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
+                  }}
+                  onContextMenu={handleContextMenu}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : chatTab === 'telegram' ? (
+        <>
+          {filteredChats.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-8 h-8 text-gray-300" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">No Telegram conversations yet</h3>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
+                When users message the Telegram bot, their conversations will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
+              {filteredChats.map(chat => (
+                <ConversationItem
+                  key={chat.user_id}
+                  chat={chat}
+                  isActive={selectedUser === chat.user_id}
+                  onClick={() => {
+                    setSelectedUser(chat.user_id);
+                    setSelectedVisitor(null);
+                    setUnreadOverrides(prev => { const n = {...prev}; delete n[chat.user_id]; return n; });
                   }}
                   onContextMenu={handleContextMenu}
                 />
@@ -1168,66 +1199,7 @@ export default function Chats() {
         </>
       ) : (
         <>
-          {filteredChats.length > 0 && (
-            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
-              {filteredChats.map(chat => (
-                <ConversationItem
-                  key={chat.user_id}
-                  chat={chat}
-                  isActive={selectedUser === chat.user_id}
-                  onClick={() => {
-                    setSelectedUser(chat.user_id);
-                    setUnreadOverrides(prev => { const n = {...prev}; delete n[chat.user_id]; return n; });
-                  }}
-                  onContextMenu={handleContextMenu}
-                />
-              ))}
-            </div>
-          )}
-          {chatTab === 'all' && filteredWebVisitors.filter(v => !isGuestVisitor(v)).length > 0 && (
-            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
-              <div className="flex items-center gap-2 px-1 pt-1">
-                <div className="h-px flex-1 bg-gray-100" />
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Website</span>
-                <div className="h-px flex-1 bg-gray-100" />
-              </div>
-              {filteredWebVisitors.filter(v => !isGuestVisitor(v)).map(v => (
-                <WebVisitorItem
-                  key={v.visitor_id}
-                  v={v}
-                  isSelected={selectedVisitor === v.visitor_id}
-                  onClick={() => {
-                    setSelectedVisitor(v.visitor_id);
-                    setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
-                  }}
-                  onContextMenu={handleContextMenu}
-                />
-              ))}
-            </div>
-          )}
-          {chatTab === 'all' && filteredWebVisitors.filter(v => isGuestVisitor(v)).length > 0 && (
-            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
-              <div className="flex items-center gap-2 px-1 pt-1">
-                <div className="h-px flex-1 bg-gray-100" />
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Guest</span>
-                <div className="h-px flex-1 bg-gray-100" />
-              </div>
-              {filteredWebVisitors.filter(v => isGuestVisitor(v)).map(v => (
-                <WebVisitorItem
-                  key={v.visitor_id}
-                  v={v}
-                  isSelected={selectedVisitor === v.visitor_id}
-                  onClick={() => {
-                    setSelectedVisitor(v.visitor_id);
-                    setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
-                  }}
-                  onContextMenu={handleContextMenu}
-                />
-              ))}
-            </div>
-          )}
-          {filteredChats.length === 0
-            && (chatTab !== 'all' || filteredWebVisitors.filter(v => v.name !== 'E-commerce Support').length === 0) && (
+          {combinedAllItems.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <MessageCircle className="w-8 h-8 text-gray-300" />
@@ -1236,6 +1208,36 @@ export default function Chats() {
               <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
                 {search ? 'Try a different search term.' : 'When users message the bot, their conversations will appear here.'}
               </p>
+            </div>
+          ) : (
+            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
+              {combinedAllItems.map(entry => (
+                entry.type === 'telegram' ? (
+                  <ConversationItem
+                    key={`tg_${entry.id}`}
+                    chat={entry.item}
+                    isActive={selectedUser === entry.id}
+                    onClick={() => {
+                      setSelectedUser(entry.id);
+                      setSelectedVisitor(null);
+                      setUnreadOverrides(prev => { const n = {...prev}; delete n[entry.id]; return n; });
+                    }}
+                    onContextMenu={handleContextMenu}
+                  />
+                ) : (
+                  <WebVisitorItem
+                    key={`wv_${entry.id}`}
+                    v={entry.item}
+                    isSelected={selectedVisitor === entry.id}
+                    onClick={() => {
+                      setSelectedVisitor(entry.id);
+                      setSelectedUser(null);
+                      setUnreadOverrides(prev => { const n = {...prev}; delete n[entry.id]; return n; });
+                    }}
+                    onContextMenu={handleContextMenu}
+                  />
+                )
+              ))}
             </div>
           )}
         </>
