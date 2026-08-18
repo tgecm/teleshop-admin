@@ -200,7 +200,72 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
   }, [chatOpen, botId, showVisitorForm]);
 
   useEffect(() => {
-    if (!chatOpen || !botId || visitorIdRef.current) return;
+    if (!chatOpen || !botId) return;
+
+    // Check logged-in user session first (Google or Telegram auth)
+    let loggedInUid = null;
+    let loggedInName = '';
+    let loggedInEmail = '';
+    let loggedInPhone = '';
+
+    try {
+      const g = localStorage.getItem('google_user');
+      if (g) {
+        const parsed = JSON.parse(g);
+        loggedInUid = parsed.id || parsed.uid;
+        loggedInName = parsed.name || parsed.displayName || '';
+        loggedInEmail = parsed.email || '';
+      }
+    } catch {}
+
+    if (!loggedInUid) {
+      try {
+        const t = localStorage.getItem('telegram_user');
+        if (t) {
+          const parsed = JSON.parse(t);
+          loggedInUid = String(parsed.id);
+          loggedInName = parsed.name || parsed.first_name || (parsed.username ? `@${parsed.username}` : '');
+        }
+      } catch {}
+    }
+
+    if (loggedInUid) {
+      const uidStr = String(loggedInUid);
+      visitorIdRef.current = uidStr;
+      setShowVisitorForm(false);
+      setVisitorForm({ name: loggedInName, phone: loggedInPhone, email: loggedInEmail });
+
+      // Sync website customer to backend
+      fetch(`${API_BASE}/website-customers/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bot_id: botId,
+          firebase_uid: uidStr,
+          display_name: loggedInName,
+          email: loggedInEmail,
+          phone: loggedInPhone
+        }),
+      }).catch(() => {});
+
+      // Fetch messages for logged-in user
+      fetch(`${API_BASE}/public/chat/${botId}/${encodeURIComponent(uidStr)}/messages`)
+        .then(r => r.json())
+        .then(msgs => {
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            setChatMessages(msgs.map(m => ({
+              role: m.sender_type === 'user' ? 'user' : 'assistant',
+              content: m.message_text || '',
+              file_id: m.file_id || null,
+              file_type: m.file_type || null
+            })));
+          }
+        }).catch(() => {});
+      return;
+    }
+
+    // Guest fallback
+    if (visitorIdRef.current) return;
     const key = 'visitor_' + (botUsername || slug || 'domain');
     const saved = localStorage.getItem(key);
     if (saved) {
