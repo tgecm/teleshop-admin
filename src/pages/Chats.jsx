@@ -205,7 +205,8 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
                 </a>
               )}
             </div>
-            <audio controls controlsList="nodownload" className="w-full h-9" preload="metadata">
+            <audio src={fileUrl} controls controlsList="nodownload" className="w-full h-9" preload="metadata">
+              <source src={fileUrl} type="audio/ogg" />
               <source src={fileUrl} />
             </audio>
           </div>
