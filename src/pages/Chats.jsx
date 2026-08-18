@@ -513,8 +513,9 @@ export default function Chats() {
   const deleteMutation = useMutation({
     mutationFn: async ({ userId, visitorId }) => {
       const promises = [];
+      const targetVisitorId = visitorId || (userId ? String(userId) : null);
+      if (targetVisitorId) promises.push(deleteWebVisitor(targetVisitorId, Number(selectedBotId)).catch(() => {}));
       if (userId) promises.push(deleteChat(userId, Number(selectedBotId)).catch(() => {}));
-      if (visitorId) promises.push(deleteWebVisitor(visitorId, Number(selectedBotId)).catch(() => {}));
       await Promise.all(promises);
     },
     onSuccess: (_data, vars) => {
@@ -1394,9 +1395,11 @@ export default function Chats() {
         onClose={() => setChatToDelete(null)}
         onConfirm={() => {
           if (!chatToDelete) return;
+          const uId = chatToDelete.user_id;
+          const vId = chatToDelete.visitor_id || chatToDelete.customer_key || (chatToDelete.user_id ? String(chatToDelete.user_id) : null);
           deleteMutation.mutate({
-            userId: chatToDelete.user_id,
-            visitorId: chatToDelete.visitor_id,
+            userId: uId,
+            visitorId: vId,
           });
         }}
         title="Delete Chat History"
