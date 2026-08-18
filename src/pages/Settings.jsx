@@ -1078,16 +1078,29 @@ export default function Settings() {
                     )}
                     {domain.verified && domain.enabled && (
                       <div className="mt-2 pt-2 border-t border-gray-200">
-                        <a
-                          href={`https://${domain.domain}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => openExternalUrl(`https://${domain.domain}`, e)}
-                          className="text-[10px] text-emerald-600 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          https://{domain.domain}
-                        </a>
+                        <div className="flex items-center justify-between gap-2">
+                          <a
+                            href={`https://${domain.domain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => openExternalUrl(`https://${domain.domain}`, e)}
+                            className="text-[10px] text-emerald-600 font-medium hover:underline flex items-center gap-1 cursor-pointer break-all"
+                          >
+                            <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            https://{domain.domain}
+                          </a>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(`https://${domain.domain}`);
+                              addToast(`Domain URL copied`);
+                            }}
+                            className="px-2 py-1 bg-white border border-gray-200 rounded-md hover:bg-gray-100 transition-all font-bold text-[9px] text-gray-600 flex items-center gap-1 flex-shrink-0 shadow-xs active:scale-95"
+                            title="Copy main domain URL"
+                          >
+                            <Copy className="w-2.5 h-2.5" />
+                            Copy
+                          </button>
+                        </div>
                         <div className="flex flex-wrap gap-1.5 mt-1.5">
                           {[
                             { label: 'Telegram', suffix: '/telegram', icon: '💬' },
