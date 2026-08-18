@@ -1818,13 +1818,14 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
 
   const handleSignOut = async () => {
     try {
-      const isTelegram = !!localStorage.getItem('telegram_token');
-      if (isTelegram) {
-        localStorage.removeItem('telegram_token');
-        localStorage.removeItem('telegram_user');
-      } else {
-        await signOut(auth);
-      }
+      localStorage.removeItem('telegram_token');
+      localStorage.removeItem('telegram_user');
+      localStorage.removeItem('google_token');
+      localStorage.removeItem('google_user');
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('visitor_')) localStorage.removeItem(key);
+      });
+      await signOut(auth).catch(() => {});
       window.location.href = `/?p=${encodeURIComponent(shopSlug)}`;
     } catch (err) {
       console.error('Sign out failed:', err);
