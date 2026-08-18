@@ -852,6 +852,37 @@ export default function Chats() {
   const selectedWebChat = displayedWebVisitors.find(v => v.visitor_id === selectedVisitor);
   const isWebTab = chatTab === 'web' || chatTab === 'guest';
 
+  const getItemTime = (item) => {
+    const raw = item.last_time || item.last_message_at || item.created_at || item.last_msg_at || item.updated_at || item.last_interaction;
+    if (!raw) return 0;
+    const t = new Date(raw).getTime();
+    return isNaN(t) ? 0 : t;
+  };
+
+  const combinedAllItems = useMemo(() => {
+    const telegramItems = filteredChats.map(c => ({
+      type: 'telegram',
+      id: c.user_id,
+      item: c,
+      is_pinned: !!c.is_pinned,
+      timestamp: getItemTime(c),
+    }));
+    const webItems = filteredWebVisitors.map(v => ({
+      type: 'web',
+      id: v.visitor_id,
+      item: v,
+      is_pinned: !!v.is_pinned,
+      timestamp: getItemTime(v),
+    }));
+    const combined = [...telegramItems, ...webItems];
+    combined.sort((a, b) => {
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      return b.timestamp - a.timestamp;
+    });
+    return combined;
+  }, [filteredChats, filteredWebVisitors]);
+
   const handleSend = () => {
     const text = inputText.trim();
     if (!text || sendMutation.isPending) return;
