@@ -18,6 +18,9 @@ export const markChatRead = (userId, botId) =>
 export const markChatUnread = (userId, botId) =>
   client.post(`/chats/${userId}/mark-unread`, { bot_id: botId }).then(res => res.data);
 
+export const updateChatMetadata = (visitorId, botId, data) =>
+  client.post(`/chats/${visitorId}/metadata`, data, { params: { bot_id: botId } }).then(res => res.data);
+
 export const getWebVisitors = (botId) =>
   client.get(`/web-visitors/${botId}`).then(res => res.data);
 

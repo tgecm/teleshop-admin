@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { getChats, getChatMessages, sendChatMessage, deleteChat, markChatRead, markChatUnread,
   getWebVisitors, getWebVisitorMessages, sendWebVisitorMessage, deleteWebVisitor, toggleWebVisitorAI,
-  markWebVisitorRead, markWebVisitorUnread, initiateWebVisitorChat, getWebsiteCustomersForChat } from '../api/chats';
+  markWebVisitorRead, markWebVisitorUnread, initiateWebVisitorChat, getWebsiteCustomersForChat, updateChatMetadata } from '../api/chats';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
@@ -28,6 +28,16 @@ import {
   BadgeCheck,
   Plus,
   UserPlus,
+  Pin,
+  PinOff,
+  CheckCircle2,
+  Clock,
+  CreditCard,
+  Ban,
+  VolumeX,
+  Volume2,
+  Filter,
+  Bot,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { MarkdownRenderer } from '../utils/linkify';
@@ -323,17 +333,20 @@ function ConversationItem({ chat, isActive, onClick, onContextMenu }) {
         } ${unread > 0 ? 'bg-indigo-50/50' : ''}`}
       >
         <div className="flex items-center gap-3">
-          <div className="relative w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-            <User className="w-5 h-5 text-gray-500" />
+          <div className="relative w-10 h-10 flex-shrink-0">
+            <div className="w-full h-full rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 text-indigo-600 font-extrabold text-sm flex items-center justify-center">
+              {chat.first_name ? chat.first_name[0].toUpperCase() : <User className="w-5 h-5 text-gray-500" />}
+            </div>
             {unread > 0 && (
-              <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
+              <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center shadow-xs z-10">
                 <span className="text-[8px] font-bold text-white">{unread > 9 ? '9+' : unread}</span>
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
-              <p className={`text-sm truncate ${unread > 0 ? 'font-extrabold text-gray-900' : 'font-bold text-gray-900'}`}>
+              <p className={`text-sm truncate ${unread > 0 ? 'font-extrabold text-gray-900' : 'font-bold text-gray-900'} flex items-center gap-1.5`}>
+                {chat.is_pinned && <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-400 flex-shrink-0" title="Pinned" />}
                 {chat.first_name || `User ${chat.user_id}`}
               </p>
               {chat.last_time && (
@@ -346,6 +359,118 @@ function ConversationItem({ chat, isActive, onClick, onContextMenu }) {
               {chat.last_sender === 'admin' && <CheckCheck className="w-3 h-3 flex-shrink-0 text-indigo-400" />}
               {lastMessageText(chat.last_message, chat.last_file_type)}
             </p>
+            {(chat.is_done || chat.payment_status === 'paid' || chat.payment_status === 'pending' || chat.is_blocked || chat.is_muted) && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                {chat.is_done && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Done
+                  </span>
+                )}
+                {chat.payment_status === 'paid' && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-green-50 text-green-700 text-[10px] font-bold border border-green-200">
+                    <CreditCard className="w-3 h-3 text-green-600" /> Paid
+                  </span>
+                )}
+                {chat.payment_status === 'pending' && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
+                    <Clock className="w-3 h-3 text-amber-600" /> Pending
+                  </span>
+                )}
+                {chat.is_blocked && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-200">
+                    <Ban className="w-3 h-3 text-rose-600" /> Blocked
+                  </span>
+                )}
+                {chat.is_muted && (
+                  <VolumeX className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" title="Muted" />
+                )}
+              </div>
+            )}
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
+        </div>
+      </button>
+    </div>
+  );
+}
+
+function WebVisitorItem({ v, isSelected, onClick, onContextMenu }) {
+  return (
+    <div className="relative group">
+      <button
+        onClick={onClick}
+        onContextMenu={(e) => onContextMenu(e, v)}
+        className={`w-full text-left p-3 rounded-2xl transition-all active:scale-[0.98] ${
+          isSelected
+            ? 'bg-indigo-50 border border-indigo-100'
+            : 'bg-white border border-transparent hover:border-gray-200'
+        } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="relative w-10 h-10 flex-shrink-0">
+            <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-indigo-50 border border-indigo-100 text-indigo-600 font-extrabold text-sm">
+              {v.name === 'E-commerce Support' ? (
+                <img src="/logo.webp" alt="Support" className="w-full h-full rounded-full object-cover" />
+              ) : v.photo_url ? (
+                <img src={v.photo_url} alt="" className="w-full h-full rounded-full object-cover"
+                  onError={(e) => { e.target.style.display = 'none'; if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex'; }} />
+              ) : null}
+              {v.name !== 'E-commerce Support' && !v.photo_url && (
+                <span className="select-none font-bold">{(v.name || 'U')[0].toUpperCase()}</span>
+              )}
+              <div className="w-full h-full bg-gray-100 items-center justify-center rounded-full" style={{display:'none'}}>
+                <User className="w-5 h-5 text-gray-500" />
+              </div>
+            </div>
+            {v.unread_count > 0 && (
+              <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center shadow-xs z-10">
+                <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900 flex items-center gap-1.5`}>
+                {v.is_pinned && <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-400 flex-shrink-0" title="Pinned" />}
+                {v.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-4 h-4 fill-blue-600 text-white flex-shrink-0" /></> : v.name}
+              </p>
+              {v.last_time && (
+                <span className="text-[10px] text-gray-400 flex-shrink-0">
+                  {myanmarFormat(v.last_time, 'MMM d')}
+                </span>
+              )}
+            </div>
+            <p className={`text-xs truncate mt-0.5 ${v.unread_count > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
+              {(v.last_message || '').length > 40 ? (v.last_message || '').slice(0, 40) + '...' : lastMessageText(v.last_message, v.last_file_type)}
+            </p>
+            {v.phone && <p className="text-[10px] text-gray-400 mt-0.5">{v.phone}</p>}
+            {(v.is_done || v.payment_status === 'paid' || v.payment_status === 'pending' || v.is_blocked || v.is_muted) && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                {v.is_done && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Done
+                  </span>
+                )}
+                {v.payment_status === 'paid' && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-green-50 text-green-700 text-[10px] font-bold border border-green-200">
+                    <CreditCard className="w-3 h-3 text-green-600" /> Paid
+                  </span>
+                )}
+                {v.payment_status === 'pending' && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
+                    <Clock className="w-3 h-3 text-amber-600" /> Pending
+                  </span>
+                )}
+                {v.is_blocked && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-200">
+                    <Ban className="w-3 h-3 text-rose-600" /> Blocked
+                  </span>
+                )}
+                {v.is_muted && (
+                  <VolumeX className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" title="Muted" />
+                )}
+              </div>
+            )}
           </div>
           <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
         </div>
@@ -361,6 +486,9 @@ export default function Chats() {
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'read' | 'unread' | 'done' | 'pending' | 'paid' | 'blocked' | 'muted'
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const filterRef = useRef(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [inputText, setInputText] = useState('');
   const [contextMenu, setContextMenu] = useState(null);
@@ -371,6 +499,17 @@ export default function Chats() {
   const [startChatSearch, setStartChatSearch] = useState('');
 
   const [selectedChatName, setSelectedChatName] = useState(null);
+
+  useEffect(() => {
+    if (!showFilterMenu) return;
+    const handle = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setShowFilterMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', handle);
+    return () => document.removeEventListener('pointerdown', handle);
+  }, [showFilterMenu]);
 
   useEffect(() => {
     if (location.state?.visitorId) {
@@ -477,10 +616,8 @@ export default function Chats() {
     queryFn: () => getWebVisitors(Number(selectedBotId)),
     enabled: !!selectedBotId && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
     refetchInterval: 15000,
-    placeholderData: keepPreviousData,
   });
-  if (webVisitors.length > 0) prevWebVisitorsRef.current = webVisitors;
-  const stableWebVisitors = isFetching && webVisitors.length === 0 ? prevWebVisitorsRef.current : webVisitors;
+  const stableWebVisitors = webVisitors;
 
   const { data: webMessages = [] } = useQuery({
     queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor],
@@ -564,8 +701,10 @@ export default function Chats() {
   const readMutation = useMutation({
     mutationFn: ({ userId, visitorId, markAsRead }) => {
       if (!markAsRead) {
-        // "Mark as Unread" is local-only to avoid auto-mark-read reverting it
-        return Promise.resolve();
+        if (visitorId) {
+          return markWebVisitorUnread(visitorId, Number(selectedBotId));
+        }
+        return markChatUnread(userId, Number(selectedBotId));
       }
       if (visitorId) {
         return markWebVisitorRead(visitorId, Number(selectedBotId));
@@ -579,13 +718,9 @@ export default function Chats() {
         setUnreadOverrides(prev => ({ ...prev, [key]: vars.markAsRead ? 0 : 1 }));
       }
     },
-    onSuccess: (_data, vars) => {
-      // Only invalidate for server-side mutations (markAsRead=true calls the API).
-      // Mark as Unread is local-only — invalidating would refetch server data and race against the local override.
-      if (vars.markAsRead) {
-        queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
-        queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
     },
     onError: (err) => {
       console.error('Mark read/unread failed:', err);
@@ -608,6 +743,31 @@ export default function Chats() {
     onError: () => addToast('Failed to toggle AI', 'error'),
   });
 
+  const metadataMutation = useMutation({
+    mutationFn: ({ visitorId, data }) => updateChatMetadata(visitorId, Number(selectedBotId), data),
+    onSuccess: (_data, vars) => {
+      setContextMenu(null);
+      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
+      queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+      if (vars.data.is_pinned !== undefined) {
+        addToast(vars.data.is_pinned ? 'Chat pinned to top' : 'Chat unpinned');
+      } else if (vars.data.is_done !== undefined) {
+        addToast(vars.data.is_done ? 'Chat marked as done' : 'Chat reopened');
+      } else if (vars.data.payment_status !== undefined) {
+        addToast(`Payment status set to ${vars.data.payment_status}`);
+      } else if (vars.data.is_blocked !== undefined) {
+        addToast(vars.data.is_blocked ? 'Customer blocked' : 'Customer unblocked');
+      } else if (vars.data.is_muted !== undefined) {
+        addToast(vars.data.is_muted ? 'Chat muted' : 'Chat unmuted');
+      } else if (vars.data.ai_disabled !== undefined) {
+        addToast(vars.data.ai_disabled ? 'AI Agent paused' : 'AI Agent resumed');
+      }
+    },
+    onError: (err) => {
+      addToast(err.response?.data?.detail || 'Failed to update status', 'error');
+    },
+  });
+
   useEffect(() => {
     if (!contextMenu) return;
     const handle = (e) => {
@@ -624,18 +784,33 @@ export default function Chats() {
     if (!v) return false;
     if (v.name === 'E-commerce Support') return false;
     if (v.firebase_uid || v.email) return false;
+    if (v.name && v.name !== 'Website Customer' && v.name !== 'Shop Visitor' && v.name !== 'User') return false;
+    if (v.visitor_id && !v.visitor_id.startsWith('v')) return false;
     return true;
   };
 
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-  const webVisitorsWithUid = displayedWebVisitors.filter(v => !isGuestVisitor(v) && v.name !== 'E-commerce Support');
-  const webVisitorsGuest = displayedWebVisitors.filter(v => isGuestVisitor(v));
+  const webVisitorsWithUid = displayedWebVisitors.filter(v => v.name !== 'E-commerce Support' && !isGuestVisitor(v));
+  const webVisitorsGuest = displayedWebVisitors.filter(v => v.name !== 'E-commerce Support' && isGuestVisitor(v));
   const websiteUnread = webVisitorsWithUid.reduce((sum, v) => sum + (v.unread_count || 0), 0);
   const guestUnread = webVisitorsGuest.reduce((sum, v) => sum + (v.unread_count || 0), 0);
   const supportVisitor = displayedWebVisitors.find(v => v.name === 'E-commerce Support');
   const supportUnread = supportVisitor?.unread_count || 0;
 
+  const matchesStatusFilter = (item) => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'read') return (item.unread_count || 0) === 0;
+    if (statusFilter === 'unread') return (item.unread_count || 0) > 0;
+    if (statusFilter === 'done') return !!item.is_done;
+    if (statusFilter === 'pending') return item.payment_status === 'pending';
+    if (statusFilter === 'paid') return item.payment_status === 'paid';
+    if (statusFilter === 'blocked') return !!item.is_blocked;
+    if (statusFilter === 'muted') return !!item.is_muted;
+    return true;
+  };
+
   const filteredChats = displayedChats.filter(c => {
+    if (!matchesStatusFilter(c)) return false;
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
@@ -647,6 +822,8 @@ export default function Chats() {
   });
 
   const filteredWebVisitors = displayedWebVisitors.filter(v => {
+    if (v.name === 'E-commerce Support') return false;
+    if (!matchesStatusFilter(v)) return false;
     if (!search.trim()) return true;
     const term = search.toLowerCase();
     return (
@@ -765,15 +942,65 @@ export default function Chats() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Chats</h1>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-72">
+          <div className="relative flex-1 sm:w-72" ref={filterRef}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search user..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
+              className="w-full pl-10 pr-9 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
             />
+            <button
+              onClick={() => setShowFilterMenu(!showFilterMenu)}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-xl transition-all ${
+                statusFilter !== 'all'
+                  ? 'bg-indigo-100 text-indigo-600 font-bold'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Filter chats by status"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
+
+            {showFilterMenu && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 divide-y divide-gray-100">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Filter by Status</div>
+                <div className="py-1">
+                  {[
+                    { id: 'all', label: 'All Chats', icon: Filter, color: 'text-gray-500' },
+                    { id: 'unread', label: 'Unread', icon: Circle, color: 'text-indigo-600' },
+                    { id: 'read', label: 'Read', icon: CheckCheck, color: 'text-gray-500' },
+                    { id: 'done', label: 'Done', icon: CheckCircle2, color: 'text-emerald-600' },
+                    { id: 'pending', label: 'Pending Payment', icon: Clock, color: 'text-amber-500' },
+                    { id: 'paid', label: 'Paid', icon: CreditCard, color: 'text-green-600' },
+                    { id: 'blocked', label: 'Blocked', icon: Ban, color: 'text-rose-600' },
+                    { id: 'muted', label: 'Muted', icon: VolumeX, color: 'text-gray-500' },
+                  ].map(item => {
+                    const Icon = item.icon;
+                    const isActive = statusFilter === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setStatusFilter(item.id);
+                          setShowFilterMenu(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                          isActive ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Icon className={`w-3.5 h-3.5 ${item.color}`} />
+                          <span>{item.label}</span>
+                        </div>
+                        {isActive && <CheckCheck className="w-3.5 h-3.5 text-indigo-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <button
             onClick={() => setShowStartChatModal(true)}
@@ -865,7 +1092,7 @@ export default function Chats() {
 
       {chatTab === 'web' || chatTab === 'guest' ? (
         <>
-          {(chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v) && v.name !== 'E-commerce Support') : filteredWebVisitors.filter(v => isGuestVisitor(v))).length === 0 ? (
+          {(chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v)) : filteredWebVisitors.filter(v => isGuestVisitor(v))).length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <MessageCircle className="w-8 h-8 text-gray-300" />
@@ -879,63 +1106,17 @@ export default function Chats() {
             </div>
           ) : (
             <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
-              {(chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v) && v.name !== 'E-commerce Support') : filteredWebVisitors.filter(v => isGuestVisitor(v))).map(v => (
-                <div key={v.visitor_id} className="relative group">
-                  <button
-                    onClick={() => {
-                      setSelectedVisitor(v.visitor_id);
-                      setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
-                    }}
-                    onContextMenu={(e) => handleContextMenu(e, v)}
-                    className={`w-full text-left p-3 rounded-2xl transition-all active:scale-[0.98] ${
-                      selectedVisitor === v.visitor_id
-                        ? 'bg-indigo-50 border border-indigo-100'
-                        : 'bg-white border border-transparent hover:border-gray-200'
-                    } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
-                        {v.name === 'E-commerce Support'
-                          ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
-                          : v.photo_url ? (
-                            <img src={v.photo_url} alt="" className="w-full h-full object-cover"
-                              onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }} />
-                          ) : null
-                        }
-                        {v.name !== 'E-commerce Support' && !v.photo_url && (
-                          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                            <User className="w-5 h-5 text-gray-500" />
-                          </div>
-                        )}
-                        <div className="w-full h-full bg-gray-100 items-center justify-center" style={{display:'none'}}>
-                          <User className="w-5 h-5 text-gray-500" />
-                        </div>
-                        {v.unread_count > 0 && (
-                          <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
-                            <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900 flex items-center gap-1`}>
-                            {v.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-4 h-4 fill-blue-600 text-white flex-shrink-0" /></> : v.name}
-                          </p>
-                          {v.last_time && (
-                            <span className="text-[10px] text-gray-400 flex-shrink-0">
-                              {myanmarFormat(v.last_time, 'MMM d')}
-                            </span>
-                          )}
-                        </div>
-                        <p className={`text-xs truncate mt-0.5 ${v.unread_count > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
-                          {(v.last_message || '').length > 40 ? (v.last_message || '').slice(0, 40) + '...' : lastMessageText(v.last_message, v.last_file_type)}
-                        </p>
-                        {v.phone && <p className="text-[10px] text-gray-400 mt-0.5">{v.phone}</p>}
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
-                    </div>
-                  </button>
-                </div>
+              {(chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v)) : filteredWebVisitors.filter(v => isGuestVisitor(v))).map(v => (
+                <WebVisitorItem
+                  key={v.visitor_id}
+                  v={v}
+                  isSelected={selectedVisitor === v.visitor_id}
+                  onClick={() => {
+                    setSelectedVisitor(v.visitor_id);
+                    setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
+                  }}
+                  onContextMenu={handleContextMenu}
+                />
               ))}
             </div>
           )}
@@ -958,137 +1139,45 @@ export default function Chats() {
               ))}
             </div>
           )}
-          {chatTab === 'all' && filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id).length > 0 && (
+          {chatTab === 'all' && filteredWebVisitors.filter(v => !isGuestVisitor(v)).length > 0 && (
             <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
               <div className="flex items-center gap-2 px-1 pt-1">
                 <div className="h-px flex-1 bg-gray-100" />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Website</span>
                 <div className="h-px flex-1 bg-gray-100" />
               </div>
-              {filteredWebVisitors.filter(v => v.firebase_uid || v.telegram_id).map(v => (
-                <div key={v.visitor_id} className="relative group">
-                  <button
-                    onClick={() => {
-                      setSelectedVisitor(v.visitor_id);
-                      setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
-                    }}
-                    onContextMenu={(e) => handleContextMenu(e, v)}
-                    className={`w-full text-left p-3 rounded-2xl transition-all active:scale-[0.98] ${
-                      selectedVisitor === v.visitor_id
-                        ? 'bg-indigo-50 border border-indigo-100'
-                        : 'bg-white border border-transparent hover:border-gray-200'
-                    } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
-                        {v.name === 'E-commerce Support'
-                          ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
-                          : v.photo_url ? (
-                            <img src={v.photo_url} alt="" className="w-full h-full object-cover"
-                              onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }} />
-                          ) : null
-                        }
-                        {v.name !== 'E-commerce Support' && !v.photo_url && (
-                          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                            <User className="w-5 h-5 text-gray-500" />
-                          </div>
-                        )}
-                        <div className="w-full h-full bg-gray-100 items-center justify-center" style={{display:'none'}}>
-                          <User className="w-5 h-5 text-gray-500" />
-                        </div>
-                        {v.unread_count > 0 && (
-                          <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
-                            <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900 flex items-center gap-1`}>
-                            {v.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-4 h-4 fill-blue-600 text-white flex-shrink-0" /></> : v.name}
-                          </p>
-                          {v.last_time && (
-                            <span className="text-[10px] text-gray-400 flex-shrink-0">
-                              {myanmarFormat(v.last_time, 'MMM d')}
-                            </span>
-                          )}
-                        </div>
-                        <p className={`text-xs truncate mt-0.5 ${v.unread_count > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
-                          {(v.last_message || '').length > 40 ? (v.last_message || '').slice(0, 40) + '...' : lastMessageText(v.last_message, v.last_file_type)}
-                        </p>
-                        {v.phone && <p className="text-[10px] text-gray-400 mt-0.5">{v.phone}</p>}
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
-                    </div>
-                  </button>
-                </div>
+              {filteredWebVisitors.filter(v => !isGuestVisitor(v)).map(v => (
+                <WebVisitorItem
+                  key={v.visitor_id}
+                  v={v}
+                  isSelected={selectedVisitor === v.visitor_id}
+                  onClick={() => {
+                    setSelectedVisitor(v.visitor_id);
+                    setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
+                  }}
+                  onContextMenu={handleContextMenu}
+                />
               ))}
             </div>
           )}
-          {chatTab === 'all' && filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id && v.name !== 'E-commerce Support').length > 0 && (
+          {chatTab === 'all' && filteredWebVisitors.filter(v => isGuestVisitor(v)).length > 0 && (
             <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
               <div className="flex items-center gap-2 px-1 pt-1">
                 <div className="h-px flex-1 bg-gray-100" />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Guest</span>
                 <div className="h-px flex-1 bg-gray-100" />
               </div>
-              {filteredWebVisitors.filter(v => !v.firebase_uid && !v.telegram_id && v.name !== 'E-commerce Support').map(v => (
-                <div key={v.visitor_id} className="relative group">
-                  <button
-                    onClick={() => {
-                      setSelectedVisitor(v.visitor_id);
-                      setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
-                    }}
-                    onContextMenu={(e) => handleContextMenu(e, v)}
-                    className={`w-full text-left p-3 rounded-2xl transition-all active:scale-[0.98] ${
-                      selectedVisitor === v.visitor_id
-                        ? 'bg-indigo-50 border border-indigo-100'
-                        : 'bg-white border border-transparent hover:border-gray-200'
-                    } ${v.unread_count > 0 ? 'bg-indigo-50/50' : ''}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
-                        {v.name === 'E-commerce Support'
-                          ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
-                          : v.photo_url ? (
-                            <img src={v.photo_url} alt="" className="w-full h-full object-cover"
-                              onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }} />
-                          ) : null
-                        }
-                        {v.name !== 'E-commerce Support' && !v.photo_url && (
-                          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                            <User className="w-5 h-5 text-gray-500" />
-                          </div>
-                        )}
-                        <div className="w-full h-full bg-gray-100 items-center justify-center" style={{display:'none'}}>
-                          <User className="w-5 h-5 text-gray-500" />
-                        </div>
-                        {v.unread_count > 0 && (
-                          <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center">
-                            <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className={`text-sm truncate ${v.unread_count > 0 ? 'font-extrabold' : 'font-bold'} text-gray-900 flex items-center gap-1`}>
-                            {v.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-4 h-4 fill-blue-600 text-white flex-shrink-0" /></> : v.name}
-                          </p>
-                          {v.last_time && (
-                            <span className="text-[10px] text-gray-400 flex-shrink-0">
-                              {myanmarFormat(v.last_time, 'MMM d')}
-                            </span>
-                          )}
-                        </div>
-                        <p className={`text-xs truncate mt-0.5 ${v.unread_count > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
-                          {(v.last_message || '').length > 40 ? (v.last_message || '').slice(0, 40) + '...' : lastMessageText(v.last_message, v.last_file_type)}
-                        </p>
-                        {v.phone && <p className="text-[10px] text-gray-400 mt-0.5">{v.phone}</p>}
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0 hidden sm:block" />
-                    </div>
-                  </button>
-                </div>
+              {filteredWebVisitors.filter(v => isGuestVisitor(v)).map(v => (
+                <WebVisitorItem
+                  key={v.visitor_id}
+                  v={v}
+                  isSelected={selectedVisitor === v.visitor_id}
+                  onClick={() => {
+                    setSelectedVisitor(v.visitor_id);
+                    setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
+                  }}
+                  onContextMenu={handleContextMenu}
+                />
               ))}
             </div>
           )}
@@ -1124,70 +1213,179 @@ export default function Chats() {
               exit={{ opacity: 0, scale: 0.95 }}
               style={{
                 position: 'fixed',
-                left: Math.min(contextMenu.x, window.innerWidth - 220),
-                top: Math.min(contextMenu.y, window.innerHeight - 200),
+                left: Math.min(contextMenu.x, window.innerWidth - 240),
+                top: Math.min(contextMenu.y, window.innerHeight - 380),
                 zIndex: 60,
               }}
-              className="w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-1 overflow-hidden"
+              className="w-56 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 py-1.5 overflow-hidden divide-y divide-gray-100/60"
             >
-              {deleteConfirm === (contextMenu.chat.visitor_id || contextMenu.chat.user_id) ? (
-                <div className="px-4 py-3 space-y-2">
-                  <p className="text-xs font-bold text-rose-600 text-center">Delete this chat?</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleDeleteClick}
-                      disabled={deleteMutation.isPending}
-                      className="flex-1 py-2 bg-rose-600 text-white text-xs font-bold rounded-xl hover:bg-rose-700 disabled:opacity-50 transition-all"
-                    >
-                      {deleteMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Delete'}
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirm(null)}
-                      className="flex-1 py-2 bg-gray-100 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-200 transition-all"
-                    >
-                      Cancel
-                    </button>
+              {/* Status Actions */}
+              <div className="py-1">
+                {/* Pin / Unpin */}
+                <button
+                  onClick={() => metadataMutation.mutate({
+                    visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                    data: { is_pinned: !contextMenu.chat.is_pinned }
+                  })}
+                  className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {contextMenu.chat.is_pinned ? <PinOff className="w-3.5 h-3.5 text-amber-500" /> : <Pin className="w-3.5 h-3.5 text-indigo-500" />}
+                    <span>{contextMenu.chat.is_pinned ? 'Unpin Chat' : 'Pin to Top'}</span>
                   </div>
+                  {contextMenu.chat.is_pinned && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">Pinned</span>}
+                </button>
+
+                {/* Read / Unread */}
+                {contextMenu.chat.unread_count > 0 ? (
+                  <button
+                    onClick={() => readMutation.mutate({
+                      userId: contextMenu.chat.user_id,
+                      visitorId: contextMenu.chat.visitor_id,
+                      markAsRead: true
+                    })}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    <CheckCheck className="w-3.5 h-3.5 text-gray-500" />
+                    <span>Mark as Read</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => readMutation.mutate({
+                      userId: contextMenu.chat.user_id,
+                      visitorId: contextMenu.chat.visitor_id,
+                      markAsRead: false
+                    })}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    <Circle className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Mark as Unread</span>
+                  </button>
+                )}
+
+                {/* Done / Reopen */}
+                <button
+                  onClick={() => metadataMutation.mutate({
+                    visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                    data: { is_done: !contextMenu.chat.is_done }
+                  })}
+                  className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${contextMenu.chat.is_done ? 'text-gray-400' : 'text-emerald-500'}`} />
+                    <span>{contextMenu.chat.is_done ? 'Reopen Chat' : 'Mark as Done'}</span>
+                  </div>
+                  {contextMenu.chat.is_done && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">Done</span>}
+                </button>
+              </div>
+
+              {/* Payment Tag */}
+              <div className="py-1">
+                <div className="px-3.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Payment Status</div>
+                <div className="flex items-center gap-1.5 px-3 py-1">
+                  <button
+                    onClick={() => metadataMutation.mutate({
+                      visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                      data: { payment_status: contextMenu.chat.payment_status === 'paid' ? 'none' : 'paid' }
+                    })}
+                    className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all ${
+                      contextMenu.chat.payment_status === 'paid'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    }`}
+                  >
+                    <CreditCard className="w-3 h-3" /> Paid
+                  </button>
+                  <button
+                    onClick={() => metadataMutation.mutate({
+                      visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                      data: { payment_status: contextMenu.chat.payment_status === 'pending' ? 'none' : 'pending' }
+                    })}
+                    className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all ${
+                      contextMenu.chat.payment_status === 'pending'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    }`}
+                  >
+                    <Clock className="w-3 h-3" /> Pending
+                  </button>
                 </div>
-              ) : (
-                <button
-                  onClick={handleDeleteClick}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-rose-600 hover:bg-rose-50 active:bg-rose-100 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete Chat
-                </button>
-              )}
+              </div>
 
-              <div className="border-t border-gray-50" />
+              {/* AI & Chat Controls */}
+              <div className="py-1">
+                <button
+                  onClick={() => metadataMutation.mutate({
+                    visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                    data: { ai_disabled: !contextMenu.chat.ai_disabled }
+                  })}
+                  className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Bot className={`w-3.5 h-3.5 ${contextMenu.chat.ai_disabled ? 'text-amber-500' : 'text-indigo-500'}`} />
+                    <span>{contextMenu.chat.ai_disabled ? 'Resume AI Agent' : 'Pause AI Agent'}</span>
+                  </div>
+                  {contextMenu.chat.ai_disabled && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">Paused</span>}
+                </button>
+                <button
+                  onClick={() => metadataMutation.mutate({
+                    visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                    data: { is_muted: !contextMenu.chat.is_muted }
+                  })}
+                  className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {contextMenu.chat.is_muted ? <Volume2 className="w-3.5 h-3.5 text-indigo-500" /> : <VolumeX className="w-3.5 h-3.5 text-gray-400" />}
+                    <span>{contextMenu.chat.is_muted ? 'Unmute Chat' : 'Mute Chat'}</span>
+                  </div>
+                  {contextMenu.chat.is_muted && <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">Muted</span>}
+                </button>
+                <button
+                  onClick={() => metadataMutation.mutate({
+                    visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                    data: { is_blocked: !contextMenu.chat.is_blocked }
+                  })}
+                  className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Ban className="w-3.5 h-3.5 text-rose-500" />
+                    <span>{contextMenu.chat.is_blocked ? 'Unblock Customer' : 'Block Customer'}</span>
+                  </div>
+                  {contextMenu.chat.is_blocked && <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full">Blocked</span>}
+                </button>
+              </div>
 
-              {contextMenu.chat.unread_count > 0 ? (
-                <button
-                  onClick={() => readMutation.mutate({
-                    userId: contextMenu.chat.user_id,
-                    visitorId: contextMenu.chat.visitor_id,
-                    markAsRead: true
-                  })}
-                  disabled={readMutation.isPending}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
-                >
-                  <CheckCheck className="w-4 h-4 text-gray-500" />
-                  Mark as Read
-                </button>
-              ) : (
-                <button
-                  onClick={() => readMutation.mutate({
-                    userId: contextMenu.chat.user_id,
-                    visitorId: contextMenu.chat.visitor_id,
-                    markAsRead: false
-                  })}
-                  disabled={readMutation.isPending}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
-                >
-                  <Circle className="w-4 h-4 text-gray-400" />
-                  Mark as Unread
-                </button>
-              )}
+              {/* Delete Chat */}
+              <div className="pt-1">
+                {deleteConfirm === (contextMenu.chat.visitor_id || contextMenu.chat.user_id) ? (
+                  <div className="px-3.5 py-2 space-y-1.5 bg-rose-50/60">
+                    <p className="text-[11px] font-bold text-rose-600 text-center">Delete chat history?</p>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={handleDeleteClick}
+                        disabled={deleteMutation.isPending}
+                        className="flex-1 py-1.5 bg-rose-600 text-white text-[11px] font-bold rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-all"
+                      >
+                        {deleteMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Delete'}
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm(null)}
+                        className="flex-1 py-1.5 bg-white text-gray-700 text-[11px] font-bold rounded-lg border border-gray-200 hover:bg-gray-50 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleDeleteClick}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete Chat
+                  </button>
+                )}
+              </div>
             </motion.div>
           </>
         )}

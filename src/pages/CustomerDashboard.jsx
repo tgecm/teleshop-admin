@@ -88,7 +88,7 @@ import {
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
   ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
   CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw,
-  TrendingUp, Star, Award, AlertTriangle, ChevronUp
+  TrendingUp, Star, Award, AlertTriangle, ChevronUp, Store, ArrowLeft
 } from 'lucide-react';
 import Receipt from '../components/orders/Receipt';
 import CustomerShopTab from '../components/CustomerShopTab';
@@ -142,6 +142,8 @@ export default function CustomerDashboard({ shopSlug }) {
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([{ role: 'assistant', content: 'Hi! How can I help you today?' }]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const lastReadCountRef = useRef(0);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const chatQueueRef = useRef([]);
   const chatSendingRef = useRef(false);
@@ -335,6 +337,35 @@ export default function CustomerDashboard({ shopSlug }) {
     return () => clearInterval(interval);
   }, [chatOpen, shopData?.shop?.id, uid]);
 
+  // Chat: poll unread messages count for Support Chat badge (persisted across refreshes)
+  useEffect(() => {
+    if (!shopData?.shop?.id || !uid) return;
+    const readKey = `chat_read_count_${shopData.shop.id}_${uid}`;
+    const checkUnread = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(uid)}/messages`);
+        if (!res.ok) return;
+        const msgs = await res.json();
+        if (!Array.isArray(msgs)) return;
+        const adminMsgs = msgs.filter(m => m.sender_type === 'admin' || m.sender_type === 'superadmin');
+        const savedReadCount = parseInt(localStorage.getItem(readKey) || '0', 10);
+        
+        if (chatOpen) {
+          localStorage.setItem(readKey, String(adminMsgs.length));
+          lastReadCountRef.current = adminMsgs.length;
+          setUnreadCount(0);
+        } else {
+          const currentRead = Math.max(lastReadCountRef.current, savedReadCount);
+          const unread = Math.max(0, adminMsgs.length - currentRead);
+          setUnreadCount(unread);
+        }
+      } catch {}
+    };
+    checkUnread();
+    const interval = setInterval(checkUnread, 3500);
+    return () => clearInterval(interval);
+  }, [chatOpen, shopData?.shop?.id, uid]);
+
   // Chat: auto-scroll to bottom
   useEffect(() => {
     if (chatRef.current) {
@@ -357,7 +388,7 @@ export default function CustomerDashboard({ shopSlug }) {
       const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, visitor_id: uid }),
+        body: JSON.stringify({ message: msg, history, visitor_id: uid, disable_ai: true }),
       });
       const d = await res.json();
       if (d.reply) {
@@ -389,7 +420,7 @@ export default function CustomerDashboard({ shopSlug }) {
       const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: actionMsg, history, visitor_id: uid }),
+        body: JSON.stringify({ message: actionMsg, history, visitor_id: uid, is_faq: true }),
       });
       const d = await res.json();
       if (d.reply) {
@@ -597,16 +628,36 @@ export default function CustomerDashboard({ shopSlug }) {
               className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all cursor-pointer">
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            <button onClick={() => setChatOpen(true)}
+            <button onClick={() => {
+              setChatOpen(true);
+              setUnreadCount(0);
+              if (shopData?.shop?.id && uid) {
+                const readKey = `chat_read_count_${shopData.shop.id}_${uid}`;
+                localStorage.setItem(readKey, '99999');
+              }
+            }}
               title="Support Chat"
-              className="px-2.5 py-1 bg-white text-indigo-600 font-bold text-xs rounded-full shadow-md hover:bg-indigo-50 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer border border-white/40 shrink-0">
+              className="relative px-2.5 py-1 bg-white text-indigo-600 font-bold text-xs rounded-full shadow-md hover:bg-indigo-50 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer border border-white/40 shrink-0">
               <div className="relative flex items-center justify-center">
                 <MessageCircle className="w-3.5 h-3.5 text-indigo-600 fill-indigo-100" />
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                {unreadCount > 0 ? (
+                  <span className="absolute -top-1 -right-1.5 px-1 py-0.2 bg-rose-500 text-white text-[9px] font-extrabold rounded-full min-w-[15px] text-center leading-tight shadow-xs animate-bounce">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                ) : (
+                  <>
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                  </>
+                )}
               </div>
               <span className="hidden sm:inline">Support Chat</span>
               <span className="sm:hidden">Chat</span>
+              {unreadCount > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.5 bg-rose-500 text-white text-[10px] font-extrabold rounded-full min-w-[18px] text-center leading-none shadow-xs">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
             {photoUrl && (
               <img src={photoUrl} alt="" className="w-7 h-7 rounded-full ring-2 ring-white/40 object-cover"
@@ -1990,6 +2041,19 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
           </button>
         </div>
       </motion.div>
+
+      {/* Go Back to Main Shop Button */}
+      <a
+        href={`/?p=/${encodeURIComponent(shopSlug)}`}
+        onClick={(e) => {
+          e.preventDefault();
+          window.location.href = `/?p=/${encodeURIComponent(shopSlug)}`;
+        }}
+        className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-2xl text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer shadow-md text-center"
+      >
+        <Store className="w-4 h-4" />
+        Go Back to Main Shop
+      </a>
 
       {/* Sign Out Button */}
       <button
