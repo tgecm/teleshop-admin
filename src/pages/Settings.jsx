@@ -20,6 +20,7 @@ import {
   updateSubscriptionDiscount,
   deleteSubscriptionDiscount,
   triggerApkUpdate,
+  sendBroadcastPushNotification,
 } from '../api/superadmin';
 import { getStats } from '../api/stats';
 import { getBotPublicSlug, generateBotSlug, listBotDomains, addBotDomain, verifyBotDomainItem, toggleBotDomainItem, deleteBotDomainItem } from '../api/public';
@@ -63,6 +64,8 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Bell,
+  Send,
   Clock,
   Percent,
   ArrowLeftRight,
@@ -256,6 +259,21 @@ export default function Settings() {
     mutationFn: triggerApkUpdate,
     onSuccess: () => addToast('APK update triggered successfully'),
     onError: (err) => addToast(err.response?.data?.detail || 'Failed to update APK', 'error'),
+  });
+
+  const [pushModalOpen, setPushModalOpen] = useState(false);
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushMessage, setPushMessage] = useState('');
+
+  const sendPushMutation = useMutation({
+    mutationFn: () => sendBroadcastPushNotification(pushTitle, pushMessage),
+    onSuccess: (data) => {
+      addToast(data.message || 'Push notification sent to all devices!');
+      setPushModalOpen(false);
+      setPushTitle('');
+      setPushMessage('');
+    },
+    onError: (err) => addToast(err.response?.data?.detail || 'Failed to send push notification', 'error'),
   });
 
   const { data: publicSlug } = useQuery({
@@ -1802,6 +1820,15 @@ export default function Settings() {
                 )}
                 Release Update
               </button>
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => setPushModalOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all active:scale-[0.98] text-sm shadow-xs"
+                >
+                  <Bell className="w-4 h-4" />
+                  Push Notification
+                </button>
+              </div>
             </section>
             <ErrorBoundary>
               <DiscountsManager />
@@ -1828,6 +1855,75 @@ export default function Settings() {
           />
         )}
       </div>
+
+      {pushModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-gray-900">Broadcast Push Notification</h3>
+                  <p className="text-xs text-gray-500">Send text message to all Android app devices</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPushModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Notification Title</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Admin Announcement"
+                  value={pushTitle}
+                  onChange={(e) => setPushTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Message Content</label>
+                <textarea
+                  rows={3}
+                  placeholder="Type message to all app admins..."
+                  value={pushMessage}
+                  onChange={(e) => setPushMessage(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                onClick={() => setPushModalOpen(false)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!pushTitle.trim()) return addToast('Please enter a notification title', 'error');
+                  if (!pushMessage.trim()) return addToast('Please enter a notification message', 'error');
+                  sendPushMutation.mutate();
+                }}
+                disabled={sendPushMutation.isPending}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                {sendPushMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Send Notification
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

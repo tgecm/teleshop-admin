@@ -89,6 +89,9 @@ export const validateSubscriptionDiscount = (code) =>
 export const triggerApkUpdate = () =>
   client.post('/superadmin/update-apk').then(res => res.data);
 
+export const sendBroadcastPushNotification = (title, message) =>
+  client.post('/superadmin/send-push-notification', { title, message }).then(res => res.data);
+
 export const getSubscribers = () =>
   client.get('/superadmin/subscribers').then(res => res.data);
 
