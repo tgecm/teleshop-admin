@@ -394,6 +394,28 @@ function ConversationItem({ chat, isActive, onClick, onContextMenu }) {
   );
 }
 
+function CustomerAvatar({ photoUrl, name, size = "w-9 h-9", fontSize = "text-sm" }) {
+  const [imgError, setImgError] = useState(false);
+  const initial = (name || 'W')[0].toUpperCase();
+
+  if (photoUrl && !imgError) {
+    return (
+      <img
+        src={photoUrl}
+        alt=""
+        onError={() => setImgError(true)}
+        className={`${size} rounded-full object-cover border border-gray-200 flex-shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${size} rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold ${fontSize} flex-shrink-0 select-none border border-indigo-200/50`}>
+      {initial}
+    </div>
+  );
+}
+
 function WebVisitorItem({ v, isSelected, onClick, onContextMenu }) {
   return (
     <div className="relative group">
@@ -408,20 +430,11 @@ function WebVisitorItem({ v, isSelected, onClick, onContextMenu }) {
       >
         <div className="flex items-center gap-3">
           <div className="relative w-10 h-10 flex-shrink-0">
-            <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center bg-indigo-50 border border-indigo-100 text-indigo-600 font-extrabold text-sm">
-              {v.name === 'E-commerce Support' ? (
-                <img src="/logo.webp" alt="Support" className="w-full h-full rounded-full object-cover" />
-              ) : v.photo_url ? (
-                <img src={v.photo_url} alt="" className="w-full h-full rounded-full object-cover"
-                  onError={(e) => { e.target.style.display = 'none'; if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex'; }} />
-              ) : null}
-              {v.name !== 'E-commerce Support' && !v.photo_url && (
-                <span className="select-none font-bold">{(v.name || 'U')[0].toUpperCase()}</span>
-              )}
-              <div className="w-full h-full bg-gray-100 items-center justify-center rounded-full" style={{display:'none'}}>
-                <User className="w-5 h-5 text-gray-500" />
-              </div>
-            </div>
+            {v.name === 'E-commerce Support' ? (
+              <img src="/logo.webp" alt="Support" className="w-10 h-10 rounded-full object-cover border border-indigo-100" />
+            ) : (
+              <CustomerAvatar photoUrl={v.photo_url} name={v.name} size="w-10 h-10" fontSize="text-sm" />
+            )}
             {v.unread_count > 0 && (
               <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center shadow-xs z-10">
                 <span className="text-[8px] font-bold text-white">{v.unread_count > 9 ? '9+' : v.unread_count}</span>
@@ -1420,21 +1433,11 @@ export default function Chats() {
               <div className="flex items-center justify-between px-4 md:px-5 pb-2.5 border-b border-gray-100">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {selectedWebChat?.name === 'E-commerce Support'
-                      ? <img src="/logo.webp" alt="Support" className="w-full h-full object-cover" />
-                      : selectedWebChat?.photo_url ? (
-                        <img src={selectedWebChat.photo_url} alt="" className="w-full h-full object-cover"
-                          onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }} />
-                      ) : null
-                    }
-                    {selectedWebChat?.name !== 'E-commerce Support' && !selectedWebChat?.photo_url && (
-                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                        <User className="w-4 h-4 text-gray-500" />
-                      </div>
+                    {selectedWebChat?.name === 'E-commerce Support' ? (
+                      <img src="/logo.webp" alt="Support" className="w-8 h-8 rounded-full object-cover border border-indigo-100" />
+                    ) : (
+                      <CustomerAvatar photoUrl={selectedWebChat?.photo_url} name={selectedWebChat?.name || selectedChat?.first_name} size="w-8 h-8" fontSize="text-xs" />
                     )}
-                    <div className="w-full h-full bg-gray-100 items-center justify-center" style={{display:'none'}}>
-                      <User className="w-4 h-4 text-gray-500" />
-                    </div>
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
@@ -1639,13 +1642,7 @@ export default function Chats() {
                         className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-indigo-50/70 border border-gray-100 transition-all text-left group cursor-pointer"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          {cust.photo_url ? (
-                            <img src={cust.photo_url} alt="" className="w-9 h-9 rounded-full object-cover border border-gray-200 flex-shrink-0" />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                              {(displayName || 'W')[0].toUpperCase()}
-                            </div>
-                          )}
+                          <CustomerAvatar photoUrl={cust.photo_url} name={displayName} size="w-9 h-9" fontSize="text-sm" />
                           <div className="min-w-0">
                             <p className="font-bold text-gray-900 text-sm truncate group-hover:text-indigo-600">
                               {displayName}
