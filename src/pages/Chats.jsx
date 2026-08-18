@@ -102,7 +102,8 @@ function DocumentItem({ fileUrl, tgLink, isAdmin, showTelegramLink }) {
             </p>
           </div>
         </div>
-        <audio controls controlsList="nodownload" className="w-full h-9" preload="metadata">
+        <audio src={fileUrl} controls controlsList="nodownload" className="w-full h-9" preload="auto">
+          <source src={fileUrl} type="audio/mpeg" />
           <source src={fileUrl} />
         </audio>
       </div>
@@ -144,7 +145,8 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
 
   const renderMedia = () => {
     if (!message.file_id) return null;
-    const fileUrl = `${client.defaults.baseURL}/telegram/file/${message.file_id}?bot_id=${botId}&token=${token}`;
+    const effectiveBotId = message.bot_id || botId;
+    const fileUrl = `${client.defaults.baseURL}/telegram/file/${message.file_id}?bot_id=${effectiveBotId}&token=${token}`;
     const tgLink = botUsername ? `https://t.me/${botUsername}` : '#';
 
     switch (message.file_type) {
@@ -198,14 +200,15 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
                 </p>
               </div>
               {showTelegramLink && (
-                <a href={tgLink} target="_blank" rel="noreferrer"
+                <a href={fileUrl} target="_blank" rel="noreferrer"
                   className={`text-[10px] font-bold hover:underline flex-shrink-0 ${isRightSide ? 'text-indigo-200' : 'text-indigo-600'}`}
                   onClick={(e) => e.stopPropagation()}>
                   Open ↗
                 </a>
               )}
             </div>
-            <audio src={fileUrl} controls controlsList="nodownload" className="w-full h-9" preload="metadata">
+            <audio src={fileUrl} controls controlsList="nodownload" className="w-full h-9" preload="auto">
+              <source src={fileUrl} type="audio/mpeg" />
               <source src={fileUrl} type="audio/ogg" />
               <source src={fileUrl} />
             </audio>
