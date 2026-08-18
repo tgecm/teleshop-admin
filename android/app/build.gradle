@@ -17,21 +17,9 @@ android {
         }
     }
     signingConfigs {
-        debug {
-            def props = new Properties()
-            def propsFile = rootProject.file('keystore.properties')
-            if (propsFile.exists()) {
-                props.load(new FileInputStream(propsFile))
-            }
-            storeFile file(props.getProperty('storeFile', System.getenv('KEYSTORE_FILE') ?: '../mm-shop.keystore'))
-            storePassword props.getProperty('storePassword', System.getenv('KEYSTORE_PASSWORD') ?: 'teleshop123')
-            keyAlias props.getProperty('keyAlias', System.getenv('KEY_ALIAS') ?: 'mm-shop')
-            keyPassword props.getProperty('keyPassword', System.getenv('KEY_PASSWORD') ?: 'teleshop123')
-        }
     }
     buildTypes {
         debug {
-            signingConfig signingConfigs.debug
         }
         release {
             signingConfig signingConfigs.debug

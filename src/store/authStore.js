@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { unregisterFCMToken } from '../lib/pushNotifications';
 
 export const useAuthStore = create(
   persist(
@@ -13,6 +14,7 @@ export const useAuthStore = create(
         set({ token, user, isSuperadmin: user.is_superadmin, isStaff: !!isStaff });
       },
       logout: () => {
+        unregisterFCMToken();
         localStorage.clear();
         if ('caches' in window) {
           caches.keys().then((names) => names.forEach((n) => caches.delete(n)));

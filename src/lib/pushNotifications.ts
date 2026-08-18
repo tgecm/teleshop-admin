@@ -55,8 +55,42 @@ export async function sendTokenToBackend(token: string): Promise<void> {
   }
 }
 
+export async function unregisterFCMToken(): Promise<void> {
+  const token = fcmTokenValue || localStorage.getItem('fcm_token');
+  const authToken = localStorage.getItem('token');
+
+  if (token) {
+    try {
+      await fetch(`${API_BASE}/notifications/unregister`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({ token }),
+      });
+    } catch {
+      // Silently handle
+    }
+  }
+
+  fcmTokenValue = null;
+  localStorage.removeItem('fcm_token');
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await PushNotifications.removeAllListeners();
+    } catch {
+      // Silently handle
+    }
+  }
+}
+
 export function sendStoredFCMToken(): void {
   const stored = localStorage.getItem('fcm_token');
+  const authToken = localStorage.getItem('token');
+  if (!authToken) return;
+
   if (stored) {
     sendTokenToBackend(stored);
     return;
@@ -74,7 +108,10 @@ export function initPushNotifications(): void {
     const token = result.value;
     fcmTokenValue = token;
     localStorage.setItem('fcm_token', token);
-    sendTokenToBackend(token);
+    const authToken = localStorage.getItem('token');
+    if (authToken) {
+      sendTokenToBackend(token);
+    }
     fcmReadyCallbacks.forEach((cb) => cb(token));
     fcmReadyCallbacks = [];
   });
@@ -84,6 +121,15 @@ export function initPushNotifications(): void {
   });
 
   PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    // If user is not authenticated, ignore push notifications completely
+    const authToken = localStorage.getItem('token');
+    if (!authToken) return;
+
+    if (notification.data?.type === 'app_release') {
+      window.location.reload();
+      return;
+    }
+
     const title = notification.title || 'Notification';
     const body = notification.body || '';
     const event = new CustomEvent('app:notification', {
@@ -93,7 +139,14 @@ export function initPushNotifications(): void {
   });
 
   PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    const authToken = localStorage.getItem('token');
+    if (!authToken) return;
+
     const data = action.notification.data;
+    if (data?.type === 'app_release') {
+      window.location.reload();
+      return;
+    }
     if (data?.route) {
       const route = data.route as string;
       if (route.startsWith('/') || route.startsWith(window.location.origin)) {
@@ -102,5 +155,8 @@ export function initPushNotifications(): void {
     }
   });
 
-  registerFCMToken();
+  const authToken = localStorage.getItem('token');
+  if (authToken) {
+    registerFCMToken();
+  }
 }
