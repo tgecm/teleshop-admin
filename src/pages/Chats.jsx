@@ -39,6 +39,7 @@ import {
   Volume2,
   Filter,
   Bot,
+  Smile,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { MarkdownRenderer } from '../utils/linkify';
@@ -212,10 +213,31 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
       case 'sticker':
         return (
           <div className="mb-2">
-            <div className="flex items-center gap-2 p-3 bg-white/10 rounded-xl">
+            <img
+              src={fileUrl}
+              alt="Sticker"
+              className="max-w-[160px] max-h-[160px] object-contain select-none filter drop-shadow-sm"
+              loading="lazy"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                if (e.currentTarget.nextSibling) {
+                  e.currentTarget.nextSibling.style.display = 'flex';
+                }
+              }}
+            />
+            <div className="hidden items-center gap-2 p-3 bg-white/10 rounded-xl">
               <Smile className="w-4 h-4 flex-shrink-0" />
               <p className="text-sm font-medium">Sticker</p>
             </div>
+            {showTelegramLink && (
+              <a href={tgLink} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
+                onClick={(e) => e.stopPropagation()}>
+                Open in Telegram ↗
+              </a>
+            )}
           </div>
         );
       case 'document':
@@ -713,17 +735,19 @@ export default function Chats() {
   });
 
   const readMutation = useMutation({
-    mutationFn: ({ userId, visitorId, markAsRead }) => {
+    mutationFn: async ({ userId, visitorId, markAsRead }) => {
+      const targetVisitorId = visitorId || (userId ? String(userId) : null);
       if (!markAsRead) {
-        if (visitorId) {
-          return markWebVisitorUnread(visitorId, Number(selectedBotId));
-        }
-        return markChatUnread(userId, Number(selectedBotId));
+        const promises = [];
+        if (targetVisitorId) promises.push(markWebVisitorUnread(targetVisitorId, Number(selectedBotId)).catch(() => {}));
+        if (userId) promises.push(markChatUnread(userId, Number(selectedBotId)).catch(() => {}));
+        await Promise.all(promises);
+        return;
       }
-      if (visitorId) {
-        return markWebVisitorRead(visitorId, Number(selectedBotId));
-      }
-      return markChatRead(userId, Number(selectedBotId));
+      const promises = [];
+      if (targetVisitorId) promises.push(markWebVisitorRead(targetVisitorId, Number(selectedBotId)).catch(() => {}));
+      if (userId) promises.push(markChatRead(userId, Number(selectedBotId)).catch(() => {}));
+      await Promise.all(promises);
     },
     onMutate: (vars) => {
       setContextMenu(null);
@@ -759,10 +783,22 @@ export default function Chats() {
 
   const metadataMutation = useMutation({
     mutationFn: ({ visitorId, data }) => updateChatMetadata(visitorId, Number(selectedBotId), data),
-    onSuccess: (_data, vars) => {
+    onMutate: (vars) => {
       setContextMenu(null);
-      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
+      const targetId = vars.visitorId;
+      if (!targetId) return;
+
+      queryClient.setQueryData(['chats', selectedBotId], (old = []) =>
+        Array.isArray(old) ? old.map(c => (String(c.user_id) === String(targetId) || c.visitor_id === targetId) ? { ...c, ...vars.data } : c) : old
+      );
+
+      queryClient.setQueryData(['webVisitors', selectedBotId], (old = []) =>
+        Array.isArray(old) ? old.map(v => (v.visitor_id === targetId || String(v.user_id) === String(targetId)) ? { ...v, ...vars.data } : v) : old
+      );
+    },
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
       if (vars.data.is_pinned !== undefined) {
         addToast(vars.data.is_pinned ? 'Chat pinned to top' : 'Chat unpinned');
       } else if (vars.data.is_done !== undefined) {
@@ -778,6 +814,8 @@ export default function Chats() {
       }
     },
     onError: (err) => {
+      queryClient.invalidateQueries({ queryKey: ['chats', selectedBotId] });
+      queryClient.invalidateQueries({ queryKey: ['webVisitors', selectedBotId] });
       addToast(err.response?.data?.detail || 'Failed to update status', 'error');
     },
   });
@@ -1273,7 +1311,7 @@ export default function Chats() {
                 {/* Pin / Unpin */}
                 <button
                   onClick={() => metadataMutation.mutate({
-                    visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                    visitorId: String(contextMenu.chat.visitor_id || contextMenu.chat.user_id),
                     data: { is_pinned: !contextMenu.chat.is_pinned }
                   })}
                   className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors"
@@ -1290,7 +1328,7 @@ export default function Chats() {
                   <button
                     onClick={() => readMutation.mutate({
                       userId: contextMenu.chat.user_id,
-                      visitorId: contextMenu.chat.visitor_id,
+                      visitorId: contextMenu.chat.visitor_id ? String(contextMenu.chat.visitor_id) : String(contextMenu.chat.user_id),
                       markAsRead: true
                     })}
                     className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
@@ -1302,7 +1340,7 @@ export default function Chats() {
                   <button
                     onClick={() => readMutation.mutate({
                       userId: contextMenu.chat.user_id,
-                      visitorId: contextMenu.chat.visitor_id,
+                      visitorId: contextMenu.chat.visitor_id ? String(contextMenu.chat.visitor_id) : String(contextMenu.chat.user_id),
                       markAsRead: false
                     })}
                     className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
@@ -1315,7 +1353,7 @@ export default function Chats() {
                 {/* Done / Reopen */}
                 <button
                   onClick={() => metadataMutation.mutate({
-                    visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                    visitorId: String(contextMenu.chat.visitor_id || contextMenu.chat.user_id),
                     data: { is_done: !contextMenu.chat.is_done }
                   })}
                   className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
@@ -1334,7 +1372,7 @@ export default function Chats() {
                 <div className="flex items-center gap-1.5 px-3 py-1">
                   <button
                     onClick={() => metadataMutation.mutate({
-                      visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                      visitorId: String(contextMenu.chat.visitor_id || contextMenu.chat.user_id),
                       data: { payment_status: contextMenu.chat.payment_status === 'paid' ? 'none' : 'paid' }
                     })}
                     className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all ${
@@ -1347,7 +1385,7 @@ export default function Chats() {
                   </button>
                   <button
                     onClick={() => metadataMutation.mutate({
-                      visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                      visitorId: String(contextMenu.chat.visitor_id || contextMenu.chat.user_id),
                       data: { payment_status: contextMenu.chat.payment_status === 'pending' ? 'none' : 'pending' }
                     })}
                     className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-bold transition-all ${
@@ -1365,7 +1403,7 @@ export default function Chats() {
               <div className="py-1">
                 <button
                   onClick={() => metadataMutation.mutate({
-                    visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                    visitorId: String(contextMenu.chat.visitor_id || contextMenu.chat.user_id),
                     data: { ai_disabled: !contextMenu.chat.ai_disabled }
                   })}
                   className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
@@ -1378,7 +1416,7 @@ export default function Chats() {
                 </button>
                 <button
                   onClick={() => metadataMutation.mutate({
-                    visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                    visitorId: String(contextMenu.chat.visitor_id || contextMenu.chat.user_id),
                     data: { is_muted: !contextMenu.chat.is_muted }
                   })}
                   className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
@@ -1391,7 +1429,7 @@ export default function Chats() {
                 </button>
                 <button
                   onClick={() => metadataMutation.mutate({
-                    visitorId: contextMenu.chat.visitor_id || contextMenu.chat.user_id,
+                    visitorId: String(contextMenu.chat.visitor_id || contextMenu.chat.user_id),
                     data: { is_blocked: !contextMenu.chat.is_blocked }
                   })}
                   className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
