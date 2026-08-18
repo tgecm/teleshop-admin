@@ -126,6 +126,7 @@ export function initPushNotifications(): void {
     if (!authToken) return;
 
     if (notification.data?.type === 'app_release') {
+      localStorage.setItem('ota_show_updated_toast', 'true');
       window.location.reload();
       return;
     }
@@ -144,6 +145,7 @@ export function initPushNotifications(): void {
 
     const data = action.notification.data;
     if (data?.type === 'app_release') {
+      localStorage.setItem('ota_show_updated_toast', 'true');
       window.location.reload();
       return;
     }
