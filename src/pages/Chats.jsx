@@ -361,9 +361,7 @@ function ConversationItem({ chat, isActive, onClick, onContextMenu }) {
       >
         <div className="flex items-center gap-3">
           <div className="relative w-10 h-10 flex-shrink-0">
-            <div className="w-full h-full rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 text-indigo-600 font-extrabold text-sm flex items-center justify-center">
-              {chat.first_name ? chat.first_name[0].toUpperCase() : <User className="w-5 h-5 text-gray-500" />}
-            </div>
+            <CustomerAvatar photoUrl={chat.profile_picture || chat.photo_url} name={chat.first_name || chat.account_name} size="w-10 h-10" fontSize="text-sm" />
             {unread > 0 && (
               <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center shadow-xs z-10">
                 <span className="text-[8px] font-bold text-white">{unread > 9 ? '9+' : unread}</span>
@@ -423,21 +421,31 @@ function ConversationItem({ chat, isActive, onClick, onContextMenu }) {
 
 function CustomerAvatar({ photoUrl, name, size = "w-9 h-9", fontSize = "text-sm" }) {
   const [imgError, setImgError] = useState(false);
-  const initial = (name || 'W')[0].toUpperCase();
+  const initial = (name || 'C').trim().charAt(0).toUpperCase();
 
-  if (photoUrl && !imgError) {
+  const getFullPhotoUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const base = (client.defaults.baseURL || 'https://api.telegramecommerce.shop').replace(/\/+$/, '');
+    const path = url.replace(/^\/+/, '');
+    return `${base}/${path}`;
+  };
+
+  const fullUrl = getFullPhotoUrl(photoUrl);
+
+  if (fullUrl && !imgError) {
     return (
       <img
-        src={photoUrl}
-        alt=""
+        src={fullUrl}
+        alt={name || ''}
         onError={() => setImgError(true)}
-        className={`${size} rounded-full object-cover border border-gray-200 flex-shrink-0`}
+        className={`${size} rounded-full object-cover border border-gray-200 flex-shrink-0 shadow-xs`}
       />
     );
   }
 
   return (
-    <div className={`${size} rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold ${fontSize} flex-shrink-0 select-none border border-indigo-200/50`}>
+    <div className={`${size} rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold ${fontSize} flex-shrink-0 select-none border border-indigo-200/50 shadow-xs`}>
       {initial}
     </div>
   );

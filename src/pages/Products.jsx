@@ -239,14 +239,15 @@ export default function Products() {
 
   const saveCheckoutFields = async () => {
     if (!selectedBotId || !checkoutFields) return;
-    const enabledCount = Object.values(checkoutFields).filter(Boolean).length;
+    const finalFields = { ...checkoutFields, name: true };
+    const enabledCount = Object.values(finalFields).filter(Boolean).length;
     if (enabledCount < 2) {
       addToast('At least 2 fields must be enabled', 'error');
       return;
     }
     setCheckoutFieldsLoading(true);
     try {
-      await client.put(`/bots/${selectedBotId}/checkout-fields`, checkoutFields);
+      await client.put(`/bots/${selectedBotId}/checkout-fields`, finalFields);
       addToast('Checkout fields saved');
       setShowCheckoutFieldsModal(false);
     } catch (e) {
@@ -1036,7 +1037,7 @@ export default function Products() {
 
               <div className="space-y-2">
                 {[
-                  { key: 'name', label: 'Full Name' },
+                  { key: 'name', label: 'Full Name', required: true },
                   { key: 'phones', label: 'Phone Number' },
                   { key: 'emails', label: 'Email Address' },
                   { key: 'telegram', label: 'Telegram Username' },
@@ -1046,15 +1047,19 @@ export default function Products() {
                   { key: 'notes', label: 'Notes' },
                 ].map(field => (
                   <div key={field.key} className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-gray-50 transition-colors">
-                    <span className="text-sm font-medium text-gray-700">{field.label}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-medium text-gray-700">{field.label}</span>
+                      {field.required && <span className="text-[10px] text-violet-600 font-bold bg-violet-50 px-2 py-0.5 rounded-md uppercase tracking-wider">Required</span>}
+                    </div>
                     <button
-                      onClick={() => toggleCheckoutField(field.key)}
+                      onClick={() => !field.required && toggleCheckoutField(field.key)}
+                      disabled={field.required}
                       className={`relative w-11 h-6 rounded-full transition-all duration-200 ${
-                        checkoutFields[field.key] ? 'bg-violet-600' : 'bg-gray-200'
-                      }`}
+                        field.required || checkoutFields[field.key] ? 'bg-violet-600' : 'bg-gray-200'
+                      } ${field.required ? 'opacity-80 cursor-not-allowed' : ''}`}
                     >
                       <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-200 ${
-                        checkoutFields[field.key] ? 'translate-x-5' : 'translate-x-0'
+                        field.required || checkoutFields[field.key] ? 'translate-x-5' : 'translate-x-0'
                       }`} />
                     </button>
                   </div>

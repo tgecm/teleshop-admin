@@ -865,7 +865,7 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
 }
 
 export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm, checkoutFields, pointsSettings, customerPoints, customerUid }) {
-  const cFields = checkoutFields || { name: false, phones: false, emails: false, telegram: false, viber: false, zone: false, address: false, notes: false };
+  const cFields = { ...(checkoutFields || {}), name: true };
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -1755,7 +1755,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [error, setError] = useState('');
 
-  const fields = checkoutFields || { name: false, phones: false, emails: false, telegram: false, viber: false, zone: false, address: false, notes: false };
+  const fields = { ...(checkoutFields || {}), name: true };
 
   // Clear zone fields when hidden to avoid stale data in order
   useEffect(() => {
