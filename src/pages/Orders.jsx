@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrders, updateOrder } from '../api/orders';
 import { initiateWebVisitorChat } from '../api/chats';
@@ -45,6 +45,37 @@ import {
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
+function CustomerAvatar({ photoUrl, name, size = "w-12 h-12 lg:w-14 lg:h-14", fontSize = "text-base lg:text-lg" }) {
+  const [imgError, setImgError] = useState(false);
+  const initial = (name || 'C').trim().charAt(0).toUpperCase();
+
+  const getFullPhotoUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const base = (client.defaults.baseURL || 'https://api.telegramecommerce.shop').replace(/\/+$/, '');
+    const path = url.replace(/^\/+/, '');
+    return `${base}/${path}`;
+  };
+
+  const fullUrl = getFullPhotoUrl(photoUrl);
+
+  if (fullUrl && !imgError) {
+    return (
+      <img
+        src={fullUrl}
+        alt={name || ''}
+        onError={() => setImgError(true)}
+        className={`${size} rounded-full object-cover shadow-xs border border-gray-100 flex-shrink-0`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${size} rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold ${fontSize} flex-shrink-0 select-none shadow-xs`}>
+      {initial}
+    </div>
+  );
+}
 
 const STATUS_STEPS = [
   {key: 'pending', label: 'Pending'},
@@ -91,13 +122,59 @@ export default function Orders() {
     }).catch(() => {});
   }, []);
 
-  const { data: orders, isLoading } = useQuery({
-    queryKey: ['orders', selectedBotId],
-    queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
+  const [extraOrders, setExtraOrders] = useState([]);
+  const [offset, setOffset] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const lastOffsetRef = useRef('');
+  useEffect(() => {
+    setExtraOrders([]);
+    setOffset(0);
+    lastOffsetRef.current = '';
+  }, [selectedBotId, orderTab, statusFilter]);
+
+  const { data: rawOrders = [], isLoading, isFetching } = useQuery({
+    queryKey: ['orders', selectedBotId, orderTab, statusFilter, offset],
+    queryFn: () => getOrders({
+      bot_id: Number(selectedBotId),
+      source: orderTab === 'ecommerce' ? 'website' : orderTab,
+      status: statusFilter,
+      limit: 50,
+      offset: offset,
+    }),
     enabled: !!selectedBotId,
-    placeholderData: (prev) => prev,
-    refetchInterval: 10000,
+    refetchInterval: 15000,
   });
+
+  useEffect(() => {
+    if (!rawOrders || offset === 0) return;
+    const key = `${offset}-${rawOrders.length}-${rawOrders[0]?.id || ''}`;
+    if (lastOffsetRef.current === key) return;
+    lastOffsetRef.current = key;
+
+    setExtraOrders(prev => {
+      const existingIds = new Set(prev.map(o => o.id));
+      const newItems = rawOrders.filter(o => !existingIds.has(o.id));
+      return [...prev, ...newItems];
+    });
+    setLoadingMore(false);
+  }, [rawOrders, offset]);
+
+  const allOrders = useMemo(() => {
+    if (offset === 0) return rawOrders;
+    const existingIds = new Set(rawOrders.map(o => o.id));
+    const newExtras = extraOrders.filter(o => !existingIds.has(o.id));
+    return [...rawOrders, ...newExtras];
+  }, [rawOrders, extraOrders, offset]);
+
+  const hasMore = rawOrders.length >= 50;
+  const isTabLoading = (isLoading || isFetching) && offset === 0 && allOrders.length === 0;
+
+  const handleLoadMore = () => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    setOffset(prev => prev + 50);
+  };
 
   const { data: contentBlocks } = useQuery({
     queryKey: ['content-blocks', selectedBotId],
@@ -130,37 +207,54 @@ export default function Orders() {
     onError: (e) => addToast(e?.message || 'Failed to save', 'error'),
   });
 
-  const filteredOrders = orders?.filter(o => {
-    const source = o.source || (o.user_id != null ? 'telegram' : o.payment_method === 'website' || o.buyer_snapshot?.firebase_uid != null ? 'website' : 'guest');
-    if (orderTab !== 'all') {
-      if (orderTab === 'telegram' && source !== 'telegram') return false;
-      if (orderTab === 'ecommerce' && source !== 'website') return false;
-      if (orderTab === 'guest' && source !== 'guest') return false;
-    }
-    if (statusFilter !== 'all') {
-      if (statusFilter === 'pending') {
-        if (o.status !== 'pending' && o.status !== 'pending_review') return false;
-      } else if (statusFilter === 'rejected') {
-        if (o.status !== 'rejected' && o.status !== 'payment_failed') return false;
-      } else if (o.status !== statusFilter) return false;
-    }
-    const term = search.toLowerCase().trim();
-    if (!term) return true;
-    return (
-      o.buyer_snapshot?.name?.toLowerCase().includes(term) ||
-      o.customer?.first_name?.toLowerCase().includes(term) ||
-      o.customer?.username?.toLowerCase().includes(term) ||
-      o.buyer_snapshot?.phone?.toLowerCase().includes(term) ||
-      o.buyer_snapshot?.email?.toLowerCase().includes(term) ||
-      o.order_number?.toLowerCase().includes(term) ||
-      o.invoice_number?.toLowerCase().includes(term) ||
-      o.receipt_no?.toLowerCase().includes(term) ||
-      o.id.toString() === term ||
-      o.id.toString().includes(term)
-    );
-  }) || [];
+  const filteredOrders = useMemo(() => {
+    const seen = new Set();
+    return allOrders.filter(o => {
+      if (seen.has(o.id)) return false;
+      seen.add(o.id);
+      const bs = o.buyer_snapshot || {};
+      const cust = o.customer || {};
 
-  if (isLoading) return <LoadingSkeleton type="list" count={5} />;
+      const firebaseUid = bs.firebase_uid || cust.firebase_uid;
+      const hasFirebase = firebaseUid != null && String(firebaseUid).trim() !== '' && String(firebaseUid) !== 'null';
+
+      const tidRaw = bs.telegram_id || cust.telegram_id;
+      const tidStr = tidRaw != null ? String(tidRaw).trim() : '';
+      const hasNumericTid = tidStr !== '' && tidStr !== 'N/A' && tidStr !== 'null' && tidStr !== 'undefined' && /^\d+$/.test(tidStr);
+      const hasTelegram = hasNumericTid || o.user_id != null;
+
+      if (orderTab !== 'all') {
+        if (orderTab === 'telegram' && !hasTelegram) return false;
+        if (orderTab === 'ecommerce' && hasTelegram) return false;
+        if (orderTab === 'guest' && (hasTelegram || hasFirebase)) return false;
+      }
+
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'pending') {
+          if (o.status !== 'pending' && o.status !== 'pending_review') return false;
+        } else if (statusFilter === 'rejected') {
+          if (o.status !== 'rejected' && o.status !== 'payment_failed') return false;
+        } else if (o.status !== statusFilter) return false;
+      }
+
+      const term = search.toLowerCase().trim();
+      if (!term) return true;
+      return (
+        o.buyer_snapshot?.full_name?.toLowerCase().includes(term) ||
+        o.buyer_snapshot?.name?.toLowerCase().includes(term) ||
+        o.buyer_snapshot?.telegram_name?.toLowerCase().includes(term) ||
+        o.customer?.first_name?.toLowerCase().includes(term) ||
+        o.customer?.username?.toLowerCase().includes(term) ||
+        o.buyer_snapshot?.phone?.toLowerCase().includes(term) ||
+        o.buyer_snapshot?.email?.toLowerCase().includes(term) ||
+        o.order_number?.toLowerCase().includes(term) ||
+        o.invoice_number?.toLowerCase().includes(term) ||
+        o.receipt_no?.toLowerCase().includes(term) ||
+        o.id.toString() === term ||
+        o.id.toString().includes(term)
+      );
+    });
+  }, [allOrders, orderTab, statusFilter, search]);
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
@@ -235,7 +329,25 @@ export default function Orders() {
         </button>
       </div>
 
-{filteredOrders.length === 0 ? (
+      {isTabLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="bg-white p-4 lg:p-5 rounded-2xl border border-gray-100 animate-pulse flex items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-gray-200" />
+                <div className="space-y-2 flex-1 max-w-[200px]">
+                  <div className="h-4 bg-gray-200 rounded-md w-3/4" />
+                  <div className="h-3 bg-gray-100 rounded-md w-1/2" />
+                </div>
+              </div>
+              <div className="space-y-2 flex flex-col items-end">
+                <div className="h-4 bg-gray-200 rounded-md w-16" />
+                <div className="h-4 bg-indigo-100 rounded-full w-20" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredOrders.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
           <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <ShoppingBag className="w-8 h-8 text-gray-300" />
@@ -280,17 +392,39 @@ export default function Orders() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 flex-shrink-0">
-                      <UserCircle className="w-6 h-6 lg:w-7 lg:h-7" />
-                    </div>
+                    <CustomerAvatar
+                      photoUrl={order.buyer_snapshot?.photo_url || order.buyer_snapshot?.profile_picture || order.customer?.profile_picture || order.customer?.photo_url}
+                      name={order.buyer_snapshot?.full_name || order.buyer_snapshot?.name || order.buyer_snapshot?.telegram_name || order.customer?.first_name || 'Customer'}
+                    />
                     <div className="min-w-0">
-                      <p className="text-sm lg:text-base font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{order.buyer_snapshot?.name || order.customer?.first_name || 'Customer'}</p>
+                      <p className="text-sm lg:text-base font-bold text-gray-900 truncate max-w-[120px] sm:max-w-none">{order.buyer_snapshot?.full_name || order.buyer_snapshot?.name || order.buyer_snapshot?.telegram_name || order.customer?.first_name || 'Customer'}</p>
                       <p className="text-[10px] lg:text-xs text-gray-500">{myanmarFormat(order.created_at, 'MMM d, h:mm a')}</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <p className="text-sm lg:text-base font-bold text-gray-900 whitespace-nowrap">{formatPrice(order.total_amount, selectedBot?.currency || 'MMK')}</p>
-                    <StatusBadge status={order.status} />
+                    <div className="flex items-center gap-1.5">
+                      {orderTab === 'all' && (() => {
+                        const bs = order.buyer_snapshot || {};
+                        const cust = order.customer || {};
+                        const hasFirebase = (bs.firebase_uid != null && String(bs.firebase_uid).trim() !== '') || (cust.firebase_uid != null && String(cust.firebase_uid).trim() !== '');
+                        const tidRaw = bs.telegram_id || cust.telegram_id || order.user_id;
+                        const tidStr = tidRaw != null ? String(tidRaw).trim() : '';
+                        const hasTelegram = tidStr !== '' && tidStr !== 'N/A' && tidStr !== 'null' && tidStr !== 'undefined' && /^\d+$/.test(tidStr);
+
+                        let src = order.source;
+                        if (!src || src === 'all') {
+                          if (hasFirebase || order.payment_method === 'website') src = 'website';
+                          else if (hasTelegram) src = 'telegram';
+                          else src = 'guest';
+                        }
+
+                        if (src === 'telegram') return <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 text-sky-600 border border-sky-100">Telegram</span>;
+                        if (src === 'website') return <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-600 border border-purple-100">Website</span>;
+                        return <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 border border-gray-200">Guest</span>;
+                      })()}
+                      <StatusBadge status={order.status} />
+                    </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-300 hidden sm:block flex-shrink-0" />
                 </div>
