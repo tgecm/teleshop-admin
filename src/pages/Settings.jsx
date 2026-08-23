@@ -1617,8 +1617,48 @@ export default function Settings() {
               </>
             ) : (
               /* Owner: existing change password + forgot password */
-              <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                <div className="flex items-center gap-2.5 mb-4">
+              <>
+                {/* Account Email Info (Owner Only) */}
+                <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-gray-900">Account Email</h3>
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-100 text-indigo-700 rounded-full">Owner Only</span>
+                      </div>
+                      <p className="text-[10px] text-gray-500">The login email for your shop admin account</p>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 text-gray-500">
+                        <Mail className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 truncate">
+                        {user?.email || user?.web_panel_email || bot?.admin_notification_email || 'Not Configured'}
+                      </span>
+                    </div>
+                    {(user?.email || user?.web_panel_email || bot?.admin_notification_email) && (
+                      <button
+                        onClick={() => {
+                          const emailToCopy = user?.email || user?.web_panel_email || bot?.admin_notification_email;
+                          navigator.clipboard.writeText(emailToCopy);
+                          addToast('Email copied to clipboard', 'success');
+                        }}
+                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-colors flex-shrink-0"
+                        title="Copy Email"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </section>
+
+                <section className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-2.5 mb-4">
                   <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
                     <Lock className="w-4 h-4" />
                   </div>
@@ -1783,6 +1823,7 @@ export default function Settings() {
                   </div>
                 </div>
               </section>
+              </>
             )}
           </div>
         )}
