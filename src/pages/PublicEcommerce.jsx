@@ -962,11 +962,12 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
   const ptsEnabled = pointsSettings?.enabled && customerPoints != null;
   const redeemPtsRate = Number(pointsSettings?.redeem_points) || 100;
   const redeemVal = Number(pointsSettings?.redeem_value) || 1000;
+  const orderGrandTotal = (couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount;
   const pointsMmkVal = customerPoints ? Math.floor((customerPoints / redeemPtsRate) * redeemVal) : 0;
-  const ptsNeededForFull = totalAmount > 0 ? Math.ceil((totalAmount / redeemVal) * redeemPtsRate) : 0;
+  const ptsNeededForFull = orderGrandTotal > 0 ? Math.ceil((orderGrandTotal / redeemVal) * redeemPtsRate) : 0;
   const effectivePts = Math.min(customerPoints || 0, ptsNeededForFull);
-  const ptsDisc = isPointsPayment ? Math.min(pointsMmkVal, totalAmount) : pointsDiscount;
-  const ptsTotal = isPointsPayment ? Math.max(0, totalAmount - ptsDisc) : (couponApplied ? effectiveTotal : totalAmount) - pointsDiscount;
+  const ptsDisc = isPointsPayment ? Math.min(pointsMmkVal, orderGrandTotal) : Math.min(pointsDiscount, orderGrandTotal);
+  const ptsTotal = isPointsPayment ? Math.max(0, orderGrandTotal - ptsDisc) : Math.max(0, (couponApplied ? effectiveTotal : totalAmount) - pointsDiscount + deliveryFeeAmount);
 
   const handleRedeemPoints = async () => {
     const minRedeem = Number(pointsSettings?.min_redeem) || 50;
@@ -1208,7 +1209,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
           )}
           {isPointsPayment && (
             <div className="flex justify-between text-sm py-1 text-amber-600">
-              <span>Pay with Points ({formatPrice(effectivePts)} pts)</span>
+              <span>Pay with Points ({effectivePts} pts)</span>
               <span className="font-semibold">-{formatPrice(ptsDisc, shop?.currency || 'MMK')}</span>
             </div>
           )}
@@ -1218,7 +1219,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
           </div>
           <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between font-bold text-gray-900">
             <span>Total</span>
-            <span>{formatPrice((isPointsPayment ? ptsTotal : (couponApplied ? effectiveTotal : totalAmount) - pointsDiscount) + deliveryFeeAmount, shop?.currency || 'MMK')}</span>
+            <span>{formatPrice(ptsTotal, shop?.currency || 'MMK')}</span>
           </div>
           {appliedDiscount > 0 && (
             <p className="text-[10px] text-emerald-500 font-medium text-center mt-1">
@@ -1230,33 +1231,40 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
         {/* Points & Rewards */}
         {ptsEnabled && (
           <div className="bg-amber-50 rounded-2xl p-4 mb-4 border border-amber-200">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Award className="w-4 h-4 text-amber-500" />
-              <span className="text-xs font-bold text-amber-700">Points Balance: {customerPoints} pts</span>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-bold text-amber-700">Points Balance: {customerPoints} pts</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100/90 text-amber-800 border border-amber-300/60">
+                {redeemPtsRate} pts = {formatPrice(redeemVal, shop?.currency || 'MMK')}
+              </span>
             </div>
             {isPointsPayment ? (
               <div className="space-y-1">
-                <p className="text-[11px] text-amber-600">
+                <p className="text-[11px] text-amber-700 font-medium">
                   <strong>{customerPoints} Points</strong> = {formatPrice(pointsMmkVal, shop?.currency || 'MMK')}
                 </p>
                 {customerPoints < Number(pointsSettings?.min_redeem || 50) ? (
                   <p className="text-[11px] text-rose-600 font-medium">Minimum {pointsSettings?.min_redeem || 50} points required</p>
                 ) : ptsTotal > 0 ? (
-                  <p className="text-[11px] text-rose-600 font-medium">Not enough points — need {formatPrice(ptsNeededForFull - (customerPoints || 0))} more pts</p>
+                  <p className="text-[11px] text-amber-700 font-medium">
+                    Redeemed {effectivePts} pts ({formatPrice(ptsDisc, shop?.currency || 'MMK')}). Remaining: {formatPrice(ptsTotal, shop?.currency || 'MMK')}
+                  </p>
                 ) : (
-                  <p className="text-[11px] text-emerald-600 font-medium">Points cover the full order!</p>
+                  <p className="text-[11px] text-emerald-600 font-bold">✨ Points cover the full order (including delivery)!</p>
                 )}
                 <button onClick={() => { setIsPointsPayment(false); setPointsDiscount(0); setPointsToRedeem(0); }}
-                  className="text-[11px] text-amber-600 underline mt-1">Cancel points payment</button>
+                  className="text-[11px] text-amber-600 underline mt-1 cursor-pointer">Cancel points payment</button>
               </div>
             ) : pointsDiscount > 0 ? (
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[11px] text-amber-600 font-medium">Points discount: {formatPrice(pointsDiscount, shop?.currency || 'MMK')}</p>
-                  <p className="text-[10px] text-amber-500">{pointsToRedeem} pts used</p>
+                  <p className="text-[10px] text-amber-500">{pointsToRedeem} pts used ({redeemPtsRate} pts = {formatPrice(redeemVal, shop?.currency || 'MMK')})</p>
                 </div>
                 <button onClick={() => { setPointsDiscount(0); setPointsToRedeem(0); }}
-                  className="text-[10px] text-rose-500 underline">Cancel</button>
+                  className="text-[10px] text-rose-500 underline cursor-pointer">Cancel</button>
               </div>
             ) : (
               <div className="space-y-1.5">
@@ -1268,16 +1276,16 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
                     className="flex-1 px-2.5 py-1.5 rounded-lg border border-amber-300 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white" />
                   <button onClick={handleRedeemPoints}
                     disabled={redeemingPoints || pointsToRedeem < (Number(pointsSettings?.min_redeem) || 50)}
-                    className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 disabled:opacity-50 transition-all">
+                    className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 disabled:opacity-50 transition-all cursor-pointer">
                     {redeemingPoints ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Redeem'}
                   </button>
                 </div>
                 {pointsToRedeem > 0 && pointsToRedeem < (Number(pointsSettings?.min_redeem) || 50) && (
                   <p className="text-[10px] text-rose-600">Minimum {pointsSettings?.min_redeem || 50} points to redeem</p>
                 )}
-                {customerPoints >= Number(pointsSettings?.min_redeem || 50) && pointsMmkVal >= totalAmount && (
+                {customerPoints >= Number(pointsSettings?.min_redeem || 50) && (
                   <button onClick={() => setIsPointsPayment(true)}
-                    className="text-[11px] text-amber-600 underline mt-0.5">Or pay all with points</button>
+                    className="text-[11px] text-amber-700 font-bold underline hover:text-amber-800 cursor-pointer block mt-1">Or pay full order with points</button>
                 )}
               </div>
             )}
@@ -1358,7 +1366,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
                 </div>
                 <p className="font-bold text-gray-900">Cash on Delivery</p>
                 <p className="text-sm text-gray-600 mt-2 leading-relaxed">
-                  Cash on Delivery. Please prepare the amount of <span className="font-bold text-gray-900">{formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount, shop?.currency || 'MMK')}</span> for the package
+                  Cash on Delivery. Please prepare the amount of <span className="font-bold text-gray-900">{formatPrice(ptsTotal, shop?.currency || 'MMK')}</span> for the package
                 </p>
               </div>
             );
@@ -1474,7 +1482,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
           className="w-full mt-6 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-base text-white transition-all active:scale-[0.98] disabled:opacity-60"
           style={{ background: THEMES[DEFAULT_THEME].css['--theme-btn'] }}
         >
-          {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Placing Order...</> : `Place Order — ${formatPrice((couponApplied ? effectiveTotal : totalAmount) + deliveryFeeAmount, shop?.currency || 'MMK')}`}
+          {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Placing Order...</> : `Place Order — ${formatPrice(ptsTotal, shop?.currency || 'MMK')}`}
         </button>
       </motion.div>
     </motion.div>

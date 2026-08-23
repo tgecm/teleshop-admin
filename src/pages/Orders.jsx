@@ -402,7 +402,14 @@ export default function Orders() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <p className="text-sm lg:text-base font-bold text-gray-900 whitespace-nowrap">{formatPrice(order.total_amount, selectedBot?.currency || 'MMK')}</p>
+                    <p className="text-sm lg:text-base font-bold text-gray-900 whitespace-nowrap">
+                      {formatPrice(
+                        order.final_amount != null && !isNaN(Number(order.final_amount))
+                          ? Number(order.final_amount)
+                          : Math.max(0, ((order.items || []).reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0) || Number(order.total_amount) || 0) - (Number(order.buyer_snapshot?.coupon_discount || order.discount_amount) || 0) + (Number(order.delivery_fee) || 0) - (Number(order.buyer_snapshot?.points_discount) || 0)),
+                        selectedBot?.currency || 'MMK'
+                      )}
+                    </p>
                     <div className="flex items-center gap-1.5">
                       {orderTab === 'all' && (() => {
                         const bs = order.buyer_snapshot || {};
@@ -641,7 +648,12 @@ export default function Orders() {
                     </div>
                     <div className="flex items-center justify-between text-xs md:text-sm">
                       <span className="text-gray-500">Amount</span>
-                      <span className="font-bold text-indigo-600">{formatPrice(selectedOrder.total_amount, selectedBot?.currency || 'MMK')}</span>
+                      <span className="font-bold text-indigo-600">
+                        {formatPrice(
+                          (selectedOrder.items || []).reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0) || Number(selectedOrder.total_amount) || 0,
+                          selectedBot?.currency || 'MMK'
+                        )}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-xs md:text-sm">
                       <span className="text-gray-500">Payment Method</span>
@@ -667,16 +679,22 @@ export default function Orders() {
                         )}
                       </>
                     )}
-                    {selectedOrder.buyer_snapshot?.points_redeemed > 0 && (
+                    {(Number(selectedOrder.buyer_snapshot?.points_redeemed) > 0 || Number(selectedOrder.buyer_snapshot?.points_discount) > 0) && (
                       <div className="flex items-center justify-between text-xs md:text-sm">
                         <span className="text-gray-500">Points Used</span>
-                        <span className="font-bold text-emerald-600">{selectedOrder.buyer_snapshot.points_redeemed} pts = {formatPrice(Number(selectedOrder.buyer_snapshot.points_discount || 0), selectedBot?.currency || 'MMK')} off</span>
+                        <span className="font-bold text-amber-600">
+                          {selectedOrder.buyer_snapshot?.points_redeemed ? `${selectedOrder.buyer_snapshot.points_redeemed} pts` : 'Points discount'} = - {formatPrice(Number(selectedOrder.buyer_snapshot?.points_discount || 0), selectedBot?.currency || 'MMK')}
+                        </span>
                       </div>
                     )}
                     {(() => {
                       const delFee = Number(selectedOrder.delivery_fee) || 0;
+                      const couponDisc = Number(selectedOrder.discount_amount || selectedOrder.buyer_snapshot?.coupon_discount || 0);
                       const ptsDisc = Number(selectedOrder.buyer_snapshot?.points_discount || 0);
-                      const totalToPay = (selectedOrder.total_amount || 0) + delFee - ptsDisc;
+                      const itemsSubtotal = (selectedOrder.items || []).reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0) || Number(selectedOrder.total_amount) || 0;
+                      const totalToPay = selectedOrder.final_amount != null && !isNaN(Number(selectedOrder.final_amount))
+                        ? Number(selectedOrder.final_amount)
+                        : Math.max(0, itemsSubtotal - couponDisc + delFee - ptsDisc);
                       return (
                         <div className="flex items-center justify-between text-xs md:text-sm pt-1.5 border-t border-dashed border-gray-200">
                           <span className="text-gray-700 font-bold">Total Amount</span>
