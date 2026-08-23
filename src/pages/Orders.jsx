@@ -653,6 +653,20 @@ export default function Orders() {
                         <span className="font-bold text-gray-900">+ {formatPrice(Number(selectedOrder.delivery_fee), selectedBot?.currency || 'MMK')}</span>
                       </div>
                     )}
+                    {(selectedOrder.coupon_code || selectedOrder.buyer_snapshot?.coupon_code) && (
+                      <>
+                        <div className="flex items-center justify-between text-xs md:text-sm">
+                          <span className="text-gray-500">Coupon used</span>
+                          <span className="font-bold text-indigo-600 font-mono tracking-wide">{selectedOrder.coupon_code || selectedOrder.buyer_snapshot?.coupon_code}</span>
+                        </div>
+                        {(Number(selectedOrder.discount_amount) > 0 || Number(selectedOrder.buyer_snapshot?.coupon_discount) > 0) && (
+                          <div className="flex items-center justify-between text-xs md:text-sm">
+                            <span className="text-gray-500">Coupon value</span>
+                            <span className="font-bold text-emerald-600">- {formatPrice(Number(selectedOrder.discount_amount || selectedOrder.buyer_snapshot?.coupon_discount || 0), selectedBot?.currency || 'MMK')}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
                     {selectedOrder.buyer_snapshot?.points_redeemed > 0 && (
                       <div className="flex items-center justify-between text-xs md:text-sm">
                         <span className="text-gray-500">Points Used</span>
