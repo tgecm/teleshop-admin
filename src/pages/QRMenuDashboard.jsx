@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { parseISO, differenceInDays, subDays, addDays } from 'date-fns';
-const ChartRenderer = React.lazy(() => import('../components/dashboard/ChartRenderer'));
+import ChartRenderer from '../components/dashboard/ChartRenderer';
 import { myanmarFormat } from '../utils/date';
 
 const containerVariants = {

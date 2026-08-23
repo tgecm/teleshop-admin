@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { parseISO, differenceInDays, subDays, addDays } from 'date-fns';
-const ChartRenderer = React.lazy(() => import('../components/dashboard/ChartRenderer'));
+import ChartRenderer from '../components/dashboard/ChartRenderer';
 import { myanmarFormat } from '../utils/date';
 import { downloadText } from '../utils/download';
 import { formatPrice } from '../utils/formatPrice';
@@ -239,7 +239,6 @@ export default function Dashboard() {
   // Merge chart data with users and fill missing dates
   const mergedChartData = useMemo(() => {
     const base = chartData || [];
-    if (!base.length) return [];
     const usersMap = usersByDay ? new Map(usersByDay.map((u) => [u.day, u.count])) : new Map();
     const dataMap = new Map(base.map((d) => [d.day, d]));
     // Generate continuous date range

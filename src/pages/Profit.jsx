@@ -67,27 +67,55 @@ export default function Profit() {
     return { start: t, end: t };
   };
 
-  const [productPeriod, setProductPeriod] = useState(() => {
-    return localStorage.getItem('profit_product_period') || 'today';
-  });
+  const [productPeriod, setProductPeriod] = useState('weekly');
+  const [salesLogPeriod, setSalesLogPeriod] = useState('weekly');
 
-  const [salesLogPeriod, setSalesLogPeriod] = useState(() => {
-    return localStorage.getItem('profit_sales_period') || 'today';
-  });
+  const initialProductDates = getDatesForPreset('weekly');
+  const initialSalesDates = getDatesForPreset('weekly');
 
-  const initialProductDates = getDatesForPreset(productPeriod);
-  const initialSalesDates = getDatesForPreset(salesLogPeriod);
+  const [profitDatePreset, setProfitDatePreset] = useState('7');
+
+  const handleProfitPresetChange = (preset) => {
+    setProfitDatePreset(preset);
+    const t = new Date().toISOString().split('T')[0];
+    if (preset === '1') {
+      setStartDate(t);
+      setEndDate(t);
+    } else if (preset === '7') {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      setStartDate(d.toISOString().split('T')[0]);
+      setEndDate(t);
+    } else if (preset === '30') {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      setStartDate(d.toISOString().split('T')[0]);
+      setEndDate(t);
+    } else if (preset === '90') {
+      const d = new Date();
+      d.setDate(d.getDate() - 90);
+      setStartDate(d.toISOString().split('T')[0]);
+      setEndDate(t);
+    } else if (preset === '365') {
+      const d = new Date();
+      d.setDate(d.getDate() - 365);
+      setStartDate(d.toISOString().split('T')[0]);
+      setEndDate(t);
+    }
+  };
 
   const [startDate, setStartDate] = useState(initialProductDates.start);
   const [endDate, setEndDate] = useState(initialProductDates.end);
   const [salesLogStartDate, setSalesLogStartDate] = useState(initialSalesDates.start);
   const [salesLogEndDate, setSalesLogEndDate] = useState(initialSalesDates.end);
 
-  // Fetch profit period preference from DB
+  // Fetch profit period preference from DB (syncs across all devices)
   const { data: dbPeriod } = useQuery({
     queryKey: ['profitPeriod', selectedBotId],
     queryFn: () => getProfitPeriod(selectedBotId),
-    enabled: !!selectedBotId
+    enabled: !!selectedBotId,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const periodMutation = useMutation({
@@ -98,14 +126,12 @@ export default function Profit() {
     if (dbPeriod) {
       if (dbPeriod.profit_product_period) {
         setProductPeriod(dbPeriod.profit_product_period);
-        localStorage.setItem('profit_product_period', dbPeriod.profit_product_period);
         const { start, end } = getDatesForPreset(dbPeriod.profit_product_period);
         setStartDate(start);
         setEndDate(end);
       }
       if (dbPeriod.profit_sales_period) {
         setSalesLogPeriod(dbPeriod.profit_sales_period);
-        localStorage.setItem('profit_sales_period', dbPeriod.profit_sales_period);
         const { start, end } = getDatesForPreset(dbPeriod.profit_sales_period);
         setSalesLogStartDate(start);
         setSalesLogEndDate(end);
@@ -115,7 +141,6 @@ export default function Profit() {
 
   const handleProductPeriodChange = (val) => {
     setProductPeriod(val);
-    localStorage.setItem('profit_product_period', val);
     const { start, end } = getDatesForPreset(val);
     setStartDate(start);
     setEndDate(end);
@@ -126,7 +151,6 @@ export default function Profit() {
 
   const handleSalesLogPeriodChange = (val) => {
     setSalesLogPeriod(val);
-    localStorage.setItem('profit_sales_period', val);
     const { start, end } = getDatesForPreset(val);
     setSalesLogStartDate(start);
     setSalesLogEndDate(end);
@@ -154,11 +178,11 @@ export default function Profit() {
     enabled: !!selectedBotId,
   });
 
-  const totalRevenue = data?.total_revenue || 0;
-  const totalCost = data?.total_cost || 0;
-  const totalProfit = data?.total_profit || 0;
-  const marginPct = data?.margin_pct || 0;
-  const todayProfit = data?.today_profit || 0;
+  const totalRevenue = data?.total_revenue ?? data?.summary?.total_revenue ?? 0;
+  const totalCost = data?.total_cost ?? data?.summary?.total_cost ?? 0;
+  const totalProfit = data?.total_profit ?? data?.summary?.net_profit ?? (totalRevenue - totalCost);
+  const marginPct = data?.margin_pct ?? data?.summary?.margin_percentage ?? (totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 1000) / 10 : 0);
+  const todayProfit = data?.today_profit ?? data?.summary?.today_profit ?? totalProfit;
   const untrackedCount = data?.untracked_count || 0;
   const products = data?.products || [];
   const categories = data?.categories || [];
@@ -217,28 +241,76 @@ export default function Profit() {
             <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />
             Profit
           </h1>
+
+          <div className="flex items-center gap-2">
+            {/* Date presets: Today, 7d, 30d, 90d, 365d + custom */}
+            <div className="flex items-center bg-white p-0.5 rounded-xl shadow-sm border border-gray-100">
+              {[
+                { id: '1', label: 'Today' },
+                { id: '7', label: '7d' },
+                { id: '30', label: '30d' },
+                { id: '90', label: '90d' },
+                { id: '365', label: '365d' },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleProfitPresetChange(p.id)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all active:scale-95 ${
+                    profitDatePreset === p.id
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
+                      : 'text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+              <button
+                onClick={() => setProfitDatePreset('custom')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${
+                  profitDatePreset === 'custom'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
+                    : 'text-gray-500 hover:bg-gray-50'
+                }`}
+                title="Custom Date Range"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Date filter */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-              className="text-xs sm:text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+        {/* Custom Date Pickers */}
+        {profitDatePreset === 'custom' && (
+          <div className="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-400" />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="text-xs sm:text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+            </div>
+            <span className="text-gray-400 text-xs">—</span>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-400" />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="text-xs sm:text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+            </div>
+            {(startDate !== thirtyDaysAgo || endDate !== today) && (
+              <button
+                onClick={() => handleProfitPresetChange('7')}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+              >
+                Reset
+              </button>
+            )}
           </div>
-          <span className="text-gray-400 text-xs">—</span>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-              className="text-xs sm:text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-          </div>
-          {(startDate !== thirtyDaysAgo || endDate !== today) && (
-            <button onClick={() => { setStartDate(thirtyDaysAgo); setEndDate(today); }}
-              className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
-              Reset
-            </button>
-          )}
-        </div>
+        )}
 
         {/* Summary cards */}
         {isLoading ? (
@@ -393,37 +465,45 @@ export default function Profit() {
                 <tbody className="divide-y divide-gray-50">
                   {filteredProducts.map((p) => {
                     const hasCost = p.cost_price !== null && p.cost_price !== undefined;
+                    const priceNum = Number(p.price) || 0;
+                    const costNum = hasCost ? Number(p.cost_price) : 0;
+                    const soldQty = Number(p.units_sold) || 0;
+                    const calculatedNetProfit = hasCost ? ((priceNum - costNum) * soldQty) : null;
+                    const netProfitVal = p.net_profit ?? calculatedNetProfit;
+                    const calculatedMarginPct = (hasCost && priceNum > 0) ? Math.round(((priceNum - costNum) / priceNum) * 1000) / 10 : null;
+                    const marginPctVal = p.margin_pct ?? calculatedMarginPct;
+
                     return (
                       <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-3 sm:px-6 py-3 font-medium text-gray-900 max-w-[120px] sm:max-w-[200px] truncate">
                           {!hasCost && <AlertTriangle className="w-3 h-3 text-amber-400 inline mr-1 flex-shrink-0" />}
                           {p.name}
                         </td>
-                        <td className="px-3 sm:px-6 py-3 text-right text-gray-600 whitespace-nowrap">{p.price.toLocaleString()}</td>
+                        <td className="px-3 sm:px-6 py-3 text-right text-gray-600 whitespace-nowrap">{priceNum.toLocaleString()}</td>
                         <td className="px-3 sm:px-6 py-3 text-right whitespace-nowrap">
                           {hasCost ? (
-                            <span className="text-gray-600">{p.cost_price.toLocaleString()}</span>
+                            <span className="text-gray-600">{costNum.toLocaleString()}</span>
                           ) : (
                             <span className="text-amber-400 text-[10px] font-bold">—</span>
                           )}
                         </td>
-                        <td className="px-3 sm:px-6 py-3 text-right text-gray-600 whitespace-nowrap">{p.units_sold}</td>
-                        <td className="px-3 sm:px-6 py-3 text-right text-gray-900 font-medium whitespace-nowrap">{p.revenue.toLocaleString()}</td>
+                        <td className="px-3 sm:px-6 py-3 text-right text-gray-600 whitespace-nowrap">{soldQty}</td>
+                        <td className="px-3 sm:px-6 py-3 text-right text-gray-900 font-medium whitespace-nowrap">{Number(p.revenue || 0).toLocaleString()}</td>
                         <td className="px-3 sm:px-6 py-3 text-right whitespace-nowrap font-medium">
-                          {hasCost ? (
-                            <span className={p.net_profit >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-                              {p.net_profit >= 0 ? '+' : ''}{p.net_profit.toLocaleString()}
+                          {hasCost && netProfitVal !== null ? (
+                            <span className={netProfitVal >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                              {netProfitVal >= 0 ? '+' : ''}{netProfitVal.toLocaleString()}
                             </span>
                           ) : (
                             <span className="text-gray-300">—</span>
                           )}
                         </td>
                         <td className="px-3 sm:px-6 py-3 text-right whitespace-nowrap">
-                          {hasCost ? (
+                          {hasCost && marginPctVal !== null ? (
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              p.margin_pct >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                              marginPctVal >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
                             }`}>
-                              {p.margin_pct}%
+                              {marginPctVal}%
                             </span>
                           ) : (
                             <span className="text-gray-300">—</span>
