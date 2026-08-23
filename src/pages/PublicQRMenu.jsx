@@ -9,6 +9,8 @@ import { isQRAuthenticated, clearQRLogin } from '../lib/qrAuth';
 
 import { formatPrice } from '../utils/formatPrice';
 import { API_BASE } from '../api/config';
+import ZoomableQrModal from '../components/ZoomableQrModal';
+import { linkifyText } from '../utils/linkify';
 
 const CAT_EMOJIS = ['🍽️','🍚','🍜','🍲','🔥','🥗','🥤','🍮','🥩','🌯','🥟','🍕','🥪','🧆','🫘','🥘','🫕','🥫','🍱'];
 
@@ -139,7 +141,7 @@ function DetailModal({ item, shop, orderItems, onAddToOrder, onClose, addToOrder
             </div>
           )}
           <h2 className="modal-name">{item.name}</h2>
-          {item.description && <p className="modal-desc">{item.description}</p>}
+          {item.description && <p className="modal-desc select-text product-description cursor-text">{linkifyText(item.description)}</p>}
 
           {/* Variant groups */}
           {variants.map((vg, gi) => (
@@ -304,6 +306,7 @@ function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRe
 
 function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, onSubmitOrder, tableProp, customerId, customerPoints, pointsSettings, netTotal, couponDiscount, pointsDiscount, appliedCoupon, couponInput, setCouponInput, handleApplyCoupon, checkingCoupon, pointsToRedeem, setPointsToRedeem, handleRedeemPoints, redeemingPoints, tokenNumber, couponAttempts, couponLockUntil }) {
   const [step, setStep] = useState('form');
+  const [qrModalOpen, setQrModalOpen] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -536,12 +539,36 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
                   const qrUrl = getPaymentQrUrl(selectedPayment);
                   const dlUrl = qrUrl + (qrUrl.includes('?') ? '&' : '?') + 'download=payment.jpg';
                   return (
-                    <div className="flex flex-col items-center gap-1">
-                      <img src={qrUrl} alt="Payment QR" className="checkout-qr" />
-                      <a href={dlUrl}
-                        style={{fontSize:11,color:'#6366f1',textDecoration:'none',cursor:'pointer'}}>
-                        Download QR
-                      </a>
+                    <div className="flex flex-col items-center gap-2.5 my-3">
+                      <div
+                        onClick={() => setQrModalOpen(true)}
+                        className="relative flex justify-center bg-white rounded-2xl p-3 shadow-sm border border-gray-200 cursor-zoom-in group transition-all duration-200 hover:scale-[1.02] hover:shadow-md"
+                      >
+                        <img src={qrUrl} alt="Payment QR" className="w-48 h-48 sm:w-56 sm:h-56 object-contain rounded-xl" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-1.5 text-white font-semibold text-xs backdrop-blur-[2px]">
+                          <span>Tap to Enlarge</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setQrModalOpen(true)}
+                          style={{fontSize:11,color:'#6366f1',fontWeight:600,background:'#e0e7ff',padding:'3px 12px',borderRadius:20,border:'none',cursor:'pointer'}}
+                        >
+                          Full Screen & Zoom
+                        </button>
+                        <a href={dlUrl} style={{fontSize:11,color:'#6b7280',textDecoration:'underline',cursor:'pointer'}}>
+                          Download QR
+                        </a>
+                      </div>
+                      <ZoomableQrModal
+                        isOpen={qrModalOpen}
+                        onClose={() => setQrModalOpen(false)}
+                        imgUrl={qrUrl}
+                        title={`Pay via ${selectedPayment?.name || 'QR'}`}
+                        accountName={selectedPayment?.account_name}
+                        accountNumber={selectedPayment?.payment_number}
+                      />
                     </div>
                   );
                 })()}

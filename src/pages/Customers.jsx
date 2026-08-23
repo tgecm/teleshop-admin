@@ -15,7 +15,7 @@ import {
   Search, User, ShoppingBag, Ban, MessageSquare, Clock,
   ShieldAlert, ShieldCheck, Loader2, Phone, Mail, MapPin, X,
   Package, Hash, DollarSign, ChevronDown, Globe, Smartphone,
-  AtSign, MessageCircle, FileText, Copy, Award, Star
+  AtSign, MessageCircle, FileText, Copy, Award, Star, Crown, Sparkles, Trophy
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -29,6 +29,8 @@ export default function Customers() {
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
   const [section, setSection] = useState('telegram');
+  const [loyalSort, setLoyalSort] = useState('spent'); // 'spent' | 'orders'
+  const [loyalLimit, setLoyalLimit] = useState(25);
   const [search, setSearch] = useState('');
   const [filterTab, setFilterTab] = useState('all');
   const [confirmCustomer, setConfirmCustomer] = useState(null);
@@ -38,7 +40,7 @@ export default function Customers() {
   const { data: customers, isLoading: customersLoading, refetch: refetchCustomers } = useQuery({
     queryKey: ['users', 'customers', selectedBotId],
     queryFn: () => getUsers({ bot_id: Number(selectedBotId) }),
-    enabled: !!selectedBotId && section === 'telegram',
+    enabled: !!selectedBotId && (section === 'telegram' || section === 'loyal'),
     refetchInterval: 10000,
     placeholderData: (prev) => prev,
   });
@@ -80,21 +82,164 @@ export default function Customers() {
 
   const getCustomerOrders = (customer) => {
     if (!orders || !customer) return [];
+    if (customer.ordersList && Array.isArray(customer.ordersList) && customer.ordersList.length > 0) {
+      return customer.ordersList;
+    }
     return orders.filter(o => {
-      const bs = o.buyer_snapshot;
-      if (!bs) return false;
-      if (customer.telegram_id && String(bs.telegram_id) === String(customer.telegram_id)) return true;
+      const bs = o.buyer_snapshot || {};
+      const orderEmail = (bs.email || o.email || '').trim().toLowerCase();
+      const custEmail = (customer.email || '').trim().toLowerCase();
+      if (custEmail && orderEmail === custEmail) return true;
+      if (customer.telegram_id && (String(bs.telegram_id) === String(customer.telegram_id) || String(o.user_id) === String(customer.telegram_id))) return true;
       if (customer.firebase_uid && bs.firebase_uid === customer.firebase_uid) return true;
-      if (customer.email && bs.email === customer.email) return true;
       return false;
     });
   };
 
   const getCustomerOrderCount = (customer) => getCustomerOrders(customer).length;
 
+  // Combine and rank Loyal Customers across Telegram and Website
+  const loyalCustomersList = React.useMemo(() => {
+    if (!orders) return [];
+
+    const map = new Map();
+
+    const getEntry = (key, initialObj) => {
+      if (!map.has(key)) {
+        map.set(key, {
+          ...initialObj,
+          totalSpent: 0,
+          totalOrders: 0,
+          ordersList: [],
+        });
+      }
+      return map.get(key);
+    };
+
+    const getCustomerKey = (c) => {
+      const email = c.email ? String(c.email).trim().toLowerCase() : '';
+      if (email) return `email_${email}`;
+      if (c.telegram_id) return `tg_${c.telegram_id}`;
+      if (c.firebase_uid) return `fb_${c.firebase_uid}`;
+      return `id_${c.id}`;
+    };
+
+    const tgList = customers || [];
+    const webList = webCustomers || [];
+
+    // Map Telegram customers
+    tgList.forEach(c => {
+      const key = getCustomerKey(c);
+      getEntry(key, {
+        id: c.id,
+        telegram_id: c.telegram_id,
+        firebase_uid: c.firebase_uid,
+        name: c.display_name || c.first_name || (c.username ? `@${c.username}` : 'Telegram User'),
+        display_name: c.display_name || c.first_name || 'Telegram User',
+        username: c.username,
+        email: c.email,
+        phone: c.phone || c.phone_number,
+        photo_url: c.photo_url,
+        channel: 'telegram',
+        raw: c,
+      });
+    });
+
+    // Map Website customers
+    webList.forEach(c => {
+      const key = getCustomerKey(c);
+
+      if (map.has(key)) {
+        const existing = map.get(key);
+        if (c.display_name && (existing.name === 'Telegram User' || existing.name === 'Website User' || !existing.name)) {
+          existing.name = c.display_name;
+        }
+        if (!existing.email && c.email) existing.email = c.email;
+        if (!existing.firebase_uid && c.firebase_uid) existing.firebase_uid = c.firebase_uid;
+      } else {
+        getEntry(key, {
+          id: c.id,
+          firebase_uid: c.firebase_uid,
+          telegram_id: c.telegram_id,
+          name: c.display_name || (c.email ? c.email.split('@')[0] : 'Website User'),
+          display_name: c.display_name || 'Website User',
+          email: c.email,
+          phone: c.phone,
+          photo_url: c.photo_url,
+          channel: c.telegram_id ? 'telegram' : 'website',
+          raw: c,
+        });
+      }
+    });
+
+    // Sum totals from non-cancelled orders
+    orders.forEach(o => {
+      if (o.status === 'cancelled' || o.status === 'rejected') return;
+      const bs = o.buyer_snapshot || {};
+      const email = (bs.email || o.email || '').trim().toLowerCase();
+      const tgId = bs.telegram_id || o.user_id;
+      const fbUid = bs.firebase_uid;
+
+      let matchedKey = null;
+
+      if (email && map.has(`email_${email}`)) {
+        matchedKey = `email_${email}`;
+      } else if (tgId && map.has(`tg_${tgId}`)) {
+        matchedKey = `tg_${tgId}`;
+      } else if (fbUid && map.has(`fb_${fbUid}`)) {
+        matchedKey = `fb_${fbUid}`;
+      }
+
+      if (matchedKey) {
+        const entry = map.get(matchedKey);
+        const amount = Number(o.final_amount || o.total_amount || 0);
+        entry.totalSpent += amount;
+        entry.totalOrders += 1;
+        entry.ordersList.push(o);
+      } else if (bs.name || bs.full_name || email || tgId) {
+        const anonKey = email ? `email_${email}` : tgId ? `tg_${tgId}` : fbUid ? `fb_${fbUid}` : `anon_${o.id}`;
+        const entry = getEntry(anonKey, {
+          id: o.id,
+          telegram_id: tgId,
+          firebase_uid: fbUid,
+          name: bs.full_name || bs.name || (email ? email.split('@')[0] : 'Customer'),
+          display_name: bs.full_name || bs.name || 'Customer',
+          email: email,
+          phone: bs.phone,
+          channel: tgId ? 'telegram' : 'website',
+          raw: o,
+        });
+        const amount = Number(o.final_amount || o.total_amount || 0);
+        entry.totalSpent += amount;
+        entry.totalOrders += 1;
+        entry.ordersList.push(o);
+      }
+    });
+
+    let result = Array.from(map.values()).filter(c => c.totalOrders > 0 || c.totalSpent > 0);
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(c =>
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.email && c.email.toLowerCase().includes(q)) ||
+        (c.username && c.username.toLowerCase().includes(q)) ||
+        (c.phone && c.phone.includes(q))
+      );
+    }
+
+    if (loyalSort === 'orders') {
+      result.sort((a, b) => b.totalOrders - a.totalOrders || b.totalSpent - a.totalSpent);
+    } else {
+      result.sort((a, b) => b.totalSpent - a.totalSpent || b.totalOrders - a.totalOrders);
+    }
+
+    return result.slice(0, loyalLimit);
+  }, [customers, webCustomers, orders, loyalSort, loyalLimit, search]);
+
   const profileUid = detailCustomer?.telegram_id
     ? String(detailCustomer.telegram_id)
-    : detailCustomer?.firebase_uid || detailCustomer?.uid || '';
+    : detailCustomer?.firebase_uid || detailCustomer?.uid || detailCustomer?.email || '';
 
   const { data: customerProfile } = useQuery({
     queryKey: ['customer-profile', selectedBotId, profileUid],
@@ -168,28 +313,38 @@ export default function Customers() {
       </div>
 
       {/* Section Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 w-fit mb-3">
+      <div className="flex items-center gap-1 bg-gray-100 rounded-2xl p-1 w-full sm:w-fit mb-3 overflow-x-auto scrollbar-none">
         <button
           onClick={() => setSection('telegram')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`flex items-center justify-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap flex-1 sm:flex-initial ${
             section === 'telegram'
               ? 'bg-white text-gray-900 shadow-sm'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <Smartphone className="w-3.5 h-3.5" />
-          Telegram ({customers?.filter(c => !hiddenIds.includes(Number(c.telegram_id))).length || 0})
+          <Smartphone className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>Telegram ({customers?.filter(c => !hiddenIds.includes(Number(c.telegram_id))).length || 0})</span>
         </button>
         <button
           onClick={() => setSection('website')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+          className={`flex items-center justify-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap flex-1 sm:flex-initial ${
             section === 'website'
               ? 'bg-white text-gray-900 shadow-sm'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <Globe className="w-3.5 h-3.5" />
-          Website ({webCustomers?.length || 0})
+          <Globe className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>Website ({webCustomers?.length || 0})</span>
+        </button>
+        <button
+          onClick={() => setSection('loyal')}
+          className={`flex items-center justify-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all whitespace-nowrap flex-1 sm:flex-initial ${
+            section === 'loyal'
+              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm ring-1 ring-amber-400'
+              : 'text-amber-700 hover:text-amber-800 hover:bg-amber-50'
+          }`}
+        >
+          <span>👑 Loyal Customers</span>
         </button>
       </div>
 
@@ -340,6 +495,153 @@ export default function Customers() {
         </PullToRefresh>
       )}
 
+      {/* Loyal Customers Leaderboard */}
+      {section === 'loyal' && (
+        <PullToRefresh onRefresh={handleRefresh}>
+          {/* Sub-filter Controls */}
+          <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-amber-50/90 to-amber-100/60 border border-amber-200/80 rounded-2xl p-3 mb-4 shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-amber-900 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                Sort By:
+              </span>
+              <div className="flex bg-white/90 rounded-xl p-0.5 border border-amber-200/60 shadow-xs">
+                <button
+                  onClick={() => setLoyalSort('spent')}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                    loyalSort === 'spent'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  💰 Spent
+                </button>
+                <button
+                  onClick={() => setLoyalSort('orders')}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                    loyalSort === 'orders'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  📦 Frequent
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Leaderboard Cards */}
+          {loyalCustomersList.length === 0 ? (
+            <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-amber-200/80">
+              <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Crown className="w-8 h-8 text-amber-400" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">No Loyal Customers found yet</h3>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
+                {search ? "Try a different search term." : "Customers will appear here automatically as they place completed orders."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {loyalCustomersList.map((customer, index) => {
+                const rank = index + 1;
+                const isTop1 = rank === 1;
+                const isTop2 = rank === 2;
+                const isTop3 = rank === 3;
+
+                return (
+                  <motion.div
+                    layout
+                    key={customer.id || index}
+                    onClick={() => setDetailCustomer(customer)}
+                    className={`bg-white rounded-2xl p-4 border transition-all duration-200 hover:shadow-md cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      isTop1
+                        ? 'border-amber-300 bg-gradient-to-r from-amber-50/50 via-white to-amber-50/20 ring-1 ring-amber-300/60 shadow-xs'
+                        : isTop2
+                        ? 'border-slate-300 bg-slate-50/30'
+                        : isTop3
+                        ? 'border-amber-700/20 bg-amber-900/5'
+                        : 'border-gray-100 hover:border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {/* Rank Icon */}
+                      <div className="flex-shrink-0 flex items-center justify-center">
+                        {isTop1 ? (
+                          <div className="w-9 h-9 rounded-2xl bg-amber-400 text-white flex items-center justify-center font-black text-sm shadow-md ring-2 ring-amber-200">
+                            👑
+                          </div>
+                        ) : isTop2 ? (
+                          <div className="w-9 h-9 rounded-2xl bg-slate-300 text-slate-800 flex items-center justify-center font-black text-xs shadow-xs">
+                            🥈
+                          </div>
+                        ) : isTop3 ? (
+                          <div className="w-9 h-9 rounded-2xl bg-amber-700/80 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                            🥉
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center font-bold text-xs">
+                            #{rank}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Customer Avatar */}
+                      <div className="flex-shrink-0">
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-sm flex items-center justify-center shadow-xs overflow-hidden">
+                          {customer.photo_url ? (
+                            <img src={customer.photo_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{(customer.name || 'C')[0].toUpperCase()}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-sm font-bold text-gray-900 truncate max-w-[200px] sm:max-w-[320px]">
+                            {customer.name}
+                          </h4>
+                          {isTop1 && (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-amber-400 text-amber-950 rounded-full shadow-xs">
+                              👑 Royal VIP #1
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap mt-0.5">
+                          {customer.email && <span className="truncate max-w-[220px] sm:max-w-[320px]">{customer.email}</span>}
+                          {customer.username && <span className="truncate text-sky-600">@{customer.username}</span>}
+                          {customer.phone && <span className="truncate">{customer.phone}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="flex items-center gap-3 sm:gap-5 justify-between sm:justify-end border-t sm:border-t-0 pt-2.5 sm:pt-0 border-gray-100 flex-shrink-0">
+                      <div className="text-left sm:text-right">
+                        <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Total Spent</p>
+                        <p className="text-sm font-black text-indigo-600">
+                          {formatPrice(customer.totalSpent, selectedBot?.currency || 'MMK')}
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Orders</p>
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200/60">
+                          <ShoppingBag className="w-3 h-3 text-amber-500" />
+                          {customer.totalOrders} order{customer.totalOrders !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </PullToRefresh>
+      )}
+
       <ConfirmDialog
         open={!!confirmCustomer}
         onClose={() => setConfirmCustomer(null)}
@@ -461,8 +763,12 @@ export default function Customers() {
                   <DetailRow icon={MapPin} label="Address" value={
                     customerProfile?.address || detailCustomer.address || null
                   } />
-                  <DetailRow icon={Award} label="Points Balance" value={`${customerProfile?.points_balance ?? detailCustomer?.points_balance ?? 0} Points`} />
-                  <DetailRow icon={Star} label="Total Points Earned" value={`${customerProfile?.total_points_earned ?? detailCustomer?.total_points_earned ?? 0} Points`} />
+                  {section === 'website' && (
+                    <>
+                      <DetailRow icon={Award} label="Points Balance" value={`${customerProfile?.points_balance ?? detailCustomer?.points_balance ?? 0} Points`} />
+                      <DetailRow icon={Star} label="Total Points Earned" value={`${customerProfile?.total_points_earned ?? detailCustomer?.total_points_earned ?? 0} Points`} />
+                    </>
+                  )}
                   <DetailRow icon={FileText} label="Notes" value={
                     customerProfile?.notes || detailCustomer.notes || null
                   } />

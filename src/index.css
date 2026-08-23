@@ -691,13 +691,13 @@ body {
   user-select: none;
 }
 
-input, textarea, [contenteditable] {
-  -webkit-user-select: text;
-  user-select: text;
+input, textarea, [contenteditable], .selectable-text, .selectable-text *, .product-description, .product-description * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
-/* Custom selection color in form fields */
-input::selection, textarea::selection, select::selection, [contenteditable]::selection {
+/* Custom selection color in form fields and selectable text */
+input::selection, textarea::selection, select::selection, [contenteditable]::selection, .selectable-text::selection, .selectable-text *::selection, .product-description::selection, .product-description *::selection {
   background: #6366f1;
   color: white;
 }

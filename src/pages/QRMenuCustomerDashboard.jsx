@@ -8,6 +8,7 @@ import {
 import TelegramLoginModal from '../components/TelegramLoginModal';
 import { qrExchangeTelegramToken, storeQRLogin, clearQRLogin } from '../lib/qrAuth';
 import { API_BASE } from '../api/config';
+import ZoomableQrModal from '../components/ZoomableQrModal';
 import { formatPrice } from '../utils/formatPrice';
 import {
   getQRPointsHistory, getQRCustomerDashboard,
@@ -955,6 +956,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
   // Fallback to sessionStorage customer_id if prop is missing
   const customerId = propCustomerId || (typeof window !== 'undefined' ? sessionStorage.getItem('qr_customer_id') : null);
   const [step, setStep] = useState(1);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1235,9 +1237,34 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
                       : `${API_BASE}/telegram/file/${encodeURIComponent(selectedMethod.qr_code_url)}?bot_id=${shop.id}`;
                     const dlUrl = qrUrl + (qrUrl.includes('?') ? '&' : '?') + 'download=payment.jpg';
                     return (
-                      <div className="mt-2 flex flex-col items-center gap-1">
-                        <img src={qrUrl} alt="Payment QR" className="w-24 h-24 object-contain rounded-lg" />
-                        <a href={dlUrl} className="text-[11px] font-medium text-indigo-500 hover:underline">Download QR</a>
+                      <div className="mt-3 flex flex-col items-center gap-2">
+                        <div
+                          onClick={() => setQrModalOpen(true)}
+                          className="relative flex justify-center bg-white rounded-2xl p-3 shadow-sm border border-gray-200 cursor-zoom-in group transition-all duration-200 hover:scale-[1.02] hover:shadow-md"
+                        >
+                          <img src={qrUrl} alt="Payment QR" className="w-48 h-48 sm:w-56 sm:h-56 object-contain rounded-xl" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-1.5 text-white font-semibold text-xs backdrop-blur-[2px]">
+                            <span>Tap to Enlarge</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setQrModalOpen(true)}
+                            className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full hover:bg-indigo-100 transition-all active:scale-95"
+                          >
+                            Full Screen & Zoom
+                          </button>
+                          <a href={dlUrl} className="text-[11px] font-medium text-gray-500 hover:underline">Download QR</a>
+                        </div>
+                        <ZoomableQrModal
+                          isOpen={qrModalOpen}
+                          onClose={() => setQrModalOpen(false)}
+                          imgUrl={qrUrl}
+                          title={`Pay via ${selectedMethod.name}`}
+                          accountName={selectedMethod.account_name}
+                          accountNumber={selectedMethod.payment_number}
+                        />
                       </div>
                     );
                   })()}
