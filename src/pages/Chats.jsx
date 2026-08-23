@@ -847,10 +847,20 @@ export default function Chats() {
   const isGuestVisitor = (v) => {
     if (!v) return false;
     if (v.name === 'E-commerce Support') return false;
-    if (v.email && v.email.includes('@')) return false;
-    if (v.phone && v.phone !== 'N/A' && v.phone.trim() !== '') return false;
-    if (v.name && v.name !== 'Website Customer' && v.name !== 'Shop Visitor' && v.name !== 'User' && (v.email || v.phone)) return false;
-    return true;
+
+    const name = (v.name || '').trim();
+    if (!name || name === 'Website Customer' || name === 'Shop Visitor' || name === 'User') {
+      return true;
+    }
+
+    const hasEmail = v.email && v.email.includes('@');
+    const hasPhone = v.phone && v.phone !== 'N/A' && v.phone.trim() !== '';
+
+    if (!hasEmail && !hasPhone) {
+      return true;
+    }
+
+    return false;
   };
 
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
