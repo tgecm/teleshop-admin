@@ -15,7 +15,7 @@ import {
   Search, User, ShoppingBag, Ban, MessageSquare, Clock,
   ShieldAlert, ShieldCheck, Loader2, Phone, Mail, MapPin, X,
   Package, Hash, DollarSign, ChevronDown, Globe, Smartphone,
-  AtSign, MessageCircle, FileText, Copy
+  AtSign, MessageCircle, FileText, Copy, Award, Star
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -316,8 +316,12 @@ export default function Customers() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.display_name || 'Website User'}</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
                         {customer.email && <span className="truncate">{customer.email}</span>}
+                        <span className="text-gray-300">·</span>
+                        <span className="font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                          {customer.points_balance || 0} Points
+                        </span>
                         {customer.created_at && (
                           <>
                             <span className="text-gray-300">·</span>
@@ -457,6 +461,8 @@ export default function Customers() {
                   <DetailRow icon={MapPin} label="Address" value={
                     customerProfile?.address || detailCustomer.address || null
                   } />
+                  <DetailRow icon={Award} label="Points Balance" value={`${customerProfile?.points_balance ?? detailCustomer?.points_balance ?? 0} Points`} />
+                  <DetailRow icon={Star} label="Total Points Earned" value={`${customerProfile?.total_points_earned ?? detailCustomer?.total_points_earned ?? 0} Points`} />
                   <DetailRow icon={FileText} label="Notes" value={
                     customerProfile?.notes || detailCustomer.notes || null
                   } />
