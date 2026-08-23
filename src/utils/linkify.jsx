@@ -54,19 +54,44 @@ export const MarkdownRenderer = React.memo(function MarkdownRenderer({ children,
 
 export function linkifyText(text) {
   if (!text) return text;
-  const urlRegex = /(https?:\/\/[^\s<]+)|((?:www\.)[^\s<]+\.[^\s<]{2,})|([a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z]{2,})+(?:\/[^\s<]*)?)/gi;
-  const parts = text.split(urlRegex).filter(Boolean);
-  if (parts.length === 0) return text;
-  return parts.map((part, i) => {
-    if (part.match(/^https?:\/\//i)) {
-      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
+  const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+\.[^\s<]{2,}|t\.me\/[^\s<]+)/gi;
+
+  const elements = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = urlRegex.exec(text)) !== null) {
+    const matchText = match[0];
+    const matchIndex = match.index;
+
+    if (matchIndex > lastIndex) {
+      elements.push(text.slice(lastIndex, matchIndex));
     }
-    if (part.match(/^www\./i)) {
-      return <a key={i} href={'https://' + part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
+
+    let href = matchText;
+    if (!href.match(/^https?:\/\//i)) {
+      href = 'https://' + href;
     }
-    if (part.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/)) {
-      return <a key={i} href={'https://' + part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
-    }
-    return part;
-  });
+
+    elements.push(
+      <a
+        key={matchIndex}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="text-indigo-600 font-semibold hover:text-indigo-800 hover:underline break-all cursor-pointer underline decoration-indigo-400 decoration-1 underline-offset-2 select-text"
+      >
+        {matchText}
+      </a>
+    );
+
+    lastIndex = matchIndex + matchText.length;
+  }
+
+  if (lastIndex < text.length) {
+    elements.push(text.slice(lastIndex));
+  }
+
+  return elements.length > 0 ? elements : text;
 }

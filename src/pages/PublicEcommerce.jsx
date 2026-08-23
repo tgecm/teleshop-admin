@@ -29,6 +29,7 @@ import { filterAndSortProducts } from '../utils/search';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { RichMessage } from '../components/chat/RichMessage';
 import NewsfeedFeed from '../components/NewsfeedFeed';
+import ZoomableQrModal from '../components/ZoomableQrModal';
 
 import { formatPrice } from '../utils/formatPrice';
 import { API_BASE, fileUrl } from '../api/config';
@@ -65,20 +66,47 @@ function getCartKey(slug, viaDomain, viewMode) {
 }
 
 function linkifyText(text) {
-  const urlRegex = /(https?:\/\/[^\s<]+)|((?:www\.)[^\s<]+\.[^\s<]{2,})|([a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z]{2,})+(?:\/[^\s<]*)?)/gi;
-  const parts = text.split(urlRegex).filter(Boolean);
-  return parts.map((part, i) => {
-    if (part.match(/^https?:\/\//i)) {
-      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
+  if (!text) return text;
+  const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+\.[^\s<]{2,}|t\.me\/[^\s<]+)/gi;
+
+  const elements = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = urlRegex.exec(text)) !== null) {
+    const matchText = match[0];
+    const matchIndex = match.index;
+
+    if (matchIndex > lastIndex) {
+      elements.push(text.slice(lastIndex, matchIndex));
     }
-    if (part.match(/^www\./i)) {
-      return <a key={i} href={'https://' + part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
+
+    let href = matchText;
+    if (!href.match(/^https?:\/\//i)) {
+      href = 'https://' + href;
     }
-    if (part.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/)) {
-      return <a key={i} href={'https://' + part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
-    }
-    return part;
-  });
+
+    elements.push(
+      <a
+        key={matchIndex}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="text-indigo-600 font-semibold hover:text-indigo-800 hover:underline break-all cursor-pointer underline decoration-indigo-400 decoration-1 underline-offset-2 select-text"
+      >
+        {matchText}
+      </a>
+    );
+
+    lastIndex = matchIndex + matchText.length;
+  }
+
+  if (lastIndex < text.length) {
+    elements.push(text.slice(lastIndex));
+  }
+
+  return elements.length > 0 ? elements : text;
 }
 
 function getPublicImageUrls(image_url, bot_id) {
@@ -564,8 +592,8 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
           </div>
 
           {product.description && (
-            <div className="bg-gray-50 rounded-2xl p-4 mb-4 border border-gray-100">
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{product.description}</p>
+            <div className="bg-gray-50 rounded-2xl p-4 mb-4 border border-gray-100 select-text product-description cursor-text">
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap select-text product-description">{linkifyText(product.description)}</p>
             </div>
           )}
 
@@ -866,6 +894,7 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
 
 export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm, checkoutFields, pointsSettings, customerPoints, customerUid }) {
   const cFields = { ...(checkoutFields || {}), name: true };
+  const [qrModalOpen, setQrModalOpen] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -1383,15 +1412,47 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
                 <p className="font-bold text-sm text-gray-900">Pay via {pm.name}</p>
               </div>
               {pm.qr_code_url && (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="flex justify-center bg-white rounded-xl p-3">
-                    <img src={pm.qr_code_url} alt="QR Code" className="w-36 h-36 object-contain rounded-lg"
-                      onError={(e) => { e.target.style.display = 'none'; }} />
+                <div className="flex flex-col items-center gap-2.5 my-1">
+                  <div
+                    onClick={() => setQrModalOpen(true)}
+                    className="relative flex justify-center bg-white rounded-2xl p-3 shadow-sm border border-indigo-100/80 cursor-zoom-in group transition-all duration-200 hover:scale-[1.02] hover:shadow-md"
+                  >
+                    <img
+                      src={pm.qr_code_url}
+                      alt="QR Code"
+                      className="w-48 h-48 sm:w-56 sm:h-56 object-contain rounded-xl"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-1.5 text-white font-semibold text-xs backdrop-blur-[2px]">
+                      <ZoomIn className="w-4 h-4" />
+                      <span>Tap to Enlarge</span>
+                    </div>
                   </div>
-                  <a href={pm.qr_code_url + (pm.qr_code_url.includes('?') ? '&' : '?') + 'download=payment.jpg'}
-                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:underline transition-colors">
-                    Download QR
-                  </a>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setQrModalOpen(true)}
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-100/70 hover:bg-indigo-100 px-3 py-1 rounded-full transition-all active:scale-95"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5" />
+                      Full Screen & Zoom
+                    </button>
+                    <a
+                      href={pm.qr_code_url + (pm.qr_code_url.includes('?') ? '&' : '?') + 'download=payment.jpg'}
+                      className="text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline transition-colors"
+                    >
+                      Download QR
+                    </a>
+                  </div>
+
+                  <ZoomableQrModal
+                    isOpen={qrModalOpen}
+                    onClose={() => setQrModalOpen(false)}
+                    imgUrl={pm.qr_code_url}
+                    title={`Pay via ${pm.name}`}
+                    accountName={pm.account_name}
+                    accountNumber={pm.payment_number}
+                  />
                 </div>
               )}
               {pm.account_name && (
