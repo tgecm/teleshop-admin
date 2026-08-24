@@ -2110,17 +2110,17 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     const imageUrl = images.length > 0
       ? JSON.stringify(images.map(img => ({ file_id: img.file_id, type: 'photo' })))
       : null;
-    const specs = {
-      ...(product?.specifications || {}),
-      stock_status: stockOption,
-    };
-    if (colors.length > 0) specs.colors = colors;
     const validOptions = options.filter(opt => {
       const hasName = opt.name && opt.name.trim() !== '';
       const hasValues = opt.values && opt.values.some(v => v.label && v.label.trim() !== '');
       return hasName || hasValues;
     });
-    if (validOptions.length > 0) specs.options = validOptions;
+    const specs = {
+      ...(product?.specifications || {}),
+      stock_status: stockOption,
+      colors: colors,
+      options: validOptions,
+    };
 
     const { cost_price, ...rest } = formData;
     onSubmit({
