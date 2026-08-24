@@ -227,7 +227,7 @@ export default function Settings() {
   });
 
   const addAdminMutation = useMutation({
-    mutationFn: (id) => updateUser(id, { is_admin: true }),
+    mutationFn: (id) => updateUser(id, { is_admin: true, bot_id: selectedBotId, web_panel_bot_id: selectedBotId }),
     onSuccess: () => {
       queryClient.invalidateQueries(['users', 'admins', selectedBotId]);
       queryClient.invalidateQueries(['users', 'all', selectedBotId]);
