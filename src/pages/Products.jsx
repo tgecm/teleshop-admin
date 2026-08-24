@@ -1790,6 +1790,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
     }
     return [];
   });
+  const [optionErrors, setOptionErrors] = useState({});
 
   const [showUnsavedConfirmModal, setShowUnsavedConfirmModal] = useState(false);
   const initialSnapshotRef = useRef(null);
@@ -1860,24 +1861,37 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
   }, [checkIsDirty, onClose]);
   const uid = () => Math.random().toString(36).substring(2, 9);
 
+  const clearOptionError = (id) => {
+    setOptionErrors(prev => {
+      if (!prev[id]) return prev;
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+  };
+
   const addOption = () => {
     setOptions(prev => [...prev, { id: uid(), name: '', values: [] }]);
   };
 
   const removeOption = (id) => {
     setOptions(prev => prev.filter(o => o.id !== id));
+    clearOptionError(id);
   };
 
   const updateOptionName = (id, name) => {
     setOptions(prev => prev.map(o => o.id === id ? { ...o, name } : o));
+    clearOptionError(id);
   };
 
   const addOptionValue = (optionId) => {
     setOptions(prev => prev.map(o => o.id === optionId ? { ...o, values: [...o.values, { id: uid(), label: '' }] } : o));
+    clearOptionError(optionId);
   };
 
   const updateOptionValue = (optionId, valueId, label) => {
     setOptions(prev => prev.map(o => o.id === optionId ? { ...o, values: o.values.map(v => v.id === valueId ? { ...v, label } : v) } : o));
+    if (label && label.trim() !== '') clearOptionError(optionId);
   };
 
   const removeOptionValue = (optionId, valueId) => {
@@ -2050,6 +2064,31 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
       return;
     }
 
+    // Check if admin filled Title, but didn't add option values
+    const invalidOptions = options.filter(opt => {
+      const hasName = opt.name && opt.name.trim() !== '';
+      const hasValues = opt.values && opt.values.some(v => v.label && v.label.trim() !== '');
+      return hasName && !hasValues;
+    });
+
+    if (invalidOptions.length > 0) {
+      const errMap = {};
+      invalidOptions.forEach(opt => {
+        errMap[opt.id] = 'Add at least one option. Title only not allowed';
+      });
+      setOptionErrors(errMap);
+      addToast('Add at least one option. Title only not allowed', 'error');
+
+      const firstId = invalidOptions[0].id;
+      setTimeout(() => {
+        const el = document.getElementById(`option-box-${firstId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+      return;
+    }
+
     if (promotion && Number(formData.price) > Number(formData.original_price)) {
       addToast('Promotion price cannot exceed original price', 'error');
       return;
@@ -2076,7 +2115,12 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
       stock_status: stockOption,
     };
     if (colors.length > 0) specs.colors = colors;
-    if (options.length > 0) specs.options = options;
+    const validOptions = options.filter(opt => {
+      const hasName = opt.name && opt.name.trim() !== '';
+      const hasValues = opt.values && opt.values.some(v => v.label && v.label.trim() !== '');
+      return hasName || hasValues;
+    });
+    if (validOptions.length > 0) specs.options = validOptions;
 
     const { cost_price, ...rest } = formData;
     onSubmit({
@@ -3042,56 +3086,78 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
           </label>
 
           <div className="space-y-3">
-            {options.map(opt => (
-              <div key={opt.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-200 relative">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <input
-                      type="text"
-                      value={opt.name}
-                      onChange={(e) => updateOptionName(opt.id, e.target.value)}
-                      placeholder="e.g. Size"
-                      className="flex-1 min-w-0 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-800 outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeOption(opt.id)}
-                    className="p-1.5 bg-white rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all active:scale-90 flex-shrink-0 ml-2"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {opt.values.map(v => (
-                    <div key={v.id} className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-1">
+            {options.map(opt => {
+              const hasErr = !!optionErrors[opt.id];
+              return (
+                <div
+                  key={opt.id}
+                  id={`option-box-${opt.id}`}
+                  className={`rounded-2xl p-4 transition-all relative ${
+                    hasErr
+                      ? 'bg-red-50/50 border-2 border-red-500 shadow-sm'
+                      : 'bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <input
                         type="text"
-                        value={v.label}
-                        onChange={(e) => updateOptionValue(opt.id, v.id, e.target.value)}
-                        className="w-20 sm:w-28 text-xs font-bold text-gray-700 bg-transparent outline-none"
-                        placeholder="Option"
+                        value={opt.name}
+                        onChange={(e) => updateOptionName(opt.id, e.target.value)}
+                        placeholder="e.g. Size"
+                        className={`flex-1 min-w-0 px-3 py-1.5 bg-white border rounded-lg text-sm font-bold outline-none ${
+                          hasErr
+                            ? 'border-red-300 text-red-900 focus:border-red-500 focus:ring-1 focus:ring-red-200'
+                            : 'border-gray-200 text-gray-800 focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200'
+                        }`}
                       />
-                      <button
-                        type="button"
-                        onClick={() => removeOptionValue(opt.id, v.id)}
-                        className="p-0.5 rounded text-gray-300 hover:text-rose-500 transition-all"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
                     </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => addOptionValue(opt.id)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-white border-2 border-dashed border-gray-200 rounded-lg text-xs font-bold text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-all active:scale-95"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => removeOption(opt.id)}
+                      className="p-1.5 bg-white rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all active:scale-90 flex-shrink-0 ml-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {opt.values.map(v => (
+                      <div key={v.id} className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-1">
+                        <input
+                          type="text"
+                          value={v.label}
+                          onChange={(e) => updateOptionValue(opt.id, v.id, e.target.value)}
+                          className="w-20 sm:w-28 text-xs font-bold text-gray-700 bg-transparent outline-none"
+                          placeholder="Option"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeOptionValue(opt.id, v.id)}
+                          className="p-0.5 rounded text-gray-300 hover:text-rose-500 transition-all"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => addOptionValue(opt.id)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-white border-2 border-dashed border-gray-200 rounded-lg text-xs font-bold text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-all active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {hasErr && (
+                    <p className="text-xs font-bold text-red-500 mt-2.5 flex items-center gap-1 animate-pulse">
+                      <span>⚠️</span>
+                      <span>Add at least one option. Title only not allowed</span>
+                    </p>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <button
