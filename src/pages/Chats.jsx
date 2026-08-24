@@ -779,6 +779,15 @@ export default function Chats() {
     },
   });
 
+  useEffect(() => {
+    if (!selectedBotId) return;
+    if (selectedVisitor) {
+      readMutation.mutate({ visitorId: selectedVisitor, markAsRead: true });
+    } else if (selectedUser) {
+      readMutation.mutate({ userId: selectedUser, markAsRead: true });
+    }
+  }, [selectedVisitor, selectedUser, selectedBotId]);
+
   const toggleAiMutation = useMutation({
     mutationFn: ({ visitorId, disabled }) =>
       toggleWebVisitorAI(visitorId, Number(selectedBotId), disabled),
