@@ -275,7 +275,7 @@ export default function CustomerDashboard({ shopSlug }) {
     fetch(`${API_BASE}/customer/claim-welcome-bonus`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firebase_uid: uid, bot_id: shopData.shop.id }),
+      body: JSON.stringify({ uid: uid, firebase_uid: uid, bot_id: shopData.shop.id }),
     }).then(r => r.json()).then(result => {
       if (result.success && !result.claimed && result.points > 0) {
         setCustomerPoints(prev => prev ? { ...prev, points_balance: (prev.points_balance || 0) + result.points, welcome_bonus_claimed: true } : prev);
