@@ -52,7 +52,7 @@ function CustomerAvatar({ photoUrl, name, size = "w-12 h-12 lg:w-14 lg:h-14", fo
 
   const getFullPhotoUrl = (url) => {
     if (!url) return null;
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
     const base = (client.defaults.baseURL || 'https://api.telegramecommerce.shop').replace(/\/+$/, '');
     const path = url.replace(/^\/+/, '');
     return `${base}/${path}`;

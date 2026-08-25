@@ -1655,7 +1655,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
   const fallbackName = (defaultName && defaultName !== 'Customer') ? defaultName : (fallbackEmail.includes('@') ? fallbackEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '');
 
   const [displayName, setDisplayName] = useState(fallbackName);
-  const [phones, setPhones] = useState(['']);
+  const [phones, setPhones] = useState(() => googleUser?.phone ? [googleUser.phone] : ['']);
   const [emails, setEmails] = useState(fallbackEmail ? [fallbackEmail] : ['']);
   const [telegram, setTelegram] = useState('');
   const [viber, setViber] = useState('');
@@ -1671,8 +1671,22 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
 
   const handlePhotoUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !botIdRef.current || !uid) return;
+    if (!file) return;
+    let botId = botIdRef.current || profileShopProp?.id;
+    if (!botId && shopSlug) {
+      try {
+        const shopRes = await fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`);
+        const shopData = await shopRes.json();
+        botId = shopData?.shop?.id;
+        if (botId) botIdRef.current = botId;
+      } catch {}
+    }
+    if (!botId) {
+      setSaveError('Unable to identify shop. Please refresh.');
+      return;
+    }
     setUploadingPhoto(true);
+    setSaveError('');
     try {
       // Compress to 512x512 on canvas
       const img = await new Promise((resolve, reject) => {
@@ -1693,8 +1707,9 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bot_id: botIdRef.current,
-          uid,
+          bot_id: botId,
+          uid: uid || '',
+          email: fallbackEmail || '',
           photo_url: dataUrl,
         }),
       });
@@ -1710,7 +1725,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
       setUploadingPhoto(false);
       if (photoInputRef.current) photoInputRef.current.value = '';
     }
-  }, [uid]);
+  }, [uid, shopSlug, fallbackEmail, profileShopProp?.id, onPhotoSaved]);
 
   useEffect(() => {
     if (!uid || !shopSlug) {
@@ -1721,26 +1736,35 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
     // Use parent-cached shop data if available to avoid API call
     const existingBotId = profileShopProp?.id;
     const fetchEmail = fallbackEmail;
+
+    const populateForm = (data) => {
+      if (data && (data.id !== undefined || data.display_name || data.email || data.phone)) {
+        setDisplayName(data.display_name && data.display_name.trim() && data.display_name.trim() !== 'User' && data.display_name.trim() !== 'Customer' ? data.display_name.trim() : (fallbackName || ''));
+        const parsedPhones = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [];
+        setPhones(parsedPhones.length > 0 ? parsedPhones : (googleUser?.phone ? [googleUser.phone] : ['']));
+        const parsedEmails = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [];
+        setEmails(parsedEmails.length > 0 ? parsedEmails : (fetchEmail ? [fetchEmail] : ['']));
+        setTelegram(data.telegram_username || '');
+        setViber(data.viber_number || '');
+        setProfileRegion(data.region || '');
+        setProfileDistrict(data.district || '');
+        setProfileTownship(data.township || '');
+        setAddress(data.address || '');
+        setNotes(data.notes || '');
+        if (data.photo_url) setProfilePhotoUrl(data.photo_url);
+      } else {
+        setDisplayName(fallbackName || '');
+        setEmails(fetchEmail ? [fetchEmail] : ['']);
+        if (googleUser?.phone) setPhones([googleUser.phone]);
+      }
+    };
+
     if (existingBotId) {
       botIdRef.current = existingBotId;
       fetch(`${API_BASE}/api/customer-profile?bot_id=${existingBotId}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(fetchEmail)}`)
         .then(r => r.ok ? r.json() : {})
         .then(data => {
-          if (data && (data.id || data.display_name || data.email)) {
-            setDisplayName(data.display_name && data.display_name.trim() && data.display_name.trim() !== 'User' && data.display_name.trim() !== 'Customer' ? data.display_name.trim() : (fallbackName || ''));
-            setPhones(data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : ['']);
-            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : (fetchEmail ? [fetchEmail] : ['']));
-            setTelegram(data.telegram_username || '');
-            setViber(data.viber_number || '');
-            setProfileRegion(data.region || '');
-            setProfileDistrict(data.district || '');
-            setProfileTownship(data.township || '');
-            setAddress(data.address || '');
-            setNotes(data.notes || '');
-          } else {
-            setDisplayName(fallbackName || '');
-            setEmails(fetchEmail ? [fetchEmail] : ['']);
-          }
+          populateForm(data);
           setLoading(false);
           setResolving(false);
         })
@@ -1757,27 +1781,13 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         })
         .then(r => r && r.ok ? r.json() : {})
         .then(data => {
-          if (data && (data.id || data.display_name || data.email)) {
-            setDisplayName(data.display_name && data.display_name.trim() && data.display_name.trim() !== 'User' && data.display_name.trim() !== 'Customer' ? data.display_name.trim() : (fallbackName || ''));
-            setPhones(data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : ['']);
-            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : (fetchEmail ? [fetchEmail] : ['']));
-            setTelegram(data.telegram_username || '');
-            setViber(data.viber_number || '');
-            setProfileRegion(data.region || '');
-            setProfileDistrict(data.district || '');
-            setProfileTownship(data.township || '');
-            setAddress(data.address || '');
-            setNotes(data.notes || '');
-          } else {
-            setDisplayName(fallbackName || '');
-            setEmails(fetchEmail ? [fetchEmail] : ['']);
-          }
+          populateForm(data);
           setLoading(false);
           setResolving(false);
         })
         .catch(() => { setLoading(false); setResolving(false); });
     }
-  }, [uid, shopSlug, fallbackName, fallbackEmail, profileShopProp?.id]);
+  }, [uid, shopSlug, fallbackName, fallbackEmail, profileShopProp?.id, googleUser?.phone]);
 
   const addPhone = () => setPhones(prev => [...prev, '']);
   const removePhone = (idx) => { if (phones.length > 1) setPhones(prev => prev.filter((_, i) => i !== idx)); };
@@ -1786,7 +1796,23 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
   const removeEmail = (idx) => { if (emails.length > 1) setEmails(prev => prev.filter((_, i) => i !== idx)); };
 
   const handleSave = async () => {
-    if (!displayName.trim() || !phones[0]?.trim() || !emails[0]?.trim()) return;
+    const primaryName = displayName.trim();
+    const primaryPhone = phones.filter(Boolean).map(p => p.trim()).join(', ');
+    const primaryEmail = emails.filter(Boolean).map(e => e.trim()).join(', ');
+
+    if (!primaryName) {
+      setSaveError('Full Name is required.');
+      return;
+    }
+    if (!primaryPhone) {
+      setSaveError('Phone Number is required.');
+      return;
+    }
+    if (!primaryEmail) {
+      setSaveError('Email Address is required.');
+      return;
+    }
+
     setSaving(true);
     setSaved(false);
     setSaveError('');
@@ -1805,9 +1831,9 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         body: JSON.stringify({
           bot_id: botId,
           uid: uid,
-          display_name: displayName.trim(),
-          email: emails.filter(Boolean).map(e => e.trim()).join(', '),
-          phone: phones.filter(Boolean).map(p => p.trim()).join(', '),
+          display_name: primaryName,
+          email: primaryEmail,
+          phone: primaryPhone,
           telegram_username: telegram.trim(),
           viber_number: viber.trim(),
           address: address.trim(),
@@ -1815,11 +1841,35 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
           region: profileRegion,
           district: profileDistrict,
           township: profileTownship,
+          photo_url: profilePhotoUrl || '',
         }),
       });
       if (res.ok) {
         setSaved(true);
-        onProfileSaved?.(displayName.trim());
+        onProfileSaved?.(primaryName);
+        if (profilePhotoUrl && onPhotoSaved) {
+          onPhotoSaved(profilePhotoUrl);
+        }
+
+        // Persist saved details to localStorage for instant reload restoration
+        try {
+          const gu = JSON.parse(localStorage.getItem('google_user') || '{}');
+          if (gu && typeof gu === 'object') {
+            gu.name = primaryName;
+            gu.email = primaryEmail;
+            if (primaryPhone) gu.phone = primaryPhone;
+            if (profilePhotoUrl) gu.photo_url = profilePhotoUrl;
+            localStorage.setItem('google_user', JSON.stringify(gu));
+          }
+          const fu = JSON.parse(localStorage.getItem('firebase_user') || '{}');
+          if (fu && typeof fu === 'object') {
+            fu.displayName = primaryName;
+            fu.email = primaryEmail;
+            if (profilePhotoUrl) fu.photoURL = profilePhotoUrl;
+            localStorage.setItem('firebase_user', JSON.stringify(fu));
+          }
+        } catch {}
+
         setTimeout(() => setSaved(false), 3000);
       } else {
         const errText = await res.text().catch(() => '');
