@@ -62,8 +62,8 @@ export default function Customers() {
   }, [section, refetchCustomers, refetchWeb, queryClient, selectedBotId]);
 
   const { data: orders } = useQuery({
-    queryKey: ['orders', selectedBotId],
-    queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
+    queryKey: ['orders', selectedBotId, 'all_loyal'],
+    queryFn: () => getOrders({ bot_id: Number(selectedBotId), limit: 1000 }),
     enabled: !!selectedBotId,
     placeholderData: (prev) => prev,
   });
@@ -142,6 +142,8 @@ export default function Customers() {
         photo_url: c.photo_url,
         channel: 'telegram',
         raw: c,
+        totalSpent: Number(c.total_spent || 0),
+        totalOrders: Number(c.total_orders || 0),
       });
     });
 
@@ -156,6 +158,8 @@ export default function Customers() {
         }
         if (!existing.email && c.email) existing.email = c.email;
         if (!existing.firebase_uid && c.firebase_uid) existing.firebase_uid = c.firebase_uid;
+        if (Number(c.total_spent || 0) > existing.totalSpent) existing.totalSpent = Number(c.total_spent || 0);
+        if (Number(c.total_orders || 0) > existing.totalOrders) existing.totalOrders = Number(c.total_orders || 0);
       } else {
         getEntry(key, {
           id: c.id,
@@ -168,13 +172,15 @@ export default function Customers() {
           photo_url: c.photo_url,
           channel: c.telegram_id ? 'telegram' : 'website',
           raw: c,
+          totalSpent: Number(c.total_spent || 0),
+          totalOrders: Number(c.total_orders || 0),
         });
       }
     });
 
     // Sum totals from non-cancelled orders
     orders.forEach(o => {
-      if (o.status === 'cancelled' || o.status === 'rejected') return;
+      if (o.status === 'cancelled' || o.status === 'rejected' || o.status === 'payment_failed') return;
       const bs = o.buyer_snapshot || {};
       const email = (bs.email || o.email || '').trim().toLowerCase();
       const tgId = bs.telegram_id || o.user_id;
@@ -193,9 +199,21 @@ export default function Customers() {
       if (matchedKey) {
         const entry = map.get(matchedKey);
         const amount = Number(o.final_amount || o.total_amount || 0);
-        entry.totalSpent += amount;
-        entry.totalOrders += 1;
         entry.ordersList.push(o);
+        // Recalculate from orders if orders list exists
+        if (entry.ordersList.length === 1 && (entry.totalSpent === 0 || entry.totalOrders === 0)) {
+          entry.totalSpent = amount;
+          entry.totalOrders = 1;
+        } else {
+          // Check if dynamically summing orders gives larger total than static field
+          const orderSum = entry.ordersList.reduce((s, ord) => s + Number(ord.final_amount || ord.total_amount || 0), 0);
+          if (orderSum > entry.totalSpent) {
+            entry.totalSpent = orderSum;
+          }
+          if (entry.ordersList.length > entry.totalOrders) {
+            entry.totalOrders = entry.ordersList.length;
+          }
+        }
       } else if (bs.name || bs.full_name || email || tgId) {
         const anonKey = email ? `email_${email}` : tgId ? `tg_${tgId}` : fbUid ? `fb_${fbUid}` : `anon_${o.id}`;
         const entry = getEntry(anonKey, {

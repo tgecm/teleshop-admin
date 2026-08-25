@@ -860,13 +860,13 @@ export default function Chats() {
     if (v.name === 'E-commerce Support') return false;
 
     const fuid = (v.firebase_uid || '').trim();
-    // If visitor has a valid Firebase UID (registered account), it belongs under Website tab
-    if (fuid && !fuid.startsWith('vmt') && !fuid.startsWith('wv_') && fuid !== 'N/A') {
-      return false;
+    // Guest session visitor IDs start with 'vm', 'vmt', 'wv_', 'v_' or are empty/N/A
+    if (!fuid || fuid === 'N/A' || fuid.startsWith('vm') || fuid.startsWith('wv_') || fuid.startsWith('v_')) {
+      return true;
     }
 
-    // Chats without a Firebase UID (non-logged-in guest sessions) belong under Guest tab
-    return true;
+    // Signed-in users with a real Firebase UID belong under Website tab
+    return false;
   };
 
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);

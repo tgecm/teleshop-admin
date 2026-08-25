@@ -184,7 +184,10 @@ export default function CustomerDashboard({ shopSlug }) {
     || telegramUser?.first_name
     || (telegramUser?.username ? `@${telegramUser.username}` : '')
     || 'Customer';
-  const photoUrl = user?.photoURL || googleUser?.photo_url || telegramUser?.photo_url || null;
+  const [customPhotoUrl, setCustomPhotoUrl] = useState(() => {
+    return googleUser?.photo_url || user?.photoURL || telegramUser?.photo_url || null;
+  });
+  const photoUrl = customPhotoUrl || user?.photoURL || googleUser?.photo_url || telegramUser?.photo_url || null;
 
   useAuthTokenFromUrl();
 
@@ -197,8 +200,18 @@ export default function CustomerDashboard({ shopSlug }) {
         if (s?.bot_full_name) {
           setPageMeta(s.bot_full_name, s.profile_picture);
         }
-        // Sync website customer to backend (Google & Telegram logins)
         if (s?.id && uid) {
+          // Fetch custom saved profile photo if available
+          fetch(`${API_BASE}/api/customer-profile?bot_id=${s.id}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(userEmail || '')}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(prof => {
+              if (prof?.photo_url) {
+                setCustomPhotoUrl(prof.photo_url);
+              }
+            })
+            .catch(() => {});
+
+          // Sync website customer to backend
           fetch(`${API_BASE}/website-customers/sync`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -695,7 +708,7 @@ export default function CustomerDashboard({ shopSlug }) {
             {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
             {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
             {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} shop={shopData?.shop} />}
-            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} googleUser={googleUser} uid={uid} displayName={displayName} photoUrl={photoUrl} email={userEmail} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
+            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} googleUser={googleUser} uid={uid} displayName={displayName} photoUrl={photoUrl} email={userEmail} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} onPhotoSaved={(newPhoto) => setCustomPhotoUrl(newPhoto)} shop={shopData?.shop} />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -1629,7 +1642,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
 }
 
 /* ─── PROFILE TAB ─── */
-function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser, onProfileSaved, shop: profileShopProp }) {
+function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser, onProfileSaved, onPhotoSaved, shop: profileShopProp }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1687,7 +1700,10 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
       });
       if (!res.ok) throw new Error('Upload failed');
       const result = await res.json();
-      setProfilePhotoUrl(result.photo_url);
+      if (result.photo_url) {
+        setProfilePhotoUrl(result.photo_url);
+        if (onPhotoSaved) onPhotoSaved(result.photo_url);
+      }
     } catch {
       setSaveError('Failed to upload photo');
     } finally {
