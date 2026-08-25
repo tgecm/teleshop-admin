@@ -857,19 +857,14 @@ export default function Chats() {
     if (!v) return false;
     if (v.name === 'E-commerce Support') return false;
 
-    const name = (v.name || '').trim();
-    if (!name || name === 'Website Customer' || name === 'Shop Visitor' || name === 'User') {
-      return true;
+    const fuid = (v.firebase_uid || '').trim();
+    // If visitor has a valid Firebase UID (registered account), it belongs under Website tab
+    if (fuid && !fuid.startsWith('vmt') && !fuid.startsWith('wv_') && fuid !== 'N/A') {
+      return false;
     }
 
-    const hasEmail = v.email && v.email.includes('@');
-    const hasPhone = v.phone && v.phone !== 'N/A' && v.phone.trim() !== '';
-
-    if (!hasEmail && !hasPhone) {
-      return true;
-    }
-
-    return false;
+    // Chats without a Firebase UID (non-logged-in guest sessions) belong under Guest tab
+    return true;
   };
 
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
