@@ -33,6 +33,7 @@ import {
   PinOff,
   CheckCircle2,
   Clock,
+  HelpCircle,
   CreditCard,
   Ban,
   VolumeX,
@@ -543,6 +544,7 @@ export default function Chats() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [chatToDelete, setChatToDelete] = useState(null);
   const [chatTab, setChatTab] = useState('all');
+  const [showGuestInfoModal, setShowGuestInfoModal] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async ({ userId, visitorId }) => {
@@ -1210,6 +1212,16 @@ export default function Chats() {
         >
           <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
           Guest
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowGuestInfoModal(true);
+            }}
+            title="Guest Messages Information"
+            className="ml-1.5 w-5 h-5 rounded-full bg-amber-100 hover:bg-amber-500 text-amber-800 hover:text-white border border-amber-300 text-[11px] font-black leading-none transition-all inline-flex items-center justify-center cursor-pointer shadow-xs hover:scale-115 active:scale-95 flex-shrink-0"
+          >
+            ?
+          </span>
           {guestUnread > 0 && (
             <span className="bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-1 rounded-full min-w-[18px] text-center">
               {guestUnread > 99 ? '99+' : guestUnread}
@@ -1217,6 +1229,57 @@ export default function Chats() {
           )}
         </button>
       </div>
+
+      {showGuestInfoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 transform transition-all">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shadow-sm">
+                  <HelpCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base sm:text-lg leading-snug">Guest Message သတိပြုရန်</h3>
+                  <p className="text-xs text-gray-500 font-medium">Guest Visitors Chat Information</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowGuestInfoModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="py-5 space-y-4 text-sm text-gray-700 leading-relaxed font-normal">
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/60 text-amber-900 text-xs sm:text-sm font-medium">
+                Guest Message များသည် ယာယီ Message များ ဖြစ်သောကြောင့် Customer မှ Browser Cache ကို ဖျက်လိုက်ပါက Chat History များ ပျောက်ဆုံးသွားနိုင်ပါသည်။
+              </div>
+
+              <p>
+                ထို့ကြောင့် အရေးကြီးသော Message များ မပျောက်ပျက်စေရန်အတွက် Telegram Chat သို့မဟုတ် Customer Dashboard Chat မှတစ်ဆင့် ပေးပို့ရန် အကြံပြုအပ်ပါသည်။
+              </p>
+
+              <p>
+                ထို့အပြင် Customer ထံသို့ တိုက်ရိုက်ဆက်သွယ်၍ Message ပေးပို့ခြင်းကိုလည်း ပြုလုပ်နိုင်ပါသည်။
+              </p>
+
+              <div className="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-100 text-indigo-900 text-xs sm:text-sm font-medium">
+                သာမန်မေးမြန်းမှုများနှင့် အရေးမကြီးသော ဆက်သွယ်မှုများအတွက်မူ Guest Message မှတစ်ဆင့် အဆင်ပြေစွာ ဆက်သွယ်နိုင်ပါသည်။
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setShowGuestInfoModal(false)}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold text-sm shadow-md shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95"
+              >
+                နားလည်ပါပြီ (OK)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {chatTab === 'web' || chatTab === 'guest' ? (
         <>

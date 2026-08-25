@@ -5,12 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev:staging": "VITE_API_BASE=https://api.telegramecommerce.shop/dev-api vite --port=3000 --host=0.0.0.0",
+    "dev:live": "vite --port=3000 --host=0.0.0.0",
     "build": "NODE_OPTIONS=\"--require ./crypto-polyfill.cjs\" vite build && node -e \"require('fs').writeFileSync('dist/build-version.json',JSON.stringify({version:require('crypto').randomBytes(8).toString('hex'),timestamp:new Date().toISOString()}))\"",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "dist": "npm run build && rsync -avz --delete dist/ root@139.180.156.116:/var/www/teleshop-admin/",
-    "deploy": "npm run build && rsync -avz --delete dist/ root@139.180.156.116:/var/www/teleshop-admin/"
+    "deploy": "npm run build && rsync -avz --delete dist/ root@139.180.156.116:/var/www/teleshop-admin/",
+    "sync-frontend": "npm run deploy",
+    "sync-backend": "ssh root@139.180.156.116 'sync-backend'",
+    "sync-all": "npm run deploy && ssh root@139.180.156.116 'sync-backend'"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
