@@ -425,7 +425,7 @@ function CustomerAvatar({ photoUrl, name, size = "w-9 h-9", fontSize = "text-sm"
 
   const getFullPhotoUrl = (url) => {
     if (!url) return null;
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
     const base = (client.defaults.baseURL || 'https://api.telegramecommerce.shop').replace(/\/+$/, '');
     const path = url.replace(/^\/+/, '');
     return `${base}/${path}`;
@@ -860,12 +860,29 @@ export default function Chats() {
     if (v.name === 'E-commerce Support') return false;
 
     const fuid = (v.firebase_uid || '').trim();
-    // Guest session visitor IDs start with 'vm', 'vmt', 'wv_', 'v_' or are empty/N/A
-    if (!fuid || fuid === 'N/A' || fuid.startsWith('vm') || fuid.startsWith('wv_') || fuid.startsWith('v_')) {
+    const vid = (v.visitor_id || '').trim();
+
+    // 1. Without UID or N/A or null/None
+    if (!fuid || fuid === 'N/A' || fuid === 'None' || fuid === 'null') {
       return true;
     }
 
-    // Signed-in users with a real Firebase UID belong under Website tab
+    // 2. Temporary localcache / session IDs
+    const tempPrefixes = ['v_', 'vm', 'wv_', 'guest_', 'temp_', 'test', 'verify'];
+    const isVidTemp = tempPrefixes.some(p => vid.startsWith(p));
+    const isFuidTemp = tempPrefixes.some(p => fuid.startsWith(p));
+
+    if (isVidTemp) {
+      if (fuid === vid || isFuidTemp) {
+        return true;
+      }
+    }
+
+    if (isFuidTemp) {
+      return true;
+    }
+
+    // Signed-in users with a real Unique UID belong under Website tab
     return false;
   };
 
