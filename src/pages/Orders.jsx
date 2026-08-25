@@ -42,6 +42,7 @@ import {
   Store,
   Download,
   Printer,
+  ChevronDown,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -139,7 +140,7 @@ export default function Orders() {
       bot_id: Number(selectedBotId),
       source: orderTab === 'ecommerce' ? 'website' : orderTab,
       status: statusFilter,
-      limit: 50,
+      limit: 100,
       offset: offset,
     }),
     enabled: !!selectedBotId,
@@ -147,33 +148,32 @@ export default function Orders() {
   });
 
   useEffect(() => {
-    if (!rawOrders || offset === 0) return;
-    const key = `${offset}-${rawOrders.length}-${rawOrders[0]?.id || ''}`;
-    if (lastOffsetRef.current === key) return;
-    lastOffsetRef.current = key;
-
+    if (!rawOrders || rawOrders.length === 0) return;
     setExtraOrders(prev => {
       const existingIds = new Set(prev.map(o => o.id));
       const newItems = rawOrders.filter(o => !existingIds.has(o.id));
       return [...prev, ...newItems];
     });
     setLoadingMore(false);
-  }, [rawOrders, offset]);
+  }, [rawOrders]);
 
   const allOrders = useMemo(() => {
-    if (offset === 0) return rawOrders;
-    const existingIds = new Set(rawOrders.map(o => o.id));
-    const newExtras = extraOrders.filter(o => !existingIds.has(o.id));
-    return [...rawOrders, ...newExtras];
-  }, [rawOrders, extraOrders, offset]);
+    const combined = [...extraOrders];
+    rawOrders.forEach(o => {
+      if (!combined.some(e => e.id === o.id)) {
+        combined.push(o);
+      }
+    });
+    return combined;
+  }, [rawOrders, extraOrders]);
 
-  const hasMore = rawOrders.length >= 50;
+  const hasMore = rawOrders.length >= 100;
   const isTabLoading = (isLoading || isFetching) && offset === 0 && allOrders.length === 0;
 
   const handleLoadMore = () => {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
-    setOffset(prev => prev + 50);
+    setOffset(prev => prev + 100);
   };
 
   const { data: contentBlocks } = useQuery({
@@ -438,6 +438,28 @@ export default function Orders() {
               </motion.div>
             </div>
           ))}
+        </div>
+      )}
+
+      {hasMore && (
+        <div className="flex justify-center pt-4 pb-8">
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore || isFetching}
+            className="px-6 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl text-xs font-bold transition-all active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
+          >
+            {loadingMore || isFetching ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Loading more orders...</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-4 h-4" />
+                <span>Load More Orders ({allOrders.length} loaded)</span>
+              </>
+            )}
+          </button>
         </div>
       )}
 
