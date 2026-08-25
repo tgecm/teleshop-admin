@@ -88,7 +88,7 @@ import {
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
   ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
   CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw,
-  TrendingUp, Star, Award, AlertTriangle, ChevronUp, Store, ArrowLeft
+  TrendingUp, Star, Award, AlertTriangle, ChevronUp, Store, ArrowLeft, Lock
 } from 'lucide-react';
 import Receipt from '../components/orders/Receipt';
 import CustomerShopTab from '../components/CustomerShopTab';
@@ -1650,13 +1650,27 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(photoUrl);
   const photoInputRef = useRef(null);
+  const storedGoogleUser = (() => {
+    try {
+      const g = localStorage.getItem('google_user');
+      return g ? JSON.parse(g) : null;
+    } catch { return null; }
+  })();
+  const storedFirebaseUser = (() => {
+    try {
+      const f = localStorage.getItem('firebase_user');
+      return f ? JSON.parse(f) : null;
+    } catch { return null; }
+  })();
 
-  const fallbackEmail = user?.email || email || googleUser?.email || '';
-  const fallbackName = (defaultName && defaultName !== 'Customer') ? defaultName : (fallbackEmail.includes('@') ? fallbackEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '');
+  const fallbackEmail = user?.email || email || googleUser?.email || storedGoogleUser?.email || storedFirebaseUser?.email || '';
+  const googleAccountEmail = (user?.email || googleUser?.email || storedGoogleUser?.email || storedFirebaseUser?.email || email || '').trim();
+  const isGoogleAccount = !isTelegramUser && !telegramUser && !!googleAccountEmail;
+  const fallbackName = (defaultName && defaultName !== 'Customer') ? defaultName : (googleAccountEmail.includes('@') ? googleAccountEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '');
 
   const [displayName, setDisplayName] = useState(fallbackName);
   const [phones, setPhones] = useState(() => googleUser?.phone ? [googleUser.phone] : ['']);
-  const [emails, setEmails] = useState(fallbackEmail ? [fallbackEmail] : ['']);
+  const [emails, setEmails] = useState(() => (isGoogleAccount && googleAccountEmail) ? [googleAccountEmail] : ['']);
   const [telegram, setTelegram] = useState('');
   const [viber, setViber] = useState('');
   const [profileRegion, setProfileRegion] = useState('');
@@ -1709,7 +1723,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         body: JSON.stringify({
           bot_id: botId,
           uid: uid || '',
-          email: fallbackEmail || '',
+          email: googleAccountEmail || '',
           photo_url: dataUrl,
         }),
       });
@@ -1725,7 +1739,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
       setUploadingPhoto(false);
       if (photoInputRef.current) photoInputRef.current.value = '';
     }
-  }, [uid, shopSlug, fallbackEmail, profileShopProp?.id, onPhotoSaved]);
+  }, [uid, shopSlug, googleAccountEmail, profileShopProp?.id, onPhotoSaved]);
 
   useEffect(() => {
     if (!uid || !shopSlug) {
@@ -1735,7 +1749,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
     setResolving(true);
     // Use parent-cached shop data if available to avoid API call
     const existingBotId = profileShopProp?.id;
-    const fetchEmail = fallbackEmail;
+    const fetchEmail = googleAccountEmail;
 
     const populateForm = (data) => {
       if (data && (data.id !== undefined || data.display_name || data.email || data.phone)) {
@@ -1743,7 +1757,12 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         const parsedPhones = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [];
         setPhones(parsedPhones.length > 0 ? parsedPhones : (googleUser?.phone ? [googleUser.phone] : ['']));
         const parsedEmails = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [];
-        setEmails(parsedEmails.length > 0 ? parsedEmails : (fetchEmail ? [fetchEmail] : ['']));
+        if (isGoogleAccount && googleAccountEmail) {
+          const additional = parsedEmails.filter(e => e.toLowerCase() !== googleAccountEmail.toLowerCase());
+          setEmails([googleAccountEmail, ...additional]);
+        } else {
+          setEmails(parsedEmails.length > 0 ? parsedEmails : ['']);
+        }
         setTelegram(data.telegram_username || '');
         setViber(data.viber_number || '');
         setProfileRegion(data.region || '');
@@ -1754,7 +1773,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         if (data.photo_url) setProfilePhotoUrl(data.photo_url);
       } else {
         setDisplayName(fallbackName || '');
-        setEmails(fetchEmail ? [fetchEmail] : ['']);
+        setEmails((isGoogleAccount && googleAccountEmail) ? [googleAccountEmail] : ['']);
         if (googleUser?.phone) setPhones([googleUser.phone]);
       }
     };
@@ -1787,18 +1806,25 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         })
         .catch(() => { setLoading(false); setResolving(false); });
     }
-  }, [uid, shopSlug, fallbackName, fallbackEmail, profileShopProp?.id, googleUser?.phone]);
+  }, [uid, shopSlug, fallbackName, googleAccountEmail, profileShopProp?.id, googleUser?.phone, isGoogleAccount]);
 
   const addPhone = () => setPhones(prev => [...prev, '']);
   const removePhone = (idx) => { if (phones.length > 1) setPhones(prev => prev.filter((_, i) => i !== idx)); };
 
   const addEmail = () => setEmails(prev => [...prev, '']);
-  const removeEmail = (idx) => { if (emails.length > 1) setEmails(prev => prev.filter((_, i) => i !== idx)); };
+  const removeEmail = (idx) => {
+    if (isGoogleAccount && idx === 0 && googleAccountEmail) return; // Google account email cannot be removed
+    if (emails.length > 1) setEmails(prev => prev.filter((_, i) => i !== idx));
+  };
 
   const handleSave = async () => {
     const primaryName = displayName.trim();
     const primaryPhone = phones.filter(Boolean).map(p => p.trim()).join(', ');
-    const primaryEmail = emails.filter(Boolean).map(e => e.trim()).join(', ');
+    let finalEmails = emails.filter(Boolean).map(e => e.trim());
+    if (isGoogleAccount && googleAccountEmail) {
+      finalEmails = [googleAccountEmail, ...finalEmails.filter(e => e.toLowerCase() !== googleAccountEmail.toLowerCase())];
+    }
+    const primaryEmail = finalEmails.join(', ');
 
     if (!primaryName) {
       setSaveError('Full Name is required.');
@@ -1856,7 +1882,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
           const gu = JSON.parse(localStorage.getItem('google_user') || '{}');
           if (gu && typeof gu === 'object') {
             gu.name = primaryName;
-            gu.email = primaryEmail;
+            if (googleAccountEmail) gu.email = googleAccountEmail;
             if (primaryPhone) gu.phone = primaryPhone;
             if (profilePhotoUrl) gu.photo_url = profilePhotoUrl;
             localStorage.setItem('google_user', JSON.stringify(gu));
@@ -1864,7 +1890,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
           const fu = JSON.parse(localStorage.getItem('firebase_user') || '{}');
           if (fu && typeof fu === 'object') {
             fu.displayName = primaryName;
-            fu.email = primaryEmail;
+            if (googleAccountEmail) fu.email = googleAccountEmail;
             if (profilePhotoUrl) fu.photoURL = profilePhotoUrl;
             localStorage.setItem('firebase_user', JSON.stringify(fu));
           }
@@ -1936,10 +1962,10 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
               <h3 className="text-lg font-bold text-gray-900 truncate">{displayName || 'Customer'}</h3>
               <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">Profile</span>
             </div>
-            {email && (
+            {googleAccountEmail && (
               <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-500 truncate">
                 <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                <span className="truncate">{email}</span>
+                <span className="truncate">{googleAccountEmail}</span>
               </div>
             )}
           </div>
@@ -1986,11 +2012,11 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
                   }} placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone number"}
                     className="flex-1 px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm font-medium transition-all" />
                   {idx === 0 ? (
-                    <button onClick={addPhone} title="Add Phone Number" className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-all shrink-0 cursor-pointer">
+                    <button onClick={addPhone} type="button" title="Add Phone Number" className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-all shrink-0 cursor-pointer">
                       <Plus className="w-4 h-4" />
                     </button>
                   ) : (
-                    <button onClick={() => removePhone(idx)} title="Remove Phone Number" className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-all shrink-0 cursor-pointer">
+                    <button onClick={() => removePhone(idx)} type="button" title="Remove Phone Number" className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-all shrink-0 cursor-pointer">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
@@ -2003,23 +2029,49 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
           <div>
             <label className="text-xs font-bold text-gray-700 mb-1.5 block">Email Addresses <span className="text-rose-500">*</span></label>
             <div className="space-y-2">
-              {emails.map((email, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <input type="email" value={email} onChange={e => {
-                    const next = [...emails]; next[idx] = e.target.value; setEmails(next);
-                  }} placeholder={idx === 0 ? "your@email.com" : "Additional email"}
-                    className="flex-1 px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm font-medium transition-all" />
-                  {idx === 0 ? (
-                    <button onClick={addEmail} title="Add Email" className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-all shrink-0 cursor-pointer">
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button onClick={() => removeEmail(idx)} title="Remove Email" className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-all shrink-0 cursor-pointer">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
+              {emails.map((emailItem, idx) => {
+                const isFixedPrimaryGoogle = isGoogleAccount && idx === 0 && !!googleAccountEmail;
+                const displayVal = isFixedPrimaryGoogle ? googleAccountEmail : emailItem;
+                return (
+                  <div key={idx} className="flex items-center gap-2">
+                    <div className={`relative flex-1 ${isFixedPrimaryGoogle ? 'pointer-events-none select-none' : ''}`}>
+                      <input
+                        type="email"
+                        value={displayVal}
+                        disabled={isFixedPrimaryGoogle}
+                        readOnly={isFixedPrimaryGoogle}
+                        autoComplete="off"
+                        tabIndex={isFixedPrimaryGoogle ? -1 : 0}
+                        onFocus={e => { if (isFixedPrimaryGoogle) e.target.blur(); }}
+                        onKeyDown={e => { if (isFixedPrimaryGoogle) e.preventDefault(); }}
+                        onClick={e => { if (isFixedPrimaryGoogle) e.preventDefault(); }}
+                        onChange={e => {
+                          if (isFixedPrimaryGoogle) return;
+                          const next = [...emails]; next[idx] = e.target.value; setEmails(next);
+                        }}
+                        placeholder={idx === 0 ? "your@email.com" : "Additional email"}
+                        className={`w-full px-4 py-3 border rounded-xl outline-none text-sm font-medium transition-all ${
+                          isFixedPrimaryGoogle
+                            ? 'bg-gray-100/90 text-gray-700 font-bold border-gray-200 pr-10 shadow-none cursor-not-allowed select-none'
+                            : 'bg-gray-50/80 border-gray-200 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500'
+                        }`}
+                      />
+                      {isFixedPrimaryGoogle && (
+                        <Lock className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" title="Fixed Account Email" />
+                      )}
+                    </div>
+                    {idx === 0 ? (
+                      <button onClick={addEmail} type="button" title="Add Additional Email" className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-all shrink-0 cursor-pointer">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button onClick={() => removeEmail(idx)} type="button" title="Remove Email" className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-all shrink-0 cursor-pointer">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
