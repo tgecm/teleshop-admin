@@ -699,8 +699,10 @@ export default function Chats() {
   if (webMessages.length > 0) prevWebMessagesRef.current = webMessages;
   const stableWebMessages = isFetching && webMessages.length === 0 ? prevWebMessagesRef.current : webMessages;
 
-  // Apply local unread overrides on top of server data
+  // Reset previous messages cache on visitor change to prevent flashing stale messages
   useEffect(() => {
+    prevWebMessagesRef.current = [];
+    prevMessagesRef.current = [];
     initialScrollDone.current = false;
     setUserScrolledUp(false);
   }, [selectedUser, selectedVisitor]);
