@@ -33,6 +33,7 @@ export default function Customers() {
   const [loyalLimit, setLoyalLimit] = useState(25);
   const [search, setSearch] = useState('');
   const [filterTab, setFilterTab] = useState('all');
+  const [webFilterTab, setWebFilterTab] = useState('all');
   const [confirmCustomer, setConfirmCustomer] = useState(null);
   const [detailCustomer, setDetailCustomer] = useState(null);
   const [brokenImages, addBrokenImage] = useReducer((state, id) => state.add(id) && state, new Set());
@@ -301,7 +302,14 @@ export default function Customers() {
     );
   }) || [];
 
+  const googleCount = webCustomers?.filter(c => !c.telegram_id && !(c.firebase_uid || '').startsWith('web_tg_') && !(c.firebase_uid || '').startsWith('tg_')).length || 0;
+  const telegramWebCount = webCustomers?.filter(c => !!c.telegram_id || (c.firebase_uid || '').startsWith('web_tg_') || (c.firebase_uid || '').startsWith('tg_')).length || 0;
+
   const filteredWebCustomers = webCustomers?.filter(c => {
+    const isTg = !!c.telegram_id || (c.firebase_uid || '').startsWith('web_tg_') || (c.firebase_uid || '').startsWith('tg_');
+    if (webFilterTab === 'google' && isTg) return false;
+    if (webFilterTab === 'telegram' && !isTg) return false;
+
     const term = search.toLowerCase();
     return (
       c.display_name?.toLowerCase().includes(term) ||
@@ -453,6 +461,40 @@ export default function Customers() {
       {/* Website Customers */}
       {section === 'website' && (
         <PullToRefresh onRefresh={handleRefresh}>
+          {/* Website Sub-filter tabs */}
+          <div className="flex gap-1 bg-gray-100 rounded-xl p-0.5 w-fit -mt-2 mb-3">
+            <button
+              onClick={() => setWebFilterTab('all')}
+              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                webFilterTab === 'all'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              All ({webCustomers?.length || 0})
+            </button>
+            <button
+              onClick={() => setWebFilterTab('google')}
+              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 ${
+                webFilterTab === 'google'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <span className="text-indigo-600 font-extrabold text-[10px]">G</span> Google ({googleCount})
+            </button>
+            <button
+              onClick={() => setWebFilterTab('telegram')}
+              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center gap-1 ${
+                webFilterTab === 'telegram'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Smartphone className="w-3 h-3 text-sky-500" /> Telegram ({telegramWebCount})
+            </button>
+          </div>
+
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
@@ -469,45 +511,59 @@ export default function Customers() {
           </div>
         ) : (
           <div className="grid gap-3">
-            {filteredWebCustomers.map(customer => (
-              <motion.div
-                layout
-                key={customer.id}
-                className="contain-content bg-white p-4 rounded-2xl shadow-sm border border-gray-100"
-              >
-                <button
-                  onClick={() => setDetailCustomer(customer)}
-                  className="w-full text-left"
+            {filteredWebCustomers.map(customer => {
+              const isTg = !!customer.telegram_id || (customer.firebase_uid || '').startsWith('web_tg_') || (customer.firebase_uid || '').startsWith('tg_');
+              return (
+                <motion.div
+                  layout
+                  key={customer.id}
+                  className="contain-content bg-white p-4 rounded-2xl shadow-sm border border-gray-100"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600 overflow-hidden">
-                      {customer.photo_url && !brokenImages.has(customer.id) ? (
-                        <img src={customer.photo_url} alt="" onError={() => addBrokenImage(customer.id)} className="w-full h-full object-cover" />
-                      ) : (
-                        customer.display_name?.[0]?.toUpperCase() || 'W'
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.display_name || 'Website User'}</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
-                        {customer.email && <span className="truncate">{customer.email}</span>}
-                        <span className="text-gray-300">·</span>
-                        <span className="font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
-                          {customer.points_balance || 0} Points
-                        </span>
-                        {customer.created_at && (
-                          <>
-                            <span className="text-gray-300">·</span>
-                            <span className="whitespace-nowrap">Joined {myanmarFormat(customer.created_at, 'MMM d')}</span>
-                          </>
+                  <button
+                    onClick={() => setDetailCustomer(customer)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600 overflow-hidden">
+                        {customer.photo_url && !brokenImages.has(customer.id) ? (
+                          <img src={customer.photo_url} alt="" onError={() => addBrokenImage(customer.id)} className="w-full h-full object-cover" />
+                        ) : (
+                          customer.display_name?.[0]?.toUpperCase() || 'W'
                         )}
                       </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.display_name || 'Website User'}</p>
+                          {isTg ? (
+                            <span className="px-2 py-0.5 bg-sky-50 text-sky-600 text-[10px] font-bold rounded-md flex items-center gap-1 border border-sky-200/60">
+                              <Smartphone className="w-2.5 h-2.5" /> Telegram
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-gray-50 text-gray-700 text-[10px] font-bold rounded-md flex items-center gap-1 border border-gray-200">
+                              <span className="text-indigo-600 font-extrabold text-[10px]">G</span> Google
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
+                          {customer.email && <span className="truncate">{customer.email}</span>}
+                          <span className="text-gray-300">·</span>
+                          <span className="font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                            {customer.points_balance || 0} Points
+                          </span>
+                          {customer.created_at && (
+                            <>
+                              <span className="text-gray-300">·</span>
+                              <span className="whitespace-nowrap">Joined {myanmarFormat(customer.created_at, 'MMM d')}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-gray-300 flex-shrink-0" />
                     </div>
-                    <ChevronDown className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                  </div>
-                </button>
-              </motion.div>
-            ))}
+                  </button>
+                </motion.div>
+              );
+            })}
           </div>
         )}
         </PullToRefresh>
@@ -724,20 +780,39 @@ export default function Customers() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {(detailCustomer.telegram_id || detailCustomer.user_id || section === 'telegram') && (
-                    <button
-                      onClick={() => {
+                  <button
+                    onClick={async () => {
+                      const isWeb = section === 'website' || (section === 'loyal' && detailCustomer.channel === 'website');
+                      if (isWeb) {
+                        try {
+                          const targetUid = detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
+                          const targetName = (customerProfile?.display_name && customerProfile.display_name.trim()) || detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name || 'Website Customer';
+                          const res = await initiateWebVisitorChat(selectedBotId, {
+                            firebaseUid: targetUid,
+                            visitorId: targetUid,
+                            name: targetName,
+                            phone: detailCustomer.phone || detailCustomer.phone_number || '',
+                            email: detailCustomer.email || '',
+                          });
+                          const finalVisitorId = res.visitor_id || targetUid;
+                          const convId = String(finalVisitorId).startsWith('web_') ? String(finalVisitorId) : `web_${finalVisitorId}`;
+                          navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: targetName, tab: 'web' } });
+                          setDetailCustomer(null);
+                        } catch (err) {
+                          addToast('Failed to open chat with customer', 'error');
+                        }
+                      } else {
                         const tgId = detailCustomer.telegram_id || detailCustomer.user_id;
                         const custName = (customerProfile?.display_name && customerProfile.display_name.trim()) || detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
-                        navigate('/chats', { state: { userId: Number(tgId), name: custName, tab: 'telegram' } });
+                        navigate('/chats', { state: { conversationId: `tg_${tgId}`, userId: Number(tgId), name: custName, tab: 'telegram' } });
                         setDetailCustomer(null);
-                      }}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      Send Message
-                    </button>
-                  )}
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Send Message
+                  </button>
                   <button onClick={handleCopyProfile}
                     className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-indigo-100 transition-all active:scale-95">
                     <Copy className="w-3.5 h-3.5" />
@@ -781,7 +856,7 @@ export default function Customers() {
                   <DetailRow icon={MapPin} label="Address" value={
                     customerProfile?.address || detailCustomer.address || null
                   } />
-                  {section === 'website' && (
+                  {(section === 'website' || detailCustomer.channel === 'website') && (
                     <>
                       <DetailRow icon={Award} label="Points Balance" value={`${customerProfile?.points_balance ?? detailCustomer?.points_balance ?? 0} Points`} />
                       <DetailRow icon={Star} label="Total Points Earned" value={`${customerProfile?.total_points_earned ?? detailCustomer?.total_points_earned ?? 0} Points`} />
@@ -790,45 +865,92 @@ export default function Customers() {
                   <DetailRow icon={FileText} label="Notes" value={
                     customerProfile?.notes || detailCustomer.notes || null
                   } />
-                  {(detailCustomer.telegram_id || detailCustomer.user_id || section === 'telegram') ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const tgId = detailCustomer.telegram_id || detailCustomer.user_id;
-                        const custName = customerProfile?.display_name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
-                        navigate('/chats', { state: { userId: Number(tgId), name: custName, tab: 'telegram' } });
-                        setDetailCustomer(null);
-                      }}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-xs mt-2 active:scale-95"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      Contact Customer on Telegram Chat
-                    </button>
-                  ) : (detailCustomer.firebase_uid || section === 'website') && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const targetUid = detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? String(detailCustomer.telegram_id) : '') || String(detailCustomer.id || '');
-                          const targetName = detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name || 'Website Customer';
-                          const res = await initiateWebVisitorChat(selectedBotId, {
-                            firebaseUid: targetUid,
-                            visitorId: targetUid,
-                            name: targetName,
-                            phone: detailCustomer.phone || detailCustomer.phone_number || '',
-                            email: detailCustomer.email || '',
-                          });
-                          navigate('/chats', { state: { visitorId: res.visitor_id || targetUid, name: targetName, tab: 'web' } });
+                  {(section === 'website' || (section === 'loyal' && detailCustomer.channel === 'website')) ? (
+                    <div className="space-y-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const targetUid = detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
+                            const targetName = detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name || 'Website Customer';
+                            const res = await initiateWebVisitorChat(selectedBotId, {
+                              firebaseUid: targetUid,
+                              visitorId: targetUid,
+                              name: targetName,
+                              phone: detailCustomer.phone || detailCustomer.phone_number || '',
+                              email: detailCustomer.email || '',
+                            });
+                            const finalVisitorId = res.visitor_id || targetUid;
+                            const convId = String(finalVisitorId).startsWith('web_') ? String(finalVisitorId) : `web_${finalVisitorId}`;
+                            navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: targetName, tab: 'web' } });
+                            setDetailCustomer(null);
+                          } catch (err) {
+                            addToast('Failed to open chat with customer', 'error');
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-xs active:scale-95"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Contact Customer on Website Chat
+                      </button>
+                      {(detailCustomer.telegram_id || detailCustomer.user_id) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const tgId = detailCustomer.telegram_id || detailCustomer.user_id;
+                            const custName = customerProfile?.display_name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
+                            navigate('/chats', { state: { conversationId: `tg_${tgId}`, userId: Number(tgId), name: custName, tab: 'telegram' } });
+                            setDetailCustomer(null);
+                          }}
+                          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl font-semibold text-xs border border-sky-200 transition-colors cursor-pointer active:scale-95"
+                        >
+                          <Smartphone className="w-3.5 h-3.5" />
+                          Contact Customer on Telegram Chat
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const tgId = detailCustomer.telegram_id || detailCustomer.user_id;
+                          const custName = customerProfile?.display_name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
+                          navigate('/chats', { state: { conversationId: `tg_${tgId}`, userId: Number(tgId), name: custName, tab: 'telegram' } });
                           setDetailCustomer(null);
-                        } catch (err) {
-                          addToast('Failed to open chat with customer', 'error');
-                        }
-                      }}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-xs mt-2 active:scale-95"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      Contact Customer on Website Chat
-                    </button>
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-xs active:scale-95"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Contact Customer on Telegram Chat
+                      </button>
+                      {(detailCustomer.firebase_uid || detailCustomer.conversation_id_web) && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const targetUid = detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
+                              const targetName = detailCustomer.display_name || detailCustomer.name || 'Website Customer';
+                              const res = await initiateWebVisitorChat(selectedBotId, {
+                                firebaseUid: targetUid,
+                                visitorId: targetUid,
+                                name: targetName,
+                              });
+                              const finalVisitorId = res.visitor_id || targetUid;
+                              const convId = String(finalVisitorId).startsWith('web_') ? String(finalVisitorId) : `web_${finalVisitorId}`;
+                              navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: targetName, tab: 'web' } });
+                              setDetailCustomer(null);
+                            } catch (err) {
+                              addToast('Failed to open chat with customer', 'error');
+                            }
+                          }}
+                          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl font-semibold text-xs border border-emerald-200 transition-colors cursor-pointer active:scale-95"
+                        >
+                          <Globe className="w-3.5 h-3.5" />
+                          Contact Customer on Website Chat
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 

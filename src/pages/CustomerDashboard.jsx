@@ -177,12 +177,13 @@ export default function CustomerDashboard({ shopSlug }) {
     || (telegramToken ? (getUserIdFromToken() || '') : '')
     || (telegramUser?.id ? String(telegramUser.id) : '');
   const userEmail = user?.email || googleUser?.email || '';
-  const displayName = user?.displayName
+  const displayName = savedName
+    || user?.displayName
     || googleUser?.name
-    || (userEmail ? userEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '')
     || telegramUser?.name
     || telegramUser?.first_name
     || (telegramUser?.username ? `@${telegramUser.username}` : '')
+    || (userEmail ? userEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '')
     || 'Customer';
   const [customPhotoUrl, setCustomPhotoUrl] = useState(() => {
     return googleUser?.photo_url || user?.photoURL || telegramUser?.photo_url || null;
@@ -201,12 +202,15 @@ export default function CustomerDashboard({ shopSlug }) {
           setPageMeta(s.bot_full_name, s.profile_picture);
         }
         if (s?.id && uid) {
-          // Fetch custom saved profile photo if available
+          // Fetch custom saved profile photo and saved name if available
           fetch(`${API_BASE}/api/customer-profile?bot_id=${s.id}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(userEmail || '')}`)
             .then(r => r.ok ? r.json() : null)
             .then(prof => {
               if (prof?.photo_url) {
                 setCustomPhotoUrl(prof.photo_url);
+              }
+              if (prof?.display_name && prof.display_name.trim() && prof.display_name.trim() !== 'Customer' && prof.display_name.trim() !== 'User') {
+                setSavedName(prof.display_name.trim());
               }
             })
             .catch(() => {});
