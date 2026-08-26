@@ -336,7 +336,7 @@ export default function CustomerDashboard({ shopSlug }) {
           return newMsgs.length ? [...prev, ...newMsgs] : prev;
         });
       } catch {}
-    }, 3000);
+    }, 2000);
     return () => clearInterval(interval);
   }, [chatOpen, shopData?.shop?.id, activeVisitorId]);
 
@@ -382,6 +382,13 @@ export default function CustomerDashboard({ shopSlug }) {
         .catch(() => {});
     }
   };
+
+  // Chat: auto-scroll to bottom whenever messages or chat open state change
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    }
+  }, [chatMessages, chatOpen]);
 
   const sendMessage = useCallback(async (msg) => {
     if (!msg || !shopData?.shop?.id) return;

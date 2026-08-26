@@ -541,7 +541,7 @@ export default function Orders() {
                           setSelectedOrder(null);
                         } else {
                           try {
-                            const targetUid = bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
+                            const targetUid = bs.dashboard_chat_id || cust.dashboard_chat_id || bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
                             const res = await initiateWebVisitorChat(selectedBotId, {
                               firebaseUid: targetUid,
                               visitorId: targetUid,
@@ -635,7 +635,7 @@ export default function Orders() {
                             onClick={async () => {
                               try {
                                 const customerName = bs.name || bs.full_name || cust.first_name || 'Website Customer';
-                                const targetUid = bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
+                                const targetUid = bs.dashboard_chat_id || cust.dashboard_chat_id || bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
                                 const res = await initiateWebVisitorChat(selectedBotId, {
                                   firebaseUid: targetUid,
                                   visitorId: targetUid,

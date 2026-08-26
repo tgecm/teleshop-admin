@@ -2824,24 +2824,27 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     if (!chatOpen || !shop?.id || showVisitorForm || !visitorIdRef.current) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(API_BASE + '/public/chat/' + shop.id + '/' + visitorIdRef.current + '/messages');
+        const res = await fetch(API_BASE + '/public/chat/' + shop.id + '/' + encodeURIComponent(visitorIdRef.current) + '/messages');
+        if (!res.ok) return;
         const msgs = await res.json();
-        if (msgs && msgs.length > 0) {
+        if (Array.isArray(msgs) && msgs.length > 0) {
           setChatMessages(prev => {
-            if (msgs.length <= prev.length) return prev;
             const existing = new Set(prev.map(m => (m.content || '') + '|' + m.role + '|' + (m.file_id || '')));
-            const newMsgs = msgs.filter(m => !existing.has((m.message_text || '') + '|' + m.sender_type + '|' + (m.file_id || '')));
+            const newMsgs = msgs
+              .map(m => ({
+                role: m.sender_type === 'user' ? 'user' : 'assistant',
+                content: m.message_text || '',
+                file_id: m.file_id || null,
+                file_type: m.file_type || null
+              }))
+              .filter(m => !existing.has(m.content + '|' + m.role + '|' + (m.file_id || '')));
+
             if (newMsgs.length === 0) return prev;
-            return [...prev, ...newMsgs.map(m => ({
-              role: m.sender_type === 'user' ? 'user' : 'assistant',
-              content: m.message_text || '',
-              file_id: m.file_id || null,
-              file_type: m.file_type || null
-            }))];
+            return [...prev, ...newMsgs];
           });
         }
       } catch {}
-    }, 3000);
+    }, 2000);
     return () => clearInterval(interval);
   }, [chatOpen, shop?.id, showVisitorForm]);
 

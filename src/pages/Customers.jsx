@@ -902,7 +902,7 @@ export default function Customers() {
                         type="button"
                         onClick={async () => {
                           try {
-                            const targetUid = detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
+                            const targetUid = detailCustomer.dashboard_chat_id || detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
                             const targetName = detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name || 'Website Customer';
                             const res = await initiateWebVisitorChat(selectedBotId, {
                               firebaseUid: targetUid,
@@ -955,12 +955,12 @@ export default function Customers() {
                         <MessageCircle className="w-4 h-4" />
                         Contact Customer on Telegram Chat
                       </button>
-                      {(detailCustomer.firebase_uid || detailCustomer.conversation_id_web) && (
+                      {(detailCustomer.firebase_uid || detailCustomer.conversation_id_web || detailCustomer.dashboard_chat_id) && (
                         <button
                           type="button"
                           onClick={async () => {
                             try {
-                              const targetUid = detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
+                              const targetUid = detailCustomer.dashboard_chat_id || detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
                               const targetName = detailCustomer.display_name || detailCustomer.name || 'Website Customer';
                               const res = await initiateWebVisitorChat(selectedBotId, {
                                 firebaseUid: targetUid,
