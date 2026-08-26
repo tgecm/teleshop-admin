@@ -814,7 +814,7 @@ export default function Customers() {
                       const tgId = detailCustomer.telegram_id || detailCustomer.user_id;
                       const isWebSection = section === 'website' || (section === 'loyal' && detailCustomer.channel === 'website');
 
-                      if (tgId && (!isWebSection || !detailCustomer.firebase_uid)) {
+                      if (tgId) {
                         const custName = (customerProfile?.display_name && customerProfile.display_name.trim()) || detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
                         navigate('/chats', { state: { conversationId: `tg_${tgId}`, userId: Number(tgId), name: custName, tab: 'telegram' } });
                         setDetailCustomer(null);

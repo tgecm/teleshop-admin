@@ -751,7 +751,32 @@ export default function Chats() {
 
   const { data: webMessages = [], isFetching: isFetchingWebMessages } = useQuery({
     queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor],
-    queryFn: () => getWebVisitorMessages(selectedVisitor, Number(selectedBotId)),
+    queryFn: async () => {
+      if (!selectedVisitor) return [];
+      const currentGroup = displayedWebVisitors.find(v =>
+        v.visitor_id === selectedVisitor ||
+        (v.all_visitor_ids && v.all_visitor_ids.includes(selectedVisitor))
+      );
+      const targetIds = currentGroup?.all_visitor_ids?.length
+        ? currentGroup.all_visitor_ids
+        : [selectedVisitor];
+
+      const results = await Promise.all(
+        targetIds.map(id => getWebVisitorMessages(id, Number(selectedBotId)).catch(() => []))
+      );
+
+      const allMsgs = results.flat();
+      const seen = new Set();
+      const uniqueMsgs = [];
+      for (const m of allMsgs) {
+        const key = m.id || `${m.created_at}_${m.message}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueMsgs.push(m);
+        }
+      }
+      return uniqueMsgs.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    },
     enabled: !!selectedBotId && !!selectedVisitor,
     refetchInterval: 2000,
     staleTime: 0,
@@ -804,10 +829,82 @@ export default function Chats() {
     [stableChats, unreadOverrides]
   );
 
-  const displayedWebVisitors = useMemo(() =>
-    stableWebVisitors.map(v => ({ ...v, unread_count: unreadOverrides[v.visitor_id] ?? v.unread_count })),
-    [stableWebVisitors, unreadOverrides]
-  );
+  const displayedWebVisitors = useMemo(() => {
+    const rawList = stableWebVisitors.map(v => ({ ...v, unread_count: unreadOverrides[v.visitor_id] ?? v.unread_count }));
+    const groups = new Map();
+    const nameToKey = new Map();
+
+    const getCoreName = (str) => {
+      if (!str) return '';
+      let s = str.trim().toLowerCase();
+      s = s.replace(/\s+(tg|web|telegram|website)$/i, '');
+      const parts = s.split(/\s+/);
+      if (parts.length >= 2) return parts.slice(0, 2).join(' ');
+      return s;
+    };
+
+    for (const v of rawList) {
+      const name = (v.name || '').trim();
+      const email = (v.email || '').trim().toLowerCase();
+      const fuid = (v.firebase_uid || '').trim();
+      const tgid = (v.telegram_id || '').toString().trim();
+      const visitorIdStr = (v.visitor_id || '').toString().trim();
+
+      let extractedTg = tgid && tgid !== '0' ? tgid : '';
+      if (!extractedTg) {
+        const match = visitorIdStr.match(/^(web_tg_|tg_)?(\d+)$/) || fuid.match(/^(web_tg_|tg_)?(\d+)$/);
+        if (match) extractedTg = match[2];
+      }
+
+      const coreName = getCoreName(name);
+
+      let groupKey = null;
+      if (extractedTg) {
+        groupKey = `tg:${extractedTg}`;
+      } else if (email && email !== 'n/a' && email.includes('@')) {
+        groupKey = `email:${email}`;
+      } else if (fuid && fuid !== 'n/a' && fuid !== 'none' && fuid !== 'null' && !fuid.startsWith('wv_') && !fuid.startsWith('web_tg_')) {
+        groupKey = `fuid:${fuid}`;
+      } else if (coreName && nameToKey.has(coreName)) {
+        groupKey = nameToKey.get(coreName);
+      } else if (coreName && name !== 'Website Customer' && name !== 'Shop Visitor' && name !== 'Guest' && name !== 'User') {
+        groupKey = `name:${coreName}`;
+      } else {
+        groupKey = `vid:${v.visitor_id}`;
+      }
+
+      if (coreName && !nameToKey.has(coreName)) {
+        nameToKey.set(coreName, groupKey);
+      }
+
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, {
+          ...v,
+          all_visitor_ids: [v.visitor_id],
+          unread_count: v.unread_count || 0
+        });
+      } else {
+        const existing = groups.get(groupKey);
+        if (!existing.all_visitor_ids.includes(v.visitor_id)) {
+          existing.all_visitor_ids.push(v.visitor_id);
+        }
+        const existingTime = new Date(existing.last_time || existing.updated_at || existing.created_at || 0).getTime();
+        const vTime = new Date(v.last_time || v.updated_at || v.created_at || 0).getTime();
+        if (vTime > existingTime) {
+          existing.visitor_id = v.visitor_id;
+          existing.last_message = v.last_message || existing.last_message;
+          existing.last_time = v.last_time || existing.last_time;
+          existing.updated_at = v.updated_at || existing.updated_at;
+        }
+        existing.unread_count = Math.max(existing.unread_count, v.unread_count || 0);
+        if (!existing.name || existing.name === 'Website Customer') existing.name = v.name;
+        if (!existing.email) existing.email = v.email;
+        if (!existing.phone) existing.phone = v.phone;
+      }
+    }
+
+    return Array.from(groups.values());
+  }, [stableWebVisitors, unreadOverrides]);
 
   const sendMutation = useMutation({
     mutationFn: ({ userId, message, visitorId, fileId, fileType }) => {
@@ -1018,6 +1115,7 @@ export default function Chats() {
   const selectedChat = displayedChats.find(c => Number(c.user_id) === Number(activeTgId));
   const selectedWebChat = displayedWebVisitors.find(v =>
     v.visitor_id === selectedVisitor ||
+    (v.all_visitor_ids && v.all_visitor_ids.includes(selectedVisitor)) ||
     v.firebase_uid === selectedVisitor ||
     (selectedVisitor && `web_${v.visitor_id}` === selectedVisitor) ||
     (selectedVisitor && v.visitor_id === `web_${selectedVisitor}`) ||
@@ -1128,12 +1226,20 @@ export default function Chats() {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
-      const el = e.target;
-      const start = el.selectionStart;
-      const end = el.selectionEnd;
-      setInputText(inputText.slice(0, start) + '\n' + inputText.slice(end));
-      requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 1; });
+      const isMobile = window.innerWidth < 768;
+      if (!isMobile) {
+        if (e.ctrlKey || e.shiftKey) {
+          e.preventDefault();
+          const el = e.target;
+          const start = el.selectionStart;
+          const end = el.selectionEnd;
+          setInputText(prev => prev.slice(0, start) + '\n' + prev.slice(end));
+          requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 1; });
+        } else {
+          e.preventDefault();
+          handleSend();
+        }
+      }
     }
   };
 
