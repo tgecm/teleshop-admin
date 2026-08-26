@@ -522,7 +522,7 @@ export default function Orders() {
 
                         const customerName = bs.name || bs.full_name || cust.first_name || 'Customer';
                         if (isTelegramSelected) {
-                          navigate('/chats', { state: { userId: Number(telegramIdStr), name: customerName, tab: 'telegram' } });
+                          navigate('/chats', { state: { conversationId: `tg_${telegramIdStr}`, userId: Number(telegramIdStr), name: customerName, tab: 'telegram' } });
                           setSelectedOrder(null);
                         } else {
                           try {
@@ -534,7 +534,9 @@ export default function Orders() {
                               phone: bs.phone || cust.phone_number || '',
                               email: bs.email || cust.email || '',
                             });
-                            navigate('/chats', { state: { visitorId: res.visitor_id || targetUid, name: customerName, tab: 'web' } });
+                            const finalVisitorId = res.visitor_id || targetUid;
+                            const convId = res.conversation_id || (finalVisitorId.startsWith('web_') ? finalVisitorId : `web_${finalVisitorId}`);
+                            navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: customerName, tab: 'web' } });
                             setSelectedOrder(null);
                           } catch (err) {
                             addToast('Failed to open chat conversation', 'error');
@@ -604,7 +606,7 @@ export default function Orders() {
                             onClick={() => {
                               const telegramIdStr = bs.telegram_id || cust.telegram_id || selectedOrder.user_id;
                               const customerName = bs.name || bs.full_name || cust.first_name || 'Customer';
-                              navigate('/chats', { state: { userId: Number(telegramIdStr), name: customerName, tab: 'telegram' } });
+                              navigate('/chats', { state: { conversationId: `tg_${telegramIdStr}`, userId: Number(telegramIdStr), name: customerName, tab: 'telegram' } });
                               setSelectedOrder(null);
                             }}
                             className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold text-xs transition-colors cursor-pointer border border-indigo-100 mt-2 active:scale-95"
@@ -626,7 +628,9 @@ export default function Orders() {
                                   phone: bs.phone || cust.phone_number || '',
                                   email: bs.email || cust.email || '',
                                 });
-                                navigate('/chats', { state: { visitorId: res.visitor_id || targetUid, name: customerName, tab: 'web' } });
+                                const finalVisitorId = res.visitor_id || targetUid;
+                                const convId = res.conversation_id || (finalVisitorId.startsWith('web_') ? finalVisitorId : `web_${finalVisitorId}`);
+                                navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: customerName, tab: 'web' } });
                                 setSelectedOrder(null);
                               } catch (err) {
                                 addToast('Failed to open chat with customer', 'error');

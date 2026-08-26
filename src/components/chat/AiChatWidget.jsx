@@ -223,8 +223,11 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
         const t = localStorage.getItem('telegram_user');
         if (t) {
           const parsed = JSON.parse(t);
-          loggedInUid = String(parsed.id);
-          loggedInName = parsed.name || parsed.first_name || (parsed.username ? `@${parsed.username}` : '');
+          if (parsed.id) {
+            const rawId = String(parsed.id).replace(/^(web_tg_|tg_)/, '');
+            loggedInUid = 'web_tg_' + rawId;
+            loggedInName = parsed.name || parsed.first_name || (parsed.username ? `@${parsed.username}` : '');
+          }
         }
       } catch {}
     }

@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#6366f1">
+<title>Add Payment Method</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { overscroll-behavior: none; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #eef2ff 0%, #fff 50%, #faf5ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.container { max-width: 448px; width: 100%; }
+
+/* Card */
+.card {
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+.card-header {
+  background: linear-gradient(135deg, #6366f1, #9333ea);
+  padding: 24px;
+  text-align: center;
+}
+.card-header .icon-wrap {
+  width: 56px; height: 56px;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(4px);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.card-header h1 { color: #fff; font-size: 20px; font-weight: 700; }
+.card-header p { color: #c7d2fe; font-size: 14px; margin-top: 4px; }
+.card-body { padding: 24px; }
+
+/* Loading */
+.loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 0;
+}
+.spinner {
+  width: 48px; height: 48px;
+  border: 3px solid #e0e7ff;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-wrap p { font-size: 14px; color: #9ca3af; font-weight: 500; }
+
+/* Error / Limit / Success center cards */
+.center-card {
+  text-align: center;
+  padding: 16px 0;
+}
+.icon-circle {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+.icon-circle svg { width: 40px; height: 40px; }
+.center-card h2 { font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 8px; }
+.center-card p { font-size: 14px; color: #6b7280; margin-bottom: 24px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 16px;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-ghost { background: #f3f4f6; color: #374151; }
+.btn-ghost:hover { background: #e5e7eb; }
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1, #9333ea);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99,102,241,0.2);
+}
+.btn-primary:hover { box-shadow: 0 6px 16px rgba(99,102,241,0.3); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-block { width: 100%; justify-content: center; }
+
+/* Form */
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #374151;
+  margin-left: 4px;
+  margin-bottom: 6px;
+}
+.form-group label .optional { font-weight: 400; color: #9ca3af; }
+.form-input, .form-textarea, .form-select {
+  width: 100%;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: box-shadow 0.15s;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus {
+  box-shadow: 0 0 0 2px #6366f1;
+}
+.form-textarea { resize: none; min-height: 80px; }
+.form-row { display: flex; gap: 12px; padding-top: 16px; }
+.form-row .btn-flex-1 { flex: 1; }
+.form-row .btn-flex-2 { flex: 2; }
+
+/* Error banner */
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+.error-banner svg { width: 20px; height: 20px; color: #f87171; flex-shrink: 0; }
+.error-banner p { font-size: 14px; font-weight: 500; color: #b91c1c; }
+
+/* QR upload */
+.upload-area {
+  width: 100%;
+  padding: 40px 0;
+  border: 2px dashed #e5e7eb;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: none;
+  font-family: inherit;
+}
+.upload-area:hover { border-color: #a5b4fc; background: rgba(238,242,255,0.3); }
+.upload-area svg { width: 28px; height: 28px; color: #d1d5db; }
+.upload-area span { font-weight: 700; font-size: 14px; color: #6b7280; }
+.qr-preview {
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+.qr-preview img {
+  width: 144px; height: 144px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+}
+.qr-remove {
+  position: absolute;
+  top: -8px; right: -8px;
+  width: 24px; height: 24px;
+  background: #f43f5e;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  margin-top: 24px;
+}
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.footer-brand .brand-icon {
+  width: 20px; height: 20px;
+  background: #6366f1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.footer-brand .brand-icon svg { width: 12px; height: 12px; color: #fff; }
+.footer-brand span { font-size: 12px; font-weight: 700; color: #6b7280; }
+.footer p { font-size: 10px; color: #9ca3af; }
+
+/* --- Animations --- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-card {
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.animate-slide-down {
+  animation: slideDown 0.2s ease both;
+}
+.btn:active { transform: scale(0.96) !important; }
+</style>
+</head>
+<body>
+<div class="container" id="root"></div>
+
+<script>
+function qs(key) {
+  return new URLSearchParams(window.location.search).get(key) || '';
+}
+
+const u = qs('u'), c = qs('c'), s1 = qs('s1'), s2 = qs('s2');
+
+// Icons as SVG strings
+const icons = {
+  creditCard: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>',
+  alertCircle: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+  checkCircle: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  imageUp: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><path d="M18 14v6"/><path d="M21 20l-3-3-3 3"/></svg>',
+  x: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  shoppingBag: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+  chevronRight: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+  loader2: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
+};
+
+function iconSvg(name, size) {
+  return icons[name].replace('width="24"', 'width="' + size + '"').replace('height="24"', 'height="' + size + '"');
+}
+
+let state = 'loading', botInfo = null, qrImage = null, errorMsg = '';
+let formData = { name: '', account_name: '', payment_number: '', notes: '' };
+
+const API = window.location.origin;
+
+function render() {
+  const root = document.getElementById('root');
+  if (state === 'loading') {
+    root.innerHTML = '<div class="card animate-card"><div class="loading-wrap">' +
+      '<div class="spinner"></div>' +
+      '<p>Loading, If slow, use VPN</p>' +
+    '</div></div>';
+    return;
+  }
+  if (state === 'error') {
+    root.innerHTML = '<div class="card animate-card"><div class="card-body"><div class="center-card">' +
+      '<div class="icon-circle animate-scale-in" style="background:linear-gradient(135deg,#fef2f2,#fee2e2)">' + iconSvg('alertCircle', 40) + '</div>' +
+      '<h2>Invalid Link</h2>' +
+      '<p>Please add payment using your mobile phone</p>' +
+      '<a href="https://t.me/tg_ecommerce_official_bot" target="_blank" class="btn btn-ghost">Contact Support' + iconSvg('chevronRight', 16) + '</a>' +
+    '</div></div></div>';
+    return;
+  }
+  if (state === 'limit_reached') {
+    root.innerHTML = '<div class="card animate-card"><div class="card-body"><div class="center-card">' +
+      '<div class="icon-circle animate-scale-in" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)">' + iconSvg('alertCircle', 40) + '</div>' +
+      '<h2>Limit Reached</h2>' +
+      '<p>You have reached your limit of adding new payment method, to add more, please upgrade!</p>' +
+      '<a href="https://t.me/tg_ecommerce_official_bot" target="_blank" class="btn btn-primary">Contact Support to Upgrade' + iconSvg('chevronRight', 16) + '</a>' +
+    '</div></div></div>';
+    return;
+  }
+  if (state === 'success') {
+    root.innerHTML = '<div class="card animate-card" style="background:linear-gradient(135deg,#ecfdf5,#f0fdfa);padding:24px"><div class="center-card">' +
+      '<div class="icon-circle animate-scale-in" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5)">' + iconSvg('checkCircle', 40) + '</div>' +
+      '<h2>Payment Method Submitted!</h2>' +
+      '<p>Your payment method has been submitted successfully.</p>' +
+      (result ? '<div style="background:#f9fafb;border-radius:16px;padding:16px;margin-bottom:24px;text-align:left;border:1px solid #f3f4f6"><p style="font-weight:700;color:#111827;font-size:14px">' + esc(result.name) + '</p><p style="font-size:14px;color:#6b7280;margin-top:4px">' + esc(result.payment_number) + '</p></div>' : '') +
+      '<p style="font-size:12px;color:#9ca3af">The shop owner will review your payment method shortly.</p>' +
+    '</div></div>';
+    return;
+  }
+
+  // Form state
+  const shopName = (botInfo && botInfo.bot_full_name) || 'Shop';
+  const isValid = formData.name.trim() && formData.payment_number.trim();
+
+  let html = '<div class="card animate-card">' +
+    '<div class="card-header">' +
+      '<div class="icon-wrap">' + iconSvg('creditCard', 28) + '</div>' +
+      '<h1>Add Payment Method</h1>' +
+      '<p>' + esc(shopName) + '</p>' +
+    '</div>' +
+    '<div class="card-body">';
+
+  if (errorMsg) {
+    html += '<div class="error-banner animate-slide-down">' + iconSvg('alertCircle', 20) + '<p>' + esc(errorMsg) + '</p></div>';
+  }
+
+  html += '<div class="form-group">' +
+    '<label>Payment Name *</label>' +
+    '<input class="form-input" type="text" id="f-name" placeholder="e.g. KBZPay, WavePay" value="' + esc(formData.name) + '" required>' +
+  '</div>' +
+  '<div class="form-group">' +
+    '<label>Account Number *</label>' +
+    '<input class="form-input" type="text" id="f-number" placeholder="e.g. 09123456789" value="' + esc(formData.payment_number) + '" inputmode="numeric" required>' +
+  '</div>' +
+  '<div class="form-group">' +
+    '<label>Account Name</label>' +
+    '<input class="form-input" type="text" id="f-account" placeholder="e.g. U Aung" value="' + esc(formData.account_name) + '">' +
+  '</div>' +
+  '<div class="form-group">' +
+    '<label>Notes</label>' +
+    '<textarea class="form-textarea" id="f-notes" placeholder="e.g. Include your Order ID in the transfer note">' + esc(formData.notes) + '</textarea>' +
+  '</div>' +
+  '<div class="form-group">' +
+    '<label>QR Code <span class="optional">(optional)</span></label>';
+
+  if (qrImage) {
+    html += '<div class="qr-preview">' +
+      '<img src="' + API + '/telegram/file/' + encodeURIComponent(qrImage.file_id) + '?bot_id=' + botInfo.bot_id + '" alt="QR Code">' +
+      '<button class="qr-remove" onclick="removeQr()">' + iconSvg('x', 14) + '</button>' +
+    '</div>';
+  } else {
+    html += '<input type="file" id="f-qr" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none">' +
+      '<button class="upload-area" id="upload-btn" onclick="document.getElementById(\'f-qr\').click()">' +
+        iconSvg('imageUp', 28) + '<span>Upload QR Code</span>' +
+      '</button>';
+  }
+
+  html += '</div>' +
+    '<div class="form-row">' +
+      '<button class="btn btn-ghost btn-flex-1" onclick="resetForm()">Reset</button>' +
+      '<button class="btn btn-primary btn-flex-2" id="submit-btn" ' + (isValid ? '' : 'disabled') + ' onclick="submitForm()">Submit Payment</button>' +
+    '</div>' +
+  '</div></div>';
+
+  root.innerHTML = html;
+
+  // Bind events
+  document.getElementById('f-name').addEventListener('input', function() {
+    formData.name = this.value;
+    document.getElementById('submit-btn').disabled = !(formData.name.trim() && formData.payment_number.trim());
+  });
+  document.getElementById('f-number').addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '');
+    formData.payment_number = this.value;
+    document.getElementById('submit-btn').disabled = !(formData.name.trim() && formData.payment_number.trim());
+  });
+  document.getElementById('f-account').addEventListener('input', function() { formData.account_name = this.value; });
+  document.getElementById('f-notes').addEventListener('input', function() { formData.notes = this.value; });
+  document.getElementById('f-qr').addEventListener('change', handleQrUpload);
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function handleQrUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('upload-btn').innerHTML = iconSvg('loader2', 28) + '<span>Uploading...</span>';
+  compressImage(file).then(compressed => {
+    const fd = new FormData();
+    fd.append('file', compressed);
+    fd.append('bot_id', botInfo.bot_id);
+    return fetch(API + '/public/upload/photo', { method: 'POST', body: fd });
+  })
+  .then(r => r.json())
+  .then(data => { qrImage = { file_id: data.file_id }; render(); })
+  .catch(() => { render(); });
+}
+
+function compressImage(file) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      const max = 720;
+      if (w <= max && h <= max) { resolve(file); return; }
+      if (w > h) { h = Math.round(h * (max / w)); w = max; }
+      else { w = Math.round(w * (max / h)); h = max; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      c.toBlob(b => resolve(new File([b], file.name, { type: 'image/jpeg' })), 'image/jpeg', 0.8);
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function removeQr() { qrImage = null; render(); }
+
+function resetForm() {
+  formData = { name: '', account_name: '', payment_number: '', notes: '' };
+  qrImage = null;
+  errorMsg = '';
+  render();
+}
+
+let submitting = false, result = null;
+
+function submitForm() {
+  if (submitting || !formData.name.trim() || !formData.payment_number.trim()) return;
+  submitting = true;
+  errorMsg = '';
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = iconSvg('loader2', 20) + ' Submitting...';
+
+  fetch(API + '/public/create-payment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: u, code: c, secret1: s1, secret2: s2,
+      name: formData.name.trim(),
+      account_name: formData.account_name.trim() || null,
+      payment_number: formData.payment_number.trim(),
+      notes: formData.notes.trim() || null,
+      qr_code_url: qrImage ? qrImage.file_id : null,
+    })
+  })
+  .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+  .then(res => {
+    if (!res.ok) {
+      errorMsg = res.data.detail || 'Failed to create payment';
+      submitting = false;
+      render();
+      return;
+    }
+    result = res.data;
+    state = 'success';
+    render();
+  })
+  .catch(() => {
+    errorMsg = 'Something went wrong. Please try again.';
+    submitting = false;
+    render();
+  });
+}
+
+// Init
+if (!u || !c) {
+  state = 'error';
+  render();
+} else {
+  fetch(API + '/public/bot-resolve/' + encodeURIComponent(u) + '/' + encodeURIComponent(c) + '?secret1=' + encodeURIComponent(s1) + '&secret2=' + encodeURIComponent(s2))
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(data => {
+      botInfo = data;
+      if (data.limits && data.counts && data.limits.payment_methods !== null && data.counts.payment_methods >= data.limits.payment_methods) {
+        state = 'limit_reached';
+      } else {
+        state = 'form';
+      }
+      render();
+    })
+    .catch(() => { state = 'error'; render(); });
+}
+</script>
+</body>
+</html>

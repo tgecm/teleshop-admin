@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "dev:staging": "VITE_API_BASE=https://api.telegramecommerce.shop/dev-api vite --port=3000 --host=0.0.0.0",
-    "dev:live": "vite --port=3000 --host=0.0.0.0",
+    "dev:live": "VITE_API_BASE=https://api.telegramecommerce.shop vite --port=3000 --host=0.0.0.0",
     "build": "NODE_OPTIONS=\"--require ./crypto-polyfill.cjs\" vite build && node -e \"require('fs').writeFileSync('dist/build-version.json',JSON.stringify({version:require('crypto').randomBytes(8).toString('hex'),timestamp:new Date().toISOString()}))\"",
     "preview": "vite preview",
     "clean": "rm -rf dist",

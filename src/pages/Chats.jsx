@@ -584,7 +584,41 @@ export default function Chats() {
   }, [showFilterMenu]);
 
   useEffect(() => {
-    if (location.state?.visitorId) {
+    const stateConvId = location.state?.conversationId;
+    const urlParams = new URLSearchParams(window.location.search);
+    const queryConvId = urlParams.get('conversation_id') || urlParams.get('chatId') || urlParams.get('conversationId');
+    const targetConvId = stateConvId || queryConvId;
+    const requestedTab = location.state?.tab;
+
+    if (requestedTab === 'web' || requestedTab === 'guest') {
+      const vId = location.state?.visitorId || targetConvId || '';
+      setChatTab(requestedTab);
+      setSelectedVisitor(vId);
+      setSelectedUser(null);
+      if (location.state?.name) setSelectedChatName(location.state.name);
+      window.history.replaceState({}, document.title);
+    } else if (requestedTab === 'telegram') {
+      const tgId = location.state?.userId || (targetConvId ? Number(targetConvId.replace('tg_', '')) : null);
+      setChatTab('telegram');
+      setSelectedUser(tgId);
+      setSelectedVisitor(null);
+      if (location.state?.name) setSelectedChatName(location.state.name);
+      window.history.replaceState({}, document.title);
+    } else if (targetConvId) {
+      if (targetConvId.startsWith('tg_')) {
+        const tgId = Number(targetConvId.replace('tg_', ''));
+        setChatTab('telegram');
+        setSelectedUser(tgId);
+        setSelectedVisitor(null);
+      } else if (targetConvId.startsWith('web_') || targetConvId.startsWith('guest_')) {
+        const vId = location.state?.visitorId || targetConvId;
+        setChatTab('web');
+        setSelectedVisitor(vId);
+        setSelectedUser(null);
+      }
+      if (location.state?.name) setSelectedChatName(location.state.name);
+      window.history.replaceState({}, document.title);
+    } else if (location.state?.visitorId) {
       setChatTab(location.state.tab || 'web');
       setSelectedVisitor(location.state.visitorId);
       setSelectedUser(null);
@@ -861,31 +895,27 @@ export default function Chats() {
     if (!v) return false;
     if (v.name === 'E-commerce Support') return false;
 
-    const fuid = (v.firebase_uid || '').trim();
     const vid = (v.visitor_id || '').trim();
+    const fuid = (v.firebase_uid || '').trim();
 
-    // 1. Without UID or N/A or null/None
-    if (!fuid || fuid === 'N/A' || fuid === 'None' || fuid === 'null') {
-      return true;
+    // 1. Telegram / Web customer IDs belong under Website tab
+    if (vid.startsWith('web_tg_') || vid.startsWith('tg_') || /^\d+$/.test(vid)) {
+      return false;
     }
 
-    // 2. Temporary localcache / session IDs
-    const tempPrefixes = ['v_', 'vm', 'wv_', 'guest_', 'temp_', 'test', 'verify'];
-    const isVidTemp = tempPrefixes.some(p => vid.startsWith(p));
-    const isFuidTemp = tempPrefixes.some(p => fuid.startsWith(p));
-
-    if (isVidTemp) {
-      if (fuid === vid || isFuidTemp) {
-        return true;
-      }
+    // 2. Real Firebase / Google UIDs belong under Website tab
+    if (fuid && fuid !== 'N/A' && fuid !== 'None' && fuid !== 'null' && !fuid.startsWith('v_') && !fuid.startsWith('vm')) {
+      return false;
     }
 
-    if (isFuidTemp) {
-      return true;
+    // 3. Named customers belong under Website tab
+    const name = (v.name || '').trim();
+    if (name && name !== 'Website Customer' && name !== 'Shop Visitor' && name !== 'Guest') {
+      return false;
     }
 
-    // Signed-in users with a real Unique UID belong under Website tab
-    return false;
+    // Anonymous guests belong under Guest tab
+    return true;
   };
 
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
@@ -934,7 +964,14 @@ export default function Chats() {
   });
 
   const selectedChat = displayedChats.find(c => c.user_id === selectedUser);
-  const selectedWebChat = displayedWebVisitors.find(v => v.visitor_id === selectedVisitor);
+  const selectedWebChat = displayedWebVisitors.find(v =>
+    v.visitor_id === selectedVisitor ||
+    v.firebase_uid === selectedVisitor ||
+    (selectedVisitor && `web_${v.visitor_id}` === selectedVisitor) ||
+    (selectedVisitor && v.visitor_id === `web_${selectedVisitor}`) ||
+    (selectedVisitor && v.visitor_id === selectedVisitor.replace(/^web_/, '')) ||
+    (selectedVisitor && selectedVisitor === `web_tg_${v.telegram_id}`)
+  );
   const isWebTab = chatTab === 'web' || chatTab === 'guest';
 
   const getItemTime = (item) => {
@@ -1301,7 +1338,14 @@ export default function Chats() {
                 <WebVisitorItem
                   key={v.visitor_id}
                   v={v}
-                  isSelected={selectedVisitor === v.visitor_id}
+                  isSelected={
+                    selectedVisitor === v.visitor_id ||
+                    selectedVisitor === v.firebase_uid ||
+                    (selectedVisitor && `web_${v.visitor_id}` === selectedVisitor) ||
+                    (selectedVisitor && v.visitor_id === `web_${selectedVisitor}`) ||
+                    (selectedVisitor && v.visitor_id === selectedVisitor.replace(/^web_/, '')) ||
+                    (selectedVisitor && selectedVisitor === `web_tg_${v.telegram_id}`)
+                  }
                   onClick={() => {
                     setSelectedVisitor(v.visitor_id);
                     setSelectedUser(null);
