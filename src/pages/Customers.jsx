@@ -165,6 +165,8 @@ export default function Customers() {
         id: c.id,
         telegram_id: c.telegram_id,
         firebase_uid: c.firebase_uid,
+        dashboard_chat_id: c.dashboard_chat_id,
+        conversation_id_web: c.conversation_id_web || c.dashboard_chat_id,
         name: c.display_name || c.first_name || (c.username ? `@${c.username}` : 'Telegram User'),
         display_name: c.display_name || c.first_name || 'Telegram User',
         username: c.username,
@@ -184,6 +186,10 @@ export default function Customers() {
 
       if (map.has(key)) {
         const existing = map.get(key);
+        if (c.dashboard_chat_id && !existing.dashboard_chat_id) {
+          existing.dashboard_chat_id = c.dashboard_chat_id;
+          existing.conversation_id_web = c.dashboard_chat_id;
+        }
         if (c.display_name && (existing.name === 'Telegram User' || existing.name === 'Website User' || !existing.name)) {
           existing.name = c.display_name;
         }
@@ -196,6 +202,8 @@ export default function Customers() {
           id: c.id,
           firebase_uid: c.firebase_uid,
           telegram_id: c.telegram_id,
+          dashboard_chat_id: c.dashboard_chat_id,
+          conversation_id_web: c.conversation_id_web || c.dashboard_chat_id,
           name: c.display_name || (c.email ? c.email.split('@')[0] : 'Website User'),
           display_name: c.display_name || 'Website User',
           email: c.email,
@@ -822,21 +830,23 @@ export default function Customers() {
                       }
 
                       try {
+                        const activeBotId = Number(selectedBotId || detailCustomer.bot_id || 0);
                         const targetUid = detailCustomer.dashboard_chat_id || detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
                         const targetName = (customerProfile?.display_name && customerProfile.display_name.trim()) || detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name || 'Website Customer';
-                        const res = await initiateWebVisitorChat(selectedBotId, {
-                          firebaseUid: targetUid,
-                          visitorId: targetUid,
+                        const res = await initiateWebVisitorChat(activeBotId, {
+                          firebase_uid: targetUid,
+                          visitor_id: targetUid,
                           name: targetName,
                           phone: detailCustomer.phone || detailCustomer.phone_number || '',
                           email: detailCustomer.email || '',
                         });
                         const finalVisitorId = res.visitor_id || targetUid;
-                        const convId = String(finalVisitorId).startsWith('web_') ? String(finalVisitorId) : `web_${finalVisitorId}`;
+                        const convId = finalVisitorId;
                         navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: targetName, tab: 'web' } });
                         setDetailCustomer(null);
                       } catch (err) {
-                        addToast('Failed to open chat with customer', 'error');
+                        console.error("FAILED TO OPEN CHAT:", err);
+                        addToast(`Failed to open chat: ${err?.response?.data?.detail || err?.message || err}`, 'error');
                       }
                     }}
                     className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
@@ -902,21 +912,23 @@ export default function Customers() {
                         type="button"
                         onClick={async () => {
                           try {
+                            const activeBotId = Number(selectedBotId || detailCustomer.bot_id || 0);
                             const targetUid = detailCustomer.dashboard_chat_id || detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
                             const targetName = detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name || 'Website Customer';
-                            const res = await initiateWebVisitorChat(selectedBotId, {
-                              firebaseUid: targetUid,
-                              visitorId: targetUid,
+                            const res = await initiateWebVisitorChat(activeBotId, {
+                              firebase_uid: targetUid,
+                              visitor_id: targetUid,
                               name: targetName,
                               phone: detailCustomer.phone || detailCustomer.phone_number || '',
                               email: detailCustomer.email || '',
                             });
                             const finalVisitorId = res.visitor_id || targetUid;
-                            const convId = String(finalVisitorId).startsWith('web_') ? String(finalVisitorId) : `web_${finalVisitorId}`;
+                            const convId = finalVisitorId;
                             navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: targetName, tab: 'web' } });
                             setDetailCustomer(null);
                           } catch (err) {
-                            addToast('Failed to open chat with customer', 'error');
+                            console.error("FAILED TO OPEN CHAT:", err);
+                            addToast(`Failed to open chat: ${err?.response?.data?.detail || err?.message || err}`, 'error');
                           }
                         }}
                         className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-xs active:scale-95"
@@ -960,19 +972,21 @@ export default function Customers() {
                           type="button"
                           onClick={async () => {
                             try {
+                              const activeBotId = Number(selectedBotId || detailCustomer.bot_id || 0);
                               const targetUid = detailCustomer.dashboard_chat_id || detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
                               const targetName = detailCustomer.display_name || detailCustomer.name || 'Website Customer';
-                              const res = await initiateWebVisitorChat(selectedBotId, {
-                                firebaseUid: targetUid,
-                                visitorId: targetUid,
+                              const res = await initiateWebVisitorChat(activeBotId, {
+                                firebase_uid: targetUid,
+                                visitor_id: targetUid,
                                 name: targetName,
                               });
                               const finalVisitorId = res.visitor_id || targetUid;
-                              const convId = String(finalVisitorId).startsWith('web_') ? String(finalVisitorId) : `web_${finalVisitorId}`;
+                              const convId = finalVisitorId;
                               navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: targetName, tab: 'web' } });
                               setDetailCustomer(null);
                             } catch (err) {
-                              addToast('Failed to open chat with customer', 'error');
+                              console.error("FAILED TO OPEN CHAT:", err);
+                              addToast(`Failed to open chat: ${err?.response?.data?.detail || err?.message || err}`, 'error');
                             }
                           }}
                           className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl font-semibold text-xs border border-emerald-200 transition-colors cursor-pointer active:scale-95"

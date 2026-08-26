@@ -888,10 +888,15 @@ export default function Chats() {
         if (!existing.all_visitor_ids.includes(v.visitor_id)) {
           existing.all_visitor_ids.push(v.visitor_id);
         }
+        if (v.visitor_id && v.visitor_id.startsWith('dc_') && (!existing.visitor_id || !existing.visitor_id.startsWith('dc_'))) {
+          existing.visitor_id = v.visitor_id;
+        }
         const existingTime = new Date(existing.last_time || existing.updated_at || existing.created_at || 0).getTime();
         const vTime = new Date(v.last_time || v.updated_at || v.created_at || 0).getTime();
         if (vTime > existingTime) {
-          existing.visitor_id = v.visitor_id;
+          if (v.visitor_id && v.visitor_id.startsWith('dc_')) {
+            existing.visitor_id = v.visitor_id;
+          }
           existing.last_message = v.last_message || existing.last_message;
           existing.last_time = v.last_time || existing.last_time;
           existing.updated_at = v.updated_at || existing.updated_at;
@@ -2036,11 +2041,11 @@ export default function Chats() {
                         key={cust.visitor_id || cust.firebase_uid || cust.email || cust.name}
                         onClick={() => {
                           initiateChatMutation.mutate({
-                            firebaseUid: cust.firebase_uid || cust.visitor_id,
+                            firebase_uid: cust.dashboard_chat_id || cust.firebase_uid || cust.visitor_id,
+                            visitor_id: cust.dashboard_chat_id || cust.visitor_id,
                             name: displayName,
                             phone: cust.phone,
                             email: cust.email,
-                            visitorId: cust.visitor_id
                           });
                         }}
                         disabled={initiateChatMutation.isPending}
