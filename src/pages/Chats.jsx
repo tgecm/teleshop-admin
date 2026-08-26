@@ -687,10 +687,17 @@ export default function Chats() {
     setUserScrolledUp(!isNearBottom);
   }, []);
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((smooth = false) => {
     const el = chatContainerRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    try {
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto',
+      });
+    } catch {
+      el.scrollTop = el.scrollHeight;
+    }
     setUserScrolledUp(false);
   }, []);
 
@@ -702,11 +709,10 @@ export default function Chats() {
 
   const prevChatsRef = useRef([]);
   const prevMessagesRef = useRef([]);
-  const initialScrollDone = useRef(false);
   const prevWebVisitorsRef = useRef([]);
   const prevWebMessagesRef = useRef([]);
 
-  const { data: chats = [] } = useQuery({
+  const { data: chats = [], isFetching: isFetchingChats } = useQuery({
     queryKey: ['chats', selectedBotId],
     queryFn: () => getChats(Number(selectedBotId)),
     enabled: !!selectedBotId,
@@ -717,9 +723,9 @@ export default function Chats() {
     placeholderData: keepPreviousData,
   });
   if (chats.length > 0) prevChatsRef.current = chats;
-  const stableChats = isFetching && chats.length === 0 ? prevChatsRef.current : chats;
+  const stableChats = isFetchingChats && chats.length === 0 ? prevChatsRef.current : chats;
 
-  const { data: messages = [] } = useQuery({
+  const { data: messages = [], isFetching: isFetchingMessages } = useQuery({
     queryKey: ['chatMessages', selectedBotId, selectedUser],
     queryFn: () => getChatMessages(selectedUser, Number(selectedBotId)),
     enabled: !!selectedBotId && !!selectedUser,
@@ -730,7 +736,7 @@ export default function Chats() {
     placeholderData: keepPreviousData,
   });
   if (messages.length > 0) prevMessagesRef.current = messages;
-  const stableMessages = isFetching && messages.length === 0 ? prevMessagesRef.current : messages;
+  const stableMessages = isFetchingMessages && messages.length === 0 ? prevMessagesRef.current : messages;
 
   const { data: webVisitors = [] } = useQuery({
     queryKey: ['webVisitors', selectedBotId],
@@ -743,7 +749,7 @@ export default function Chats() {
   });
   const stableWebVisitors = webVisitors;
 
-  const { data: webMessages = [] } = useQuery({
+  const { data: webMessages = [], isFetching: isFetchingWebMessages } = useQuery({
     queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor],
     queryFn: () => getWebVisitorMessages(selectedVisitor, Number(selectedBotId)),
     enabled: !!selectedBotId && !!selectedVisitor,
@@ -754,7 +760,7 @@ export default function Chats() {
     placeholderData: keepPreviousData,
   });
   if (webMessages.length > 0) prevWebMessagesRef.current = webMessages;
-  const stableWebMessages = isFetching && webMessages.length === 0 ? prevWebMessagesRef.current : webMessages;
+  const stableWebMessages = isFetchingWebMessages && webMessages.length === 0 ? prevWebMessagesRef.current : webMessages;
 
   // Immediately invalidate and fetch messages when selected user or visitor changes
   useEffect(() => {
@@ -766,22 +772,32 @@ export default function Chats() {
     }
     prevWebMessagesRef.current = [];
     prevMessagesRef.current = [];
-    initialScrollDone.current = false;
     setUserScrolledUp(false);
   }, [selectedUser, selectedVisitor, selectedBotId, queryClient]);
 
-  const activeMsgs = selectedVisitor ? webMessages : messages;
+  const activeMsgs = selectedVisitor ? stableWebMessages : stableMessages;
 
   useEffect(() => {
     const el = chatContainerRef.current;
     if (!el || activeMsgs.length === 0) return;
-    if (!initialScrollDone.current) {
-      initialScrollDone.current = true;
-      el.scrollTop = el.scrollHeight;
-    } else if (!userScrolledUp) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [activeMsgs, userScrolledUp, selectedVisitor]);
+
+    const scrollNow = () => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+    };
+
+    scrollNow();
+    const t1 = setTimeout(scrollNow, 50);
+    const t2 = setTimeout(scrollNow, 150);
+    const t3 = setTimeout(scrollNow, 350);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [activeMsgs.length, selectedVisitor, selectedUser]);
 
   const displayedChats = useMemo(() =>
     stableChats.map(c => ({ ...c, unread_count: unreadOverrides[c.user_id] ?? c.unread_count })),
@@ -926,22 +942,30 @@ export default function Chats() {
     const fuid = (v.firebase_uid || '').trim();
 
     // 1. Telegram / Web customer IDs belong under Website tab
-    if (vid.startsWith('web_tg_') || vid.startsWith('tg_') || /^\d+$/.test(vid)) {
+    if (vid.startsWith('web_tg_') || vid.startsWith('tg_') || (v.telegram_id && String(v.telegram_id).length > 0)) {
       return false;
     }
 
-    // 2. Real Firebase / Google UIDs belong under Website tab
-    if (fuid && fuid !== 'N/A' && fuid !== 'None' && fuid !== 'null' && !fuid.startsWith('v_') && !fuid.startsWith('vm')) {
+    // 2. Real Firebase / Google UIDs or authenticated Customer Dashboard users belong under Website tab
+    if (fuid && fuid !== 'N/A' && fuid !== 'None' && fuid !== 'null' && !fuid.startsWith('v_') && !fuid.startsWith('vm_') && !fuid.startsWith('wv_')) {
       return false;
     }
 
-    // 3. Named customers belong under Website tab
+    // 3. Registered email or phone belongs under Website tab
+    if (v.email && v.email.includes('@')) {
+      return false;
+    }
+    if (v.phone && v.phone.trim() && v.phone !== 'N/A' && v.phone !== 'None') {
+      return false;
+    }
+
+    // 4. Named customers (not generic placeholders) belong under Website tab
     const name = (v.name || '').trim();
-    if (name && name !== 'Website Customer' && name !== 'Shop Visitor' && name !== 'Guest') {
+    if (name && name !== 'Website Customer' && name !== 'Shop Visitor' && name !== 'Guest' && name !== 'User') {
       return false;
     }
 
-    // Anonymous guests belong under Guest tab
+    // Messages from guest visitors without UID or with temporary IDs (v_*, vm_*, wv_*) belong under Guest tab
     return true;
   };
 
@@ -990,7 +1014,8 @@ export default function Chats() {
     );
   });
 
-  const selectedChat = displayedChats.find(c => c.user_id === selectedUser);
+  const activeTgId = selectedUser || (selectedVisitor ? Number(String(selectedVisitor).replace(/^web_tg_/, '').replace(/^web_/, '').replace(/^tg_/, '')) : null);
+  const selectedChat = displayedChats.find(c => Number(c.user_id) === Number(activeTgId));
   const selectedWebChat = displayedWebVisitors.find(v =>
     v.visitor_id === selectedVisitor ||
     v.firebase_uid === selectedVisitor ||
@@ -1691,17 +1716,36 @@ export default function Chats() {
                     {selectedWebChat?.name === 'E-commerce Support' ? (
                       <img src="/logo.webp" alt="Support" className="w-8 h-8 rounded-full object-cover border border-indigo-100" />
                     ) : (
-                      <CustomerAvatar photoUrl={selectedWebChat?.photo_url} name={selectedWebChat?.name || selectedChat?.first_name} size="w-8 h-8" fontSize="text-xs" />
+                      <CustomerAvatar
+                        photoUrl={selectedChat?.profile_picture || selectedChat?.photo_url || selectedWebChat?.photo_url || selectedWebChat?.profile_picture}
+                        name={
+                          (selectedChat?.first_name ? (selectedChat.first_name + (selectedChat.last_name ? ` ${selectedChat.last_name}` : '')) : null) ||
+                          selectedChat?.name ||
+                          selectedChatName ||
+                          (selectedWebChat?.name && selectedWebChat.name !== 'Website Customer' && selectedWebChat.name !== 'Shop Visitor' ? selectedWebChat.name : null) ||
+                          'Customer'
+                        }
+                        size="w-8 h-8"
+                        fontSize="text-xs"
+                      />
                     )}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
-                      {selectedWebChat?.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || selectedChatName || 'Customer')}
+                      {selectedWebChat?.name === 'E-commerce Support' ? (
+                        <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></>
+                      ) : (
+                        (selectedChat?.first_name ? (selectedChat.first_name + (selectedChat.last_name ? ` ${selectedChat.last_name}` : '')) : null) ||
+                        selectedChat?.name ||
+                        selectedChatName ||
+                        (selectedWebChat?.name && selectedWebChat.name !== 'Website Customer' && selectedWebChat.name !== 'Shop Visitor' ? selectedWebChat.name : null) ||
+                        'Customer'
+                      )}
                     </p>
-                    {selectedChat?.username && (
-                      <p className="text-[11px] text-gray-500 truncate">@{selectedChat.username}</p>
+                    {(selectedChat?.username || selectedWebChat?.telegram_username) && (
+                      <p className="text-[11px] text-gray-500 truncate">@{selectedChat?.username || selectedWebChat?.telegram_username}</p>
                     )}
-                    {selectedWebChat?.phone && (
+                    {selectedWebChat?.phone && !selectedChat?.username && !selectedWebChat?.telegram_username && (
                       <p className="text-[11px] text-gray-500 truncate">{selectedWebChat.phone}</p>
                     )}
                   </div>
