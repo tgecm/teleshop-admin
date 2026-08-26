@@ -541,16 +541,17 @@ export default function Orders() {
                           setSelectedOrder(null);
                         } else {
                           try {
+                            const activeBotId = Number(selectedBotId || selectedOrder.bot_id || 0);
                             const targetUid = bs.dashboard_chat_id || cust.dashboard_chat_id || bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
-                            const res = await initiateWebVisitorChat(selectedBotId, {
-                              firebaseUid: targetUid,
-                              visitorId: targetUid,
+                            const res = await initiateWebVisitorChat(activeBotId, {
+                              firebase_uid: targetUid,
+                              visitor_id: targetUid,
                               name: customerName,
                               phone: bs.phone || cust.phone_number || '',
                               email: bs.email || cust.email || '',
                             });
                             const finalVisitorId = res.visitor_id || targetUid;
-                            const convId = res.conversation_id || (finalVisitorId.startsWith('web_') ? finalVisitorId : `web_${finalVisitorId}`);
+                            const convId = finalVisitorId;
                             navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: customerName, tab: 'web' } });
                             setSelectedOrder(null);
                           } catch (err) {
@@ -634,17 +635,18 @@ export default function Orders() {
                             type="button"
                             onClick={async () => {
                               try {
+                                const activeBotId = Number(selectedBotId || selectedOrder.bot_id || 0);
                                 const customerName = bs.name || bs.full_name || cust.first_name || 'Website Customer';
                                 const targetUid = bs.dashboard_chat_id || cust.dashboard_chat_id || bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
-                                const res = await initiateWebVisitorChat(selectedBotId, {
-                                  firebaseUid: targetUid,
-                                  visitorId: targetUid,
+                                const res = await initiateWebVisitorChat(activeBotId, {
+                                  firebase_uid: targetUid,
+                                  visitor_id: targetUid,
                                   name: customerName,
                                   phone: bs.phone || cust.phone_number || '',
                                   email: bs.email || cust.email || '',
                                 });
                                 const finalVisitorId = res.visitor_id || targetUid;
-                                const convId = res.conversation_id || (finalVisitorId.startsWith('web_') ? finalVisitorId : `web_${finalVisitorId}`);
+                                const convId = finalVisitorId;
                                 navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: customerName, tab: 'web' } });
                                 setSelectedOrder(null);
                               } catch (err) {
