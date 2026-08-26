@@ -814,7 +814,7 @@ export default function Customers() {
                       const tgId = detailCustomer.telegram_id || detailCustomer.user_id;
                       const isWebSection = section === 'website' || (section === 'loyal' && detailCustomer.channel === 'website');
 
-                      if (tgId) {
+                      if (tgId && !isWebSection) {
                         const custName = (customerProfile?.display_name && customerProfile.display_name.trim()) || detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
                         navigate('/chats', { state: { conversationId: `tg_${tgId}`, userId: Number(tgId), name: custName, tab: 'telegram' } });
                         setDetailCustomer(null);
@@ -822,7 +822,7 @@ export default function Customers() {
                       }
 
                       try {
-                        const targetUid = detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
+                        const targetUid = detailCustomer.dashboard_chat_id || detailCustomer.conversation_id_web || detailCustomer.firebase_uid || detailCustomer.visitor_id || detailCustomer.uid || (detailCustomer.telegram_id ? `web_tg_${detailCustomer.telegram_id}` : '') || String(detailCustomer.id || '');
                         const targetName = (customerProfile?.display_name && customerProfile.display_name.trim()) || detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name || 'Website Customer';
                         const res = await initiateWebVisitorChat(selectedBotId, {
                           firebaseUid: targetUid,
