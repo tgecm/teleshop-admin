@@ -153,6 +153,7 @@ export default function CustomerDashboard({ shopSlug }) {
   const copyTimerRef = useRef(null);
   const chatInputRef = useRef(null);
   const mainRef = useRef(null);
+  const orderStatsCache = useRef(new Map());
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const telegramToken = typeof window !== 'undefined' ? localStorage.getItem('telegram_token') : null;
@@ -185,6 +186,8 @@ export default function CustomerDashboard({ shopSlug }) {
     || (telegramUser?.username ? `@${telegramUser.username}` : '')
     || (userEmail ? userEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '')
     || 'Customer';
+  const [dashboardChatId, setDashboardChatId] = useState('');
+  const activeVisitorId = dashboardChatId || uid;
   const [customPhotoUrl, setCustomPhotoUrl] = useState(() => {
     return googleUser?.photo_url || user?.photoURL || telegramUser?.photo_url || null;
   });
@@ -202,7 +205,6 @@ export default function CustomerDashboard({ shopSlug }) {
           setPageMeta(s.bot_full_name, s.profile_picture);
         }
         if (s?.id && uid) {
-          // Fetch custom saved profile photo and saved name if available
           fetch(`${API_BASE}/api/customer-profile?bot_id=${s.id}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(userEmail || '')}`)
             .then(r => r.ok ? r.json() : null)
             .then(prof => {
@@ -215,7 +217,6 @@ export default function CustomerDashboard({ shopSlug }) {
             })
             .catch(() => {});
 
-          // Sync website customer to backend
           fetch(`${API_BASE}/website-customers/sync`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -226,70 +227,59 @@ export default function CustomerDashboard({ shopSlug }) {
               email: userEmail || '',
               photo_url: photoUrl || '',
             }),
-          }).catch(() => {});
+          })
+          .then(r => r.ok ? r.json() : null)
+          .then(res => {
+            if (res?.dashboard_chat_id) {
+              setDashboardChatId(res.dashboard_chat_id);
+            }
+          })
+          .catch(() => {});
         }
       })
       .catch(() => {});
   }, [shopSlug, uid, displayName, userEmail, photoUrl]);
 
-  // Fetch order stats (cached in parent so OverviewTab doesn't re-fetch on switch)
   useEffect(() => {
-    if (!uid || !shopSlug) return;
-    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders/stats?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+    if (!shopData?.shop?.id || !uid) return;
+    const cacheKey = `${shopData.shop.id}_${uid}`;
+    if (orderStatsCache.current.has(cacheKey)) {
+      setOrderStats(orderStatsCache.current.get(cacheKey));
+      return;
+    }
+    const headers = { 'Content-Type': 'application/json' };
+    fetch(`${API_BASE}/public/customer/orders-summary?bot_id=${shopData.shop.id}&firebase_uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(userEmail || '')}`, { headers })
       .then(r => r.ok ? r.json() : null)
-      .then(s => { if (s) setOrderStats(s); setRefreshing(false); })
-      .catch(() => { setRefreshing(false); });
-  }, [uid, shopSlug, refreshKey]);
-
-  // Fetch customer orders (cached in parent so OrdersTab doesn't re-fetch on switch)
-  useEffect(() => {
-    if (!uid) { setCustomerOrders([]); setOrdersLoading(false); return; }
-    setOrdersLoading(true);
-    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => { setCustomerOrders(Array.isArray(data) ? data : []); setOrdersLoading(false); setRefreshing(false); })
-      .catch(() => { setCustomerOrders([]); setOrdersLoading(false); setRefreshing(false); });
-  }, [uid, shopSlug, refreshKey]);
-
-  // Fetch customer points balance
-  useEffect(() => {
-    if (!uid || !shopSlug || !shopData?.shop?.id) return;
-    const ptsSettings = shopData?.ecommerce_points_settings;
-    if (!ptsSettings?.enabled) { setCustomerPoints(null); return; }
-    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/points?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setCustomerPoints(d); })
+      .then(data => {
+        if (data) {
+          const stats = {
+            total_orders: data.total_orders || 0,
+            pending_orders: data.pending_orders || 0,
+            processing_orders: data.processing_orders || 0,
+            shipped_orders: data.shipped_orders || 0,
+            delivered_orders: data.delivered_orders || 0,
+            total_spent: data.total_spent || 0,
+          };
+          orderStatsCache.current.set(cacheKey, stats);
+          setOrderStats(stats);
+        }
+      })
       .catch(() => {});
-  }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled, refreshKey]);
+  }, [shopData?.shop?.id, uid, userEmail]);
 
-  // Fetch points history
   useEffect(() => {
-    if (!uid || !shopSlug || !shopData?.shop?.id) { setPointsHistory(null); return; }
-    const ptsSettings = shopData?.ecommerce_points_settings;
-    if (!ptsSettings?.enabled) { setPointsHistory(null); return; }
-    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/points/history?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+    if (!shopData?.shop?.id || !uid) return;
+    fetch(`${API_BASE}/public/customer/points?bot_id=${shopData.shop.id}&firebase_uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(userEmail || '')}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setPointsHistory(d); })
+      .then(data => {
+        if (data) setCustomerPoints(data);
+      })
       .catch(() => {});
-  }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled, refreshKey]);
+  }, [shopData?.shop?.id, uid, userEmail]);
 
-
-  const { data: contentBlocks } = useQuery({
-    queryKey: ['content-blocks', shopData?.shop?.id],
-    queryFn: () => getContentBlocks({ bot_id: Number(shopData?.shop?.id) }),
-    enabled: !!shopData?.shop?.id,
-    placeholderData: (prev) => prev,
-  });
-
-  const receiptSettingsBlock = contentBlocks?.find(b => b.key === 'receipt_settings');
-  const receiptSettings = receiptSettingsBlock?.content_data || {};
-
-  // Claim welcome bonus if not yet claimed
   useEffect(() => {
-    if (!uid || !shopData?.shop?.id || !customerPoints) return;
-    const ptsSettings = shopData?.ecommerce_points_settings;
-    if (!ptsSettings?.enabled || !ptsSettings?.welcome_bonus || customerPoints?.welcome_bonus_claimed) return;
-    fetch(`${API_BASE}/customer/claim-welcome-bonus`, {
+    if (!shopData?.shop?.id || !uid || customerPoints?.welcome_bonus_claimed) return;
+    fetch(`${API_BASE}/public/points/welcome-bonus/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid: uid, firebase_uid: uid, bot_id: shopData.shop.id }),
@@ -300,17 +290,14 @@ export default function CustomerDashboard({ shopSlug }) {
     }).catch(() => {});
   }, [uid, shopData?.shop?.id, customerPoints?.welcome_bonus_claimed]);
 
-  // Chat: register visitor + load existing messages on open
   useEffect(() => {
-    if (!chatOpen || !shopData?.shop?.id || !uid) return;
-    // Register visitor so the admin panel can see this chat
+    if (!chatOpen || !shopData?.shop?.id || !activeVisitorId) return;
     fetch(`${API_BASE}/public/visitor/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ visitor_id: uid, bot_id: shopData.shop.id, firebase_uid: uid, name: displayName }),
+      body: JSON.stringify({ visitor_id: activeVisitorId, bot_id: shopData.shop.id, firebase_uid: uid, name: displayName }),
     }).catch(() => {});
-    // Load existing messages
-    fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(uid)}/messages`)
+    fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(activeVisitorId)}/messages`)
       .then(r => r.ok ? r.json() : [])
       .then(msgs => {
         if (msgs.length > 0) {
@@ -327,14 +314,13 @@ export default function CustomerDashboard({ shopSlug }) {
         }
       })
       .catch(() => {});
-  }, [chatOpen, shopData?.shop?.id, uid]);
+  }, [chatOpen, shopData?.shop?.id, activeVisitorId, uid, displayName]);
 
-  // Chat: poll for admin/AI replies every 3s
   useEffect(() => {
-    if (!chatOpen || !shopData?.shop?.id || !uid) return;
+    if (!chatOpen || !shopData?.shop?.id || !activeVisitorId) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(uid)}/messages`);
+        const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(activeVisitorId)}/messages`);
         if (!res.ok) return;
         const msgs = await res.json();
         if (!msgs.length) return;
@@ -352,15 +338,14 @@ export default function CustomerDashboard({ shopSlug }) {
       } catch {}
     }, 3000);
     return () => clearInterval(interval);
-  }, [chatOpen, shopData?.shop?.id, uid]);
+  }, [chatOpen, shopData?.shop?.id, activeVisitorId]);
 
-  // Chat: poll unread messages count for Support Chat badge (persisted across refreshes)
   useEffect(() => {
-    if (!shopData?.shop?.id || !uid) return;
-    const readKey = `chat_read_count_${shopData.shop.id}_${uid}`;
+    if (!shopData?.shop?.id || !activeVisitorId) return;
+    const readKey = `chat_read_count_${shopData.shop.id}_${activeVisitorId}`;
     const checkUnread = async () => {
       try {
-        const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(uid)}/messages`);
+        const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(activeVisitorId)}/messages`);
         if (!res.ok) return;
         const msgs = await res.json();
         if (!Array.isArray(msgs)) return;
@@ -369,26 +354,34 @@ export default function CustomerDashboard({ shopSlug }) {
         
         if (chatOpen) {
           localStorage.setItem(readKey, String(adminMsgs.length));
-          lastReadCountRef.current = adminMsgs.length;
           setUnreadCount(0);
         } else {
-          const currentRead = Math.max(lastReadCountRef.current, savedReadCount);
-          const unread = Math.max(0, adminMsgs.length - currentRead);
-          setUnreadCount(unread);
+          const unreadCount = Math.max(0, adminMsgs.length - savedReadCount);
+          setUnreadCount(unreadCount);
         }
       } catch {}
     };
     checkUnread();
     const interval = setInterval(checkUnread, 3500);
     return () => clearInterval(interval);
-  }, [chatOpen, shopData?.shop?.id, uid]);
+  }, [shopData?.shop?.id, activeVisitorId, chatOpen]);
 
-  // Chat: auto-scroll to bottom
-  useEffect(() => {
-    if (chatRef.current) {
-      chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  const handleOpenChat = () => {
+    setChatOpen(true);
+    setUnreadCount(0);
+    if (shopData?.shop?.id && activeVisitorId) {
+      const readKey = `chat_read_count_${shopData.shop.id}_${activeVisitorId}`;
+      fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(activeVisitorId)}/messages`)
+        .then(r => r.ok ? r.json() : [])
+        .then(msgs => {
+          if (Array.isArray(msgs)) {
+            const adminMsgs = msgs.filter(m => m.sender_type === 'admin' || m.sender_type === 'superadmin');
+            localStorage.setItem(readKey, String(adminMsgs.length));
+          }
+        })
+        .catch(() => {});
     }
-  }, [chatMessages]);
+  };
 
   const sendMessage = useCallback(async (msg) => {
     if (!msg || !shopData?.shop?.id) return;
@@ -405,7 +398,7 @@ export default function CustomerDashboard({ shopSlug }) {
       const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, visitor_id: uid, disable_ai: true }),
+        body: JSON.stringify({ message: msg, history, visitor_id: activeVisitorId, disable_ai: true }),
       });
       const d = await res.json();
       if (d.reply) {
@@ -422,7 +415,7 @@ export default function CustomerDashboard({ shopSlug }) {
         setTimeout(() => next.type === 'action' ? sendAction(next.msg) : sendMessage(next.msg), 50);
       }
     }
-  }, [shopData?.shop?.id, uid]);
+  }, [shopData?.shop?.id, activeVisitorId]);
 
   const sendAction = useCallback(async (actionMsg) => {
     if (!shopData?.shop?.id) return;
@@ -437,7 +430,7 @@ export default function CustomerDashboard({ shopSlug }) {
       const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: actionMsg, history, visitor_id: uid, is_faq: true }),
+        body: JSON.stringify({ message: actionMsg, history, visitor_id: activeVisitorId, is_faq: true }),
       });
       const d = await res.json();
       if (d.reply) {
@@ -454,7 +447,7 @@ export default function CustomerDashboard({ shopSlug }) {
         setTimeout(() => next.type === 'action' ? sendAction(next.msg) : sendMessage(next.msg), 50);
       }
     }
-  }, [shopData?.shop?.id, uid]);
+  }, [shopData?.shop?.id, activeVisitorId]);
 
   const handleChatSend = useCallback(() => {
     const msg = chatInput.trim();

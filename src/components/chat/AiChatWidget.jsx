@@ -249,7 +249,14 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
           email: loggedInEmail,
           phone: loggedInPhone
         }),
-      }).catch(() => {});
+      })
+      .then(r => r.ok ? r.json() : null)
+      .then(res => {
+        if (res?.dashboard_chat_id) {
+          visitorIdRef.current = res.dashboard_chat_id;
+        }
+      })
+      .catch(() => {});
 
       // Fetch messages for logged-in user
       fetch(`${API_BASE}/public/chat/${botId}/${encodeURIComponent(uidStr)}/messages`)
