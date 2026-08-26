@@ -40,6 +40,8 @@ export default function AiAgent() {
 
   // Main AI Settings State
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [enableWebsiteChat, setEnableWebsiteChat] = useState(true);
+  const [enableGuestChat, setEnableGuestChat] = useState(true);
   const [gender, setGender] = useState('female');
   const [websitePrompt, setWebsitePrompt] = useState('');
   const [telegramPrompt, setTelegramPrompt] = useState('');
@@ -72,6 +74,8 @@ export default function AiAgent() {
   React.useEffect(() => {
     if (aiSettings) {
       setAiEnabled(Boolean(aiSettings.is_enabled));
+      setEnableWebsiteChat(aiSettings.enable_website_chat ?? true);
+      setEnableGuestChat(aiSettings.enable_guest_chat ?? true);
       setGender(aiSettings.gender || 'female');
       setWebsitePrompt(aiSettings.website_system_context || '');
       setTelegramPrompt(aiSettings.system_context || '');
@@ -152,10 +156,59 @@ export default function AiAgent() {
     setPresetAnswerText('');
   }
 
-  const handleSaveMainAi = (e) => {
-    e.preventDefault();
+  const handleToggleAiEnabled = () => {
+    const nextVal = !aiEnabled;
+    setAiEnabled(nextVal);
+    updateAiSettingsMutation.mutate({
+      is_enabled: nextVal,
+      enable_website_chat: enableWebsiteChat,
+      enable_guest_chat: enableGuestChat,
+      gender,
+      website_system_context: websitePrompt
+    });
+  };
+
+  const handleSetGender = (g) => {
+    setGender(g);
     updateAiSettingsMutation.mutate({
       is_enabled: aiEnabled,
+      enable_website_chat: enableWebsiteChat,
+      enable_guest_chat: enableGuestChat,
+      gender: g,
+      website_system_context: websitePrompt
+    });
+  };
+
+  const handleToggleWebsiteChat = () => {
+    const nextVal = !enableWebsiteChat;
+    setEnableWebsiteChat(nextVal);
+    updateAiSettingsMutation.mutate({
+      is_enabled: aiEnabled,
+      enable_website_chat: nextVal,
+      enable_guest_chat: enableGuestChat,
+      gender,
+      website_system_context: websitePrompt
+    });
+  };
+
+  const handleToggleGuestChat = () => {
+    const nextVal = !enableGuestChat;
+    setEnableGuestChat(nextVal);
+    updateAiSettingsMutation.mutate({
+      is_enabled: aiEnabled,
+      enable_website_chat: enableWebsiteChat,
+      enable_guest_chat: nextVal,
+      gender,
+      website_system_context: websitePrompt
+    });
+  };
+
+  const handleSaveMainAi = (e) => {
+    if (e) e.preventDefault();
+    updateAiSettingsMutation.mutate({
+      is_enabled: aiEnabled,
+      enable_website_chat: enableWebsiteChat,
+      enable_guest_chat: enableGuestChat,
       gender,
       website_system_context: websitePrompt
     });
@@ -224,7 +277,7 @@ export default function AiAgent() {
           </div>
           <button
             type="button"
-            onClick={() => setAiEnabled(prev => !prev)}
+            onClick={handleToggleAiEnabled}
             className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 cursor-pointer ${
               aiEnabled ? 'bg-cyan-500' : 'bg-gray-300'
             }`}
@@ -246,7 +299,7 @@ export default function AiAgent() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setGender('male')}
+                  onClick={() => handleSetGender('male')}
                   className={`p-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     gender === 'male'
                       ? 'bg-cyan-50 text-cyan-700 border-cyan-300 shadow-sm'
@@ -257,7 +310,7 @@ export default function AiAgent() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setGender('female')}
+                  onClick={() => handleSetGender('female')}
                   className={`p-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     gender === 'female'
                       ? 'bg-cyan-50 text-cyan-700 border-cyan-300 shadow-sm'
@@ -266,6 +319,47 @@ export default function AiAgent() {
                 >
                   👩 Female Tone
                 </button>
+              </div>
+            </div>
+
+            {/* Live Chat Channel Controls */}
+            <div className="pt-3 border-t border-gray-100 space-y-3">
+              <label className="block text-xs font-bold text-gray-700 flex items-center gap-1">
+                <MessageSquare className="w-4 h-4 text-cyan-600" />
+                Live Chat Channels
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Enable Website Chat */}
+                <div className="p-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 flex items-center justify-between gap-3">
+                  <h3 className="text-xs font-bold text-gray-900">Enable Website Chat</h3>
+                  <button
+                    type="button"
+                    onClick={handleToggleWebsiteChat}
+                    className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 cursor-pointer ${
+                      enableWebsiteChat ? 'bg-cyan-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${
+                      enableWebsiteChat ? 'left-5.5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                {/* Enable Guest Chat */}
+                <div className="p-3.5 rounded-2xl border border-gray-200 bg-gray-50/50 flex items-center justify-between gap-3">
+                  <h3 className="text-xs font-bold text-gray-900">Enable Guest Chat</h3>
+                  <button
+                    type="button"
+                    onClick={handleToggleGuestChat}
+                    className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 cursor-pointer ${
+                      enableGuestChat ? 'bg-cyan-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${
+                      enableGuestChat ? 'left-5.5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
               </div>
             </div>
 
