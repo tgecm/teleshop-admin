@@ -583,7 +583,11 @@ export default function Chats() {
     return () => document.removeEventListener('pointerdown', handle);
   }, [showFilterMenu]);
 
+  const hasHandledNavState = useRef(false);
+
   useEffect(() => {
+    if (hasHandledNavState.current && !location.state) return;
+
     const stateConvId = location.state?.conversationId;
     const urlParams = new URLSearchParams(window.location.search);
     const queryConvId = urlParams.get('conversation_id') || urlParams.get('chatId') || urlParams.get('conversationId');
@@ -596,40 +600,45 @@ export default function Chats() {
       setSelectedVisitor(vId);
       setSelectedUser(null);
       if (location.state?.name) setSelectedChatName(location.state.name);
-      window.history.replaceState({}, document.title);
+      hasHandledNavState.current = true;
+      window.history.replaceState({}, document.title, window.location.pathname);
     } else if (requestedTab === 'telegram') {
       const tgId = location.state?.userId || (targetConvId ? Number(targetConvId.replace('tg_', '')) : null);
       setChatTab('telegram');
       setSelectedUser(tgId);
       setSelectedVisitor(null);
       if (location.state?.name) setSelectedChatName(location.state.name);
-      window.history.replaceState({}, document.title);
+      hasHandledNavState.current = true;
+      window.history.replaceState({}, document.title, window.location.pathname);
     } else if (targetConvId) {
-      if (targetConvId.startsWith('tg_')) {
-        const tgId = Number(targetConvId.replace('tg_', ''));
-        setChatTab('telegram');
-        setSelectedUser(tgId);
-        setSelectedVisitor(null);
-      } else if (targetConvId.startsWith('web_') || targetConvId.startsWith('guest_')) {
+      if (targetConvId.startsWith('web_') || targetConvId.startsWith('guest_')) {
         const vId = location.state?.visitorId || targetConvId;
         setChatTab('web');
         setSelectedVisitor(vId);
         setSelectedUser(null);
+      } else if (targetConvId.startsWith('tg_')) {
+        const tgId = Number(targetConvId.replace('tg_', ''));
+        setChatTab('telegram');
+        setSelectedUser(tgId);
+        setSelectedVisitor(null);
       }
       if (location.state?.name) setSelectedChatName(location.state.name);
-      window.history.replaceState({}, document.title);
+      hasHandledNavState.current = true;
+      window.history.replaceState({}, document.title, window.location.pathname);
     } else if (location.state?.visitorId) {
       setChatTab(location.state.tab || 'web');
       setSelectedVisitor(location.state.visitorId);
       setSelectedUser(null);
       if (location.state.name) setSelectedChatName(location.state.name);
-      window.history.replaceState({}, document.title);
+      hasHandledNavState.current = true;
+      window.history.replaceState({}, document.title, window.location.pathname);
     } else if (location.state?.userId) {
       setChatTab(location.state.tab || 'telegram');
       setSelectedUser(location.state.userId);
       setSelectedVisitor(null);
       if (location.state.name) setSelectedChatName(location.state.name);
-      window.history.replaceState({}, document.title);
+      hasHandledNavState.current = true;
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [location.state]);
 
@@ -697,11 +706,14 @@ export default function Chats() {
   const prevWebVisitorsRef = useRef([]);
   const prevWebMessagesRef = useRef([]);
 
-  const { data: chats = [], isFetching } = useQuery({
+  const { data: chats = [] } = useQuery({
     queryKey: ['chats', selectedBotId],
     queryFn: () => getChats(Number(selectedBotId)),
     enabled: !!selectedBotId,
-    refetchInterval: 15000,
+    refetchInterval: 3000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     placeholderData: keepPreviousData,
   });
   if (chats.length > 0) prevChatsRef.current = chats;
@@ -711,7 +723,10 @@ export default function Chats() {
     queryKey: ['chatMessages', selectedBotId, selectedUser],
     queryFn: () => getChatMessages(selectedUser, Number(selectedBotId)),
     enabled: !!selectedBotId && !!selectedUser,
-    refetchInterval: 15000,
+    refetchInterval: 2000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     placeholderData: keepPreviousData,
   });
   if (messages.length > 0) prevMessagesRef.current = messages;
@@ -720,28 +735,40 @@ export default function Chats() {
   const { data: webVisitors = [] } = useQuery({
     queryKey: ['webVisitors', selectedBotId],
     queryFn: () => getWebVisitors(Number(selectedBotId)),
-    enabled: !!selectedBotId && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
-    refetchInterval: 15000,
+    enabled: !!selectedBotId,
+    refetchInterval: 3000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
   const stableWebVisitors = webVisitors;
 
   const { data: webMessages = [] } = useQuery({
     queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor],
     queryFn: () => getWebVisitorMessages(selectedVisitor, Number(selectedBotId)),
-    enabled: !!selectedBotId && !!selectedVisitor && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
-    refetchInterval: 15000,
+    enabled: !!selectedBotId && !!selectedVisitor,
+    refetchInterval: 2000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     placeholderData: keepPreviousData,
   });
   if (webMessages.length > 0) prevWebMessagesRef.current = webMessages;
   const stableWebMessages = isFetching && webMessages.length === 0 ? prevWebMessagesRef.current : webMessages;
 
-  // Reset previous messages cache on visitor change to prevent flashing stale messages
+  // Immediately invalidate and fetch messages when selected user or visitor changes
   useEffect(() => {
+    if (selectedVisitor) {
+      queryClient.invalidateQueries({ queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor] });
+    }
+    if (selectedUser) {
+      queryClient.invalidateQueries({ queryKey: ['chatMessages', selectedBotId, selectedUser] });
+    }
     prevWebMessagesRef.current = [];
     prevMessagesRef.current = [];
     initialScrollDone.current = false;
     setUserScrolledUp(false);
-  }, [selectedUser, selectedVisitor]);
+  }, [selectedUser, selectedVisitor, selectedBotId, queryClient]);
 
   const activeMsgs = selectedVisitor ? webMessages : messages;
 

@@ -2147,7 +2147,6 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     checkoutOpen ||
     showPaymentSelect ||
     showContactInfo ||
-    showVisitorForm ||
     showTrackOrder ||
     orderPlaced ||
     showRegister
@@ -2849,20 +2848,37 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   // Restore visitor session or create new one
   useEffect(() => {
     if (!chatOpen || !shop?.id) return;
-    if (user) {
-      // Firebase user: use UID as visitor ID, skip form
-      visitorIdRef.current = user.uid;
-      setVisitorForm({ name: user.displayName || '', phone: user.phoneNumber || '', email: user.email || '' });
+
+    // 1. Check logged-in JWT token user (from Customer Dashboard / auth) or Firebase / Telegram auth
+    const tokenUid = getUserIdFromToken();
+    const tokenPayload = decodeJwtPayload(localStorage.getItem('telegram_token'));
+    const effectiveUid = tokenUid || (user ? user.uid : null) || (tgLoggedIn && telegramUser?.id ? 'tg_' + telegramUser.id : null);
+
+    if (effectiveUid) {
+      const uidStr = String(effectiveUid);
+      visitorIdRef.current = uidStr;
+      const displayName = tokenPayload?.name || tokenPayload?.display_name || user?.displayName || (telegramUser?.name || '');
+      const email = tokenPayload?.email || user?.email || '';
+      setVisitorForm({ name: displayName, phone: tokenPayload?.phone || '', email });
       setShowVisitorForm(false);
-      // Register as web visitor with firebase_uid for admin split
+
+      // Register visitor with effectiveUid so admin panel and dashboard match
       fetch(API_BASE + '/public/visitor/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visitor_id: user.uid, bot_id: shop.id, name: user.displayName || '', email: user.email || '', firebase_uid: user.uid }),
+        body: JSON.stringify({
+          visitor_id: uidStr,
+          bot_id: shop.id,
+          name: displayName,
+          email,
+          ...(tokenUid || user?.uid ? { firebase_uid: tokenUid || user?.uid } : {}),
+          ...(telegramUser?.id ? { telegram_id: telegramUser.id } : {})
+        }),
       }).catch(() => {});
-      // Load existing chat history
-      fetch(API_BASE + '/public/chat/' + shop.id + '/' + user.uid + '/messages')
-        .then(r => r.json())
+
+      // Load 100% identical existing chat history from customer dashboard / backend
+      fetch(API_BASE + '/public/chat/' + shop.id + '/' + encodeURIComponent(uidStr) + '/messages')
+        .then(r => r.ok ? r.json() : [])
         .then(msgs => {
           if (msgs && msgs.length > 0) {
             setChatMessages(msgs.map(m => ({
@@ -2875,33 +2891,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         }).catch(() => {});
       return;
     }
-    if (tgLoggedIn && telegramUser?.id) {
-      // Telegram auth user: use telegram ID as visitor ID, skip form
-      const tgVisitorId = 'tg_' + telegramUser.id;
-      visitorIdRef.current = tgVisitorId;
-      setVisitorForm({ name: telegramUser.name || '', phone: '', email: '' });
-      setShowVisitorForm(false);
-      // Register as web visitor with telegram_id for admin split
-      fetch(API_BASE + '/public/visitor/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visitor_id: tgVisitorId, bot_id: shop.id, name: telegramUser.name || '', email: '', telegram_id: telegramUser.id }),
-      }).catch(() => {});
-      // Load existing chat history
-      fetch(API_BASE + '/public/chat/' + shop.id + '/' + tgVisitorId + '/messages')
-        .then(r => r.json())
-        .then(msgs => {
-          if (msgs && msgs.length > 0) {
-            setChatMessages(msgs.map(m => ({
-              role: m.sender_type === 'user' ? 'user' : 'assistant',
-              content: m.message_text || '',
-              file_id: m.file_id || null,
-              file_type: m.file_type || null
-            })));
-          }
-        }).catch(() => {});
-      return;
-    }
+
     if (visitorIdRef.current) return;
     const key = 'visitor_' + (shop.bot_username || slug || 'domain');
     const saved = localStorage.getItem(key);
@@ -2910,8 +2900,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         const info = JSON.parse(saved);
         visitorIdRef.current = info.id;
         setVisitorForm({ name: info.name || '', phone: info.phone || '', email: info.email || '' });
-        fetch(API_BASE + '/public/chat/' + shop.id + '/' + info.id + '/messages')
-          .then(r => r.json())
+        fetch(API_BASE + '/public/chat/' + shop.id + '/' + encodeURIComponent(info.id) + '/messages')
+          .then(r => r.ok ? r.json() : [])
           .then(msgs => {
             if (msgs && msgs.length > 0) {
               setChatMessages(msgs.map(m => ({
@@ -4001,13 +3991,33 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         )}
       </AnimatePresence>
 
-      {data?.ai_agent_enabled && (!anyModalOpen || chatOpen) && (
-        <>
-          <button
-            onClick={() => setChatOpen(!chatOpen)}
-            className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg z-50 flex items-center justify-center transition-transform active:scale-90 hover:scale-105"
-            style={{ background: theme.css['--theme-btn'] }}
-          >
+      {(() => {
+        const enableWeb = data?.enable_website_chat ?? true;
+        const enableGuest = data?.enable_guest_chat ?? true;
+        const showBubble = Boolean(data?.ai_agent_enabled) && (
+          (enableWeb && !enableGuest) ||
+          (viewMode === 'ecommerce' && enableWeb) ||
+          ((viewMode === 'guest' || viewMode === 'telegram') && enableGuest)
+        );
+
+        if (!showBubble || (anyModalOpen && !chatOpen)) return null;
+
+        return (
+          <>
+            <button
+              onClick={() => {
+                if (!chatOpen) {
+                  const isGuestFlow = (viewMode === 'guest' || viewMode === 'telegram') && enableGuest;
+                  if (!isGuestFlow && !user && !tgLoggedIn) {
+                    setShowSignIn(true);
+                    return;
+                  }
+                }
+                setChatOpen(!chatOpen);
+              }}
+              className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg z-50 flex items-center justify-center transition-transform active:scale-90 hover:scale-105"
+              style={{ background: theme.css['--theme-btn'] }}
+            >
             {chatOpen ? <X className="w-6 h-6 text-white" /> : <MessageCircle className="w-6 h-6 text-white" />}
           </button>
 
@@ -4018,7 +4028,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               exit={{ opacity: 0, y: 50, scale: 0.95 }}
               className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[360px] h-[520px] max-h-[75vh] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 flex flex-col overflow-hidden"
             >
-              <div className="p-4" style={{ background: theme.css['--theme-header'] }}>
+              <div className="p-4 flex items-center justify-between" style={{ background: theme.css['--theme-header'] }}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
                     <MessageCircle className="w-4 h-4 text-white" />
@@ -4028,6 +4038,13 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                     <p className="text-[10px] text-white/70">Ask anything about our products</p>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setChatOpen(false)}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center transition-all text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
               {showVisitorForm ? (
@@ -4131,7 +4148,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             </motion.div>
           )}
         </>
-      )}
+      );
+    })()}
 
       {/* Newsfeed Modal */}
       {showNewsfeed && (
