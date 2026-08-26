@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrders, updateOrder } from '../api/orders';
 import { initiateWebVisitorChat } from '../api/chats';
@@ -126,6 +126,7 @@ export default function Orders() {
   const [extraOrders, setExtraOrders] = useState([]);
   const [offset, setOffset] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreRef = useRef(null);
 
   const lastOffsetRef = useRef('');
   useEffect(() => {
@@ -140,7 +141,7 @@ export default function Orders() {
       bot_id: Number(selectedBotId),
       source: orderTab === 'ecommerce' ? 'website' : orderTab,
       status: statusFilter,
-      limit: 100,
+      limit: 40,
       offset: offset,
     }),
     enabled: !!selectedBotId,
@@ -167,14 +168,28 @@ export default function Orders() {
     return combined;
   }, [rawOrders, extraOrders]);
 
-  const hasMore = rawOrders.length >= 100;
+  const hasMore = rawOrders.length >= 40;
   const isTabLoading = (isLoading || isFetching) && offset === 0 && allOrders.length === 0;
 
-  const handleLoadMore = () => {
-    if (!hasMore || loadingMore) return;
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || loadingMore || isFetching) return;
     setLoadingMore(true);
-    setOffset(prev => prev + 100);
-  };
+    setOffset(prev => prev + 40);
+  }, [hasMore, loadingMore, isFetching]);
+
+  useEffect(() => {
+    if (!hasMore || loadingMore || isFetching) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        handleLoadMore();
+      }
+    }, { threshold: 0.1 });
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, isFetching, handleLoadMore]);
 
   const { data: contentBlocks } = useQuery({
     queryKey: ['content-blocks', selectedBotId],
@@ -442,7 +457,7 @@ export default function Orders() {
       )}
 
       {hasMore && (
-        <div className="flex justify-center pt-4 pb-8">
+        <div ref={loadMoreRef} className="flex justify-center pt-4 pb-8">
           <button
             onClick={handleLoadMore}
             disabled={loadingMore || isFetching}
