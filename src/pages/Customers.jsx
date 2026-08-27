@@ -324,6 +324,15 @@ export default function Customers() {
     );
   }) || [];
 
+  const filteredWebCustomers = webCustomers?.filter(c => {
+    const term = search.toLowerCase();
+    return (
+      c.display_name?.toLowerCase().includes(term) ||
+      c.email?.toLowerCase().includes(term) ||
+      c.firebase_uid?.toLowerCase().includes(term)
+    );
+  }) || [];
+
   const sortedCustomers = React.useMemo(() => {
     return [...filteredCustomers].sort((a, b) => {
       const dateA = a.created_at ? new Date(a.created_at).getTime() : Number(a.id || 0);
