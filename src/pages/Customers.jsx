@@ -532,8 +532,9 @@ export default function Customers() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.display_name || 'Website User'}</p>
                           {isTelegramLogin ? (
-                            <span className="px-2 py-0.5 bg-sky-50 text-sky-600 text-[10px] font-bold rounded-md flex items-center gap-1 border border-sky-200/80 shadow-2xs">
-                              <Smartphone className="w-2.5 h-2.5" /> Telegram Login
+                            <span className="px-2 py-0.5 bg-sky-50 text-sky-700 text-[10px] font-bold rounded-md flex items-center gap-1.5 border border-sky-200/80 shadow-2xs">
+                              <img src="/share-icons/telegram.png" className="w-3.5 h-3.5 object-contain" alt="Telegram" />
+                              Telegram Login
                             </span>
                           ) : (
                             <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-md flex items-center gap-1 border border-blue-200/80 shadow-2xs">
