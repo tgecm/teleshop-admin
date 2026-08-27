@@ -324,14 +324,21 @@ export default function Customers() {
     );
   }) || [];
 
-  const filteredWebCustomers = webCustomers?.filter(c => {
-    const term = search.toLowerCase();
-    return (
-      c.display_name?.toLowerCase().includes(term) ||
-      c.email?.toLowerCase().includes(term) ||
-      c.firebase_uid?.toLowerCase().includes(term)
-    );
-  }) || [];
+  const sortedCustomers = React.useMemo(() => {
+    return [...filteredCustomers].sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : Number(a.id || 0);
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : Number(b.id || 0);
+      return dateB - dateA;
+    });
+  }, [filteredCustomers]);
+
+  const sortedWebCustomers = React.useMemo(() => {
+    return [...filteredWebCustomers].sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : Number(a.id || 0);
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : Number(b.id || 0);
+      return dateB - dateA;
+    });
+  }, [filteredWebCustomers]);
 
   const isLoading = section === 'telegram' ? customersLoading : webLoading;
 
@@ -419,7 +426,7 @@ export default function Customers() {
       {/* Telegram Customers */}
       {section === 'telegram' && (
         <PullToRefresh onRefresh={handleRefresh}>
-        {filteredCustomers.length === 0 ? (
+        {sortedCustomers.length === 0 ? (
           <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-gray-200">
             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <User className="w-8 h-8 text-gray-300" />
@@ -431,7 +438,7 @@ export default function Customers() {
           </div>
         ) : (
           <div className="grid gap-3">
-            {filteredCustomers.map(customer => (
+            {sortedCustomers.map(customer => (
               <motion.div
                 layout
                 key={customer.id}
@@ -480,7 +487,7 @@ export default function Customers() {
           <div className="flex justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
           </div>
-        ) : filteredWebCustomers.length === 0 ? (
+        ) : sortedWebCustomers.length === 0 ? (
           <div className="bg-white rounded-[32px] p-12 text-center border border-dashed border-gray-200">
             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <Globe className="w-8 h-8 text-gray-300" />
@@ -492,45 +499,65 @@ export default function Customers() {
           </div>
         ) : (
           <div className="grid gap-3">
-            {filteredWebCustomers.map(customer => (
-              <motion.div
-                layout
-                key={customer.id}
-                className="contain-content bg-white p-4 rounded-2xl shadow-sm border border-gray-100"
-              >
-                <button
-                  onClick={() => setDetailCustomer(customer)}
-                  className="w-full text-left"
+            {sortedWebCustomers.map(customer => {
+              const isTelegramLogin = Boolean(customer.telegram_id) || (Boolean(customer.firebase_uid) && String(customer.firebase_uid).startsWith('tg_'));
+              return (
+                <motion.div
+                  layout
+                  key={customer.id}
+                  className="contain-content bg-white p-4 rounded-2xl shadow-sm border border-gray-100"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600 overflow-hidden">
-                      {customer.photo_url && !brokenImages.has(customer.id) ? (
-                        <img src={customer.photo_url} alt="" onError={() => addBrokenImage(customer.id)} className="w-full h-full object-cover" />
-                      ) : (
-                        customer.display_name?.[0]?.toUpperCase() || 'W'
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.display_name || 'Website User'}</p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
-                        {customer.email && <span className="truncate">{customer.email}</span>}
-                        <span className="text-gray-300">·</span>
-                        <span className="font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
-                          {customer.points_balance || 0} Points
-                        </span>
-                        {customer.created_at && (
-                          <>
-                            <span className="text-gray-300">·</span>
-                            <span className="whitespace-nowrap">Joined {myanmarFormat(customer.created_at, 'MMM d')}</span>
-                          </>
+                  <button
+                    onClick={() => setDetailCustomer(customer)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600 overflow-hidden">
+                        {customer.photo_url && !brokenImages.has(customer.id) ? (
+                          <img src={customer.photo_url} alt="" onError={() => addBrokenImage(customer.id)} className="w-full h-full object-cover" />
+                        ) : (
+                          customer.display_name?.[0]?.toUpperCase() || 'W'
                         )}
                       </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.display_name || 'Website User'}</p>
+                          {isTelegramLogin ? (
+                            <span className="px-2 py-0.5 bg-sky-50 text-sky-600 text-[10px] font-bold rounded-md flex items-center gap-1 border border-sky-200/80 shadow-2xs">
+                              <Smartphone className="w-2.5 h-2.5" /> Telegram Login
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-md flex items-center gap-1 border border-blue-200/80 shadow-2xs">
+                              <svg className="w-2.5 h-2.5" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                              </svg>
+                              Google Login
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap mt-0.5">
+                          {customer.email && <span className="truncate">{customer.email}</span>}
+                          <span className="text-gray-300">·</span>
+                          <span className="font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60 text-[10px]">
+                            {customer.points_balance || 0} Points
+                          </span>
+                          {customer.created_at && (
+                            <>
+                              <span className="text-gray-300">·</span>
+                              <span className="whitespace-nowrap">Joined {myanmarFormat(customer.created_at, 'MMM d')}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-gray-300 flex-shrink-0" />
                     </div>
-                    <ChevronDown className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                  </div>
-                </button>
-              </motion.div>
-            ))}
+                  </button>
+                </motion.div>
+              );
+            })}
           </div>
         )}
         </PullToRefresh>
