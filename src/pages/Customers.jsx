@@ -102,35 +102,24 @@ export default function Customers() {
   const loyalCustomersList = React.useMemo(() => {
     if (!orders) return [];
 
-    const map = new Map();
+    const customerEntries = [];
+    const aliasToEntryIndex = new Map();
 
-    const getEntry = (key, initialObj) => {
-      if (!map.has(key)) {
-        map.set(key, {
-          ...initialObj,
-          totalSpent: 0,
-          totalOrders: 0,
-          ordersList: [],
-        });
-      }
-      return map.get(key);
+    const addAlias = (alias, entryIdx) => {
+      if (!alias) return;
+      const str = String(alias).trim().toLowerCase();
+      if (!str || str === 'n/a' || str === 'null' || str === 'undefined' || str === '0') return;
+      aliasToEntryIndex.set(str, entryIdx);
+      aliasToEntryIndex.set(`tg_${str}`, entryIdx);
+      aliasToEntryIndex.set(`fb_${str}`, entryIdx);
+      aliasToEntryIndex.set(`id_${str}`, entryIdx);
+      aliasToEntryIndex.set(`email_${str}`, entryIdx);
     };
 
-    const getCustomerKey = (c) => {
-      const email = c.email ? String(c.email).trim().toLowerCase() : '';
-      if (email) return `email_${email}`;
-      if (c.telegram_id) return `tg_${c.telegram_id}`;
-      if (c.firebase_uid) return `fb_${c.firebase_uid}`;
-      return `id_${c.id}`;
-    };
-
-    const tgList = customers || [];
-    const webList = webCustomers || [];
-
-    // Map Telegram customers
-    tgList.forEach(c => {
-      const key = getCustomerKey(c);
-      getEntry(key, {
+    // Index Telegram customers
+    (customers || []).forEach(c => {
+      const idx = customerEntries.length;
+      const entry = {
         id: c.id,
         telegram_id: c.telegram_id,
         firebase_uid: c.firebase_uid,
@@ -141,23 +130,43 @@ export default function Customers() {
         phone: c.phone || c.phone_number,
         photo_url: c.photo_url,
         channel: 'telegram',
+        totalSpent: 0,
+        totalOrders: 0,
+        ordersList: [],
         raw: c,
-      });
+      };
+      customerEntries.push(entry);
+
+      if (c.id) addAlias(c.id, idx);
+      if (c.telegram_id) addAlias(c.telegram_id, idx);
+      if (c.firebase_uid) addAlias(c.firebase_uid, idx);
+      if (c.email) addAlias(c.email, idx);
+      if (c.phone || c.phone_number) addAlias(c.phone || c.phone_number, idx);
     });
 
-    // Map Website customers
-    webList.forEach(c => {
-      const key = getCustomerKey(c);
+    // Index Website customers
+    (webCustomers || []).forEach(c => {
+      let existingIdx = null;
+      if (c.email && aliasToEntryIndex.has(String(c.email).trim().toLowerCase())) {
+        existingIdx = aliasToEntryIndex.get(String(c.email).trim().toLowerCase());
+      } else if (c.firebase_uid && aliasToEntryIndex.has(String(c.firebase_uid).trim())) {
+        existingIdx = aliasToEntryIndex.get(String(c.firebase_uid).trim());
+      } else if (c.telegram_id && aliasToEntryIndex.has(String(c.telegram_id).trim())) {
+        existingIdx = aliasToEntryIndex.get(String(c.telegram_id).trim());
+      }
 
-      if (map.has(key)) {
-        const existing = map.get(key);
+      if (existingIdx !== null) {
+        const existing = customerEntries[existingIdx];
         if (c.display_name && (existing.name === 'Telegram User' || existing.name === 'Website User' || !existing.name)) {
           existing.name = c.display_name;
         }
         if (!existing.email && c.email) existing.email = c.email;
         if (!existing.firebase_uid && c.firebase_uid) existing.firebase_uid = c.firebase_uid;
+        if (c.id) addAlias(c.id, existingIdx);
+        if (c.firebase_uid) addAlias(c.firebase_uid, existingIdx);
       } else {
-        getEntry(key, {
+        const idx = customerEntries.length;
+        const entry = {
           id: c.id,
           firebase_uid: c.firebase_uid,
           telegram_id: c.telegram_id,
@@ -167,56 +176,88 @@ export default function Customers() {
           phone: c.phone,
           photo_url: c.photo_url,
           channel: c.telegram_id ? 'telegram' : 'website',
+          totalSpent: 0,
+          totalOrders: 0,
+          ordersList: [],
           raw: c,
-        });
+        };
+        customerEntries.push(entry);
+
+        if (c.id) addAlias(c.id, idx);
+        if (c.firebase_uid) addAlias(c.firebase_uid, idx);
+        if (c.telegram_id) addAlias(c.telegram_id, idx);
+        if (c.email) addAlias(c.email, idx);
+        if (c.phone) addAlias(c.phone, idx);
       }
     });
 
-    // Sum totals from non-cancelled orders
+    // Process orders and accumulate totals
     orders.forEach(o => {
       if (o.status === 'cancelled' || o.status === 'rejected') return;
+
       const bs = o.buyer_snapshot || {};
-      const email = (bs.email || o.email || '').trim().toLowerCase();
-      const tgId = bs.telegram_id || o.user_id;
-      const fbUid = bs.firebase_uid;
+      const amount = Number(o.final_amount || o.total_amount || 0);
 
-      let matchedKey = null;
+      const orderAliases = [
+        o.user_id,
+        bs.telegram_id,
+        bs.firebase_uid,
+        bs.visitor_id,
+        bs.email,
+        o.email,
+        bs.phone,
+      ].filter(Boolean).map(v => String(v).trim().toLowerCase());
 
-      if (email && map.has(`email_${email}`)) {
-        matchedKey = `email_${email}`;
-      } else if (tgId && map.has(`tg_${tgId}`)) {
-        matchedKey = `tg_${tgId}`;
-      } else if (fbUid && map.has(`fb_${fbUid}`)) {
-        matchedKey = `fb_${fbUid}`;
+      let targetIdx = null;
+
+      for (const alias of orderAliases) {
+        if (aliasToEntryIndex.has(alias)) {
+          targetIdx = aliasToEntryIndex.get(alias);
+          break;
+        }
+        if (aliasToEntryIndex.has(`tg_${alias}`)) {
+          targetIdx = aliasToEntryIndex.get(`tg_${alias}`);
+          break;
+        }
+        if (aliasToEntryIndex.has(`fb_${alias}`)) {
+          targetIdx = aliasToEntryIndex.get(`fb_${alias}`);
+          break;
+        }
+        if (aliasToEntryIndex.has(`email_${alias}`)) {
+          targetIdx = aliasToEntryIndex.get(`email_${alias}`);
+          break;
+        }
       }
 
-      if (matchedKey) {
-        const entry = map.get(matchedKey);
-        const amount = Number(o.final_amount || o.total_amount || 0);
+      if (targetIdx !== null) {
+        const entry = customerEntries[targetIdx];
         entry.totalSpent += amount;
         entry.totalOrders += 1;
         entry.ordersList.push(o);
-      } else if (bs.name || bs.full_name || email || tgId) {
-        const anonKey = email ? `email_${email}` : tgId ? `tg_${tgId}` : fbUid ? `fb_${fbUid}` : `anon_${o.id}`;
-        const entry = getEntry(anonKey, {
-          id: o.id,
-          telegram_id: tgId,
-          firebase_uid: fbUid,
-          name: bs.full_name || bs.name || (email ? email.split('@')[0] : 'Customer'),
-          display_name: bs.full_name || bs.name || 'Customer',
-          email: email,
-          phone: bs.phone,
-          channel: tgId ? 'telegram' : 'website',
+      } else {
+        const idx = customerEntries.length;
+        const customerName = bs.full_name || bs.name || (bs.email ? bs.email.split('@')[0] : 'Customer');
+        const entry = {
+          id: o.user_id || o.id,
+          telegram_id: bs.telegram_id || (typeof o.user_id === 'number' ? o.user_id : null),
+          firebase_uid: bs.firebase_uid,
+          name: customerName,
+          display_name: customerName,
+          email: bs.email || o.email || '',
+          phone: bs.phone || '',
+          channel: (bs.telegram_id || o.user_id) ? 'telegram' : 'website',
+          totalSpent: amount,
+          totalOrders: 1,
+          ordersList: [o],
           raw: o,
-        });
-        const amount = Number(o.final_amount || o.total_amount || 0);
-        entry.totalSpent += amount;
-        entry.totalOrders += 1;
-        entry.ordersList.push(o);
+        };
+        customerEntries.push(entry);
+
+        orderAliases.forEach(a => addAlias(a, idx));
       }
     });
 
-    let result = Array.from(map.values()).filter(c => c.totalOrders > 0 || c.totalSpent > 0);
+    let result = customerEntries.filter(c => c.totalOrders > 0 || c.totalSpent > 0);
 
     if (search.trim()) {
       const q = search.toLowerCase();
