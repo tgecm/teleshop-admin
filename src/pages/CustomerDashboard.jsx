@@ -1721,10 +1721,12 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
       fetch(`${API_BASE}/api/customer-profile?bot_id=${existingBotId}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(fetchEmail)}`)
         .then(r => r.ok ? r.json() : {})
         .then(data => {
-          if (data && (data.id || data.display_name || data.email)) {
+          if (data && typeof data === 'object' && Object.keys(data).length > 0) {
             setDisplayName(data.display_name && data.display_name.trim() && data.display_name.trim() !== 'User' && data.display_name.trim() !== 'Customer' ? data.display_name.trim() : (fallbackName || ''));
-            setPhones(data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : ['']);
-            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : (fetchEmail ? [fetchEmail] : ['']));
+            const pList = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [];
+            setPhones(pList.length ? pList : ['']);
+            const eList = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [];
+            setEmails(eList.length ? eList : (fetchEmail ? [fetchEmail] : ['']));
             setTelegram(data.telegram_username || '');
             setViber(data.viber_number || '');
             setProfileRegion(data.region || '');
@@ -1753,10 +1755,12 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         })
         .then(r => r && r.ok ? r.json() : {})
         .then(data => {
-          if (data && (data.id || data.display_name || data.email)) {
+          if (data && typeof data === 'object' && Object.keys(data).length > 0) {
             setDisplayName(data.display_name && data.display_name.trim() && data.display_name.trim() !== 'User' && data.display_name.trim() !== 'Customer' ? data.display_name.trim() : (fallbackName || ''));
-            setPhones(data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : ['']);
-            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : (fetchEmail ? [fetchEmail] : ['']));
+            const pList = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [];
+            setPhones(pList.length ? pList : ['']);
+            const eList = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [];
+            setEmails(eList.length ? eList : (fetchEmail ? [fetchEmail] : ['']));
             setTelegram(data.telegram_username || '');
             setViber(data.viber_number || '');
             setProfileRegion(data.region || '');
