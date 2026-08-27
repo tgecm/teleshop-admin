@@ -1815,6 +1815,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
           region: profileRegion,
           district: profileDistrict,
           township: profileTownship,
+          photo_url: profilePhotoUrl || '',
         }),
       });
       if (res.ok) {
