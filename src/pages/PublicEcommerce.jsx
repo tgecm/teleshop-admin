@@ -2147,6 +2147,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     checkoutOpen ||
     showPaymentSelect ||
     showContactInfo ||
+    showVisitorForm ||
     showTrackOrder ||
     orderPlaced ||
     showRegister
@@ -2820,93 +2821,128 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   }, [chatOpen, showVisitorForm]);
 
   // Live polling for admin replies
+  // Live polling for admin & customer replies (real-time 100% sync)
   useEffect(() => {
     if (!chatOpen || !shop?.id || showVisitorForm || !visitorIdRef.current) return;
-    const interval = setInterval(async () => {
+    const fetchLatest = async () => {
       try {
         const res = await fetch(API_BASE + '/public/chat/' + shop.id + '/' + encodeURIComponent(visitorIdRef.current) + '/messages');
         if (!res.ok) return;
         const msgs = await res.json();
         if (Array.isArray(msgs) && msgs.length > 0) {
-          setChatMessages(prev => {
-            const existing = new Set(prev.map(m => (m.content || '') + '|' + m.role + '|' + (m.file_id || '')));
-            const newMsgs = msgs
-              .map(m => ({
-                role: m.sender_type === 'user' ? 'user' : 'assistant',
-                content: m.message_text || '',
-                file_id: m.file_id || null,
-                file_type: m.file_type || null
-              }))
-              .filter(m => !existing.has(m.content + '|' + m.role + '|' + (m.file_id || '')));
-
-            if (newMsgs.length === 0) return prev;
-            return [...prev, ...newMsgs];
-          });
+          const formatted = msgs.map(m => ({
+            role: m.sender_type === 'user' ? 'user' : 'assistant',
+            content: m.message_text || '',
+            file_id: m.file_id || null,
+            file_type: m.file_type || null
+          }));
+          setChatMessages(formatted);
         }
       } catch {}
-    }, 2000);
+    };
+
+    fetchLatest();
+    const interval = setInterval(fetchLatest, 3000);
     return () => clearInterval(interval);
   }, [chatOpen, shop?.id, showVisitorForm]);
 
-  // Restore visitor session or create new one
-  useEffect(() => {
-    if (!chatOpen || !shop?.id) return;
-
-    // 1. Check logged-in JWT token user (from Customer Dashboard / auth) or Firebase / Telegram auth
-    const tokenUid = getUserIdFromToken();
-    const tokenPayload = decodeJwtPayload(localStorage.getItem('telegram_token'));
-    const effectiveUid = tokenUid || (user ? user.uid : null) || (tgLoggedIn && telegramUser?.id ? 'tg_' + telegramUser.id : null);
-
-    if (effectiveUid) {
-      const uidStr = String(effectiveUid);
-      visitorIdRef.current = uidStr;
-      const displayName = tokenPayload?.name || tokenPayload?.display_name || user?.displayName || (telegramUser?.name || '');
-      const email = tokenPayload?.email || user?.email || '';
-      setVisitorForm({ name: displayName, phone: tokenPayload?.phone || '', email });
-      setShowVisitorForm(false);
-
-      // Register visitor with effectiveUid so admin panel and dashboard match
-      fetch(API_BASE + '/public/visitor/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          visitor_id: uidStr,
-          bot_id: shop.id,
-          name: displayName,
-          email,
-          ...(tokenUid || user?.uid ? { firebase_uid: tokenUid || user?.uid } : {}),
-          ...(telegramUser?.id ? { telegram_id: telegramUser.id } : {})
-        }),
-      }).catch(() => {});
-
-      // Load 100% identical existing chat history from customer dashboard / backend
-      fetch(API_BASE + '/public/chat/' + shop.id + '/' + encodeURIComponent(uidStr) + '/messages')
-        .then(r => r.ok ? r.json() : [])
-        .then(msgs => {
-          if (msgs && msgs.length > 0) {
-            setChatMessages(msgs.map(m => ({
-              role: m.sender_type === 'user' ? 'user' : 'assistant',
-              content: m.message_text || '',
-              file_id: m.file_id || null,
-              file_type: m.file_type || null
-            })));
-          }
-        }).catch(() => {});
-      return;
+  const resolveLoggedInUser = useCallback(() => {
+    if (user?.uid) {
+      return {
+        uid: String(user.uid),
+        name: user.displayName || '',
+        email: user.email || '',
+        phone: user.phoneNumber || ''
+      };
     }
 
-    if (visitorIdRef.current) return;
-    const key = 'visitor_' + (shop.bot_username || slug || 'domain');
-    const saved = localStorage.getItem(key);
-    if (saved) {
+    try {
+      const g = localStorage.getItem('google_user');
+      if (g) {
+        const parsed = JSON.parse(g);
+        const uid = parsed?.id || parsed?.uid;
+        if (uid) {
+          return {
+            uid: String(uid),
+            name: parsed.name || parsed.displayName || '',
+            email: parsed.email || '',
+            phone: parsed.phone || ''
+          };
+        }
+      }
+    } catch {}
+
+    const tg = telegramUser || (() => {
       try {
-        const info = JSON.parse(saved);
-        visitorIdRef.current = info.id;
-        setVisitorForm({ name: info.name || '', phone: info.phone || '', email: info.email || '' });
-        fetch(API_BASE + '/public/chat/' + shop.id + '/' + encodeURIComponent(info.id) + '/messages')
-          .then(r => r.ok ? r.json() : [])
+        const t = localStorage.getItem('telegram_user');
+        return t ? JSON.parse(t) : null;
+      } catch { return null; }
+    })();
+
+    if (tg && (tg.id || tg.uid || tg.user_id)) {
+      const uid = String(tg.id || tg.uid || tg.user_id);
+      return {
+        uid: uid,
+        name: tg.name || tg.first_name || (tg.username ? `@${tg.username}` : ''),
+        email: tg.email || '',
+        phone: tg.phone || ''
+      };
+    }
+
+    try {
+      const tok = localStorage.getItem('telegram_token') || localStorage.getItem('customer_token');
+      if (tok) {
+        const parts = tok.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          const uid = payload?.sub || payload?.user_id || payload?.uid;
+          if (uid) {
+            return {
+              uid: String(uid),
+              name: payload.name || payload.first_name || '',
+              email: payload.email || '',
+              phone: payload.phone || ''
+            };
+          }
+        }
+      }
+    } catch {}
+
+    return null;
+  }, [user, telegramUser]);
+
+  // Restore visitor session or create new one (Google, Telegram, or Guest)
+  useEffect(() => {
+    if (!shop?.id) return;
+
+    if (viewMode === 'ecommerce') {
+      const loggedUser = resolveLoggedInUser();
+      if (loggedUser) {
+        visitorIdRef.current = loggedUser.uid;
+        setShowVisitorForm(false);
+        setVisitorForm({ name: loggedUser.name, phone: loggedUser.phone, email: loggedUser.email });
+
+        fetch(`${API_BASE}/website-customers/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bot_id: shop.id,
+            firebase_uid: loggedUser.uid,
+            display_name: loggedUser.name,
+            email: loggedUser.email
+          }),
+        }).catch(() => {});
+
+        fetch(API_BASE + '/public/visitor/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visitor_id: loggedUser.uid, bot_id: shop.id, name: loggedUser.name, email: loggedUser.email, firebase_uid: loggedUser.uid }),
+        }).catch(() => {});
+
+        fetch(API_BASE + '/public/chat/' + shop.id + '/' + encodeURIComponent(loggedUser.uid) + '/messages')
+          .then(r => r.json())
           .then(msgs => {
-            if (msgs && msgs.length > 0) {
+            if (Array.isArray(msgs) && msgs.length > 0) {
               setChatMessages(msgs.map(m => ({
                 role: m.sender_type === 'user' ? 'user' : 'assistant',
                 content: m.message_text || '',
@@ -2915,11 +2951,40 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               })));
             }
           }).catch(() => {});
-      } catch { setShowVisitorForm(true); }
-    } else {
-      setShowVisitorForm(true);
+      } else {
+        setShowVisitorForm(false);
+      }
+      return;
     }
-  }, [chatOpen, shop?.id, user, slug, tgLoggedIn, telegramUser]);
+
+    if (viewMode === 'guest') {
+      if (!chatOpen) return;
+      if (visitorIdRef.current && !visitorIdRef.current.startsWith('v')) return;
+      const key = 'visitor_' + (shop.bot_username || slug || 'domain');
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          const info = JSON.parse(saved);
+          visitorIdRef.current = info.id;
+          setVisitorForm({ name: info.name || '', phone: info.phone || '', email: info.email || '' });
+          fetch(API_BASE + '/public/chat/' + shop.id + '/' + encodeURIComponent(info.id) + '/messages')
+            .then(r => r.json())
+            .then(msgs => {
+              if (Array.isArray(msgs) && msgs.length > 0) {
+                setChatMessages(msgs.map(m => ({
+                  role: m.sender_type === 'user' ? 'user' : 'assistant',
+                  content: m.message_text || '',
+                  file_id: m.file_id || null,
+                  file_type: m.file_type || null
+                })));
+              }
+            }).catch(() => {});
+        } catch { setShowVisitorForm(true); }
+      } else {
+        setShowVisitorForm(true);
+      }
+    }
+  }, [chatOpen, shop?.id, slug, viewMode, resolveLoggedInUser]);
 
   const handleSignOut = useCallback(async () => {
     try { await signOut(auth); } catch {}
@@ -3994,33 +4059,26 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         )}
       </AnimatePresence>
 
-      {(() => {
-        const enableWeb = data?.enable_website_chat ?? true;
-        const enableGuest = data?.enable_guest_chat ?? true;
-        const showBubble = Boolean(data?.ai_agent_enabled) && (
-          (enableWeb && !enableGuest) ||
-          (viewMode === 'ecommerce' && enableWeb) ||
-          ((viewMode === 'guest' || viewMode === 'telegram') && enableGuest)
-        );
-
-        if (!showBubble || (anyModalOpen && !chatOpen)) return null;
-
-        return (
-          <>
-            <button
-              onClick={() => {
-                if (!chatOpen) {
-                  const isGuestFlow = (viewMode === 'guest' || viewMode === 'telegram') && enableGuest;
-                  if (!isGuestFlow && !user && !tgLoggedIn) {
-                    setShowSignIn(true);
-                    return;
-                  }
+      {data?.ai_agent_enabled && viewMode !== 'telegram' && (!anyModalOpen || chatOpen) && (
+        <>
+          <button
+            onClick={() => {
+              if (chatOpen) {
+                setChatOpen(false);
+                return;
+              }
+              if (viewMode === 'ecommerce') {
+                const loggedUser = resolveLoggedInUser();
+                if (!loggedUser) {
+                  setShowSignIn(true);
+                  return;
                 }
-                setChatOpen(!chatOpen);
-              }}
-              className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg z-50 flex items-center justify-center transition-transform active:scale-90 hover:scale-105"
-              style={{ background: theme.css['--theme-btn'] }}
-            >
+              }
+              setChatOpen(true);
+            }}
+            className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg z-50 flex items-center justify-center transition-transform active:scale-90 hover:scale-105"
+            style={{ background: theme.css['--theme-btn'] }}
+          >
             {chatOpen ? <X className="w-6 h-6 text-white" /> : <MessageCircle className="w-6 h-6 text-white" />}
           </button>
 
@@ -4031,7 +4089,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               exit={{ opacity: 0, y: 50, scale: 0.95 }}
               className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[360px] h-[520px] max-h-[75vh] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 flex flex-col overflow-hidden"
             >
-              <div className="p-4 flex items-center justify-between" style={{ background: theme.css['--theme-header'] }}>
+              <div className="p-4" style={{ background: theme.css['--theme-header'] }}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
                     <MessageCircle className="w-4 h-4 text-white" />
@@ -4041,13 +4099,6 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                     <p className="text-[10px] text-white/70">Ask anything about our products</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setChatOpen(false)}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center transition-all text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
               </div>
 
               {showVisitorForm ? (
@@ -4151,8 +4202,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             </motion.div>
           )}
         </>
-      );
-    })()}
+      )}
 
       {/* Newsfeed Modal */}
       {showNewsfeed && (

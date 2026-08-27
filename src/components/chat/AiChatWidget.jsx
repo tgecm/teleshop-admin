@@ -4,8 +4,8 @@ import { MessageCircle, Send, ImageUp, Loader2, X } from 'lucide-react';
 import { RichMessage } from './RichMessage';
 import { API_BASE } from '../../api/config';
 
-export default function AiChatWidget({ botId, botUsername, slug, theme, getProductUrl, hide }) {
-  if (hide) return null;
+export default function AiChatWidget({ botId, botUsername, slug, theme, getProductUrl, hide, viewMode, onRequireSignIn }) {
+  if (hide || viewMode === 'telegram') return null;
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
@@ -178,91 +178,111 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
     if (!chatOpen || !botId || showVisitorForm || !visitorIdRef.current) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(API_BASE + '/public/chat/' + botId + '/' + encodeURIComponent(visitorIdRef.current) + '/messages');
-        if (!res.ok) return;
+        const res = await fetch(API_BASE + '/public/chat/' + botId + '/' + visitorIdRef.current + '/messages');
         const msgs = await res.json();
-        if (Array.isArray(msgs) && msgs.length > 0) {
+        if (msgs && msgs.length > 0) {
           setChatMessages(prev => {
-            const existingKeys = new Set(prev.map(m => (m.content || '') + '|' + m.role + '|' + (m.file_id || '')));
-            const newMsgs = msgs
-              .map(m => ({
-                role: m.sender_type === 'user' ? 'user' : 'assistant',
-                content: m.message_text || '',
-                file_id: m.file_id || null,
-                file_type: m.file_type || null
-              }))
-              .filter(m => !existingKeys.has(m.content + '|' + m.role + '|' + (m.file_id || '')));
-
+            if (msgs.length <= prev.length) return prev;
+            const existing = new Set(prev.map(m => (m.content || '') + '|' + m.role + '|' + (m.file_id || '')));
+            const newMsgs = msgs.filter(m => !existing.has((m.message_text || '') + '|' + m.sender_type + '|' + (m.file_id || '')));
             if (newMsgs.length === 0) return prev;
-            return [...prev, ...newMsgs];
+            return [...prev, ...newMsgs.map(m => ({
+              role: m.sender_type === 'user' ? 'user' : 'assistant',
+              content: m.message_text || '',
+              file_id: m.file_id || null,
+              file_type: m.file_type || null
+            }))];
           });
         }
       } catch {}
-    }, 2000);
+    }, 3000);
     return () => clearInterval(interval);
   }, [chatOpen, botId, showVisitorForm]);
 
-  useEffect(() => {
-    if (!chatOpen || !botId) return;
-
-    // Check logged-in user session first (Google or Telegram auth)
-    let loggedInUid = null;
-    let loggedInName = '';
-    let loggedInEmail = '';
-    let loggedInPhone = '';
-
+  // Helper to resolve any logged in user (Google or Telegram auth)
+  const resolveLoggedInUser = useCallback(() => {
     try {
       const g = localStorage.getItem('google_user');
       if (g) {
         const parsed = JSON.parse(g);
-        loggedInUid = parsed.id || parsed.uid;
-        loggedInName = parsed.name || parsed.displayName || '';
-        loggedInEmail = parsed.email || '';
+        const uid = parsed?.id || parsed?.uid;
+        if (uid) {
+          return {
+            uid: String(uid),
+            name: parsed.name || parsed.displayName || '',
+            email: parsed.email || '',
+            phone: parsed.phone || ''
+          };
+        }
       }
     } catch {}
 
-    if (!loggedInUid) {
-      try {
-        const t = localStorage.getItem('telegram_user');
-        if (t) {
-          const parsed = JSON.parse(t);
-          if (parsed.id) {
-            const rawId = String(parsed.id).replace(/^(web_tg_|tg_)/, '');
-            loggedInUid = 'web_tg_' + rawId;
-            loggedInName = parsed.name || parsed.first_name || (parsed.username ? `@${parsed.username}` : '');
+    try {
+      const t = localStorage.getItem('telegram_user');
+      if (t) {
+        const parsed = JSON.parse(t);
+        const uid = parsed?.id || parsed?.uid || parsed?.user_id || parsed?.telegram_id;
+        if (uid) {
+          return {
+            uid: String(uid),
+            name: parsed.name || parsed.first_name || (parsed.username ? `@${parsed.username}` : ''),
+            email: parsed.email || '',
+            phone: parsed.phone || ''
+          };
+        }
+      }
+    } catch {}
+
+    try {
+      const tok = localStorage.getItem('telegram_token') || localStorage.getItem('customer_token');
+      if (tok) {
+        const parts = tok.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          const uid = payload?.sub || payload?.user_id || payload?.uid;
+          if (uid) {
+            return {
+              uid: String(uid),
+              name: payload.name || payload.first_name || '',
+              email: payload.email || '',
+              phone: payload.phone || ''
+            };
           }
         }
-      } catch {}
-    }
+      }
+    } catch {}
 
-    if (loggedInUid) {
-      const uidStr = String(loggedInUid);
-      visitorIdRef.current = uidStr;
+    return null;
+  }, []);
+
+  // Top-level session check on mount & whenever botId or chatOpen changes
+  useEffect(() => {
+    if (!botId) return;
+    const user = resolveLoggedInUser();
+    if (user) {
+      visitorIdRef.current = user.uid;
       setShowVisitorForm(false);
-      setVisitorForm({ name: loggedInName, phone: loggedInPhone, email: loggedInEmail });
+      setVisitorForm({ name: user.name, phone: user.phone, email: user.email });
 
-      // Sync website customer to backend
       fetch(`${API_BASE}/website-customers/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bot_id: botId,
-          firebase_uid: uidStr,
-          display_name: loggedInName,
-          email: loggedInEmail,
-          phone: loggedInPhone
+          firebase_uid: user.uid,
+          display_name: user.name,
+          email: user.email,
+          phone: user.phone
         }),
-      })
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res?.dashboard_chat_id) {
-          visitorIdRef.current = res.dashboard_chat_id;
-        }
-      })
-      .catch(() => {});
+      }).catch(() => {});
 
-      // Fetch messages for logged-in user
-      fetch(`${API_BASE}/public/chat/${botId}/${encodeURIComponent(uidStr)}/messages`)
+      fetch(API_BASE + '/public/visitor/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitor_id: user.uid, bot_id: botId, name: user.name, email: user.email, firebase_uid: user.uid }),
+      }).catch(() => {});
+
+      fetch(`${API_BASE}/public/chat/${botId}/${encodeURIComponent(user.uid)}/messages`)
         .then(r => r.json())
         .then(msgs => {
           if (Array.isArray(msgs) && msgs.length > 0) {
@@ -277,8 +297,10 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
       return;
     }
 
+    if (!chatOpen) return;
+
     // Guest fallback
-    if (visitorIdRef.current) return;
+    if (visitorIdRef.current && !visitorIdRef.current.startsWith('v')) return;
     const key = 'visitor_' + (botUsername || slug || 'domain');
     const saved = localStorage.getItem(key);
     if (saved) {
@@ -286,7 +308,7 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
         const info = JSON.parse(saved);
         visitorIdRef.current = info.id;
         setVisitorForm({ name: info.name || '', phone: info.phone || '', email: info.email || '' });
-        fetch(API_BASE + '/public/chat/' + botId + '/' + info.id + '/messages')
+        fetch(API_BASE + '/public/chat/' + botId + '/' + encodeURIComponent(info.id) + '/messages')
           .then(r => r.json())
           .then(msgs => {
             if (msgs && msgs.length > 0) {
@@ -302,7 +324,32 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
     } else {
       setShowVisitorForm(true);
     }
-  }, [chatOpen, botId, botUsername, slug]);
+  }, [chatOpen, botId, botUsername, slug, resolveLoggedInUser]);
+
+  // Real-time live polling for AiChatWidget (every 3 seconds)
+  useEffect(() => {
+    if (!chatOpen || !botId || !visitorIdRef.current || showVisitorForm) return;
+    const fetchLatest = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/public/chat/${botId}/${encodeURIComponent(visitorIdRef.current)}/messages`);
+        if (!res.ok) return;
+        const msgs = await res.json();
+        if (Array.isArray(msgs) && msgs.length > 0) {
+          const formatted = msgs.map(m => ({
+            role: m.sender_type === 'user' ? 'user' : 'assistant',
+            content: m.message_text || '',
+            file_id: m.file_id || null,
+            file_type: m.file_type || null
+          }));
+          setChatMessages(formatted);
+        }
+      } catch {}
+    };
+
+    fetchLatest();
+    const interval = setInterval(fetchLatest, 3000);
+    return () => clearInterval(interval);
+  }, [chatOpen, botId, showVisitorForm]);
 
   async function handleVisitorSave(name, phone, email) {
     if (!botId) return;
@@ -325,7 +372,20 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
   return (
     <>
       <button
-        onClick={() => setChatOpen(!chatOpen)}
+        onClick={() => {
+          if (chatOpen) {
+            setChatOpen(false);
+            return;
+          }
+          if (viewMode === 'ecommerce') {
+            const loggedUser = resolveLoggedInUser();
+            if (!loggedUser) {
+              if (onRequireSignIn) onRequireSignIn();
+              return;
+            }
+          }
+          setChatOpen(true);
+        }}
         className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg z-50 flex items-center justify-center transition-transform active:scale-90 hover:scale-105"
         style={{ background: theme?.css?.['--theme-btn'] || '#6366f1' }}
       >
