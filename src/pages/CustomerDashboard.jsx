@@ -1658,7 +1658,18 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
 
   const handlePhotoUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !botIdRef.current || !uid) return;
+    if (!file || !uid) return;
+    let botId = botIdRef.current || profileShopProp?.id;
+    if (!botId && shopSlug) {
+      try {
+        const shopRes = await fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`);
+        const shopData = await shopRes.json();
+        botId = shopData?.shop?.id;
+        if (botId) botIdRef.current = botId;
+      } catch {}
+    }
+    if (!botId) return;
+
     setUploadingPhoto(true);
     try {
       // Compress to 512x512 on canvas
@@ -1680,7 +1691,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bot_id: botIdRef.current,
+          bot_id: botId,
           uid,
           photo_url: dataUrl,
         }),
@@ -1694,7 +1705,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
       setUploadingPhoto(false);
       if (photoInputRef.current) photoInputRef.current.value = '';
     }
-  }, [uid]);
+  }, [uid, shopSlug, profileShopProp?.id]);
 
   useEffect(() => {
     if (!uid || !shopSlug) {
@@ -1721,6 +1732,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
             setProfileTownship(data.township || '');
             setAddress(data.address || '');
             setNotes(data.notes || '');
+            if (data.photo_url) setProfilePhotoUrl(data.photo_url);
           } else {
             setDisplayName(fallbackName || '');
             setEmails(fetchEmail ? [fetchEmail] : ['']);
@@ -1752,6 +1764,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
             setProfileTownship(data.township || '');
             setAddress(data.address || '');
             setNotes(data.notes || '');
+            if (data.photo_url) setProfilePhotoUrl(data.photo_url);
           } else {
             setDisplayName(fallbackName || '');
             setEmails(fetchEmail ? [fetchEmail] : ['']);
@@ -1770,7 +1783,10 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
   const removeEmail = (idx) => { if (emails.length > 1) setEmails(prev => prev.filter((_, i) => i !== idx)); };
 
   const handleSave = async () => {
-    if (!displayName.trim() || !phones[0]?.trim() || !emails[0]?.trim()) return;
+    if (!displayName.trim()) {
+      setSaveError('Full Name is required');
+      return;
+    }
     setSaving(true);
     setSaved(false);
     setSaveError('');
@@ -2033,7 +2049,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
           {/* Save Button */}
           <button
             onClick={handleSave}
-            disabled={saving || !displayName.trim() || !phones[0]?.trim() || !emails[0]?.trim()}
+            disabled={saving || !displayName.trim()}
             className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-md ${
               saved ? 'bg-emerald-600 text-white shadow-emerald-500/20' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-indigo-500/25'
             } disabled:opacity-50 cursor-pointer`}
