@@ -778,12 +778,17 @@ export default function Chats() {
     },
   });
 
+  const activeChatRef = useRef(null);
   useEffect(() => {
     if (!selectedBotId) return;
-    if (selectedVisitor) {
-      readMutation.mutate({ visitorId: selectedVisitor, markAsRead: true });
-    } else if (selectedUser) {
-      readMutation.mutate({ userId: selectedUser, markAsRead: true });
+    const currentActive = selectedVisitor ? `visitor_${selectedVisitor}` : selectedUser ? `user_${selectedUser}` : null;
+    if (currentActive && currentActive !== activeChatRef.current) {
+      activeChatRef.current = currentActive;
+      if (selectedVisitor) {
+        readMutation.mutate({ visitorId: selectedVisitor, markAsRead: true });
+      } else if (selectedUser) {
+        readMutation.mutate({ userId: selectedUser, markAsRead: true });
+      }
     }
   }, [selectedVisitor, selectedUser, selectedBotId]);
 
