@@ -11,15 +11,7 @@ let consecutiveErrors = 0;
 
 client.interceptors.request.use((config) => {
   if (config.headers.Authorization) return config;
-  let token = useAuthStore.getState().token || localStorage.getItem('telegram_token') || localStorage.getItem('token');
-  if (!token && typeof window !== 'undefined') {
-    try {
-      const authStorage = localStorage.getItem('auth-storage');
-      if (authStorage) {
-        token = JSON.parse(authStorage)?.state?.token;
-      }
-    } catch (e) {}
-  }
+  const token = useAuthStore.getState().token || localStorage.getItem('telegram_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

@@ -33,7 +33,6 @@ import {
   PinOff,
   CheckCircle2,
   Clock,
-  HelpCircle,
   CreditCard,
   Ban,
   VolumeX,
@@ -426,7 +425,7 @@ function CustomerAvatar({ photoUrl, name, size = "w-9 h-9", fontSize = "text-sm"
 
   const getFullPhotoUrl = (url) => {
     if (!url) return null;
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
     const base = (client.defaults.baseURL || 'https://api.telegramecommerce.shop').replace(/\/+$/, '');
     const path = url.replace(/^\/+/, '');
     return `${base}/${path}`;
@@ -544,7 +543,6 @@ export default function Chats() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [chatToDelete, setChatToDelete] = useState(null);
   const [chatTab, setChatTab] = useState('all');
-  const [showGuestInfoModal, setShowGuestInfoModal] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async ({ userId, visitorId }) => {
@@ -583,62 +581,19 @@ export default function Chats() {
     return () => document.removeEventListener('pointerdown', handle);
   }, [showFilterMenu]);
 
-  const hasHandledNavState = useRef(false);
-
   useEffect(() => {
-    if (hasHandledNavState.current && !location.state) return;
-
-    const stateConvId = location.state?.conversationId;
-    const urlParams = new URLSearchParams(window.location.search);
-    const queryConvId = urlParams.get('conversation_id') || urlParams.get('chatId') || urlParams.get('conversationId');
-    const targetConvId = stateConvId || queryConvId;
-    const requestedTab = location.state?.tab;
-
-    if (requestedTab === 'web' || requestedTab === 'guest') {
-      const vId = location.state?.visitorId || targetConvId || '';
-      setChatTab(requestedTab);
-      setSelectedVisitor(vId);
-      setSelectedUser(null);
-      if (location.state?.name) setSelectedChatName(location.state.name);
-      hasHandledNavState.current = true;
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (requestedTab === 'telegram') {
-      const tgId = location.state?.userId || (targetConvId ? Number(targetConvId.replace('tg_', '')) : null);
-      setChatTab('telegram');
-      setSelectedUser(tgId);
-      setSelectedVisitor(null);
-      if (location.state?.name) setSelectedChatName(location.state.name);
-      hasHandledNavState.current = true;
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (targetConvId) {
-      if (targetConvId.startsWith('web_') || targetConvId.startsWith('guest_')) {
-        const vId = location.state?.visitorId || targetConvId;
-        setChatTab('web');
-        setSelectedVisitor(vId);
-        setSelectedUser(null);
-      } else if (targetConvId.startsWith('tg_')) {
-        const tgId = Number(targetConvId.replace('tg_', ''));
-        setChatTab('telegram');
-        setSelectedUser(tgId);
-        setSelectedVisitor(null);
-      }
-      if (location.state?.name) setSelectedChatName(location.state.name);
-      hasHandledNavState.current = true;
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (location.state?.visitorId) {
+    if (location.state?.visitorId) {
       setChatTab(location.state.tab || 'web');
       setSelectedVisitor(location.state.visitorId);
       setSelectedUser(null);
       if (location.state.name) setSelectedChatName(location.state.name);
-      hasHandledNavState.current = true;
-      window.history.replaceState({}, document.title, window.location.pathname);
+      window.history.replaceState({}, document.title);
     } else if (location.state?.userId) {
       setChatTab(location.state.tab || 'telegram');
       setSelectedUser(location.state.userId);
       setSelectedVisitor(null);
       if (location.state.name) setSelectedChatName(location.state.name);
-      hasHandledNavState.current = true;
-      window.history.replaceState({}, document.title, window.location.pathname);
+      window.history.replaceState({}, document.title);
     }
   }, [location.state]);
 
@@ -687,17 +642,10 @@ export default function Chats() {
     setUserScrolledUp(!isNearBottom);
   }, []);
 
-  const scrollToBottom = useCallback((smooth = false) => {
+  const scrollToBottom = useCallback(() => {
     const el = chatContainerRef.current;
     if (!el) return;
-    try {
-      el.scrollTo({
-        top: el.scrollHeight,
-        behavior: smooth ? 'smooth' : 'auto',
-      });
-    } catch {
-      el.scrollTop = el.scrollHeight;
-    }
+    el.scrollTop = el.scrollHeight;
     setUserScrolledUp(false);
   }, []);
 
@@ -709,207 +657,75 @@ export default function Chats() {
 
   const prevChatsRef = useRef([]);
   const prevMessagesRef = useRef([]);
+  const initialScrollDone = useRef(false);
   const prevWebVisitorsRef = useRef([]);
   const prevWebMessagesRef = useRef([]);
 
-  const { data: chats = [], isFetching: isFetchingChats } = useQuery({
+  const { data: chats = [], isFetching } = useQuery({
     queryKey: ['chats', selectedBotId],
     queryFn: () => getChats(Number(selectedBotId)),
     enabled: !!selectedBotId,
-    refetchInterval: 3000,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
     placeholderData: keepPreviousData,
   });
   if (chats.length > 0) prevChatsRef.current = chats;
-  const stableChats = isFetchingChats && chats.length === 0 ? prevChatsRef.current : chats;
+  const stableChats = isFetching && chats.length === 0 ? prevChatsRef.current : chats;
 
-  const { data: messages = [], isFetching: isFetchingMessages } = useQuery({
+  const { data: messages = [] } = useQuery({
     queryKey: ['chatMessages', selectedBotId, selectedUser],
     queryFn: () => getChatMessages(selectedUser, Number(selectedBotId)),
     enabled: !!selectedBotId && !!selectedUser,
-    refetchInterval: 2000,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
     placeholderData: keepPreviousData,
   });
   if (messages.length > 0) prevMessagesRef.current = messages;
-  const stableMessages = isFetchingMessages && messages.length === 0 ? prevMessagesRef.current : messages;
+  const stableMessages = isFetching && messages.length === 0 ? prevMessagesRef.current : messages;
 
   const { data: webVisitors = [] } = useQuery({
     queryKey: ['webVisitors', selectedBotId],
     queryFn: () => getWebVisitors(Number(selectedBotId)),
-    enabled: !!selectedBotId,
-    refetchInterval: 3000,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    enabled: !!selectedBotId && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
+    refetchInterval: 15000,
   });
   const stableWebVisitors = webVisitors;
 
-  const { data: webMessages = [], isFetching: isFetchingWebMessages } = useQuery({
+  const { data: webMessages = [] } = useQuery({
     queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor],
-    queryFn: async () => {
-      if (!selectedVisitor) return [];
-      const currentGroup = displayedWebVisitors.find(v =>
-        v.visitor_id === selectedVisitor ||
-        (v.all_visitor_ids && v.all_visitor_ids.includes(selectedVisitor))
-      );
-      const targetIds = currentGroup?.all_visitor_ids?.length
-        ? currentGroup.all_visitor_ids
-        : [selectedVisitor];
-
-      const results = await Promise.all(
-        targetIds.map(id => getWebVisitorMessages(id, Number(selectedBotId)).catch(() => []))
-      );
-
-      const allMsgs = results.flat();
-      const seen = new Set();
-      const uniqueMsgs = [];
-      for (const m of allMsgs) {
-        const key = m.id || `${m.created_at}_${m.message}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniqueMsgs.push(m);
-        }
-      }
-      return uniqueMsgs.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    },
-    enabled: !!selectedBotId && !!selectedVisitor,
-    refetchInterval: 2000,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    placeholderData: keepPreviousData,
+    queryFn: () => getWebVisitorMessages(selectedVisitor, Number(selectedBotId)),
+    enabled: !!selectedBotId && !!selectedVisitor && (chatTab === 'all' || chatTab === 'web' || chatTab === 'guest'),
+    refetchInterval: 15000,
   });
-  if (webMessages.length > 0) prevWebMessagesRef.current = webMessages;
-  const stableWebMessages = isFetchingWebMessages && webMessages.length === 0 ? prevWebMessagesRef.current : webMessages;
 
-  // Immediately invalidate and fetch messages when selected user or visitor changes
   useEffect(() => {
-    if (selectedVisitor) {
-      queryClient.invalidateQueries({ queryKey: ['webVisitorMessages', selectedBotId, selectedVisitor] });
-    }
-    if (selectedUser) {
-      queryClient.invalidateQueries({ queryKey: ['chatMessages', selectedBotId, selectedUser] });
-    }
     prevWebMessagesRef.current = [];
-    prevMessagesRef.current = [];
+    initialScrollDone.current = false;
     setUserScrolledUp(false);
-  }, [selectedUser, selectedVisitor, selectedBotId, queryClient]);
+  }, [selectedUser, selectedVisitor]);
 
-  const activeMsgs = selectedVisitor ? stableWebMessages : stableMessages;
+  const stableWebMessages = webMessages;
+
+  const activeMsgs = selectedVisitor ? webMessages : messages;
 
   useEffect(() => {
     const el = chatContainerRef.current;
     if (!el || activeMsgs.length === 0) return;
-
-    const scrollNow = () => {
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-      }
-    };
-
-    scrollNow();
-    const t1 = setTimeout(scrollNow, 50);
-    const t2 = setTimeout(scrollNow, 150);
-    const t3 = setTimeout(scrollNow, 350);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [activeMsgs.length, selectedVisitor, selectedUser]);
+    if (!initialScrollDone.current) {
+      initialScrollDone.current = true;
+      el.scrollTop = el.scrollHeight;
+    } else if (!userScrolledUp) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [activeMsgs, userScrolledUp, selectedVisitor]);
 
   const displayedChats = useMemo(() =>
     stableChats.map(c => ({ ...c, unread_count: unreadOverrides[c.user_id] ?? c.unread_count })),
     [stableChats, unreadOverrides]
   );
 
-  const displayedWebVisitors = useMemo(() => {
-    const rawList = stableWebVisitors.map(v => ({ ...v, unread_count: unreadOverrides[v.visitor_id] ?? v.unread_count }));
-    const groups = new Map();
-    const nameToKey = new Map();
-
-    const getCoreName = (str) => {
-      if (!str) return '';
-      let s = str.trim().toLowerCase();
-      s = s.replace(/\s+(tg|web|telegram|website)$/i, '');
-      const parts = s.split(/\s+/);
-      if (parts.length >= 2) return parts.slice(0, 2).join(' ');
-      return s;
-    };
-
-    for (const v of rawList) {
-      const name = (v.name || '').trim();
-      const email = (v.email || '').trim().toLowerCase();
-      const fuid = (v.firebase_uid || '').trim();
-      const tgid = (v.telegram_id || '').toString().trim();
-      const visitorIdStr = (v.visitor_id || '').toString().trim();
-
-      let extractedTg = tgid && tgid !== '0' ? tgid : '';
-      if (!extractedTg) {
-        const match = visitorIdStr.match(/^(web_tg_|tg_)?(\d+)$/) || fuid.match(/^(web_tg_|tg_)?(\d+)$/);
-        if (match) extractedTg = match[2];
-      }
-
-      const coreName = getCoreName(name);
-
-      let groupKey = null;
-      if (extractedTg) {
-        groupKey = `tg:${extractedTg}`;
-      } else if (email && email !== 'n/a' && email.includes('@')) {
-        groupKey = `email:${email}`;
-      } else if (fuid && fuid !== 'n/a' && fuid !== 'none' && fuid !== 'null' && !fuid.startsWith('wv_') && !fuid.startsWith('web_tg_')) {
-        groupKey = `fuid:${fuid}`;
-      } else if (coreName && nameToKey.has(coreName)) {
-        groupKey = nameToKey.get(coreName);
-      } else if (coreName && name !== 'Website Customer' && name !== 'Shop Visitor' && name !== 'Guest' && name !== 'User') {
-        groupKey = `name:${coreName}`;
-      } else {
-        groupKey = `vid:${v.visitor_id}`;
-      }
-
-      if (coreName && !nameToKey.has(coreName)) {
-        nameToKey.set(coreName, groupKey);
-      }
-
-      if (!groups.has(groupKey)) {
-        groups.set(groupKey, {
-          ...v,
-          all_visitor_ids: [v.visitor_id],
-          unread_count: v.unread_count || 0
-        });
-      } else {
-        const existing = groups.get(groupKey);
-        if (!existing.all_visitor_ids.includes(v.visitor_id)) {
-          existing.all_visitor_ids.push(v.visitor_id);
-        }
-        if (v.visitor_id && v.visitor_id.startsWith('dc_') && (!existing.visitor_id || !existing.visitor_id.startsWith('dc_'))) {
-          existing.visitor_id = v.visitor_id;
-        }
-        const existingTime = new Date(existing.last_time || existing.updated_at || existing.created_at || 0).getTime();
-        const vTime = new Date(v.last_time || v.updated_at || v.created_at || 0).getTime();
-        if (vTime > existingTime) {
-          if (v.visitor_id && v.visitor_id.startsWith('dc_')) {
-            existing.visitor_id = v.visitor_id;
-          }
-          existing.last_message = v.last_message || existing.last_message;
-          existing.last_time = v.last_time || existing.last_time;
-          existing.updated_at = v.updated_at || existing.updated_at;
-        }
-        existing.unread_count = Math.max(existing.unread_count, v.unread_count || 0);
-        if (!existing.name || existing.name === 'Website Customer') existing.name = v.name;
-        if (!existing.email) existing.email = v.email;
-        if (!existing.phone) existing.phone = v.phone;
-      }
-    }
-
-    return Array.from(groups.values());
-  }, [stableWebVisitors, unreadOverrides]);
+  const displayedWebVisitors = useMemo(() =>
+    stableWebVisitors.map(v => ({ ...v, unread_count: unreadOverrides[v.visitor_id] ?? v.unread_count })),
+    [stableWebVisitors, unreadOverrides]
+  );
 
   const sendMutation = useMutation({
     mutationFn: ({ userId, message, visitorId, fileId, fileType }) => {
@@ -1040,34 +856,15 @@ export default function Chats() {
     if (!v) return false;
     if (v.name === 'E-commerce Support') return false;
 
-    const vid = (v.visitor_id || '').trim();
-    const fuid = (v.firebase_uid || '').trim();
-
-    // 1. Telegram / Web customer IDs belong under Website tab
-    if (vid.startsWith('web_tg_') || vid.startsWith('tg_') || (v.telegram_id && String(v.telegram_id).length > 0)) {
+    if (v.is_registered_customer || v.website_customer_id) {
       return false;
     }
 
-    // 2. Real Firebase / Google UIDs or authenticated Customer Dashboard users belong under Website tab
-    if (fuid && fuid !== 'N/A' && fuid !== 'None' && fuid !== 'null' && !fuid.startsWith('v_') && !fuid.startsWith('vm_') && !fuid.startsWith('wv_')) {
+    const fb = (v.firebase_uid || '').trim();
+    if (fb && !fb.startsWith('wv_') && !fb.startsWith('v_') && !fb.startsWith('dc_')) {
       return false;
     }
 
-    // 3. Registered email or phone belongs under Website tab
-    if (v.email && v.email.includes('@')) {
-      return false;
-    }
-    if (v.phone && v.phone.trim() && v.phone !== 'N/A' && v.phone !== 'None') {
-      return false;
-    }
-
-    // 4. Named customers (not generic placeholders) belong under Website tab
-    const name = (v.name || '').trim();
-    if (name && name !== 'Website Customer' && name !== 'Shop Visitor' && name !== 'Guest' && name !== 'User') {
-      return false;
-    }
-
-    // Messages from guest visitors without UID or with temporary IDs (v_*, vm_*, wv_*) belong under Guest tab
     return true;
   };
 
@@ -1105,6 +902,7 @@ export default function Chats() {
 
   const filteredWebVisitors = displayedWebVisitors.filter(v => {
     if (v.name === 'E-commerce Support') return false;
+    if (!v.last_message && !v.last_time) return false;
     if (!matchesStatusFilter(v)) return false;
     if (!search.trim()) return true;
     const term = search.toLowerCase();
@@ -1116,17 +914,8 @@ export default function Chats() {
     );
   });
 
-  const activeTgId = selectedUser || (selectedVisitor ? Number(String(selectedVisitor).replace(/^web_tg_/, '').replace(/^web_/, '').replace(/^tg_/, '')) : null);
-  const selectedChat = displayedChats.find(c => Number(c.user_id) === Number(activeTgId));
-  const selectedWebChat = displayedWebVisitors.find(v =>
-    v.visitor_id === selectedVisitor ||
-    (v.all_visitor_ids && v.all_visitor_ids.includes(selectedVisitor)) ||
-    v.firebase_uid === selectedVisitor ||
-    (selectedVisitor && `web_${v.visitor_id}` === selectedVisitor) ||
-    (selectedVisitor && v.visitor_id === `web_${selectedVisitor}`) ||
-    (selectedVisitor && v.visitor_id === selectedVisitor.replace(/^web_/, '')) ||
-    (selectedVisitor && selectedVisitor === `web_tg_${v.telegram_id}`)
-  );
+  const selectedChat = displayedChats.find(c => c.user_id === selectedUser);
+  const selectedWebChat = displayedWebVisitors.find(v => v.visitor_id === selectedVisitor);
   const isWebTab = chatTab === 'web' || chatTab === 'guest';
 
   const getItemTime = (item) => {
@@ -1231,20 +1020,12 @@ export default function Chats() {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      const isMobile = window.innerWidth < 768;
-      if (!isMobile) {
-        if (e.ctrlKey || e.shiftKey) {
-          e.preventDefault();
-          const el = e.target;
-          const start = el.selectionStart;
-          const end = el.selectionEnd;
-          setInputText(prev => prev.slice(0, start) + '\n' + prev.slice(end));
-          requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 1; });
-        } else {
-          e.preventDefault();
-          handleSend();
-        }
-      }
+      e.preventDefault();
+      const el = e.target;
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      setInputText(inputText.slice(0, start) + '\n' + inputText.slice(end));
+      requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 1; });
     }
   };
 
@@ -1412,16 +1193,6 @@ export default function Chats() {
         >
           <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
           Guest
-          <span
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowGuestInfoModal(true);
-            }}
-            title="Guest Messages Information"
-            className="ml-1.5 w-5 h-5 rounded-full bg-amber-100 hover:bg-amber-500 text-amber-800 hover:text-white border border-amber-300 text-[11px] font-black leading-none transition-all inline-flex items-center justify-center cursor-pointer shadow-xs hover:scale-115 active:scale-95 flex-shrink-0"
-          >
-            ?
-          </span>
           {guestUnread > 0 && (
             <span className="bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-1 rounded-full min-w-[18px] text-center">
               {guestUnread > 99 ? '99+' : guestUnread}
@@ -1429,57 +1200,6 @@ export default function Chats() {
           )}
         </button>
       </div>
-
-      {showGuestInfoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 transform transition-all">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shadow-sm">
-                  <HelpCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900 text-base sm:text-lg leading-snug">Guest Message သတိပြုရန်</h3>
-                  <p className="text-xs text-gray-500 font-medium">Guest Visitors Chat Information</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowGuestInfoModal(false)}
-                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 flex items-center justify-center transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="py-5 space-y-4 text-sm text-gray-700 leading-relaxed font-normal">
-              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/60 text-amber-900 text-xs sm:text-sm font-medium">
-                Guest Message များသည် ယာယီ Message များ ဖြစ်သောကြောင့် Customer မှ Browser Cache ကို ဖျက်လိုက်ပါက Chat History များ ပျောက်ဆုံးသွားနိုင်ပါသည်။
-              </div>
-
-              <p>
-                ထို့ကြောင့် အရေးကြီးသော Message များ မပျောက်ပျက်စေရန်အတွက် Telegram Chat သို့မဟုတ် Customer Dashboard Chat မှတစ်ဆင့် ပေးပို့ရန် အကြံပြုအပ်ပါသည်။
-              </p>
-
-              <p>
-                ထို့အပြင် Customer ထံသို့ တိုက်ရိုက်ဆက်သွယ်၍ Message ပေးပို့ခြင်းကိုလည်း ပြုလုပ်နိုင်ပါသည်။
-              </p>
-
-              <div className="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-100 text-indigo-900 text-xs sm:text-sm font-medium">
-                သာမန်မေးမြန်းမှုများနှင့် အရေးမကြီးသော ဆက်သွယ်မှုများအတွက်မူ Guest Message မှတစ်ဆင့် အဆင်ပြေစွာ ဆက်သွယ်နိုင်ပါသည်။
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={() => setShowGuestInfoModal(false)}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold text-sm shadow-md shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95"
-              >
-                နားလည်ပါပြီ (OK)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {chatTab === 'web' || chatTab === 'guest' ? (
         <>
@@ -1501,14 +1221,7 @@ export default function Chats() {
                 <WebVisitorItem
                   key={v.visitor_id}
                   v={v}
-                  isSelected={
-                    selectedVisitor === v.visitor_id ||
-                    selectedVisitor === v.firebase_uid ||
-                    (selectedVisitor && `web_${v.visitor_id}` === selectedVisitor) ||
-                    (selectedVisitor && v.visitor_id === `web_${selectedVisitor}`) ||
-                    (selectedVisitor && v.visitor_id === selectedVisitor.replace(/^web_/, '')) ||
-                    (selectedVisitor && selectedVisitor === `web_tg_${v.telegram_id}`)
-                  }
+                  isSelected={selectedVisitor === v.visitor_id}
                   onClick={() => {
                     setSelectedVisitor(v.visitor_id);
                     setSelectedUser(null);
@@ -1827,36 +1540,17 @@ export default function Chats() {
                     {selectedWebChat?.name === 'E-commerce Support' ? (
                       <img src="/logo.webp" alt="Support" className="w-8 h-8 rounded-full object-cover border border-indigo-100" />
                     ) : (
-                      <CustomerAvatar
-                        photoUrl={selectedChat?.profile_picture || selectedChat?.photo_url || selectedWebChat?.photo_url || selectedWebChat?.profile_picture}
-                        name={
-                          (selectedChat?.first_name ? (selectedChat.first_name + (selectedChat.last_name ? ` ${selectedChat.last_name}` : '')) : null) ||
-                          selectedChat?.name ||
-                          selectedChatName ||
-                          (selectedWebChat?.name && selectedWebChat.name !== 'Website Customer' && selectedWebChat.name !== 'Shop Visitor' ? selectedWebChat.name : null) ||
-                          'Customer'
-                        }
-                        size="w-8 h-8"
-                        fontSize="text-xs"
-                      />
+                      <CustomerAvatar photoUrl={selectedWebChat?.photo_url} name={selectedWebChat?.name || selectedChat?.first_name} size="w-8 h-8" fontSize="text-xs" />
                     )}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
-                      {selectedWebChat?.name === 'E-commerce Support' ? (
-                        <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></>
-                      ) : (
-                        (selectedChat?.first_name ? (selectedChat.first_name + (selectedChat.last_name ? ` ${selectedChat.last_name}` : '')) : null) ||
-                        selectedChat?.name ||
-                        selectedChatName ||
-                        (selectedWebChat?.name && selectedWebChat.name !== 'Website Customer' && selectedWebChat.name !== 'Shop Visitor' ? selectedWebChat.name : null) ||
-                        'Customer'
-                      )}
+                      {selectedWebChat?.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || selectedChatName || 'Customer')}
                     </p>
-                    {(selectedChat?.username || selectedWebChat?.telegram_username) && (
-                      <p className="text-[11px] text-gray-500 truncate">@{selectedChat?.username || selectedWebChat?.telegram_username}</p>
+                    {selectedChat?.username && (
+                      <p className="text-[11px] text-gray-500 truncate">@{selectedChat.username}</p>
                     )}
-                    {selectedWebChat?.phone && !selectedChat?.username && !selectedWebChat?.telegram_username && (
+                    {selectedWebChat?.phone && (
                       <p className="text-[11px] text-gray-500 truncate">{selectedWebChat.phone}</p>
                     )}
                   </div>
@@ -2040,15 +1734,13 @@ export default function Chats() {
                       <button
                         key={cust.visitor_id || cust.firebase_uid || cust.email || cust.name}
                         onClick={() => {
-                          initiateChatMutation.mutate({
-                            firebase_uid: cust.dashboard_chat_id || cust.firebase_uid || cust.visitor_id,
-                            visitor_id: cust.dashboard_chat_id || cust.visitor_id,
-                            name: displayName,
-                            phone: cust.phone,
-                            email: cust.email,
-                          });
+                          const targetUid = cust.dashboard_chat_id || cust.firebase_uid || cust.visitor_id || `dc_${cust.id}`;
+                          setChatTab('web');
+                          setSelectedVisitor(targetUid);
+                          setSelectedUser(null);
+                          setSelectedChatName(displayName);
+                          setShowStartChatModal(false);
                         }}
-                        disabled={initiateChatMutation.isPending}
                         className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-indigo-50/70 border border-gray-100 transition-all text-left group cursor-pointer"
                       >
                         <div className="flex items-center gap-3 min-w-0">

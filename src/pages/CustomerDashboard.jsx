@@ -88,7 +88,7 @@ import {
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
   ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
   CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw,
-  TrendingUp, Star, Award, AlertTriangle, ChevronUp, Store, ArrowLeft, Lock
+  TrendingUp, Star, Award, AlertTriangle, ChevronUp, Store, ArrowLeft
 } from 'lucide-react';
 import Receipt from '../components/orders/Receipt';
 import CustomerShopTab from '../components/CustomerShopTab';
@@ -153,7 +153,6 @@ export default function CustomerDashboard({ shopSlug }) {
   const copyTimerRef = useRef(null);
   const chatInputRef = useRef(null);
   const mainRef = useRef(null);
-  const orderStatsCache = useRef(new Map());
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const telegramToken = typeof window !== 'undefined' ? localStorage.getItem('telegram_token') : null;
@@ -178,20 +177,14 @@ export default function CustomerDashboard({ shopSlug }) {
     || (telegramToken ? (getUserIdFromToken() || '') : '')
     || (telegramUser?.id ? String(telegramUser.id) : '');
   const userEmail = user?.email || googleUser?.email || '';
-  const displayName = savedName
-    || user?.displayName
+  const displayName = user?.displayName
     || googleUser?.name
+    || (userEmail ? userEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '')
     || telegramUser?.name
     || telegramUser?.first_name
     || (telegramUser?.username ? `@${telegramUser.username}` : '')
-    || (userEmail ? userEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '')
     || 'Customer';
-  const [dashboardChatId, setDashboardChatId] = useState('');
-  const activeVisitorId = dashboardChatId || uid;
-  const [customPhotoUrl, setCustomPhotoUrl] = useState(() => {
-    return googleUser?.photo_url || user?.photoURL || telegramUser?.photo_url || null;
-  });
-  const photoUrl = customPhotoUrl || user?.photoURL || googleUser?.photo_url || telegramUser?.photo_url || null;
+  const photoUrl = user?.photoURL || googleUser?.photo_url || telegramUser?.photo_url || null;
 
   useAuthTokenFromUrl();
 
@@ -204,19 +197,8 @@ export default function CustomerDashboard({ shopSlug }) {
         if (s?.bot_full_name) {
           setPageMeta(s.bot_full_name, s.profile_picture);
         }
+        // Sync website customer to backend (Google & Telegram logins)
         if (s?.id && uid) {
-          fetch(`${API_BASE}/api/customer-profile?bot_id=${s.id}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(userEmail || '')}`)
-            .then(r => r.ok ? r.json() : null)
-            .then(prof => {
-              if (prof?.photo_url) {
-                setCustomPhotoUrl(prof.photo_url);
-              }
-              if (prof?.display_name && prof.display_name.trim() && prof.display_name.trim() !== 'Customer' && prof.display_name.trim() !== 'User') {
-                setSavedName(prof.display_name.trim());
-              }
-            })
-            .catch(() => {});
-
           fetch(`${API_BASE}/website-customers/sync`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -227,59 +209,70 @@ export default function CustomerDashboard({ shopSlug }) {
               email: userEmail || '',
               photo_url: photoUrl || '',
             }),
-          })
-          .then(r => r.ok ? r.json() : null)
-          .then(res => {
-            if (res?.dashboard_chat_id) {
-              setDashboardChatId(res.dashboard_chat_id);
-            }
-          })
-          .catch(() => {});
+          }).catch(() => {});
         }
       })
       .catch(() => {});
   }, [shopSlug, uid, displayName, userEmail, photoUrl]);
 
+  // Fetch order stats (cached in parent so OverviewTab doesn't re-fetch on switch)
   useEffect(() => {
-    if (!shopData?.shop?.id || !uid) return;
-    const cacheKey = `${shopData.shop.id}_${uid}`;
-    if (orderStatsCache.current.has(cacheKey)) {
-      setOrderStats(orderStatsCache.current.get(cacheKey));
-      return;
-    }
-    const headers = { 'Content-Type': 'application/json' };
-    fetch(`${API_BASE}/public/customer/orders-summary?bot_id=${shopData.shop.id}&firebase_uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(userEmail || '')}`, { headers })
+    if (!uid || !shopSlug) return;
+    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders/stats?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data) {
-          const stats = {
-            total_orders: data.total_orders || 0,
-            pending_orders: data.pending_orders || 0,
-            processing_orders: data.processing_orders || 0,
-            shipped_orders: data.shipped_orders || 0,
-            delivered_orders: data.delivered_orders || 0,
-            total_spent: data.total_spent || 0,
-          };
-          orderStatsCache.current.set(cacheKey, stats);
-          setOrderStats(stats);
-        }
-      })
-      .catch(() => {});
-  }, [shopData?.shop?.id, uid, userEmail]);
+      .then(s => { if (s) setOrderStats(s); setRefreshing(false); })
+      .catch(() => { setRefreshing(false); });
+  }, [uid, shopSlug, refreshKey]);
 
+  // Fetch customer orders (cached in parent so OrdersTab doesn't re-fetch on switch)
   useEffect(() => {
-    if (!shopData?.shop?.id || !uid) return;
-    fetch(`${API_BASE}/public/customer/points?bot_id=${shopData.shop.id}&firebase_uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(userEmail || '')}`)
+    if (!uid) { setCustomerOrders([]); setOrdersLoading(false); return; }
+    setOrdersLoading(true);
+    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/orders?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { setCustomerOrders(Array.isArray(data) ? data : []); setOrdersLoading(false); setRefreshing(false); })
+      .catch(() => { setCustomerOrders([]); setOrdersLoading(false); setRefreshing(false); });
+  }, [uid, shopSlug, refreshKey]);
+
+  // Fetch customer points balance
+  useEffect(() => {
+    if (!uid || !shopSlug || !shopData?.shop?.id) return;
+    const ptsSettings = shopData?.ecommerce_points_settings;
+    if (!ptsSettings?.enabled) { setCustomerPoints(null); return; }
+    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/points?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data) setCustomerPoints(data);
-      })
+      .then(d => { if (d) setCustomerPoints(d); })
       .catch(() => {});
-  }, [shopData?.shop?.id, uid, userEmail]);
+  }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled, refreshKey]);
 
+  // Fetch points history
   useEffect(() => {
-    if (!shopData?.shop?.id || !uid || customerPoints?.welcome_bonus_claimed) return;
-    fetch(`${API_BASE}/public/points/welcome-bonus/claim`, {
+    if (!uid || !shopSlug || !shopData?.shop?.id) { setPointsHistory(null); return; }
+    const ptsSettings = shopData?.ecommerce_points_settings;
+    if (!ptsSettings?.enabled) { setPointsHistory(null); return; }
+    fetchWithTimeout(`${API_BASE}/customer/${encodeURIComponent(uid)}/points/history?shop=${encodeURIComponent(shopSlug)}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setPointsHistory(d); })
+      .catch(() => {});
+  }, [uid, shopSlug, shopData?.shop?.id, shopData?.ecommerce_points_settings?.enabled, refreshKey]);
+
+
+  const { data: contentBlocks } = useQuery({
+    queryKey: ['content-blocks', shopData?.shop?.id],
+    queryFn: () => getContentBlocks({ bot_id: Number(shopData?.shop?.id) }),
+    enabled: !!shopData?.shop?.id,
+    placeholderData: (prev) => prev,
+  });
+
+  const receiptSettingsBlock = contentBlocks?.find(b => b.key === 'receipt_settings');
+  const receiptSettings = receiptSettingsBlock?.content_data || {};
+
+  // Claim welcome bonus if not yet claimed
+  useEffect(() => {
+    if (!uid || !shopData?.shop?.id || !customerPoints) return;
+    const ptsSettings = shopData?.ecommerce_points_settings;
+    if (!ptsSettings?.enabled || !ptsSettings?.welcome_bonus || customerPoints?.welcome_bonus_claimed) return;
+    fetch(`${API_BASE}/customer/claim-welcome-bonus`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid: uid, firebase_uid: uid, bot_id: shopData.shop.id }),
@@ -290,14 +283,17 @@ export default function CustomerDashboard({ shopSlug }) {
     }).catch(() => {});
   }, [uid, shopData?.shop?.id, customerPoints?.welcome_bonus_claimed]);
 
+  // Chat: register visitor + load existing messages on open
   useEffect(() => {
-    if (!chatOpen || !shopData?.shop?.id || !activeVisitorId) return;
+    if (!chatOpen || !shopData?.shop?.id || !uid) return;
+    // Register visitor so the admin panel can see this chat
     fetch(`${API_BASE}/public/visitor/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ visitor_id: activeVisitorId, bot_id: shopData.shop.id, firebase_uid: uid, name: displayName }),
+      body: JSON.stringify({ visitor_id: uid, bot_id: shopData.shop.id, firebase_uid: uid, name: displayName }),
     }).catch(() => {});
-    fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(activeVisitorId)}/messages`)
+    // Load existing messages
+    fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(uid)}/messages`)
       .then(r => r.ok ? r.json() : [])
       .then(msgs => {
         if (msgs.length > 0) {
@@ -314,13 +310,14 @@ export default function CustomerDashboard({ shopSlug }) {
         }
       })
       .catch(() => {});
-  }, [chatOpen, shopData?.shop?.id, activeVisitorId, uid, displayName]);
+  }, [chatOpen, shopData?.shop?.id, uid]);
 
+  // Chat: poll for admin/AI replies every 3s
   useEffect(() => {
-    if (!chatOpen || !shopData?.shop?.id || !activeVisitorId) return;
+    if (!chatOpen || !shopData?.shop?.id || !uid) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(activeVisitorId)}/messages`);
+        const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(uid)}/messages`);
         if (!res.ok) return;
         const msgs = await res.json();
         if (!msgs.length) return;
@@ -336,16 +333,17 @@ export default function CustomerDashboard({ shopSlug }) {
           return newMsgs.length ? [...prev, ...newMsgs] : prev;
         });
       } catch {}
-    }, 2000);
+    }, 3000);
     return () => clearInterval(interval);
-  }, [chatOpen, shopData?.shop?.id, activeVisitorId]);
+  }, [chatOpen, shopData?.shop?.id, uid]);
 
+  // Chat: poll unread messages count for Support Chat badge (persisted across refreshes)
   useEffect(() => {
-    if (!shopData?.shop?.id || !activeVisitorId) return;
-    const readKey = `chat_read_count_${shopData.shop.id}_${activeVisitorId}`;
+    if (!shopData?.shop?.id || !uid) return;
+    const readKey = `chat_read_count_${shopData.shop.id}_${uid}`;
     const checkUnread = async () => {
       try {
-        const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(activeVisitorId)}/messages`);
+        const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(uid)}/messages`);
         if (!res.ok) return;
         const msgs = await res.json();
         if (!Array.isArray(msgs)) return;
@@ -354,41 +352,26 @@ export default function CustomerDashboard({ shopSlug }) {
         
         if (chatOpen) {
           localStorage.setItem(readKey, String(adminMsgs.length));
+          lastReadCountRef.current = adminMsgs.length;
           setUnreadCount(0);
         } else {
-          const unreadCount = Math.max(0, adminMsgs.length - savedReadCount);
-          setUnreadCount(unreadCount);
+          const currentRead = Math.max(lastReadCountRef.current, savedReadCount);
+          const unread = Math.max(0, adminMsgs.length - currentRead);
+          setUnreadCount(unread);
         }
       } catch {}
     };
     checkUnread();
     const interval = setInterval(checkUnread, 3500);
     return () => clearInterval(interval);
-  }, [shopData?.shop?.id, activeVisitorId, chatOpen]);
+  }, [chatOpen, shopData?.shop?.id, uid]);
 
-  const handleOpenChat = () => {
-    setChatOpen(true);
-    setUnreadCount(0);
-    if (shopData?.shop?.id && activeVisitorId) {
-      const readKey = `chat_read_count_${shopData.shop.id}_${activeVisitorId}`;
-      fetch(`${API_BASE}/public/chat/${shopData.shop.id}/${encodeURIComponent(activeVisitorId)}/messages`)
-        .then(r => r.ok ? r.json() : [])
-        .then(msgs => {
-          if (Array.isArray(msgs)) {
-            const adminMsgs = msgs.filter(m => m.sender_type === 'admin' || m.sender_type === 'superadmin');
-            localStorage.setItem(readKey, String(adminMsgs.length));
-          }
-        })
-        .catch(() => {});
-    }
-  };
-
-  // Chat: auto-scroll to bottom whenever messages or chat open state change
+  // Chat: auto-scroll to bottom
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
-  }, [chatMessages, chatOpen]);
+  }, [chatMessages]);
 
   const sendMessage = useCallback(async (msg) => {
     if (!msg || !shopData?.shop?.id) return;
@@ -405,7 +388,7 @@ export default function CustomerDashboard({ shopSlug }) {
       const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, history, visitor_id: activeVisitorId, disable_ai: true }),
+        body: JSON.stringify({ message: msg, history, visitor_id: uid, disable_ai: true }),
       });
       const d = await res.json();
       if (d.reply) {
@@ -422,7 +405,7 @@ export default function CustomerDashboard({ shopSlug }) {
         setTimeout(() => next.type === 'action' ? sendAction(next.msg) : sendMessage(next.msg), 50);
       }
     }
-  }, [shopData?.shop?.id, activeVisitorId]);
+  }, [shopData?.shop?.id, uid]);
 
   const sendAction = useCallback(async (actionMsg) => {
     if (!shopData?.shop?.id) return;
@@ -437,7 +420,7 @@ export default function CustomerDashboard({ shopSlug }) {
       const res = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: actionMsg, history, visitor_id: activeVisitorId, is_faq: true }),
+        body: JSON.stringify({ message: actionMsg, history, visitor_id: uid, is_faq: true }),
       });
       const d = await res.json();
       if (d.reply) {
@@ -454,7 +437,7 @@ export default function CustomerDashboard({ shopSlug }) {
         setTimeout(() => next.type === 'action' ? sendAction(next.msg) : sendMessage(next.msg), 50);
       }
     }
-  }, [shopData?.shop?.id, activeVisitorId]);
+  }, [shopData?.shop?.id, uid]);
 
   const handleChatSend = useCallback(() => {
     const msg = chatInput.trim();
@@ -712,7 +695,7 @@ export default function CustomerDashboard({ shopSlug }) {
             {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
             {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
             {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} shop={shopData?.shop} />}
-            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} googleUser={googleUser} uid={uid} displayName={displayName} photoUrl={photoUrl} email={userEmail} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} onPhotoSaved={(newPhoto) => setCustomPhotoUrl(newPhoto)} shop={shopData?.shop} />}
+            {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} googleUser={googleUser} uid={uid} displayName={displayName} photoUrl={photoUrl} email={userEmail} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -1646,7 +1629,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
 }
 
 /* ─── PROFILE TAB ─── */
-function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser, onProfileSaved, onPhotoSaved, shop: profileShopProp }) {
+function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName, photoUrl, email, isTelegramUser, telegramUser, onProfileSaved, shop: profileShopProp }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1654,27 +1637,13 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(photoUrl);
   const photoInputRef = useRef(null);
-  const storedGoogleUser = (() => {
-    try {
-      const g = localStorage.getItem('google_user');
-      return g ? JSON.parse(g) : null;
-    } catch { return null; }
-  })();
-  const storedFirebaseUser = (() => {
-    try {
-      const f = localStorage.getItem('firebase_user');
-      return f ? JSON.parse(f) : null;
-    } catch { return null; }
-  })();
 
-  const fallbackEmail = user?.email || email || googleUser?.email || storedGoogleUser?.email || storedFirebaseUser?.email || '';
-  const googleAccountEmail = (user?.email || googleUser?.email || storedGoogleUser?.email || storedFirebaseUser?.email || email || '').trim();
-  const isGoogleAccount = !isTelegramUser && !telegramUser && !!googleAccountEmail;
-  const fallbackName = (defaultName && defaultName !== 'Customer') ? defaultName : (googleAccountEmail.includes('@') ? googleAccountEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '');
+  const fallbackEmail = user?.email || email || googleUser?.email || '';
+  const fallbackName = (defaultName && defaultName !== 'Customer') ? defaultName : (fallbackEmail.includes('@') ? fallbackEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '');
 
   const [displayName, setDisplayName] = useState(fallbackName);
-  const [phones, setPhones] = useState(() => googleUser?.phone ? [googleUser.phone] : ['']);
-  const [emails, setEmails] = useState(() => (isGoogleAccount && googleAccountEmail) ? [googleAccountEmail] : ['']);
+  const [phones, setPhones] = useState(['']);
+  const [emails, setEmails] = useState(fallbackEmail ? [fallbackEmail] : ['']);
   const [telegram, setTelegram] = useState('');
   const [viber, setViber] = useState('');
   const [profileRegion, setProfileRegion] = useState('');
@@ -1689,22 +1658,8 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
 
   const handlePhotoUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    let botId = botIdRef.current || profileShopProp?.id;
-    if (!botId && shopSlug) {
-      try {
-        const shopRes = await fetch(`${API_BASE}/public/shop/${encodeURIComponent(shopSlug)}`);
-        const shopData = await shopRes.json();
-        botId = shopData?.shop?.id;
-        if (botId) botIdRef.current = botId;
-      } catch {}
-    }
-    if (!botId) {
-      setSaveError('Unable to identify shop. Please refresh.');
-      return;
-    }
+    if (!file || !botIdRef.current || !uid) return;
     setUploadingPhoto(true);
-    setSaveError('');
     try {
       // Compress to 512x512 on canvas
       const img = await new Promise((resolve, reject) => {
@@ -1725,25 +1680,21 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bot_id: botId,
-          uid: uid || '',
-          email: googleAccountEmail || '',
+          bot_id: botIdRef.current,
+          uid,
           photo_url: dataUrl,
         }),
       });
       if (!res.ok) throw new Error('Upload failed');
       const result = await res.json();
-      if (result.photo_url) {
-        setProfilePhotoUrl(result.photo_url);
-        if (onPhotoSaved) onPhotoSaved(result.photo_url);
-      }
+      setProfilePhotoUrl(result.photo_url);
     } catch {
       setSaveError('Failed to upload photo');
     } finally {
       setUploadingPhoto(false);
       if (photoInputRef.current) photoInputRef.current.value = '';
     }
-  }, [uid, shopSlug, googleAccountEmail, profileShopProp?.id, onPhotoSaved]);
+  }, [uid]);
 
   useEffect(() => {
     if (!uid || !shopSlug) {
@@ -1753,41 +1704,27 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
     setResolving(true);
     // Use parent-cached shop data if available to avoid API call
     const existingBotId = profileShopProp?.id;
-    const fetchEmail = googleAccountEmail;
-
-    const populateForm = (data) => {
-      if (data && (data.id !== undefined || data.display_name || data.email || data.phone)) {
-        setDisplayName(data.display_name && data.display_name.trim() && data.display_name.trim() !== 'User' && data.display_name.trim() !== 'Customer' ? data.display_name.trim() : (fallbackName || ''));
-        const parsedPhones = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [];
-        setPhones(parsedPhones.length > 0 ? parsedPhones : (googleUser?.phone ? [googleUser.phone] : ['']));
-        const parsedEmails = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [];
-        if (isGoogleAccount && googleAccountEmail) {
-          const additional = parsedEmails.filter(e => e.toLowerCase() !== googleAccountEmail.toLowerCase());
-          setEmails([googleAccountEmail, ...additional]);
-        } else {
-          setEmails(parsedEmails.length > 0 ? parsedEmails : ['']);
-        }
-        setTelegram(data.telegram_username || '');
-        setViber(data.viber_number || '');
-        setProfileRegion(data.region || '');
-        setProfileDistrict(data.district || '');
-        setProfileTownship(data.township || '');
-        setAddress(data.address || '');
-        setNotes(data.notes || '');
-        if (data.photo_url) setProfilePhotoUrl(data.photo_url);
-      } else {
-        setDisplayName(fallbackName || '');
-        setEmails((isGoogleAccount && googleAccountEmail) ? [googleAccountEmail] : ['']);
-        if (googleUser?.phone) setPhones([googleUser.phone]);
-      }
-    };
-
+    const fetchEmail = fallbackEmail;
     if (existingBotId) {
       botIdRef.current = existingBotId;
       fetch(`${API_BASE}/api/customer-profile?bot_id=${existingBotId}&uid=${encodeURIComponent(uid)}&email=${encodeURIComponent(fetchEmail)}`)
         .then(r => r.ok ? r.json() : {})
         .then(data => {
-          populateForm(data);
+          if (data && (data.id || data.display_name || data.email)) {
+            setDisplayName(data.display_name && data.display_name.trim() && data.display_name.trim() !== 'User' && data.display_name.trim() !== 'Customer' ? data.display_name.trim() : (fallbackName || ''));
+            setPhones(data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : ['']);
+            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : (fetchEmail ? [fetchEmail] : ['']));
+            setTelegram(data.telegram_username || '');
+            setViber(data.viber_number || '');
+            setProfileRegion(data.region || '');
+            setProfileDistrict(data.district || '');
+            setProfileTownship(data.township || '');
+            setAddress(data.address || '');
+            setNotes(data.notes || '');
+          } else {
+            setDisplayName(fallbackName || '');
+            setEmails(fetchEmail ? [fetchEmail] : ['']);
+          }
           setLoading(false);
           setResolving(false);
         })
@@ -1804,45 +1741,36 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         })
         .then(r => r && r.ok ? r.json() : {})
         .then(data => {
-          populateForm(data);
+          if (data && (data.id || data.display_name || data.email)) {
+            setDisplayName(data.display_name && data.display_name.trim() && data.display_name.trim() !== 'User' && data.display_name.trim() !== 'Customer' ? data.display_name.trim() : (fallbackName || ''));
+            setPhones(data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : ['']);
+            setEmails(data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : (fetchEmail ? [fetchEmail] : ['']));
+            setTelegram(data.telegram_username || '');
+            setViber(data.viber_number || '');
+            setProfileRegion(data.region || '');
+            setProfileDistrict(data.district || '');
+            setProfileTownship(data.township || '');
+            setAddress(data.address || '');
+            setNotes(data.notes || '');
+          } else {
+            setDisplayName(fallbackName || '');
+            setEmails(fetchEmail ? [fetchEmail] : ['']);
+          }
           setLoading(false);
           setResolving(false);
         })
         .catch(() => { setLoading(false); setResolving(false); });
     }
-  }, [uid, shopSlug, fallbackName, googleAccountEmail, profileShopProp?.id, googleUser?.phone, isGoogleAccount]);
+  }, [uid, shopSlug, fallbackName, fallbackEmail, profileShopProp?.id]);
 
   const addPhone = () => setPhones(prev => [...prev, '']);
   const removePhone = (idx) => { if (phones.length > 1) setPhones(prev => prev.filter((_, i) => i !== idx)); };
 
   const addEmail = () => setEmails(prev => [...prev, '']);
-  const removeEmail = (idx) => {
-    if (isGoogleAccount && idx === 0 && googleAccountEmail) return; // Google account email cannot be removed
-    if (emails.length > 1) setEmails(prev => prev.filter((_, i) => i !== idx));
-  };
+  const removeEmail = (idx) => { if (emails.length > 1) setEmails(prev => prev.filter((_, i) => i !== idx)); };
 
   const handleSave = async () => {
-    const primaryName = displayName.trim();
-    const primaryPhone = phones.filter(Boolean).map(p => p.trim()).join(', ');
-    let finalEmails = emails.filter(Boolean).map(e => e.trim());
-    if (isGoogleAccount && googleAccountEmail) {
-      finalEmails = [googleAccountEmail, ...finalEmails.filter(e => e.toLowerCase() !== googleAccountEmail.toLowerCase())];
-    }
-    const primaryEmail = finalEmails.join(', ');
-
-    if (!primaryName) {
-      setSaveError('Full Name is required.');
-      return;
-    }
-    if (!primaryPhone) {
-      setSaveError('Phone Number is required.');
-      return;
-    }
-    if (!primaryEmail) {
-      setSaveError('Email Address is required.');
-      return;
-    }
-
+    if (!displayName.trim() || !phones[0]?.trim() || !emails[0]?.trim()) return;
     setSaving(true);
     setSaved(false);
     setSaveError('');
@@ -1861,9 +1789,9 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         body: JSON.stringify({
           bot_id: botId,
           uid: uid,
-          display_name: primaryName,
-          email: primaryEmail,
-          phone: primaryPhone,
+          display_name: displayName.trim(),
+          email: emails.filter(Boolean).map(e => e.trim()).join(', '),
+          phone: phones.filter(Boolean).map(p => p.trim()).join(', '),
           telegram_username: telegram.trim(),
           viber_number: viber.trim(),
           address: address.trim(),
@@ -1871,35 +1799,11 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
           region: profileRegion,
           district: profileDistrict,
           township: profileTownship,
-          photo_url: profilePhotoUrl || '',
         }),
       });
       if (res.ok) {
         setSaved(true);
-        onProfileSaved?.(primaryName);
-        if (profilePhotoUrl && onPhotoSaved) {
-          onPhotoSaved(profilePhotoUrl);
-        }
-
-        // Persist saved details to localStorage for instant reload restoration
-        try {
-          const gu = JSON.parse(localStorage.getItem('google_user') || '{}');
-          if (gu && typeof gu === 'object') {
-            gu.name = primaryName;
-            if (googleAccountEmail) gu.email = googleAccountEmail;
-            if (primaryPhone) gu.phone = primaryPhone;
-            if (profilePhotoUrl) gu.photo_url = profilePhotoUrl;
-            localStorage.setItem('google_user', JSON.stringify(gu));
-          }
-          const fu = JSON.parse(localStorage.getItem('firebase_user') || '{}');
-          if (fu && typeof fu === 'object') {
-            fu.displayName = primaryName;
-            if (googleAccountEmail) fu.email = googleAccountEmail;
-            if (profilePhotoUrl) fu.photoURL = profilePhotoUrl;
-            localStorage.setItem('firebase_user', JSON.stringify(fu));
-          }
-        } catch {}
-
+        onProfileSaved?.(displayName.trim());
         setTimeout(() => setSaved(false), 3000);
       } else {
         const errText = await res.text().catch(() => '');
@@ -1966,10 +1870,10 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
               <h3 className="text-lg font-bold text-gray-900 truncate">{displayName || 'Customer'}</h3>
               <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">Profile</span>
             </div>
-            {googleAccountEmail && (
+            {email && (
               <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-500 truncate">
                 <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                <span className="truncate">{googleAccountEmail}</span>
+                <span className="truncate">{email}</span>
               </div>
             )}
           </div>
@@ -2016,11 +1920,11 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
                   }} placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone number"}
                     className="flex-1 px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm font-medium transition-all" />
                   {idx === 0 ? (
-                    <button onClick={addPhone} type="button" title="Add Phone Number" className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-all shrink-0 cursor-pointer">
+                    <button onClick={addPhone} title="Add Phone Number" className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-all shrink-0 cursor-pointer">
                       <Plus className="w-4 h-4" />
                     </button>
                   ) : (
-                    <button onClick={() => removePhone(idx)} type="button" title="Remove Phone Number" className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-all shrink-0 cursor-pointer">
+                    <button onClick={() => removePhone(idx)} title="Remove Phone Number" className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-all shrink-0 cursor-pointer">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
@@ -2033,49 +1937,23 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
           <div>
             <label className="text-xs font-bold text-gray-700 mb-1.5 block">Email Addresses <span className="text-rose-500">*</span></label>
             <div className="space-y-2">
-              {emails.map((emailItem, idx) => {
-                const isFixedPrimaryGoogle = isGoogleAccount && idx === 0 && !!googleAccountEmail;
-                const displayVal = isFixedPrimaryGoogle ? googleAccountEmail : emailItem;
-                return (
-                  <div key={idx} className="flex items-center gap-2">
-                    <div className={`relative flex-1 ${isFixedPrimaryGoogle ? 'pointer-events-none select-none' : ''}`}>
-                      <input
-                        type="email"
-                        value={displayVal}
-                        disabled={isFixedPrimaryGoogle}
-                        readOnly={isFixedPrimaryGoogle}
-                        autoComplete="off"
-                        tabIndex={isFixedPrimaryGoogle ? -1 : 0}
-                        onFocus={e => { if (isFixedPrimaryGoogle) e.target.blur(); }}
-                        onKeyDown={e => { if (isFixedPrimaryGoogle) e.preventDefault(); }}
-                        onClick={e => { if (isFixedPrimaryGoogle) e.preventDefault(); }}
-                        onChange={e => {
-                          if (isFixedPrimaryGoogle) return;
-                          const next = [...emails]; next[idx] = e.target.value; setEmails(next);
-                        }}
-                        placeholder={idx === 0 ? "your@email.com" : "Additional email"}
-                        className={`w-full px-4 py-3 border rounded-xl outline-none text-sm font-medium transition-all ${
-                          isFixedPrimaryGoogle
-                            ? 'bg-gray-100/90 text-gray-700 font-bold border-gray-200 pr-10 shadow-none cursor-not-allowed select-none'
-                            : 'bg-gray-50/80 border-gray-200 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500'
-                        }`}
-                      />
-                      {isFixedPrimaryGoogle && (
-                        <Lock className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" title="Fixed Account Email" />
-                      )}
-                    </div>
-                    {idx === 0 ? (
-                      <button onClick={addEmail} type="button" title="Add Additional Email" className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-all shrink-0 cursor-pointer">
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <button onClick={() => removeEmail(idx)} type="button" title="Remove Email" className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-all shrink-0 cursor-pointer">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+              {emails.map((email, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input type="email" value={email} onChange={e => {
+                    const next = [...emails]; next[idx] = e.target.value; setEmails(next);
+                  }} placeholder={idx === 0 ? "your@email.com" : "Additional email"}
+                    className="flex-1 px-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none text-sm font-medium transition-all" />
+                  {idx === 0 ? (
+                    <button onClick={addEmail} title="Add Email" className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-100 transition-all shrink-0 cursor-pointer">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button onClick={() => removeEmail(idx)} title="Remove Email" className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-100 transition-all shrink-0 cursor-pointer">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 

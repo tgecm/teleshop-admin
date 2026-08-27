@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getOrders, updateOrder } from '../api/orders';
 import { initiateWebVisitorChat } from '../api/chats';
@@ -42,7 +42,7 @@ import {
   Store,
   Download,
   Printer,
-  ChevronDown,
+  HelpCircle,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -52,7 +52,7 @@ function CustomerAvatar({ photoUrl, name, size = "w-12 h-12 lg:w-14 lg:h-14", fo
 
   const getFullPhotoUrl = (url) => {
     if (!url) return null;
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
     const base = (client.defaults.baseURL || 'https://api.telegramecommerce.shop').replace(/\/+$/, '');
     const path = url.replace(/^\/+/, '');
     return `${base}/${path}`;
@@ -126,7 +126,6 @@ export default function Orders() {
   const [extraOrders, setExtraOrders] = useState([]);
   const [offset, setOffset] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
-  const loadMoreRef = useRef(null);
 
   const lastOffsetRef = useRef('');
   useEffect(() => {
@@ -141,7 +140,7 @@ export default function Orders() {
       bot_id: Number(selectedBotId),
       source: orderTab === 'ecommerce' ? 'website' : orderTab,
       status: statusFilter,
-      limit: 40,
+      limit: 50,
       offset: offset,
     }),
     enabled: !!selectedBotId,
@@ -149,47 +148,34 @@ export default function Orders() {
   });
 
   useEffect(() => {
-    if (!rawOrders || rawOrders.length === 0) return;
+    if (!rawOrders || offset === 0) return;
+    const key = `${offset}-${rawOrders.length}-${rawOrders[0]?.id || ''}`;
+    if (lastOffsetRef.current === key) return;
+    lastOffsetRef.current = key;
+
     setExtraOrders(prev => {
       const existingIds = new Set(prev.map(o => o.id));
       const newItems = rawOrders.filter(o => !existingIds.has(o.id));
       return [...prev, ...newItems];
     });
     setLoadingMore(false);
-  }, [rawOrders]);
+  }, [rawOrders, offset]);
 
   const allOrders = useMemo(() => {
-    const combined = [...extraOrders];
-    rawOrders.forEach(o => {
-      if (!combined.some(e => e.id === o.id)) {
-        combined.push(o);
-      }
-    });
-    return combined;
-  }, [rawOrders, extraOrders]);
+    if (offset === 0) return rawOrders;
+    const existingIds = new Set(rawOrders.map(o => o.id));
+    const newExtras = extraOrders.filter(o => !existingIds.has(o.id));
+    return [...rawOrders, ...newExtras];
+  }, [rawOrders, extraOrders, offset]);
 
-  const hasMore = rawOrders.length >= 40;
+  const hasMore = rawOrders.length >= 50;
   const isTabLoading = (isLoading || isFetching) && offset === 0 && allOrders.length === 0;
 
-  const handleLoadMore = useCallback(() => {
-    if (!hasMore || loadingMore || isFetching) return;
+  const handleLoadMore = () => {
+    if (!hasMore || loadingMore) return;
     setLoadingMore(true);
-    setOffset(prev => prev + 40);
-  }, [hasMore, loadingMore, isFetching]);
-
-  useEffect(() => {
-    if (!hasMore || loadingMore || isFetching) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        handleLoadMore();
-      }
-    }, { threshold: 0.1 });
-
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, isFetching, handleLoadMore]);
+    setOffset(prev => prev + 50);
+  };
 
   const { data: contentBlocks } = useQuery({
     queryKey: ['content-blocks', selectedBotId],
@@ -231,7 +217,7 @@ export default function Orders() {
       const cust = o.customer || {};
 
       const firebaseUid = bs.firebase_uid || cust.firebase_uid;
-      const hasFirebase = firebaseUid != null && String(firebaseUid).trim() !== '' && String(firebaseUid) !== 'null';
+      const hasFirebase = firebaseUid != null && String(firebaseUid).trim() !== '' && String(firebaseUid) !== 'null' && !String(firebaseUid).startsWith('wv_') && !String(firebaseUid).startsWith('v_');
 
       const tidRaw = bs.telegram_id || cust.telegram_id;
       const tidStr = tidRaw != null ? String(tidRaw).trim() : '';
@@ -240,7 +226,7 @@ export default function Orders() {
 
       if (orderTab !== 'all') {
         if (orderTab === 'telegram' && !hasTelegram) return false;
-        if (orderTab === 'ecommerce' && hasTelegram) return false;
+        if (orderTab === 'ecommerce' && (hasTelegram || !hasFirebase)) return false;
         if (orderTab === 'guest' && (hasTelegram || hasFirebase)) return false;
       }
 
@@ -456,28 +442,6 @@ export default function Orders() {
         </div>
       )}
 
-      {hasMore && (
-        <div ref={loadMoreRef} className="flex justify-center pt-4 pb-8">
-          <button
-            onClick={handleLoadMore}
-            disabled={loadingMore || isFetching}
-            className="px-6 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl text-xs font-bold transition-all active:scale-95 flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-50"
-          >
-            {loadingMore || isFetching ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Loading more orders...</span>
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-4 h-4" />
-                <span>Load More Orders ({allOrders.length} loaded)</span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
 
       <AnimatePresence>
         {selectedOrder && (
@@ -527,43 +491,50 @@ export default function Orders() {
                       <Copy className="w-3.5 h-3.5" />
                       Copy Info
                     </button>
-                    <button
-                      onClick={async () => {
-                        const bs = selectedOrder.buyer_snapshot || {};
-                        const cust = selectedOrder.customer || {};
-                        const isWebsiteSelected = selectedOrder.payment_method === 'website' || selectedOrder.payment_method === 'cod' || selectedOrder.order_number?.startsWith('WS') || selectedOrder.buyer_snapshot?.firebase_uid != null;
-                        const telegramIdStr = bs.telegram_id || cust.telegram_id;
-                        const isTelegramSelected = !isWebsiteSelected && telegramIdStr != null && String(telegramIdStr).trim() !== '' && String(telegramIdStr) !== 'N/A' && String(telegramIdStr) !== 'null';
+                    {(() => {
+                      const bs = selectedOrder.buyer_snapshot || {};
+                      const cust = selectedOrder.customer || {};
+                      const firebaseUid = bs.firebase_uid || cust.firebase_uid;
+                      const hasFirebase = firebaseUid != null && String(firebaseUid).trim() !== '' && String(firebaseUid) !== 'null' && !String(firebaseUid).startsWith('wv_') && !String(firebaseUid).startsWith('v_');
+                      const tidRaw = bs.telegram_id || cust.telegram_id;
+                      const tidStr = tidRaw != null ? String(tidRaw).trim() : '';
+                      const hasNumericTid = tidStr !== '' && tidStr !== 'N/A' && tidStr !== 'null' && tidStr !== 'undefined' && /^\d+$/.test(tidStr);
+                      const hasTelegram = hasNumericTid || selectedOrder.user_id != null;
+                      const isGuestOrder = !hasTelegram && !hasFirebase;
 
-                        const customerName = bs.name || bs.full_name || cust.first_name || 'Customer';
-                        if (isTelegramSelected) {
-                          navigate('/chats', { state: { conversationId: `tg_${telegramIdStr}`, userId: Number(telegramIdStr), name: customerName, tab: 'telegram' } });
-                          setSelectedOrder(null);
-                        } else {
-                          try {
-                            const activeBotId = Number(selectedBotId || selectedOrder.bot_id || 0);
-                            const targetUid = bs.dashboard_chat_id || cust.dashboard_chat_id || bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
-                            const res = await initiateWebVisitorChat(activeBotId, {
-                              firebase_uid: targetUid,
-                              visitor_id: targetUid,
-                              name: customerName,
-                              phone: bs.phone || cust.phone_number || '',
-                              email: bs.email || cust.email || '',
-                            });
-                            const finalVisitorId = res.visitor_id || targetUid;
-                            const convId = finalVisitorId;
-                            navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: customerName, tab: 'web' } });
-                            setSelectedOrder(null);
-                          } catch (err) {
-                            addToast('Failed to open chat conversation', 'error');
-                          }
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      Send Message
-                    </button>
+                      return isGuestOrder ? (
+                        <button
+                          type="button"
+                          onClick={() => addToast('You cannot initiate message to guest user, please contact to their Contacts', 'info')}
+                          title="You cannot initiate message to guest user, please contact to their Contacts"
+                          className="w-8 h-8 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl font-bold flex items-center justify-center transition-all active:scale-90 cursor-pointer border border-amber-200 flex-shrink-0"
+                        >
+                          <HelpCircle className="w-4.5 h-4.5 text-amber-600" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            const isWebsiteSelected = selectedOrder.payment_method === 'website' || selectedOrder.payment_method === 'cod' || selectedOrder.order_number?.startsWith('WS') || selectedOrder.buyer_snapshot?.firebase_uid != null;
+                            const telegramIdStr = bs.telegram_id || cust.telegram_id;
+                            const isTelegramSelected = !isWebsiteSelected && telegramIdStr != null && String(telegramIdStr).trim() !== '' && String(telegramIdStr) !== 'N/A' && String(telegramIdStr) !== 'null';
+
+                            const customerName = bs.name || bs.full_name || cust.first_name || 'Customer';
+                            if (isTelegramSelected) {
+                              navigate('/chats', { state: { userId: Number(telegramIdStr), name: customerName, tab: 'telegram' } });
+                              setSelectedOrder(null);
+                            } else {
+                              const targetUid = bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
+                              navigate('/chats', { state: { visitorId: targetUid, name: customerName, tab: 'web' } });
+                              setSelectedOrder(null);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          Send Message
+                        </button>
+                      );
+                    })()}
                     <button onClick={() => setSelectedOrder(null)} className="p-2 bg-gray-100 rounded-full active:scale-90 transition-transform">
                       <X className="w-5 h-5 text-gray-500" />
                     </button>
@@ -601,8 +572,16 @@ export default function Orders() {
                   {(() => {
                     const bs = selectedOrder.buyer_snapshot || {};
                     const cust = selectedOrder.customer || {};
-                    const isWebsiteSelected = selectedOrder.payment_method === 'website' || selectedOrder.payment_method === 'cod' || selectedOrder.order_number?.startsWith('WS') || selectedOrder.buyer_snapshot?.firebase_uid != null;
-                    const isTelegramSelected = !isWebsiteSelected && (cust.telegram_id != null || bs.telegram_id != null);
+                    const firebaseUid = bs.firebase_uid || cust.firebase_uid;
+                    const hasFirebase = firebaseUid != null && String(firebaseUid).trim() !== '' && String(firebaseUid) !== 'null' && !String(firebaseUid).startsWith('wv_') && !String(firebaseUid).startsWith('v_');
+                    const tidRaw = bs.telegram_id || cust.telegram_id;
+                    const tidStr = tidRaw != null ? String(tidRaw).trim() : '';
+                    const hasNumericTid = tidStr !== '' && tidStr !== 'N/A' && tidStr !== 'null' && tidStr !== 'undefined' && /^\d+$/.test(tidStr);
+                    const hasTelegram = hasNumericTid || selectedOrder.user_id != null;
+                    const isGuestOrder = !hasTelegram && !hasFirebase;
+
+                    const isWebsiteSelected = !isGuestOrder && (selectedOrder.payment_method === 'website' || selectedOrder.payment_method === 'cod' || selectedOrder.order_number?.startsWith('WS') || selectedOrder.buyer_snapshot?.firebase_uid != null);
+                    const isTelegramSelected = !isWebsiteSelected && !isGuestOrder && (cust.telegram_id != null || bs.telegram_id != null);
                     const label = isTelegramSelected ? 'Telegram Customer Info' : isWebsiteSelected ? 'Customer Profile' : 'Guest Info';
                     return (
                       <div className="bg-gray-50 rounded-2xl border border-gray-100 p-3 md:p-4 space-y-2 md:space-y-3">
@@ -622,7 +601,7 @@ export default function Orders() {
                             onClick={() => {
                               const telegramIdStr = bs.telegram_id || cust.telegram_id || selectedOrder.user_id;
                               const customerName = bs.name || bs.full_name || cust.first_name || 'Customer';
-                              navigate('/chats', { state: { conversationId: `tg_${telegramIdStr}`, userId: Number(telegramIdStr), name: customerName, tab: 'telegram' } });
+                              navigate('/chats', { state: { userId: Number(telegramIdStr), name: customerName, tab: 'telegram' } });
                               setSelectedOrder(null);
                             }}
                             className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold text-xs transition-colors cursor-pointer border border-indigo-100 mt-2 active:scale-95"
@@ -630,33 +609,28 @@ export default function Orders() {
                             <MessageCircle className="w-3.5 h-3.5" />
                             Contact Customer on Telegram Chat
                           </button>
-                        ) : isWebsiteSelected && (
+                        ) : isWebsiteSelected ? (
                           <button
                             type="button"
-                            onClick={async () => {
-                              try {
-                                const activeBotId = Number(selectedBotId || selectedOrder.bot_id || 0);
-                                const customerName = bs.name || bs.full_name || cust.first_name || 'Website Customer';
-                                const targetUid = bs.dashboard_chat_id || cust.dashboard_chat_id || bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
-                                const res = await initiateWebVisitorChat(activeBotId, {
-                                  firebase_uid: targetUid,
-                                  visitor_id: targetUid,
-                                  name: customerName,
-                                  phone: bs.phone || cust.phone_number || '',
-                                  email: bs.email || cust.email || '',
-                                });
-                                const finalVisitorId = res.visitor_id || targetUid;
-                                const convId = finalVisitorId;
-                                navigate('/chats', { state: { conversationId: convId, visitorId: finalVisitorId, name: customerName, tab: 'web' } });
-                                setSelectedOrder(null);
-                              } catch (err) {
-                                addToast('Failed to open chat with customer', 'error');
-                              }
+                            onClick={() => {
+                              const customerName = bs.name || bs.full_name || cust.first_name || 'Website Customer';
+                              const targetUid = bs.firebase_uid || cust.firebase_uid || bs.visitor_id || cust.visitor_id || (bs.telegram_id ? String(bs.telegram_id) : '') || (cust.telegram_id ? String(cust.telegram_id) : '') || (selectedOrder.user_id ? String(selectedOrder.user_id) : '');
+                              navigate('/chats', { state: { visitorId: targetUid, name: customerName, tab: 'web' } });
+                              setSelectedOrder(null);
                             }}
                             className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold text-xs transition-colors cursor-pointer border border-indigo-100 mt-2 active:scale-95"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
                             Contact Customer on Website Chat
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => addToast('You cannot initiate message to guest user, please contact to their Contacts', 'info')}
+                            className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl font-bold text-xs transition-colors cursor-pointer border border-amber-200 mt-2 active:scale-95"
+                          >
+                            <HelpCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                            <span className="truncate">You cannot initiate message to guest user, please contact to their Contacts</span>
                           </button>
                         )}
                       </div>
