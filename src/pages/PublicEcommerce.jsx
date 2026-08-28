@@ -384,7 +384,7 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
   const [showFullScreen, setShowFullScreen] = useState(false);
   const touchStartX = useRef(null);
   const images = getPublicImageUrls(product.image_url, shop?.id);
-  const isOutOfStock = product.stock_quantity !== null && product.stock_quantity === 0;
+  const isOutOfStock = product.stock_quantity === 0 || product.specifications?.stock_status === 'out' || product.stock_status === 'out';
   const productColors = product.specifications?.colors && Array.isArray(product.specifications.colors)
     ? product.specifications.colors : [];
   const productOptions = product.specifications?.options && Array.isArray(product.specifications.options)
@@ -3196,7 +3196,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             </button>
             {(() => {
               const images = getPublicImageUrls(productLinkProduct.image_url, shop?.id);
-              const isOutOfStock = productLinkProduct.stock_quantity !== null && productLinkProduct.stock_quantity === 0;
+              const isOutOfStock = productLinkProduct.stock_quantity === 0 || productLinkProduct.specifications?.stock_status === 'out' || productLinkProduct.stock_status === 'out';
               const stockLow = productLinkProduct.stock_quantity !== null && productLinkProduct.stock_quantity <= 5 && productLinkProduct.stock_quantity > 0;
               const productColors = productLinkProduct.specifications?.colors && Array.isArray(productLinkProduct.specifications.colors)
                 ? productLinkProduct.specifications.colors : [];
@@ -3592,7 +3592,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5 pb-8">
             {displayedProducts.map((product, index) => {
-              const isOutOfStock = product.stock_quantity !== null && product.stock_quantity === 0;
+              const isOutOfStock = product.stock_quantity === 0 || product.specifications?.stock_status === 'out' || product.stock_status === 'out';
               const stockLow = product.stock_quantity !== null && product.stock_quantity <= 5 && product.stock_quantity > 0;
               const productImages = getPublicImageUrls(product.image_url, shop.id);
               const cartItem = cartItems.find(i => i.product_id === product.id);

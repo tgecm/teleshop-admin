@@ -274,7 +274,7 @@ function ProductDetailModal({ product, shop, onClose, onBuyNow, isSent }) {
   const touchStartX = useRef(null);
   const images = getPublicImageUrls(product.image_url, shop?.id);
 
-  const isOutOfStock = product.stock_quantity !== null && product.stock_quantity === 0;
+  const isOutOfStock = product.stock_quantity === 0 || product.specifications?.stock_status === 'out' || product.stock_status === 'out';
   const getBuyLink = (prod, username) =>
     `https://t.me/${username}?start=${prod.link_token}`;
 
@@ -1019,7 +1019,7 @@ export default function PublicShop({ slug, viaDomain }) {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5 pb-8">
             {sortedProducts.map((product, index) => {
-              const isOutOfStock = product.stock_quantity !== null && product.stock_quantity === 0;
+              const isOutOfStock = product.stock_quantity === 0 || product.specifications?.stock_status === 'out' || product.stock_status === 'out';
               const stockLow = product.stock_quantity !== null && product.stock_quantity <= 5 && product.stock_quantity > 0;
               const productImages = getPublicImageUrls(product.image_url, shop.id);
 
