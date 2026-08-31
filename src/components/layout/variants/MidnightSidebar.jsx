@@ -137,7 +137,43 @@ export default function MidnightSidebar({ mobileOpen, onMobileClose, collapsed, 
     staleTime: 0,
   });
 
-  const navItems = [
+  const { data: staffPerms } = useQuery({
+    queryKey: ['staff-permissions', user?.id],
+    queryFn: () => client.get(`/staff/${user.id}/permissions`).then(r => r.data?.permissions || {}),
+    enabled: isStaff && !!user?.id,
+    staleTime: 5000,
+  });
+
+  const checkPerm = (to) => {
+    if (!isStaff) return true;
+    if (!staffPerms) return true;
+    const ROUTE_PERM_MAP = {
+      '/dashboard': 'dashboard',
+      '/profit': 'profit',
+      '/orders': 'orders',
+      '/products': 'products',
+      '/customers': 'customers',
+      '/chats': 'chats',
+      '/newsfeed': 'newsfeed',
+      '/payments': 'payments',
+      '/customization': 'customize',
+      '/ai-agent': 'ai_agent',
+      '/qr-menu/dashboard': 'qr_dashboard',
+      '/qr-menu': 'qr_menu_items',
+      '/qr-menu/tables': 'qr_tables',
+      '/qr-menu/orders': 'qr_orders',
+      '/broadcast': 'telegram_broadcast',
+      '/commands': 'telegram_command',
+      '/bot-customization': 'telegram_bot',
+    };
+    const req = ROUTE_PERM_MAP[to];
+    if (!req) return true;
+    return staffPerms[req] === true ||
+      (req.startsWith('qr_') && staffPerms.qr_menu === true) ||
+      (req.startsWith('telegram_') && staffPerms.telegram === true);
+  };
+
+  const rawNavItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/profit', icon: TrendingUp, label: 'Profit' },
     ...(user?.is_superadmin ? [{ to: '/send-message', icon: Mail, label: 'Send Message' }] : []),
@@ -154,18 +190,20 @@ export default function MidnightSidebar({ mobileOpen, onMobileClose, collapsed, 
     ...(isStaff ? [] : [{ to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' }]),
   ];
 
+  const navItems = rawNavItems.filter(item => checkPerm(item.to));
+
   const qrMenuItems = [
     { to: '/qr-menu/dashboard', icon: LayoutDashboard, label: 'QR Dashboard' },
     { to: '/qr-menu', icon: Utensils, label: 'QR Menu' },
     { to: '/qr-menu/tables', icon: QrCode, label: 'QR Tables' },
     { to: '/qr-menu/orders', icon: ClipboardList, label: 'QR Orders' },
-  ];
+  ].filter(item => checkPerm(item.to));
 
   const telegramItems = [
     { to: '/broadcast', icon: Radio, label: 'Broadcast' },
     { to: '/commands', icon: Send, label: 'Telegram Command' },
     { to: '/bot-customization', icon: Bot, label: 'Bot Customization' },
-  ];
+  ].filter(item => checkPerm(item.to));
 
   const bottomNavRoutes = ['/dashboard', '/orders', '/products', '/customers', '/chats', '/settings'];
   const mobileNavItems = navItems.filter(item => !bottomNavRoutes.includes(item.to));
@@ -244,35 +282,39 @@ export default function MidnightSidebar({ mobileOpen, onMobileClose, collapsed, 
       })}
 
       {/* QR Menu Section */}
-      <div className={collapsed ? 'pt-2' : 'pt-1'}>
-        <SectionHeader icon={Utensils} label="QR Menu" />
-        <div
-          className={`rounded-xl p-1 space-y-0.5 ${collapsed ? '' : ''}`}
-          style={!collapsed ? { background: 'var(--sidebar-section-bg)', border: '1px solid var(--border-subtle)' } : {}}
-        >
-          {qrMenuItems.map(({ to, icon: Icon, label }) => {
-            const badge = to === '/qr-menu/orders' ? qrPendingOrders?.pending : null;
-            return (
-              <div key={to} className="relative">
-                <NavItem to={to} icon={Icon} label={label} end={to === '/qr-menu'} badge={badge} />
-              </div>
-            );
-          })}
+      {qrMenuItems.length > 0 && (
+        <div className={collapsed ? 'pt-2' : 'pt-1'}>
+          <SectionHeader icon={Utensils} label="QR Menu" />
+          <div
+            className={`rounded-xl p-1 space-y-0.5 ${collapsed ? '' : ''}`}
+            style={!collapsed ? { background: 'var(--sidebar-section-bg)', border: '1px solid var(--border-subtle)' } : {}}
+          >
+            {qrMenuItems.map(({ to, icon: Icon, label }) => {
+              const badge = to === '/qr-menu/orders' ? qrPendingOrders?.pending : null;
+              return (
+                <div key={to} className="relative">
+                  <NavItem to={to} icon={Icon} label={label} end={to === '/qr-menu'} badge={badge} />
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Telegram Section */}
-      <div className={collapsed ? 'pt-2' : 'pt-1'}>
-        <SectionHeader icon={Send} label="Telegram" />
-        <div
-          className={`rounded-xl p-1 space-y-0.5`}
-          style={!collapsed ? { background: 'var(--sidebar-section-bg)', border: '1px solid var(--border-subtle)' } : {}}
-        >
-          {telegramItems.map(({ to, icon: Icon, label }) => (
-            <NavItem key={to} to={to} icon={Icon} label={label} />
-          ))}
+      {telegramItems.length > 0 && (
+        <div className={collapsed ? 'pt-2' : 'pt-1'}>
+          <SectionHeader icon={Send} label="Telegram" />
+          <div
+            className={`rounded-xl p-1 space-y-0.5`}
+            style={!collapsed ? { background: 'var(--sidebar-section-bg)', border: '1px solid var(--border-subtle)' } : {}}
+          >
+            {telegramItems.map(({ to, icon: Icon, label }) => (
+              <NavItem key={to} to={to} icon={Icon} label={label} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* FAQs & Subscription */}
       {!isStaff && (

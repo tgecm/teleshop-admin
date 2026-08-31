@@ -926,6 +926,7 @@ export default function QRMenuCustomerDashboard({ slug }) {
                 orderItems={orderItems} orderTotal={orderTotal} shop={shop} slug={slug}
                 paymentMethods={paymentMethods} pointsSettings={pointsSettings}
                 customerId={customer.id} customerPoints={customer.points_balance || 0}
+                hasInstantMmpay={!!(shop?.has_instant_mmpay) && orderTotal >= 1000}
                 onSuccess={handleCheckoutSuccess}
                 onClose={() => setShowCheckout(false)}
               />

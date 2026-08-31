@@ -5,6 +5,7 @@ import { ShieldX } from 'lucide-react';
 
 const ROUTE_PERM_MAP = {
   dashboard: 'dashboard',
+  profit: 'profit',
   orders: 'orders',
   products: 'products',
   customers: 'customers',
@@ -13,7 +14,11 @@ const ROUTE_PERM_MAP = {
   payments: 'payments',
   subscription: 'subscription',
   customization: 'customize',
-  'qr-menu': 'qr_menu',
+  'ai-agent': 'ai_agent',
+  'qr-menu/dashboard': 'qr_dashboard',
+  'qr-menu': 'qr_menu_items',
+  'qr-menu/tables': 'qr_tables',
+  'qr-menu/orders': 'qr_orders',
   faqs: 'faqs',
   broadcast: 'telegram_broadcast',
   commands: 'telegram_command',
@@ -56,7 +61,11 @@ export default function PermissionGuard({ children }) {
     );
   }
 
-  if (staffPerms?.[requiredPerm] !== true) {
+  const hasPerm = staffPerms?.[requiredPerm] === true ||
+    (requiredPerm.startsWith('qr_') && staffPerms?.qr_menu === true) ||
+    (requiredPerm.startsWith('telegram_') && staffPerms?.telegram === true);
+
+  if (!hasPerm) {
     console.warn('[PermissionGuard] Denied', path, 'required:', requiredPerm, 'perms:', staffPerms);
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">

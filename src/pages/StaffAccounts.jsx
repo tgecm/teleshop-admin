@@ -19,7 +19,8 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function StaffAccounts() {
   const { user } = useAuthStore();
-  const { selectedBotId } = useBotStore();
+  const { bots, selectedBotId } = useBotStore();
+  const selectedBot = (bots || []).find(b => b.id?.toString() === selectedBotId?.toString());
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -42,6 +43,7 @@ export default function StaffAccounts() {
 
   const PERM_GROUPS = [
     { id: 'dashboard', label: 'Dashboard' },
+    { id: 'profit', label: 'Profit' },
     { id: 'orders', label: 'Orders' },
     { id: 'products', label: 'Products' },
     { id: 'customers', label: 'Customers' },
@@ -50,6 +52,7 @@ export default function StaffAccounts() {
     { id: 'payments', label: 'Payments' },
     { id: 'subscription', label: 'Subscription' },
     { id: 'customize', label: 'Customize' },
+    { id: 'ai_agent', label: 'AI Agent' },
     { id: 'profile', label: 'Profile' },
     { id: 'qr_menu', label: 'QR Menu', subs: [
       { id: 'qr_dashboard', label: 'QR Dashboard' },
@@ -68,7 +71,7 @@ export default function StaffAccounts() {
 
   const { data: staffList, isLoading } = useQuery({
     queryKey: ['staff-list', selectedBotId],
-    queryFn: () => client.get('/staff/list').then(r => r.data),
+    queryFn: () => client.get('/staff/list', { params: { bot_id: selectedBotId } }).then(r => r.data),
     enabled: !!selectedBotId,
   });
 
@@ -202,6 +205,35 @@ export default function StaffAccounts() {
           </button>
         </div>
       </div>
+
+      {selectedBot && (
+        <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-white border border-indigo-100 p-3.5 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-3">
+            {selectedBot.profile_picture ? (
+              <img src={selectedBot.profile_picture} alt="" className="w-9 h-9 rounded-xl object-cover border border-indigo-200 shadow-xs" />
+            ) : (
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-xs">
+                {(selectedBot.bot_full_name || selectedBot.bot_username || 'S')[0].toUpperCase()}
+              </div>
+            )}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-100/70 px-2 py-0.5 rounded-md">Selected Shop</span>
+                <span className="text-[10px] text-gray-500 font-medium">
+                  ID: {selectedBot.id}
+                </span>
+              </div>
+              <h3 className="font-bold text-gray-900 text-sm mt-0.5">
+                {selectedBot.bot_full_name || selectedBot.bot_username}
+                {selectedBot.bot_username && <span className="text-gray-400 font-normal text-xs ml-1.5 font-mono">(@{selectedBot.bot_username})</span>}
+              </h3>
+            </div>
+          </div>
+          <span className="text-xs text-indigo-600 bg-white border border-indigo-100 px-3 py-1 rounded-xl font-medium shadow-2xs hidden sm:inline-block">
+            Staff accounts list for this shop
+          </span>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-300" /></div>

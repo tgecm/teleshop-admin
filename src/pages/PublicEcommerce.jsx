@@ -894,7 +894,7 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   );
 }
 
-export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm, checkoutFields, pointsSettings, customerPoints, customerUid, onInstantMmpay }) {
+export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm, checkoutFields, pointsSettings, customerPoints, customerUid, onInstantMmpay, onInstantMmpayPreConfirm }) {
   const cFields = { ...(checkoutFields || {}), name: true };
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [proofFile, setProofFile] = useState(null);
@@ -1119,8 +1119,11 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
             quantity: i.quantity
           }))
         };
-        setPendingMmpayParams(mmpayPayload);
-        setIsMmpayPreConfirmOpen(true);
+        if (onInstantMmpayPreConfirm) {
+          onInstantMmpayPreConfirm(mmpayPayload);
+        } else if (onInstantMmpay) {
+          onInstantMmpay(mmpayPayload);
+        }
         return;
       }
 
@@ -2146,6 +2149,9 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
   const [isMmpayPreConfirmOpen, setIsMmpayPreConfirmOpen] = useState(false);
   const [pendingMmpayParams, setPendingMmpayParams] = useState(null);
+  const [mmpayLoading, setMmpayLoading] = useState(false);
+  const [mmpayCooldownSeconds, setMmpayCooldownSeconds] = useState(0);
+  const [mmpayErrorMessage, setMmpayErrorMessage] = useState('');
   const [contactForm, setContactForm] = useState(() => {
     try {
       const cached = localStorage.getItem('teleshop_contact_form');
@@ -4102,7 +4108,11 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             contactForm={contactForm}
             checkoutFields={data?.checkout_fields}
             onClose={() => { setCheckoutOpen(false); setSelectedPaymentMethod(null); }}
-            onOrderPlaced={handleOrderPlaced}
+            onInstantMmpayPreConfirm={(payload) => {
+              setCheckoutOpen(false);
+              setPendingMmpayParams(payload);
+              setIsMmpayPreConfirmOpen(true);
+            }}
             onInstantMmpay={(mmpayData) => {
               setCheckoutOpen(false);
               setMmpayOrderData(mmpayData);
@@ -4115,21 +4125,43 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       {/* Pre-Checkout MMQR Warning Confirmation Modal */}
       <PreCheckoutMmpayConfirmModal
         isOpen={isMmpayPreConfirmOpen}
+        loading={mmpayLoading}
+        cooldownSeconds={mmpayCooldownSeconds}
+        errorMessage={mmpayErrorMessage}
         onCancel={() => {
           setIsMmpayPreConfirmOpen(false);
           setPendingMmpayParams(null);
+          setCheckoutOpen(true);
         }}
         onContinue={async () => {
-          setIsMmpayPreConfirmOpen(false);
           if (!pendingMmpayParams) return;
+          setMmpayLoading(true);
+          setMmpayErrorMessage('');
           try {
             const mmpayData = await createInstantMmpayOrder(pendingMmpayParams);
+            setIsMmpayPreConfirmOpen(false);
             setMmpayOrderData(mmpayData);
             setIsMmpayModalOpen(true);
-          } catch (err) {
-            setError(err.response?.data?.detail || err.message || 'Failed to initialize MMQR payment');
-          } finally {
             setPendingMmpayParams(null);
+            setMmpayCooldownSeconds(0);
+          } catch (err) {
+            const detail = err.response?.data?.detail || err.message || 'Failed to initialize MMQR payment';
+            const secondsHeader = err.response?.headers?.['x-cooldown-seconds'];
+            let secs = secondsHeader ? parseInt(secondsHeader, 10) : 0;
+            if (!secs && detail.includes('Please wait')) {
+              const match = detail.match(/(\d+)m\s*(\d+)s/) || detail.match(/(\d+)s/);
+              if (match) {
+                if (match[2]) secs = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+                else secs = parseInt(match[1], 10);
+              }
+            }
+            if (secs > 0) {
+              setMmpayCooldownSeconds(secs);
+            } else {
+              setMmpayErrorMessage(detail);
+            }
+          } finally {
+            setMmpayLoading(false);
           }
         }}
       />

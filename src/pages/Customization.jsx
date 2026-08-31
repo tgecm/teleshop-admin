@@ -12,6 +12,7 @@ import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import currencies, { getCurrencyByCode } from '../utils/currencies';
 import { getAdminQuickQuestions, createQuickQuestion, updateQuickQuestion, deleteQuickQuestion } from '../api/quickQuestions';
+import { getShopMmpayStatus } from '../api/payments';
 import {
   Palette,
   Camera,
@@ -560,6 +561,16 @@ export default function Customization() {
     queryFn: () => getAiSettings(selectedBotId),
     enabled: !!selectedBotId,
   });
+
+  const { data: mmpayStatus } = useQuery({
+    queryKey: ['shop-mmpay-status', selectedBotId],
+    queryFn: () => getShopMmpayStatus(selectedBotId),
+    enabled: !!selectedBotId,
+  });
+
+  const isMmpayEnabled = Boolean(
+    mmpayStatus?.configured && mmpayStatus?.superadmin_enabled && mmpayStatus?.shop_enabled
+  );
 
   const updateContentMutation = useMutation({
     mutationFn: ({ key, data }) => updateContentBlock(selectedBotId, key, data),
@@ -1137,28 +1148,61 @@ export default function Customization() {
         </section>
 
         {/* Currency */}
-        <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+        <section className={`p-3 rounded-2xl shadow-sm border transition-all ${
+          isMmpayEnabled
+            ? 'bg-amber-50/40 border-amber-200/70'
+            : 'bg-white border-gray-100'
+        }`}>
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+              isMmpayEnabled ? 'bg-amber-100 text-amber-700' : 'bg-green-50 text-green-600'
+            }`}>
               <DollarSign className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-gray-900">Currency</h3>
-              <p className="text-[10px] text-gray-500">Set the currency for your bot and shop</p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-bold text-gray-900">Currency</h3>
+                {isMmpayEnabled && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-100/80 text-amber-800 border border-amber-300/80 px-2 py-0.5 rounded-md">
+                    <Lock className="w-3 h-3 text-amber-700" /> Locked (MyanMyanPay Active)
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-500">
+                {isMmpayEnabled
+                  ? 'Locked to MMK — MyanMyanPay only accepts MMK'
+                  : 'Set the currency for your bot and shop'
+                }
+              </p>
             </div>
           </div>
           <button
-            onClick={() => setShowCurrencyModal(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 hover:bg-gray-100 transition-all text-left"
+            onClick={() => {
+              if (isMmpayEnabled) {
+                addToast('Currency is locked to MMK while MyanMyanPay is enabled.', 'error');
+                return;
+              }
+              setShowCurrencyModal(true);
+            }}
+            disabled={isMmpayEnabled}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all text-left ${
+              isMmpayEnabled
+                ? 'bg-gray-100/80 border-gray-200 opacity-60 cursor-not-allowed text-gray-400'
+                : 'bg-gray-50 border-gray-100 hover:bg-gray-100 text-gray-700'
+            }`}
           >
             <DollarSign className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            <span className="text-sm text-gray-700 truncate flex-1">
+            <span className="text-sm font-medium truncate flex-1">
               {currentCurrency
                 ? <><span className="font-bold">{currentCurrency.code}</span> — {currentCurrency.name} ({currentCurrency.symbol})</>
                 : <span className="text-gray-400 italic">MMK — Myanmar Kyat (default)</span>
               }
             </span>
-            <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            {isMmpayEnabled ? (
+              <Lock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            )}
           </button>
         </section>
 
