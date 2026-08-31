@@ -56,7 +56,7 @@ export default function InstantMmpayQrModal({
 
     const handleBeforeUnload = (e) => {
       e.preventDefault();
-      const warningText = 'If you close this QR code, Dont transfer to this QR code. To proceed again, create a new order';
+      const warningText = 'If you close this QR code, do not transfer money using it. To proceed, please create a new order.';
       e.returnValue = warningText;
       return warningText;
     };
@@ -306,7 +306,7 @@ export default function InstantMmpayQrModal({
 
                 {/* Bottom Note */}
                 <p className="text-xs font-semibold text-purple-800 bg-purple-50 py-2 px-3 rounded-xl border border-purple-100">
-                  Plese Proceed withing 5 Minutes.
+                  Please proceed within 5 minutes.
                 </p>
 
                 <p className="text-[11px] text-gray-400 flex items-center justify-center gap-1">
@@ -334,8 +334,8 @@ export default function InstantMmpayQrModal({
                 <div className="space-y-1">
                   <h4 className="text-lg font-black text-gray-900">Warning</h4>
                   <p className="text-xs font-semibold text-gray-600 leading-relaxed max-w-xs mx-auto">
-                    If you close this QR code, Dont transfer to this QR code.<br />
-                    To proceed again, create a new order
+                    If you close this QR code, do not transfer money using it.<br />
+                    To proceed, please create a new order.
                   </p>
                 </div>
                 <div className="flex gap-3 pt-2">
