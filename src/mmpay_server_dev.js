@@ -114,31 +114,43 @@ async function notifyOwner(botId, order, tx, status) {
     const itemsText = itemLines.length ? itemLines.join('\n') : '• (empty)';
 
     const titles = {
-      confirmed: '✅ Payment Confirmed (Instant MMQR)',
-      payment_failed: '❌ Payment Failed (Instant MMQR)',
-      expired: '⏰ Order Expired (Instant MMQR)',
-      cancelled: '⏰ Order Cancelled (Instant MMQR)'
+      confirmed: '✅ Payment Confirmed',
+      payment_failed: '❌ Payment Failed',
+      expired: '⏰ Order Expired',
+      cancelled: '⏰ Order Cancelled'
     };
     const title = titles[status] || `Order Status: ${status}`;
     const sourceLabel = order.source === 'website' ? 'Website' : 'Guest';
 
-    const text = [
+    const lines = [
       `<b>${title}</b>`,
       '',
       `<b>Order:</b> #${order.order_number}`,
       `<b>Source:</b> ${sourceLabel}`,
-      `<b>Customer:</b> ${shipping.name || buyer.name || 'N/A'}`,
-      `<b>Email:</b> ${shipping.email || buyer.email || 'N/A'}`,
-      `<b>Phone:</b> ${shipping.phone || buyer.phone || 'N/A'}`,
-      `<b>Address:</b> ${shipping.address || 'N/A'}`,
-      `<b>Notes:</b> ${shipping.notes || 'N/A'}`,
-      '',
-      `<b>Items:</b>\n${itemsText}`,
-      '',
-      `<b>Total Amount:</b> ${Number(order.final_amount || order.total_amount || 0).toLocaleString()} ${currency}`,
-      `<b>Ref:</b> ${(tx && tx.transactionRefId) || 'N/A'}`,
-      `<b>Status:</b> ${status.toUpperCase()}`
-    ].join('\n');
+    ];
+
+    const customerName = shipping.name || buyer.name;
+    if (customerName && customerName !== 'N/A') lines.push(`<b>Customer:</b> ${customerName}`);
+
+    const emailVal = shipping.email || buyer.email;
+    if (emailVal && emailVal !== 'N/A') lines.push(`<b>Email:</b> ${emailVal}`);
+
+    const phoneVal = shipping.phone || buyer.phone;
+    if (phoneVal && phoneVal !== 'N/A') lines.push(`<b>Phone:</b> ${phoneVal}`);
+
+    const addressVal = shipping.address;
+    if (addressVal && addressVal !== 'N/A') lines.push(`<b>Address:</b> ${addressVal}`);
+
+    const notesVal = shipping.notes;
+    if (notesVal && notesVal !== 'N/A') lines.push(`<b>Notes:</b> ${notesVal}`);
+
+    lines.push('');
+    lines.push(`<b>Items:</b>\n${itemsText}`);
+    lines.push('');
+    lines.push(`<b>Total Amount:</b> ${Number(order.final_amount || order.total_amount || 0).toLocaleString()} ${currency}`);
+    lines.push(`<b>Status:</b> ${status.toUpperCase()}`);
+
+    const text = lines.join('\n');
 
     await axios.post(`https://api.telegram.org/bot${b.bot_token}/sendMessage`, {
       chat_id: b.owner_telegram_id,
