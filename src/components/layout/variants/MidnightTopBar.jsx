@@ -207,7 +207,7 @@ export default function MidnightTopBar({ onToggleSidebar, sidebarCollapsed, onTo
 
         {/* Center: bot switcher for superadmin */}
         {user?.is_superadmin && (
-          <div className="flex-1 flex justify-center max-w-[200px] md:max-w-none">
+          <div className="flex-1 flex justify-center max-w-[280px] sm:max-w-[360px]">
             <BotSwitcher />
           </div>
         )}

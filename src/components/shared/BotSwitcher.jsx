@@ -35,7 +35,7 @@ export default function BotSwitcher({ light }) {
   );
 
   return (
-    <div className="relative inline-block text-left w-full max-w-[220px]" ref={dropdownRef}>
+    <div className="relative inline-block text-left w-full min-w-[200px] sm:min-w-[260px] md:min-w-[320px] max-w-[360px]" ref={dropdownRef}>
       {/* Trigger Button */}
       <button
         type="button"
