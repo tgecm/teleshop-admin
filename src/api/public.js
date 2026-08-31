@@ -116,3 +116,6 @@ export const trackOrder = (search, botId) =>
 
 export const createInstantMmpayOrder = (data) =>
   client.post('/public/checkout/instant-mmpay', data).then(res => res.data);
+
+export const expireInstantMmpayOrder = (orderId) =>
+  client.post(`/public/order-expire/${encodeURIComponent(orderId)}`).then(res => res.data);

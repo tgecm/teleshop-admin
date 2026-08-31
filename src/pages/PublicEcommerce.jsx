@@ -1104,9 +1104,13 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
             bot_id: shop.id,
             customer_name: contactForm.name.trim(),
             phone: phoneStr,
+            email: emailStr,
             address: contactForm.address.trim(),
             township: contactForm.township,
             notes: contactForm.notes.trim(),
+            firebase_uid: customerUid || profileUid || (viewMode !== 'guest' ? user?.uid : null),
+            view_mode: viewMode,
+            source: viewMode === 'guest' ? 'guest' : 'website',
             total_amount: ptsTotal,
             items: cartItems.map(i => ({
               product_id: i.product_id,
