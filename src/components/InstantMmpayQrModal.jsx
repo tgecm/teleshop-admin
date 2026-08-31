@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle2, Clock, Loader2, ExternalLink, ShieldCheck, AlertCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { API_BASE } from '../api/config';
+import { expireInstantMmpayOrder } from '../api/public';
 
 export default function InstantMmpayQrModal({
   isOpen,
@@ -35,13 +36,16 @@ export default function InstantMmpayQrModal({
         if (prev <= 1) {
           clearInterval(timer);
           setStatus('expired');
+          if (orderId) {
+            expireInstantMmpayOrder(orderId).catch(() => {});
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isOpen, status]);
+  }, [isOpen, status, orderId]);
 
   // Real-time payment status polling
   useEffect(() => {
