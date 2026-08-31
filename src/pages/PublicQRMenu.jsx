@@ -7,7 +7,6 @@ import QRCustomerDashboard from './QRCustomerDashboard';
 import QRSignInModal from '../components/QRMenu/QRSignInModal';
 import { isQRAuthenticated, clearQRLogin } from '../lib/qrAuth';
 
-import API_BASE_ORIGINAL from '../api/config';
 import { API_BASE } from '../api/config';
 import ZoomableQrModal from '../components/ZoomableQrModal';
 import InstantMmpayQrModal from '../components/InstantMmpayQrModal';

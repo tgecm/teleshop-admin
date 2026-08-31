@@ -2599,6 +2599,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     if (!paymentId) return;
     if (paymentId === 'cod') {
       setSelectedPaymentMethod({ id: 'cod', name: 'Cash on Delivery' });
+    } else if (paymentId === 'mmpay') {
+      setSelectedPaymentMethod({ id: 'mmpay', name: 'MMQR Myan Myan Pay' });
     } else {
       const pm = paymentMethods.find(p => p.id === paymentId);
       setSelectedPaymentMethod(pm || null);
