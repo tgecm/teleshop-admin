@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle2, Clock, Loader2, ExternalLink, ShieldCheck, AlertCircle } from 'lucide-react';
+import { X, CheckCircle2, Clock, Loader2, ExternalLink, ShieldCheck, AlertCircle, Download } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { API_BASE } from '../api/config';
 import { expireInstantMmpayOrder } from '../api/public';
@@ -19,6 +19,7 @@ export default function InstantMmpayQrModal({
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const [status, setStatus] = useState('pending'); // 'pending' | 'success' | 'expired'
   const pollingRef = useRef(null);
+  const qrRef = useRef(null);
 
   // Reset timer on open
   useEffect(() => {
@@ -77,6 +78,51 @@ export default function InstantMmpayQrModal({
     };
   }, [isOpen, orderId, status, onSuccess]);
 
+  const handleDownloadQr = () => {
+    if (!qrRef.current) return;
+    try {
+      const svgElement = qrRef.current.querySelector('svg');
+      if (svgElement) {
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const URL = window.URL || window.webkitURL || window;
+        const blobURL = URL.createObjectURL(svgBlob);
+
+        const image = new Image();
+        image.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 512;
+          canvas.height = 512;
+          const context = canvas.getContext('2d');
+          context.fillStyle = '#FFFFFF';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(image, 32, 32, 448, 448);
+
+          const png = canvas.toDataURL('image/png');
+          const downloadLink = document.createElement('a');
+          downloadLink.href = png;
+          downloadLink.download = `MMQR-${orderId || 'payment'}.png`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        };
+        image.src = blobURL;
+      } else {
+        const imgElement = qrRef.current.querySelector('img');
+        if (imgElement && imgElement.src) {
+          const downloadLink = document.createElement('a');
+          downloadLink.href = imgElement.src;
+          downloadLink.download = `MMQR-${orderId || 'payment'}.png`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to download QR code:', e);
+    }
+  };
+
   if (!isOpen) return null;
 
   const minutes = Math.floor(timeLeft / 60);
@@ -100,14 +146,16 @@ export default function InstantMmpayQrModal({
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-12 h-12 bg-white rounded-2xl p-2 mx-auto mb-3 shadow-md flex items-center justify-center">
-              <img src="/share-icons/mmqr.png" alt="MMQR" className="w-full h-full object-contain" />
+
+            {/* Bigger MMQR Logo at Top */}
+            <div className="w-20 h-20 bg-white rounded-2xl p-2.5 mx-auto mb-3 shadow-lg flex items-center justify-center">
+              <img src="/mmqr-logo.png" alt="MMQR" className="w-full h-full object-contain" />
             </div>
             <h3 className="text-lg font-black tracking-tight text-white">MMQR Myan Myan Pay</h3>
             <p className="text-xs text-purple-200 mt-0.5">Automated QR Payment Verification</p>
           </div>
 
-          <div className="p-6 space-y-5 text-center">
+          <div className="p-6 space-y-4 text-center">
             {status === 'success' ? (
               <motion.div
                 initial={{ scale: 0.5, opacity: 0 }}
@@ -148,8 +196,8 @@ export default function InstantMmpayQrModal({
                   </p>
                 </div>
 
-                {/* Dynamic QR Display */}
-                <div className="relative bg-white p-4 rounded-3xl border-2 border-purple-200 shadow-md inline-block mx-auto">
+                {/* Dynamic QR Display Container */}
+                <div ref={qrRef} className="relative bg-white p-4 rounded-3xl border-2 border-purple-200 shadow-md inline-block mx-auto">
                   {qrCodeUrl ? (
                     <img
                       src={qrCodeUrl}
@@ -167,6 +215,23 @@ export default function InstantMmpayQrModal({
                     </div>
                   )}
                 </div>
+
+                {/* Under QR Code: Myan Myan Pay Logo & Powered by text */}
+                <div className="flex items-center justify-center gap-1.5 text-xs italic text-gray-600 font-medium">
+                  <img src="/mmpay_logo.png" alt="Myan Myan Pay" className="w-5 h-5 rounded-full object-contain shadow-xs" />
+                  <span>Payment Powered by Myan Myan Pay MMQR</span>
+                </div>
+
+                {/* Download QR Code Button */}
+                {(qrCodeUrl || qrPayload) && (
+                  <button
+                    onClick={handleDownloadQr}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-2xl font-bold text-xs transition-all border border-gray-200 active:scale-98"
+                  >
+                    <Download className="w-4 h-4 text-purple-700" />
+                    Download QR Code
+                  </button>
+                )}
 
                 {/* Deep Link Button for Mobile */}
                 {deepLink && (
@@ -192,6 +257,11 @@ export default function InstantMmpayQrModal({
                     {formattedTime}
                   </span>
                 </div>
+
+                {/* Bottom Note */}
+                <p className="text-xs font-semibold text-purple-800 bg-purple-50 py-2 px-3 rounded-xl border border-purple-100">
+                  Plese Proceed withing 5 Minutes.
+                </p>
 
                 <p className="text-[11px] text-gray-400 flex items-center justify-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
