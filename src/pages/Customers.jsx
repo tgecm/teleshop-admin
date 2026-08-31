@@ -509,7 +509,14 @@ export default function Customers() {
         ) : (
           <div className="grid gap-3">
             {sortedWebCustomers.map(customer => {
-              const isTelegramLogin = Boolean(customer.telegram_id) || (Boolean(customer.firebase_uid) && String(customer.firebase_uid).startsWith('tg_'));
+              const isTelegramLogin = customer.login_provider === 'telegram' ||
+                Boolean(customer.telegram_id && String(customer.telegram_id) !== '0') ||
+                Boolean(customer.telegram_username && customer.telegram_username.trim() !== '') ||
+                (Boolean(customer.firebase_uid) && (
+                  String(customer.firebase_uid).startsWith('tg_') ||
+                  (/^\d{6,12}$/).test(String(customer.firebase_uid).trim())
+                )) ||
+                (Boolean(customer.email) && (customer.email.includes('@telegram') || customer.email.includes('telegram_')));
               return (
                 <motion.div
                   layout
