@@ -11,6 +11,7 @@ import { isQRAuthenticated, clearQRLogin } from '../lib/qrAuth';
 import { API_BASE } from '../api/config';
 import ZoomableQrModal from '../components/ZoomableQrModal';
 import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
+import PreCheckoutMmpayConfirmModal from '../components/PreCheckoutMmpayConfirmModal';
 import { linkifyText } from '../utils/linkify';
 
 const CAT_EMOJIS = ['🍽️','🍚','🍜','🍲','🔥','🥗','🥤','🍮','🥩','🌯','🥟','🍕','🥪','🧆','🫘','🥘','🫕','🥫','🍱'];
@@ -313,6 +314,8 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [mmpayData, setMmpayData] = useState(null);
   const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
+  const [isMmpayPreConfirmOpen, setIsMmpayPreConfirmOpen] = useState(false);
+  const [pendingMmpayParams, setPendingMmpayParams] = useState(null);
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -378,32 +381,23 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
     if (!selectedPayment) { setError('Please select a payment method'); return; }
 
     if (selectedPayment?.id === 'mmpay') {
-      setSubmitting(true);
-      setError('');
-      try {
-        const items = orderItems.map(oi => ({
-          product_id: oi.item.id,
-          name: oi.item.name,
-          price: calcItemPrice(oi.item, oi.variants, oi.addons),
-          quantity: oi.qty
-        }));
-        const data = await createInstantMmpayOrder({
-          bot_id: shop.id,
-          customer_name: name.trim() || 'Walk-in Customer',
-          phone: phone.trim() || '-',
-          address: tableProp ? `Table ${tableProp}` : 'QR Menu',
-          township: 'QR Menu',
-          notes: tokenNumber ? `Token #${tokenNumber}` : 'QR Menu - MMQR',
-          total_amount: netTotal,
-          items
-        });
-        setMmpayData(data);
-        setIsMmpayModalOpen(true);
-      } catch (err) {
-        setError(err.response?.data?.detail || err.message || 'MMQR Initialization failed');
-      } finally {
-        setSubmitting(false);
-      }
+      const items = orderItems.map(oi => ({
+        product_id: oi.item.id,
+        name: oi.item.name,
+        price: calcItemPrice(oi.item, oi.variants, oi.addons),
+        quantity: oi.qty
+      }));
+      setPendingMmpayParams({
+        bot_id: shop.id,
+        customer_name: name.trim() || 'Walk-in Customer',
+        phone: phone.trim() || '-',
+        address: tableProp ? `Table ${tableProp}` : 'QR Menu',
+        township: 'QR Menu',
+        notes: tokenNumber ? `Token #${tokenNumber}` : 'QR Menu - MMQR',
+        total_amount: netTotal,
+        items
+      });
+      setIsMmpayPreConfirmOpen(true);
       return;
     }
 
