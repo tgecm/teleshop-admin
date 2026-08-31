@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle2, Clock, Loader2, ExternalLink, ShieldCheck, AlertCircle } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { API_BASE } from '../api/config';
 
 export default function InstantMmpayQrModal({
@@ -151,6 +152,10 @@ export default function InstantMmpayQrModal({
                       alt="MMQR Payment Code"
                       className="w-56 h-56 object-contain rounded-2xl mx-auto"
                     />
+                  ) : qrPayload ? (
+                    <div className="p-2 bg-white rounded-2xl flex items-center justify-center">
+                      <QRCodeSVG value={qrPayload} size={224} level="M" includeMargin={true} />
+                    </div>
                   ) : (
                     <div className="w-56 h-56 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-2xl">
                       <Loader2 className="w-8 h-8 animate-spin text-purple-600 mb-2" />
