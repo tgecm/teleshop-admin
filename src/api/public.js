@@ -113,3 +113,6 @@ export const validateSubscriptionDiscount = (code) =>
 
 export const trackOrder = (search, botId) =>
   client.post('/public/track-order', { search, bot_id: botId }).then(res => res.data);
+
+export const createInstantMmpayOrder = (data) =>
+  client.post('/public/checkout/instant-mmpay', data).then(res => res.data);

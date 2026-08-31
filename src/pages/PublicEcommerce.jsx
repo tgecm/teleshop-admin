@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getPublicShop, getPublicShopByDomain, getShopBio, trackOrder } from '../api/public';
+import { getPublicShop, getPublicShopByDomain, getShopBio, trackOrder, createInstantMmpayOrder } from '../api/public';
 import { useCartState } from '../context/CartContext';
 import { ShoppingBag, Package, AlertCircle, ShoppingCart, ChevronRight,
   Tag, Sparkles, Clock, Search, X, ChevronLeft, ChevronDown, ArrowUpDown, Newspaper,
@@ -1099,10 +1099,8 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
       }
 
       if (selectedPayment?.id === 'mmpay') {
-        const res = await fetch(API_BASE + '/public/checkout/instant-mmpay', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        try {
+          const mmpayData = await createInstantMmpayOrder({
             bot_id: shop.id,
             customer_name: contactForm.name.trim(),
             phone: phoneStr,
@@ -1116,14 +1114,15 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
               price: i.price,
               quantity: i.quantity
             }))
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.detail || 'Failed to initialize MMQR payment');
-        if (onInstantMmpay) {
-          onInstantMmpay(data);
+          });
+          if (onInstantMmpay) {
+            onInstantMmpay(mmpayData);
+          }
+          return;
+        } catch (err) {
+          setError(err.response?.data?.detail || err.message || 'Failed to initialize MMQR payment');
+          return;
         }
-        return;
       }
 
       const body = {

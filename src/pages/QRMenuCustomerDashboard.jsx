@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import TelegramLoginModal from '../components/TelegramLoginModal';
 import { qrExchangeTelegramToken, storeQRLogin, clearQRLogin } from '../lib/qrAuth';
-import API_BASE_ORIGINAL from '../api/config';
 import { API_BASE } from '../api/config';
+import { createInstantMmpayOrder } from '../api/public';
 import ZoomableQrModal from '../components/ZoomableQrModal';
 import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
 import { formatPrice } from '../utils/formatPrice';
@@ -1065,17 +1065,11 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
             quantity: oi.qty
           }))
         };
-        const res = await fetch(API_BASE + '/public/checkout/instant-mmpay', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.detail || 'Order failed');
+        const data = await createInstantMmpayOrder(body);
         setMmpayData(data);
         setIsMmpayModalOpen(true);
       } catch (err) {
-        setError(err.message);
+        setError(err.response?.data?.detail || err.message);
       }
       setSubmitting(false);
       return;
