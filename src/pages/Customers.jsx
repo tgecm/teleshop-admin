@@ -49,6 +49,7 @@ export default function Customers() {
     queryKey: ['web-customers', selectedBotId],
     queryFn: () => getWebCustomers(Number(selectedBotId)),
     enabled: !!selectedBotId,
+    refetchInterval: 10000,
     placeholderData: (prev) => prev,
   });
 
@@ -65,6 +66,7 @@ export default function Customers() {
     queryKey: ['orders', selectedBotId],
     queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
     enabled: !!selectedBotId,
+    refetchInterval: 10000,
     placeholderData: (prev) => prev,
   });
 
@@ -114,6 +116,19 @@ export default function Customers() {
       aliasToEntryIndex.set(`fb_${str}`, entryIdx);
       aliasToEntryIndex.set(`id_${str}`, entryIdx);
       aliasToEntryIndex.set(`email_${str}`, entryIdx);
+      aliasToEntryIndex.set(`dc_${str}`, entryIdx);
+      aliasToEntryIndex.set(`web_${str}`, entryIdx);
+
+      const cleanNum = str.replace(/^(tg_|fb_|id_|email_|dc_|web_)/, '');
+      if (cleanNum && cleanNum !== str) {
+        aliasToEntryIndex.set(cleanNum, entryIdx);
+        aliasToEntryIndex.set(`tg_${cleanNum}`, entryIdx);
+        aliasToEntryIndex.set(`fb_${cleanNum}`, entryIdx);
+        aliasToEntryIndex.set(`id_${cleanNum}`, entryIdx);
+        aliasToEntryIndex.set(`email_${cleanNum}`, entryIdx);
+        aliasToEntryIndex.set(`dc_${cleanNum}`, entryIdx);
+        aliasToEntryIndex.set(`web_${cleanNum}`, entryIdx);
+      }
     };
 
     // Index Telegram customers
@@ -142,6 +157,7 @@ export default function Customers() {
       if (c.firebase_uid) addAlias(c.firebase_uid, idx);
       if (c.email) addAlias(c.email, idx);
       if (c.phone || c.phone_number) addAlias(c.phone || c.phone_number, idx);
+      if (c.username) addAlias(c.username, idx);
     });
 
     // Index Website customers
@@ -188,24 +204,32 @@ export default function Customers() {
         if (c.telegram_id) addAlias(c.telegram_id, idx);
         if (c.email) addAlias(c.email, idx);
         if (c.phone) addAlias(c.phone, idx);
+        if (c.telegram_username) addAlias(c.telegram_username, idx);
       }
     });
 
     // Process orders and accumulate totals
     orders.forEach(o => {
-      if (o.status === 'cancelled' || o.status === 'rejected') return;
+      const st = String(o.status || '').toLowerCase();
+      if (['cancelled', 'rejected', 'expired', 'payment_failed'].includes(st)) return;
 
       const bs = o.buyer_snapshot || {};
       const amount = Number(o.final_amount || o.total_amount || 0);
 
       const orderAliases = [
         o.user_id,
+        o.customer_id,
+        o.visitor_id,
+        o.dashboard_chat_id,
         bs.telegram_id,
         bs.firebase_uid,
         bs.visitor_id,
+        bs.customer_id,
         bs.email,
         o.email,
         bs.phone,
+        bs.username,
+        bs.telegram_username,
       ].filter(Boolean).map(v => String(v).trim().toLowerCase());
 
       let targetIdx = null;
