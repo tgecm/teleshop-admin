@@ -7,9 +7,10 @@ import QRCustomerDashboard from './QRCustomerDashboard';
 import QRSignInModal from '../components/QRMenu/QRSignInModal';
 import { isQRAuthenticated, clearQRLogin } from '../lib/qrAuth';
 
-import { formatPrice } from '../utils/formatPrice';
+import API_BASE_ORIGINAL from '../api/config';
 import { API_BASE } from '../api/config';
 import ZoomableQrModal from '../components/ZoomableQrModal';
+import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
 import { linkifyText } from '../utils/linkify';
 
 const CAT_EMOJIS = ['🍽️','🍚','🍜','🍲','🔥','🥗','🥤','🍮','🥩','🌯','🥟','🍕','🥪','🧆','🫘','🥘','🫕','🥫','🍱'];
@@ -304,12 +305,14 @@ function CartSheet({ orderItems, orderCount, orderTotal, shop, onUpdateQty, onRe
   );
 }
 
-function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, onSubmitOrder, tableProp, customerId, customerPoints, pointsSettings, netTotal, couponDiscount, pointsDiscount, appliedCoupon, couponInput, setCouponInput, handleApplyCoupon, checkingCoupon, pointsToRedeem, setPointsToRedeem, handleRedeemPoints, redeemingPoints, tokenNumber, couponAttempts, couponLockUntil }) {
+function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, onSubmitOrder, tableProp, customerId, customerPoints, pointsSettings, netTotal, couponDiscount, pointsDiscount, appliedCoupon, couponInput, setCouponInput, handleApplyCoupon, checkingCoupon, pointsToRedeem, setPointsToRedeem, handleRedeemPoints, redeemingPoints, tokenNumber, couponAttempts, couponLockUntil, hasInstantMmpay }) {
   const [step, setStep] = useState('form');
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [mmpayData, setMmpayData] = useState(null);
+  const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -373,6 +376,43 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
 
   const handleSubmit = async () => {
     if (!selectedPayment) { setError('Please select a payment method'); return; }
+
+    if (selectedPayment?.id === 'mmpay') {
+      setSubmitting(true);
+      setError('');
+      try {
+        const items = orderItems.map(oi => ({
+          product_id: oi.item.id,
+          name: oi.item.name,
+          price: calcItemPrice(oi.item, oi.variants, oi.addons),
+          quantity: oi.qty
+        }));
+        const res = await fetch(`${API_BASE}/public/checkout/instant-mmpay`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bot_id: shop.id,
+            customer_name: name.trim() || 'Walk-in Customer',
+            phone: phone.trim() || '-',
+            address: tableProp ? `Table ${tableProp}` : 'QR Menu',
+            township: 'QR Menu',
+            notes: tokenNumber ? `Token #${tokenNumber}` : 'QR Menu - MMQR',
+            total_amount: netTotal,
+            items
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.detail || 'MMQR Initialization failed');
+        setMmpayData(data);
+        setIsMmpayModalOpen(true);
+      } catch (err) {
+        setError(err.message || 'MMQR Initialization failed');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     if (!proofFile) { setError('Payment proof screenshot is required'); return; }
     setSubmitting(true);
     setError('');
@@ -489,14 +529,26 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
             <div className="checkout-body">
               <label className="checkout-pm-label">Choose Payment Method</label>
               <div className="checkout-pm-grid">
-                {paymentMethods.map(pm => (
-                  <button key={pm.id} onClick={() => setSelectedPayment(pm)}
-                    className={`checkout-pm-btn ${selectedPayment?.id === pm.id ? 'active' : ''}`}>
-                    <div className="checkout-pm-name">{pm.name}</div>
-                    {pm.account_name && <div className="checkout-pm-acct">{pm.account_name}</div>}
+                {hasInstantMmpay ? (
+                  <button onClick={() => setSelectedPayment({ id: 'mmpay', name: 'MMQR Myan Myan Pay' })}
+                    className={`checkout-pm-btn ${selectedPayment?.id === 'mmpay' ? 'active' : ''}`}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-white p-1 flex items-center justify-center border border-gray-200 shadow-xs">
+                        <img src="/share-icons/mmqr.png" alt="MMQR" className="w-full h-full object-contain" />
+                      </div>
+                      <span className="font-bold text-sm text-gray-900">MMQR Myan Myan Pay</span>
+                    </div>
                   </button>
-                ))}
-                {paymentMethods.length === 0 && <p className="text-sm text-gray-400 col-span-2 text-center py-4">No payment methods available</p>}
+                ) : (
+                  paymentMethods.map(pm => (
+                    <button key={pm.id} onClick={() => setSelectedPayment(pm)}
+                      className={`checkout-pm-btn ${selectedPayment?.id === pm.id ? 'active' : ''}`}>
+                      <div className="checkout-pm-name">{pm.name}</div>
+                      {pm.account_name && <div className="checkout-pm-acct">{pm.account_name}</div>}
+                    </button>
+                  ))
+                )}
+                {!hasInstantMmpay && paymentMethods.length === 0 && <p className="text-sm text-gray-400 col-span-2 text-center py-4">No payment methods available</p>}
               </div>
               {error && <div className="checkout-error">{error}</div>}
               <button className="checkout-next-btn" disabled={!selectedPayment} onClick={() => setStep('review')}>
@@ -517,27 +569,40 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
               <div className="checkout-review-info">
                 <div className="checkout-info-row"><span>Payment</span><span>{selectedPayment?.name}</span></div>
               </div>
-              <div className="checkout-payment-detail">
-                <p className="checkout-pd-title">Transfer to:</p>
-                <div className="checkout-pd-row"><span>Account</span><span className="font-bold">{selectedPayment?.account_name || 'N/A'}</span></div>
-                <div className="checkout-pd-row">
-                  <span>Number</span>
-                  <span className="font-bold" style={{display:'flex',alignItems:'center',gap:6}}>
-                    {selectedPayment?.payment_number || 'N/A'}
-                    {selectedPayment?.payment_number && (
-                      <button onClick={() => copyNumber(selectedPayment.payment_number)}
-                        style={{border:'none',background:'#f3f4f6',padding:'4px 8px',borderRadius:8,cursor:'pointer',fontSize:12,color:'#6b7280',display:'flex',alignItems:'center',gap:3}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                        {copied ? 'Copied!' : 'Copy'}
-                      </button>
-                    )}
-                  </span>
+              {selectedPayment?.id === 'mmpay' ? (
+                <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-950 p-4 rounded-2xl text-white space-y-2 mb-4 text-left border border-purple-800/50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-white p-1 flex items-center justify-center">
+                      <img src="/share-icons/mmqr.png" alt="MMQR" className="w-full h-full object-contain" />
+                    </div>
+                    <span className="font-bold text-sm text-white">MMQR Myan Myan Pay</span>
+                  </div>
+                  <p className="text-xs text-purple-200 leading-relaxed">
+                    ⚡ Dynamic MMQR code will be generated for <strong>{formatPrice(netTotal, shop?.currency || 'MMK')}</strong>. Scan & pay via KBZPay or WavePay for instant automated verification.
+                  </p>
                 </div>
-                {selectedPayment?.description && <p className="checkout-pd-desc">{selectedPayment.description}</p>}
-                {selectedPayment?.notes && <p className="checkout-pd-desc" style={{color:'#e67e22'}}>📌 {selectedPayment.notes}</p>}
-                {getPaymentQrUrl(selectedPayment) && (() => {
-                  const qrUrl = getPaymentQrUrl(selectedPayment);
-                  const dlUrl = qrUrl + (qrUrl.includes('?') ? '&' : '?') + 'download=payment.jpg';
+              ) : (
+                <div className="checkout-payment-detail">
+                  <p className="checkout-pd-title">Transfer to:</p>
+                  <div className="checkout-pd-row"><span>Account</span><span className="font-bold">{selectedPayment?.account_name || 'N/A'}</span></div>
+                  <div className="checkout-pd-row">
+                    <span>Number</span>
+                    <span className="font-bold" style={{display:'flex',alignItems:'center',gap:6}}>
+                      {selectedPayment?.payment_number || 'N/A'}
+                      {selectedPayment?.payment_number && (
+                        <button onClick={() => copyNumber(selectedPayment.payment_number)}
+                          style={{border:'none',background:'#f3f4f6',padding:'4px 8px',borderRadius:8,cursor:'pointer',fontSize:12,color:'#6b7280',display:'flex',alignItems:'center',gap:3}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                          {copied ? 'Copied!' : 'Copy'}
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                  {selectedPayment?.description && <p className="checkout-pd-desc">{selectedPayment.description}</p>}
+                  {selectedPayment?.notes && <p className="checkout-pd-desc" style={{color:'#e67e22'}}>📌 {selectedPayment.notes}</p>}
+                  {getPaymentQrUrl(selectedPayment) && (() => {
+                    const qrUrl = getPaymentQrUrl(selectedPayment);
+                    const dlUrl = qrUrl + (qrUrl.includes('?') ? '&' : '?') + 'download=payment.jpg';
                   return (
                     <div className="flex flex-col items-center gap-2.5 my-3">
                       <div
@@ -570,9 +635,10 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
                         accountNumber={selectedPayment?.payment_number}
                       />
                     </div>
-                  );
-                })()}
-              </div>
+                    );
+                  })()}
+                </div>
+              )}
               {couponCountdown > 0 && (
                 <div style={{background:'#fef2f2',borderRadius:10,padding:'10px 12px',margin:'12px 0',fontSize:13,color:'#dc2626',fontWeight:500,textAlign:'center'}}>
                   Too many attempts. Try again in {couponCountdown}s...
@@ -674,22 +740,31 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
                   <span className="font-bold">{formatPrice(netTotal, shop?.currency || 'MMK')}</span>
                 </div>
               </div>
-              <p style={{fontSize:13,color:'#6b7280',margin:'8px 0 12px',lineHeight:1.5}}>
-                Please transfer {formatPrice(netTotal, shop?.currency || 'MMK')} to {selectedPayment?.name || ''} {selectedPayment?.payment_number || ''} and upload screenshot
-              </p>
-              <div className="checkout-field">
-                <label>Payment Proof (screenshot) <span className="text-rose-500">*</span></label>
-                <button className="checkout-upload-btn" onClick={() => document.getElementById('proof-input')?.click()}>
-                  {proofPreview ? 'Change Screenshot' : 'Upload Screenshot'}
-                </button>
-                <input id="proof-input" type="file" accept="image/*" className="hidden" onChange={handleProofFile} />
-                {proofPreview && <img src={proofPreview} alt="Preview" className="checkout-preview" />}
-                {uploadingProof && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
-              </div>
+
+                {selectedPayment?.id !== 'mmpay' && (
+                <>
+                  <p style={{fontSize:13,color:'#6b7280',margin:'8px 0 12px',lineHeight:1.5}}>
+                    Please transfer {formatPrice(netTotal, shop?.currency || 'MMK')} to {selectedPayment?.name || ''} {selectedPayment?.payment_number || ''} and upload screenshot
+                  </p>
+                  <div className="checkout-field">
+                    <label>Payment Proof (screenshot) <span className="text-rose-500">*</span></label>
+                    <button className="checkout-upload-btn" onClick={() => document.getElementById('proof-input')?.click()}>
+                      {proofPreview ? 'Change Screenshot' : 'Upload Screenshot'}
+                    </button>
+                    <input id="proof-input" type="file" accept="image/*" className="hidden" onChange={handleProofFile} />
+                    {proofPreview && (
+                      <div style={{marginTop:8,borderRadius:8,overflow:'hidden',maxWidth:180,border:'1px solid #e5e7eb'}}>
+                        <img src={proofPreview} alt="Proof" style={{width:'100%',height:120,objectFit:'cover'}} />
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
               {error && <div className="checkout-error">{error}</div>}
               <div className="checkout-action-row">
                 <button className="checkout-back-btn" onClick={() => setStep('form')} disabled={submitting}>Back</button>
-                <button className="checkout-order-btn" onClick={handleSubmit} disabled={submitting || !proofFile}>
+                <button className="checkout-order-btn" onClick={handleSubmit} disabled={submitting || (selectedPayment?.id !== 'mmpay' && !proofFile)}>
                   {submitting ? 'Placing Order...' : 'Done, Order now'}
                 </button>
               </div>
@@ -1875,6 +1950,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
             handleRedeemPoints={handleRedeemPoints}
             redeemingPoints={redeemingPoints}
             tokenNumber={tokenNumber}
+            hasInstantMmpay={data?.has_instant_mmpay}
             onBack={() => { setShowCheckout(false); setShowCart(true); }}
             onSubmitOrder={() => { setShowCheckout(false); setOrderItems([]); }} />
         )}
