@@ -931,7 +931,15 @@ export default function Chats() {
   });
 
   const selectedChat = displayedChats.find(c => c.user_id === selectedUser);
-  const selectedWebChat = displayedWebVisitors.find(v => v.visitor_id === selectedVisitor);
+  const isSupportSelected = Boolean(selectedVisitor && (selectedVisitor === supportVisitor?.visitor_id || String(selectedVisitor).startsWith('support_')));
+  const selectedWebChat = displayedWebVisitors.find(v => v.visitor_id === selectedVisitor) || (
+    isSupportSelected ? (supportVisitor || {
+      visitor_id: `support_${selectedBotId}`,
+      name: 'E-commerce Support',
+      photo_url: '/logo.webp'
+    }) : null
+  );
+  const isSupportChat = Boolean(isSupportSelected || selectedWebChat?.name === 'E-commerce Support');
   const isWebTab = chatTab === 'web' || chatTab === 'guest';
 
   const getItemTime = (item) => {
@@ -1553,7 +1561,7 @@ export default function Chats() {
               <div className="flex items-center justify-between px-4 md:px-5 pb-2.5 border-b border-gray-100">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {selectedWebChat?.name === 'E-commerce Support' ? (
+                    {isSupportChat ? (
                       <img src="/logo.webp" alt="Support" className="w-8 h-8 rounded-full object-cover border border-indigo-100" />
                     ) : (
                       <CustomerAvatar photoUrl={selectedWebChat?.photo_url} name={selectedWebChat?.name || selectedChat?.first_name} size="w-8 h-8" fontSize="text-xs" />
@@ -1561,7 +1569,7 @@ export default function Chats() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
-                      {selectedWebChat?.name === 'E-commerce Support' ? <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || selectedChatName || 'Customer')}
+                      {isSupportChat ? <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || selectedChatName || 'Customer')}
                     </p>
                     {selectedChat?.username && (
                       <p className="text-[11px] text-gray-500 truncate">@{selectedChat.username}</p>
@@ -1571,7 +1579,7 @@ export default function Chats() {
                     )}
                   </div>
                 </div>
-                {selectedWebChat && selectedWebChat.name !== 'E-commerce Support' && (
+                {selectedWebChat && !isSupportChat && (
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => toggleAiMutation.mutate({ visitorId: selectedVisitor, disabled: !selectedWebChat.ai_disabled })}
