@@ -2410,6 +2410,9 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     }
     return pm;
   });
+  const cart = useCartState(shop?.id, slug || shop?.public_slug || shop?.bot_username || '', user, viewMode);
+  const { items: cartItems, cartCount, totalAmount, loading: cartLoading, addItem, updateQty, removeItem, clearCart, syncPrices } = cart;
+
   const codEnabled = !!(data?.cod_enabled);
   const hasInstantMmpayAvailable = !!(shop?.has_instant_mmpay || data?.has_instant_mmpay) && totalAmount >= 1000;
   const hasAnyPayment = paymentMethods.length > 0 || codEnabled || hasInstantMmpayAvailable;
@@ -2423,9 +2426,6 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     : null;
 
   useAuthTokenFromUrl();
-
-  const cart = useCartState(shop?.id, slug || shop?.public_slug || shop?.bot_username || '', user, viewMode);
-  const { items: cartItems, cartCount, totalAmount, loading: cartLoading, addItem, updateQty, removeItem, clearCart, syncPrices } = cart;
 
   // Only show region/district/township when shop is in zone mode and at least one cart product has delivery fee enabled
   const contactShowZoneFields = data?.delivery_settings?.delivery_fee_mode === 'zone';
