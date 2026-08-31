@@ -528,7 +528,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
                     </div>
                   </button>
                 )}
-                {paymentMethods.map(pm => (
+                {!hasInstantMmpay && paymentMethods.map(pm => (
                   <button key={pm.id} onClick={() => setSelectedPayment(pm)}
                     className={`checkout-pm-btn ${selectedPayment?.id === pm.id ? 'active' : ''}`}>
                     <div className="checkout-pm-name">{pm.name}</div>

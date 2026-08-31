@@ -1765,7 +1765,8 @@ const PAYMENT_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '
 
 export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled, hasInstantMmpay }) {
   const [selectedId, setSelectedId] = useState(null);
-  const hasOptions = paymentMethods.length > 0 || codEnabled || hasInstantMmpay;
+  const showCustomPayments = !hasInstantMmpay;
+  const hasOptions = hasInstantMmpay || (paymentMethods.length > 0 && showCustomPayments) || codEnabled;
 
   return (
     <motion.div
@@ -1840,7 +1841,7 @@ export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled, hasI
                 </div>
               </div>
             )}
-            {paymentMethods.map((pm, i) => {
+            {showCustomPayments && paymentMethods.map((pm, i) => {
                 const isSelected = selectedId === pm.id;
                 const color = PAYMENT_COLORS[i % PAYMENT_COLORS.length];
                 return (
