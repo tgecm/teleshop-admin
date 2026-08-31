@@ -4059,7 +4059,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             onBack={() => { setShowPaymentSelect(false); setShowCart(true); }}
             onNext={handlePaymentNext}
             codEnabled={codEnabled}
-            hasInstantMmpay={shop?.has_instant_mmpay || data?.has_instant_mmpay}
+            hasInstantMmpay={(shop?.has_instant_mmpay || data?.has_instant_mmpay) && totalAmount >= 1000}
           />
         )}
       </AnimatePresence>
