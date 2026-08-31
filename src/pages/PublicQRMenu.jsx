@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { THEMES, DEFAULT_THEME, BUSINESS_THEMES } from '../themes/themes';
 import { identifyCustomer, redeemPoints, validateCoupon } from '../api/qrMenu';
+import { createInstantMmpayOrder } from '../api/public';
 import QRCustomerDashboard from './QRCustomerDashboard';
 import QRSignInModal from '../components/QRMenu/QRSignInModal';
 import { isQRAuthenticated, clearQRLogin } from '../lib/qrAuth';
@@ -386,26 +387,20 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
           price: calcItemPrice(oi.item, oi.variants, oi.addons),
           quantity: oi.qty
         }));
-        const res = await fetch(`${API_BASE}/public/checkout/instant-mmpay`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bot_id: shop.id,
-            customer_name: name.trim() || 'Walk-in Customer',
-            phone: phone.trim() || '-',
-            address: tableProp ? `Table ${tableProp}` : 'QR Menu',
-            township: 'QR Menu',
-            notes: tokenNumber ? `Token #${tokenNumber}` : 'QR Menu - MMQR',
-            total_amount: netTotal,
-            items
-          })
+        const data = await createInstantMmpayOrder({
+          bot_id: shop.id,
+          customer_name: name.trim() || 'Walk-in Customer',
+          phone: phone.trim() || '-',
+          address: tableProp ? `Table ${tableProp}` : 'QR Menu',
+          township: 'QR Menu',
+          notes: tokenNumber ? `Token #${tokenNumber}` : 'QR Menu - MMQR',
+          total_amount: netTotal,
+          items
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.detail || 'MMQR Initialization failed');
         setMmpayData(data);
         setIsMmpayModalOpen(true);
       } catch (err) {
-        setError(err.message || 'MMQR Initialization failed');
+        setError(err.response?.data?.detail || err.message || 'MMQR Initialization failed');
       } finally {
         setSubmitting(false);
       }
