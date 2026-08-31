@@ -1399,6 +1399,8 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
     if (!paymentId) return;
     if (paymentId === 'cod') {
       setSelectedPayment({ id: 'cod', name: 'Cash on Delivery' });
+    } else if (paymentId === 'mmpay') {
+      setSelectedPayment({ id: 'mmpay', name: 'MMQR Myan Myan Pay' });
     } else {
       const pm = (shopData?.payment_methods || []).find(p => p.id === paymentId);
       if (pm) {
