@@ -1938,7 +1938,7 @@ export default function PublicQRMenu({ slug, table: tableProp, forceDashboard })
             handleRedeemPoints={handleRedeemPoints}
             redeemingPoints={redeemingPoints}
             tokenNumber={tokenNumber}
-            hasInstantMmpay={data?.has_instant_mmpay}
+            hasInstantMmpay={data?.has_instant_mmpay && netTotal >= 1000}
             onBack={() => { setShowCheckout(false); setShowCart(true); }}
             onSubmitOrder={() => { setShowCheckout(false); setOrderItems([]); }} />
         )}
