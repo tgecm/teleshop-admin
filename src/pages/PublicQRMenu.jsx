@@ -517,7 +517,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
             <div className="checkout-body">
               <label className="checkout-pm-label">Choose Payment Method</label>
               <div className="checkout-pm-grid">
-                {hasInstantMmpay ? (
+                {hasInstantMmpay && (
                   <button onClick={() => setSelectedPayment({ id: 'mmpay', name: 'MMQR Myan Myan Pay' })}
                     className={`checkout-pm-btn ${selectedPayment?.id === 'mmpay' ? 'active' : ''}`}>
                     <div className="flex items-center gap-2.5">
@@ -527,15 +527,14 @@ function CheckoutFlow({ orderItems, orderTotal, shop, paymentMethods, onBack, on
                       <span className="font-bold text-sm text-gray-900">MMQR Myan Myan Pay</span>
                     </div>
                   </button>
-                ) : (
-                  paymentMethods.map(pm => (
-                    <button key={pm.id} onClick={() => setSelectedPayment(pm)}
-                      className={`checkout-pm-btn ${selectedPayment?.id === pm.id ? 'active' : ''}`}>
-                      <div className="checkout-pm-name">{pm.name}</div>
-                      {pm.account_name && <div className="checkout-pm-acct">{pm.account_name}</div>}
-                    </button>
-                  ))
                 )}
+                {paymentMethods.map(pm => (
+                  <button key={pm.id} onClick={() => setSelectedPayment(pm)}
+                    className={`checkout-pm-btn ${selectedPayment?.id === pm.id ? 'active' : ''}`}>
+                    <div className="checkout-pm-name">{pm.name}</div>
+                    {pm.account_name && <div className="checkout-pm-acct">{pm.account_name}</div>}
+                  </button>
+                ))}
                 {!hasInstantMmpay && paymentMethods.length === 0 && <p className="text-sm text-gray-400 col-span-2 text-center py-4">No payment methods available</p>}
               </div>
               {error && <div className="checkout-error">{error}</div>}

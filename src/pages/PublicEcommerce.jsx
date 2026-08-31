@@ -1815,7 +1815,7 @@ export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled, hasI
                 </div>
               </div>
             )}
-            {hasInstantMmpay ? (
+            {hasInstantMmpay && (
               <div
                 onClick={() => setSelectedId(selectedId === 'mmpay' ? null : 'mmpay')}
                 className={`rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] p-4 ${
@@ -1839,8 +1839,8 @@ export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled, hasI
                   </div>
                 </div>
               </div>
-            ) : (
-              paymentMethods.map((pm, i) => {
+            )}
+            {paymentMethods.map((pm, i) => {
                 const isSelected = selectedId === pm.id;
                 const color = PAYMENT_COLORS[i % PAYMENT_COLORS.length];
                 return (
@@ -1864,8 +1864,7 @@ export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled, hasI
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
           </div>
         )}
 
