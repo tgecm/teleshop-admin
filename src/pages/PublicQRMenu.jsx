@@ -13,6 +13,7 @@ import ZoomableQrModal from '../components/ZoomableQrModal';
 import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
 import PreCheckoutMmpayConfirmModal from '../components/PreCheckoutMmpayConfirmModal';
 import { linkifyText } from '../utils/linkify';
+import { formatPrice } from '../utils/formatPrice';
 
 const CAT_EMOJIS = ['🍽️','🍚','🍜','🍲','🔥','🥗','🥤','🍮','🥩','🌯','🥟','🍕','🥪','🧆','🫘','🥘','🫕','🥫','🍱'];
 
