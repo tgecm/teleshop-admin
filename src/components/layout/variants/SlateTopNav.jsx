@@ -59,6 +59,7 @@ const allNavGroups = [
       { to: '/bot-customization', icon: Bot, label: 'Bot Settings' },
       { to: '/newsfeed', icon: Newspaper, label: 'Newsfeed' },
       { to: '/send-message', icon: Mail, label: 'Send Message', superadminOnly: true },
+      { to: '/mmpay-admin', icon: CreditCard, label: 'MyanMyanPay', superadminOnly: true },
       { to: '/subscribers', icon: Users, label: 'Subscribers', superadminOnly: true },
     ],
   },

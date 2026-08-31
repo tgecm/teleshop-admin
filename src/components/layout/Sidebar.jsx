@@ -103,6 +103,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/profit', icon: TrendingUp, label: 'Profit' },
     ...(user?.is_superadmin ? [{ to: '/send-message', icon: Mail, label: 'Send Message' }] : []),
+    ...(user?.is_superadmin ? [{ to: '/mmpay-admin', icon: CreditCard, label: 'MyanMyanPay' }] : []),
     ...(user?.is_superadmin ? [{ to: '/subscribers', icon: Users, label: 'Subscribers' }] : []),
     { to: '/orders', icon: Package, label: 'Orders' },
     { to: '/products', icon: ShoppingBag, label: 'Products' },

@@ -52,6 +52,7 @@ const BotCustomization = React.lazy(() => import('./pages/BotCustomization'));
 const NewsfeedAdmin = React.lazy(() => import('./pages/NewsfeedAdmin'));
 const SuperadminDashboard = React.lazy(() => import('./pages/SuperadminDashboard'));
 const SendMessage = React.lazy(() => import('./pages/SendMessage'));
+const MyanMyanPayAdmin = React.lazy(() => import('./pages/MyanMyanPayAdmin'));
 const Subscribers = React.lazy(() => import('./pages/Subscribers'));
 const FAQs = React.lazy(() => import('./pages/FAQs'));
 const StaffAccounts = React.lazy(() => import('./pages/StaffAccounts'));
@@ -510,6 +511,7 @@ export default function App() {
                   <Route path="bot-customization" element={<PermissionGuard><PlanGate><BotCustomization /></PlanGate></PermissionGuard>} />
                   <Route path="superadmin" element={<SuperadminDashboard />} />
                   <Route path="send-message" element={<SendMessage />} />
+                  <Route path="mmpay-admin" element={<MyanMyanPayAdmin />} />
                   <Route path="subscribers" element={<Subscribers />} />
                   <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
                   <Route path="qr-menu/dashboard" element={<PermissionGuard><PlanGate><QRMenuDashboard /></PlanGate></PermissionGuard>} />

@@ -97,3 +97,14 @@ export const getSubscribers = () =>
 
 export const submitFeatureRequest = (botId, message) =>
   client.post('/feature-request', { bot_id: botId, message }).then(res => res.data);
+
+// ── Superadmin MyanMyanPay Management ──────────────────────────────
+export const getAdminMmpayMerchants = () =>
+  client.get('/admin/mmpay/merchants').then(res => res.data);
+
+export const saveAdminMmpayMerchant = (data) =>
+  client.post('/admin/mmpay/save-merchant', data).then(res => res.data);
+
+export const deleteAdminMmpayMerchant = (botId) =>
+  client.delete(`/admin/mmpay/merchant/${botId}`).then(res => res.data);
+
