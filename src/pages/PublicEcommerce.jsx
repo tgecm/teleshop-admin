@@ -28,6 +28,7 @@ import { isMainDomain } from '../utils/authProxy';
 import { filterAndSortProducts } from '../utils/search';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { RichMessage } from '../components/chat/RichMessage';
+import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
 import NewsfeedFeed from '../components/NewsfeedFeed';
 import ZoomableQrModal from '../components/ZoomableQrModal';
 
@@ -892,7 +893,7 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   );
 }
 
-export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm, checkoutFields, pointsSettings, customerPoints, customerUid }) {
+export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser, onClose, onOrderPlaced, shopSlug, viewMode, selectedPayment, products, deliverySettings, deliveryFees, contactForm, checkoutFields, pointsSettings, customerPoints, customerUid, onInstantMmpay }) {
   const cFields = { ...(checkoutFields || {}), name: true };
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [proofFile, setProofFile] = useState(null);
@@ -1032,7 +1033,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     if (cFields.telegram && !contactForm.telegram.trim()) { setError('Telegram username is required'); return; }
     if (cFields.viber && !contactForm.viber.trim()) { setError('Viber number is required'); return; }
     if (cFields.notes && !contactForm.notes.trim()) { setError('Notes is required'); return; }
-    if ((viewMode === 'ecommerce' || viewMode === 'guest') && !proofFile && selectedPayment?.id !== 'cod' && !isPointsPayment) { setError('Payment proof screenshot is required'); return; }
+    if ((viewMode === 'ecommerce' || viewMode === 'guest') && !proofFile && selectedPayment?.id !== 'cod' && selectedPayment?.id !== 'mmpay' && !isPointsPayment) { setError('Payment proof screenshot is required'); return; }
     setLoading(true);
     setError('');
     try {
@@ -1095,6 +1096,34 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
             township: contactForm.township,
           }),
         }).catch(() => {});
+      }
+
+      if (selectedPayment?.id === 'mmpay') {
+        const res = await fetch(API_BASE + '/public/checkout/instant-mmpay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bot_id: shop.id,
+            customer_name: contactForm.name.trim(),
+            phone: phoneStr,
+            address: contactForm.address.trim(),
+            township: contactForm.township,
+            notes: contactForm.notes.trim(),
+            total_amount: ptsTotal,
+            items: cartItems.map(i => ({
+              product_id: i.product_id,
+              name: i.name,
+              price: i.price,
+              quantity: i.quantity
+            }))
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.detail || 'Failed to initialize MMQR payment');
+        if (onInstantMmpay) {
+          onInstantMmpay(data);
+        }
+        return;
       }
 
       const body = {
@@ -1400,6 +1429,24 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
               </div>
             );
           }
+          if (selectedPayment.id === 'mmpay') {
+            return (
+              <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-950 p-5 rounded-2xl text-white space-y-3 shadow-md border border-purple-800/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white p-1.5 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <img src="/share-icons/mmqr.png" alt="MMQR" className="w-full h-full object-contain" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-white">MMQR Myan Myan Pay</h4>
+                    <p className="text-xs text-purple-200">Instant Automated Payment</p>
+                  </div>
+                </div>
+                <p className="text-xs text-purple-100/90 leading-relaxed bg-purple-900/60 p-3 rounded-xl border border-purple-700/50">
+                  ⚡ Clicking <strong>Place Order & Pay</strong> will generate a dynamic MMQR Code for the exact amount. Pay using KBZPay, WavePay, or any MMQR app for instant automated confirmation without uploading a screenshot.
+                </p>
+              </div>
+            );
+          }
           const pm = selectedPayment;
           const color = PAYMENT_COLORS[(pm.id || 0) % PAYMENT_COLORS.length];
           return (
@@ -1488,7 +1535,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
           );
         })()}
 
-        {selectedPayment?.id !== 'cod' && (
+        {selectedPayment?.id !== 'cod' && selectedPayment?.id !== 'mmpay' && (
         <div>
           <label className="text-xs text-gray-500 font-medium mb-1 block">Payment Proof (screenshot) {(viewMode === 'ecommerce' || viewMode === 'guest') && <span className="text-rose-500"> *</span>}</label>
             <div className="flex items-center gap-3">
@@ -1718,9 +1765,9 @@ function RegisterModal({ shop, user, onClose, onSuccess }) {
 
 const PAYMENT_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'];
 
-export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled }) {
+export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled, hasInstantMmpay }) {
   const [selectedId, setSelectedId] = useState(null);
-  const hasOptions = paymentMethods.length > 0 || codEnabled;
+  const hasOptions = paymentMethods.length > 0 || codEnabled || hasInstantMmpay;
 
   return (
     <motion.div
@@ -1751,7 +1798,7 @@ export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled }) {
               <div
                 onClick={() => setSelectedId(selectedId === 'cod' ? null : 'cod')}
                 className={`rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] p-4 ${
-                  selectedId === 'cod' ? 'border-emerald-500 shadow-lg' : 'border-gray-100 hover:border-gray-200'
+                  selectedId === 'cod' ? 'border-emerald-500 shadow-lg bg-emerald-50/20' : 'border-gray-100 hover:border-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -1770,31 +1817,57 @@ export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled }) {
                 </div>
               </div>
             )}
-            {paymentMethods.map((pm, i) => {
-              const isSelected = selectedId === pm.id;
-              const color = PAYMENT_COLORS[i % PAYMENT_COLORS.length];
-              return (
-                <div key={pm.id}
-                  onClick={() => setSelectedId(isSelected ? null : pm.id)}
-                  className={`rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] p-4 ${
-                    isSelected ? 'border-indigo-500 shadow-lg' : 'border-gray-100 hover:border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                      isSelected ? 'border-indigo-500' : 'border-gray-300'
-                    }`}>
-                      {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />}
-                    </div>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm"
-                      style={{ backgroundColor: color }}>
-                      <CreditCard className="w-5 h-5" />
-                    </div>
-                    <p className="font-bold text-gray-900 text-sm">{pm.name}</p>
+            {hasInstantMmpay ? (
+              <div
+                onClick={() => setSelectedId(selectedId === 'mmpay' ? null : 'mmpay')}
+                className={`rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] p-4 ${
+                  selectedId === 'mmpay' ? 'border-purple-600 shadow-lg bg-purple-50/30' : 'border-gray-100 hover:border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                    selectedId === 'mmpay' ? 'border-purple-600' : 'border-gray-300'
+                  }`}>
+                    {selectedId === 'mmpay' && <div className="w-2.5 h-2.5 rounded-full bg-purple-600" />}
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-white p-1.5 flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-200">
+                    <img src="/share-icons/mmqr.png" alt="MMQR" className="w-full h-full object-contain" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
+                      MMQR Myan Myan Pay
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-700">Instant</span>
+                    </p>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ) : (
+              paymentMethods.map((pm, i) => {
+                const isSelected = selectedId === pm.id;
+                const color = PAYMENT_COLORS[i % PAYMENT_COLORS.length];
+                return (
+                  <div key={pm.id}
+                    onClick={() => setSelectedId(isSelected ? null : pm.id)}
+                    className={`rounded-2xl border-2 cursor-pointer transition-all active:scale-[0.99] p-4 ${
+                      isSelected ? 'border-indigo-500 shadow-lg' : 'border-gray-100 hover:border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'border-indigo-500' : 'border-gray-300'
+                      }`}>
+                        {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />}
+                      </div>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm"
+                        style={{ backgroundColor: color }}>
+                        <CreditCard className="w-5 h-5" />
+                      </div>
+                      <p className="font-bold text-gray-900 text-sm">{pm.name}</p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
 
@@ -2071,6 +2144,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
+  const [mmpayOrderData, setMmpayOrderData] = useState(null);
+  const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
   const [contactForm, setContactForm] = useState(() => {
     try {
       const cached = localStorage.getItem('teleshop_contact_form');
@@ -3982,6 +4057,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             onBack={() => { setShowPaymentSelect(false); setShowCart(true); }}
             onNext={handlePaymentNext}
             codEnabled={codEnabled}
+            hasInstantMmpay={shop?.has_instant_mmpay}
           />
         )}
       </AnimatePresence>
@@ -4023,9 +4099,30 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             checkoutFields={data?.checkout_fields}
             onClose={() => { setCheckoutOpen(false); setSelectedPaymentMethod(null); }}
             onOrderPlaced={handleOrderPlaced}
+            onInstantMmpay={(mmpayData) => {
+              setCheckoutOpen(false);
+              setMmpayOrderData(mmpayData);
+              setIsMmpayModalOpen(true);
+            }}
           />
         )}
       </AnimatePresence>
+
+      {/* Instant MMQR Payment Modal */}
+      <InstantMmpayQrModal
+        isOpen={isMmpayModalOpen}
+        onClose={() => setIsMmpayModalOpen(false)}
+        qrCodeUrl={mmpayOrderData?.qr_code_url}
+        qrPayload={mmpayOrderData?.qr_payload}
+        deepLink={mmpayOrderData?.deep_link}
+        orderId={mmpayOrderData?.order_id || mmpayOrderData?.order_number}
+        totalAmount={mmpayOrderData?.total_amount || totalAmount}
+        currency={shop?.currency || 'MMK'}
+        onSuccess={(confirmedOrder) => {
+          setIsMmpayModalOpen(false);
+          handleOrderPlaced(confirmedOrder);
+        }}
+      />
 
       {/* Order Confirmation */}
       <AnimatePresence>
