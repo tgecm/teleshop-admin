@@ -7,8 +7,10 @@ import {
 } from 'lucide-react';
 import TelegramLoginModal from '../components/TelegramLoginModal';
 import { qrExchangeTelegramToken, storeQRLogin, clearQRLogin } from '../lib/qrAuth';
+import API_BASE_ORIGINAL from '../api/config';
 import { API_BASE } from '../api/config';
 import ZoomableQrModal from '../components/ZoomableQrModal';
+import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
 import { formatPrice } from '../utils/formatPrice';
 import {
   getQRPointsHistory, getQRCustomerDashboard,
@@ -952,7 +954,7 @@ export default function QRMenuCustomerDashboard({ slug }) {
   );
 }
 
-function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, pointsSettings, customerId: propCustomerId, customerPoints, onSuccess, onClose }) {
+function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, pointsSettings, customerId: propCustomerId, customerPoints, onSuccess, onClose, hasInstantMmpay }) {
   // Fallback to sessionStorage customer_id if prop is missing
   const customerId = propCustomerId || (typeof window !== 'undefined' ? sessionStorage.getItem('qr_customer_id') : null);
   const [step, setStep] = useState(1);
@@ -1038,8 +1040,47 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
     setUploading(false);
   };
 
+  const [mmpayData, setMmpayData] = useState(null);
+  const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
+
   const handleSubmit = async () => {
     if (!selectedMethod) return;
+
+    if (selectedMethod?.id === 'mmpay') {
+      setSubmitting(true);
+      setError('');
+      try {
+        const body = {
+          bot_id: shop.id,
+          customer_name: 'QR Customer',
+          phone: '-',
+          address: 'QR Menu',
+          township: 'QR Menu',
+          notes: 'QR Menu Customer Dashboard',
+          total_amount: displayTotal,
+          items: orderItems.map(oi => ({
+            product_id: oi.item.id,
+            name: oi.item.name,
+            price: calcItemPrice(oi.item, oi.variants, oi.addons),
+            quantity: oi.qty
+          }))
+        };
+        const res = await fetch(API_BASE + '/public/checkout/instant-mmpay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.detail || 'Order failed');
+        setMmpayData(data);
+        setIsMmpayModalOpen(true);
+      } catch (err) {
+        setError(err.message);
+      }
+      setSubmitting(false);
+      return;
+    }
+
     if (!isPointsPayment && !proofFile) {
       setError('Please upload payment proof screenshot');
       return;
@@ -1089,14 +1130,14 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
 
   if (done) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="bg-white rounded-2xl p-6 max-w-xs w-full text-center shadow-xl">
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-full flex items-center justify-center mx-auto mb-3">
-            <CheckCircle className="w-8 h-8 text-emerald-600" />
-          </motion.div>
-          <h2 className="text-base font-bold text-gray-900 mb-1">Order Placed!</h2>
-          <p className="text-xs text-gray-500">Your order has been submitted for review.</p>
-        </div>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-2xl p-6 text-center max-w-sm w-full">
+          <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+          <h3 className="font-bold text-base text-gray-900 mb-1">Order Placed Successfully!</h3>
+          <p className="text-xs text-gray-500 mb-4">Your order has been submitted to the kitchen.</p>
+          <button onClick={onClose} className="w-full py-2.5 bg-gray-900 text-white rounded-xl text-xs font-semibold">Done</button>
+        </motion.div>
       </motion.div>
     );
   }
@@ -1123,7 +1164,20 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
           {step === 1 && (
             <div>
               <p className="text-xs text-gray-500 mb-3">Select a payment method to continue</p>
-              {paymentMethods.length === 0 ? (
+              {hasInstantMmpay ? (
+                <button onClick={() => { setSelectedMethod({ id: 'mmpay', name: 'MMQR Myan Myan Pay' }); setStep(2); }}
+                  className="w-full p-3 rounded-xl border text-left transition-all border-purple-200 hover:border-purple-300 bg-purple-50 mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-white p-1 flex items-center justify-center border border-purple-100 shadow-xs">
+                      <img src="/share-icons/mmqr.png" alt="MMQR" className="w-full h-full object-contain" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-purple-950">MMQR Myan Myan Pay</div>
+                      <div className="text-[10px] text-purple-600">Instant Automated Payment</div>
+                    </div>
+                  </div>
+                </button>
+              ) : paymentMethods.length === 0 ? (
                 <div className="text-center py-6 text-gray-400">
                   <p className="text-xs">No payment methods available</p>
                 </div>
@@ -1179,12 +1233,12 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
                       </div>
                     )}
                     {couponDiscount > 0 && (
-                      <div className="flex justify-between text-violet-600 text-[10px] mt-0.5">
+                      <div className="flex justify-between text-emerald-600 text-[10px] mt-0.5">
                         <span>Coupon ({appliedCoupon?.code})</span>
                         <span>-{formatPrice(couponDiscount, shop?.currency || 'MMK')}</span>
                       </div>
                     )}
-                    <div className="flex justify-between font-semibold text-gray-800 text-sm mt-0.5">
+                    <div className="flex justify-between font-bold text-gray-900 text-sm border-t border-gray-200 pt-1 mt-1">
                       <span>Total</span>
                       <span>{formatPrice(displayTotal, shop?.currency || 'MMK')}</span>
                     </div>
@@ -1226,7 +1280,19 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
                 </div>
               )}
 
-              {!isPointsPayment && (
+              {selectedMethod?.id === 'mmpay' ? (
+                <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-purple-950 p-3.5 rounded-xl text-white space-y-2 mb-3 text-left border border-purple-800/50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-white p-1 flex items-center justify-center">
+                      <img src="/share-icons/mmqr.png" alt="MMQR" className="w-full h-full object-contain" />
+                    </div>
+                    <span className="font-bold text-xs text-white">MMQR Myan Myan Pay</span>
+                  </div>
+                  <p className="text-[11px] text-purple-200 leading-relaxed">
+                    ⚡ Dynamic MMQR code will be generated for <strong>{formatPrice(displayTotal, shop?.currency || 'MMK')}</strong>. Instant payment verification.
+                  </p>
+                </div>
+              ) : !isPointsPayment && (
                 <div className="bg-white rounded-xl p-3 border border-gray-200 mb-3">
                   <div className="font-semibold text-xs text-gray-700 mb-1">{selectedMethod.name}</div>
                   {selectedMethod.account_name && <p className="text-[11px] text-gray-500">Name: {selectedMethod.account_name}</p>}
@@ -1312,7 +1378,7 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
                 </div>
               )}
 
-              {!isPointsPayment && (
+              {!isPointsPayment && selectedMethod?.id !== 'mmpay' && (
               <div className="mb-3">
                 <p className="text-xs font-semibold text-gray-700 mb-1.5">Payment Proof <span className="text-red-400">*</span></p>
                 {proofPreview ? (
@@ -1339,10 +1405,10 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
               </div>
               )}
 
-              <button onClick={handleSubmit} disabled={submitting || !selectedMethod || (!isPointsPayment && !proofFile) || (isPointsPayment && (customerPoints < maxRedeem || displayTotal > 0))}
+              <button onClick={handleSubmit} disabled={submitting || !selectedMethod || (!isPointsPayment && selectedMethod?.id !== 'mmpay' && !proofFile) || (isPointsPayment && (customerPoints < maxRedeem || displayTotal > 0))}
                 className="w-full py-3 rounded-xl font-semibold text-xs text-white text-center transition-all active:scale-[0.98] disabled:opacity-60"
                 style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-                {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : isPointsPayment ? (customerPoints < maxRedeem ? `Min ${maxRedeem} pts` : displayTotal > 0 ? 'Insufficient Points' : 'Pay with Points') : `Pay ${formatPrice(netTotal, shop?.currency || 'MMK')}`}
+                {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : isPointsPayment ? (customerPoints < maxRedeem ? `Min ${maxRedeem} pts` : displayTotal > 0 ? 'Insufficient Points' : 'Pay with Points') : `Pay ${formatPrice(displayTotal, shop?.currency || 'MMK')}`}
               </button>
 
               <button onClick={() => { setStep(1); setIsPointsPayment(false); }} disabled={submitting}
@@ -1353,6 +1419,22 @@ function CheckoutFlow({ orderItems, orderTotal, shop, slug, paymentMethods, poin
           )}
         </div>
       </motion.div>
+
+      <InstantMmpayQrModal
+        isOpen={isMmpayModalOpen}
+        onClose={() => setIsMmpayModalOpen(false)}
+        qrCodeUrl={mmpayData?.qr_code_url}
+        qrPayload={mmpayData?.qr_payload}
+        deepLink={mmpayData?.deep_link}
+        orderId={mmpayData?.order_id || mmpayData?.order_number}
+        totalAmount={displayTotal}
+        currency={shop?.currency || 'MMK'}
+        onSuccess={(confirmedOrder) => {
+          setIsMmpayModalOpen(false);
+          setDone(true);
+          setTimeout(() => { onSuccess?.(); }, 1500);
+        }}
+      />
     </motion.div>
   );
 }
