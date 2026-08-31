@@ -64,7 +64,7 @@ export default function Customers() {
 
   const { data: orders } = useQuery({
     queryKey: ['orders', selectedBotId],
-    queryFn: () => getOrders({ bot_id: Number(selectedBotId) }),
+    queryFn: () => getOrders({ bot_id: Number(selectedBotId), limit: 2000 }),
     enabled: !!selectedBotId,
     refetchInterval: 10000,
     placeholderData: (prev) => prev,
