@@ -139,10 +139,6 @@ export default function Payments() {
   };
 
   const openModal = (payment = null) => {
-    if (mmpayStatus?.shop_enabled) {
-      addToast('Instant MMPay is active. Manual payment methods are disabled.', 'error');
-      return;
-    }
     if (!payment && atPaymentMethodLimit) {
       addToast('Your account has reached total limits of payment methods. Please upgrade.', 'error');
       return;
@@ -253,19 +249,7 @@ export default function Payments() {
         </div>
       </div>
 
-      {/* Notice when MMPay is active */}
-      {mmpayStatus?.shop_enabled && (
-        <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-xs font-semibold text-amber-800 flex items-center gap-2.5">
-          <Zap className="w-4 h-4 text-amber-600 flex-shrink-0 fill-amber-500" />
-          <span>
-            <strong>Instant MMPay is active:</strong> Manual bank transfer payment methods below are faded, uneditable, and automatically hidden for buyers at checkout. Cash on Delivery (COD) remains active.
-          </span>
-        </div>
-      )}
-
-      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 transition-all ${
-        mmpayStatus?.shop_enabled ? 'opacity-40 grayscale pointer-events-none select-none' : ''
-      }`}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
           Array(3).fill(0).map((_, i) => <LoadingSkeleton key={i} className="h-48" />)
         ) : payments?.length === 0 ? (
