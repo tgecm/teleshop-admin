@@ -78,8 +78,8 @@ export default function MyanMyanPayAdmin() {
       setEditingMerchant(merchant);
       setSelectedBotId(String(merchant.bot_id));
       setAppId(merchant.app_id_decrypted || '');
-      setPublicKey(merchant.publishable_key_decrypted || '');
-      setSecretKey(merchant.secret_key_decrypted || '');
+      setPublicKey(merchant.publishable_key_masked || '••••••••••••••••••••••••••••••••');
+      setSecretKey(merchant.secret_key_masked || '••••••••••••••••••••••••••••••••');
       setIsEnabled(Boolean(merchant.enabled));
     } else {
       setEditingMerchant(null);
@@ -110,8 +110,12 @@ export default function MyanMyanPayAdmin() {
       addToast('Please select a shop', 'error');
       return;
     }
-    if (!appId.trim() || !publicKey.trim() || !secretKey.trim()) {
-      addToast('App ID, Public Key, and Private Key are all required', 'error');
+    if (!appId.trim()) {
+      addToast('App ID is required', 'error');
+      return;
+    }
+    if (!editingMerchant && (!publicKey.trim() || !secretKey.trim())) {
+      addToast('App ID, Public Key, and Private Key are all required for new merchants', 'error');
       return;
     }
 
