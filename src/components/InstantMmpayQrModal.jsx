@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle2, Clock, Loader2, ExternalLink, ShieldCheck, AlertCircle, Download } from 'lucide-react';
+import { X, CheckCircle2, Clock, Loader2, ExternalLink, ShieldCheck, AlertCircle, Download, AlertTriangle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { API_BASE } from '../api/config';
 import { expireInstantMmpayOrder } from '../api/public';
@@ -18,6 +18,7 @@ export default function InstantMmpayQrModal({
 }) {
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const [status, setStatus] = useState('pending'); // 'pending' | 'success' | 'expired'
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
   const pollingRef = useRef(null);
   const qrRef = useRef(null);
 
@@ -26,6 +27,7 @@ export default function InstantMmpayQrModal({
     if (isOpen) {
       setTimeLeft(300);
       setStatus('pending');
+      setShowCloseWarning(false);
     }
   }, [isOpen]);
 
@@ -48,6 +50,32 @@ export default function InstantMmpayQrModal({
     return () => clearInterval(timer);
   }, [isOpen, status, orderId]);
 
+  // Intercept window refresh / tab close & browser back button
+  useEffect(() => {
+    if (!isOpen || status !== 'pending') return;
+
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      const warningText = 'If you close this QR code, Dont transfer to this QR code. To proceed again, create a new order';
+      e.returnValue = warningText;
+      return warningText;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Push dummy history entry for back button interception
+    window.history.pushState({ modalOpen: true }, '');
+    const handlePopState = () => {
+      setShowCloseWarning(true);
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isOpen, status]);
+
   // Real-time payment status polling
   useEffect(() => {
     if (!isOpen || !orderId || status !== 'pending') return;
@@ -59,6 +87,7 @@ export default function InstantMmpayQrModal({
           const data = await res.json();
           if (data.status === 'confirmed' || data.status === 'paid' || data.paid) {
             setStatus('success');
+            setShowCloseWarning(false);
             if (pollingRef.current) clearInterval(pollingRef.current);
             setTimeout(() => {
               if (onSuccess) onSuccess(data);
@@ -77,6 +106,23 @@ export default function InstantMmpayQrModal({
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [isOpen, orderId, status, onSuccess]);
+
+  const handleRequestClose = () => {
+    if (status === 'pending') {
+      setShowCloseWarning(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleConfirmClose = () => {
+    setShowCloseWarning(false);
+    setStatus('expired');
+    if (orderId) {
+      expireInstantMmpayOrder(orderId).catch(() => {});
+    }
+    onClose();
+  };
 
   const handleDownloadQr = () => {
     if (!qrRef.current) return;
@@ -141,7 +187,7 @@ export default function InstantMmpayQrModal({
           {/* Top Header Banner */}
           <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 p-6 text-white text-center relative overflow-hidden">
             <button
-              onClick={onClose}
+              onClick={handleRequestClose}
               className="absolute right-4 top-4 p-2 text-white/60 hover:text-white rounded-full bg-white/10 hover:bg-white/20 transition-all"
             >
               <X className="w-5 h-5" />
@@ -271,6 +317,45 @@ export default function InstantMmpayQrModal({
             )}
           </div>
         </motion.div>
+
+        {/* Warning Close Modal Overlay */}
+        <AnimatePresence>
+          {showCloseWarning && (
+            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl border border-rose-100"
+              >
+                <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+                  <AlertTriangle className="w-8 h-8" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-lg font-black text-gray-900">Warning</h4>
+                  <p className="text-xs font-semibold text-gray-600 leading-relaxed max-w-xs mx-auto">
+                    If you close this QR code, Dont transfer to this QR code.<br />
+                    To proceed again, create a new order
+                  </p>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={handleConfirmClose}
+                    className="flex-1 py-2.5 bg-gray-900 text-white font-bold rounded-2xl hover:bg-gray-800 transition-all text-xs shadow-md"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => setShowCloseWarning(false)}
+                    className="flex-1 py-2.5 bg-purple-600 text-white font-bold rounded-2xl hover:bg-purple-700 transition-all text-xs shadow-md"
+                  >
+                    Keep Waiting
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </AnimatePresence>
   );

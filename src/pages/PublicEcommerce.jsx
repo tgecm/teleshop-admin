@@ -29,6 +29,7 @@ import { filterAndSortProducts } from '../utils/search';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { RichMessage } from '../components/chat/RichMessage';
 import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
+import PreCheckoutMmpayConfirmModal from '../components/PreCheckoutMmpayConfirmModal';
 import NewsfeedFeed from '../components/NewsfeedFeed';
 import ZoomableQrModal from '../components/ZoomableQrModal';
 
@@ -1099,34 +1100,28 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
       }
 
       if (selectedPayment?.id === 'mmpay') {
-        try {
-          const mmpayData = await createInstantMmpayOrder({
-            bot_id: shop.id,
-            customer_name: contactForm.name.trim(),
-            phone: phoneStr,
-            email: emailStr,
-            address: contactForm.address.trim(),
-            township: contactForm.township,
-            notes: contactForm.notes.trim(),
-            firebase_uid: customerUid || profileUid || (viewMode !== 'guest' ? user?.uid : null),
-            view_mode: viewMode,
-            source: viewMode === 'guest' ? 'guest' : 'website',
-            total_amount: ptsTotal,
-            items: cartItems.map(i => ({
-              product_id: i.product_id,
-              name: i.name,
-              price: i.price,
-              quantity: i.quantity
-            }))
-          });
-          if (onInstantMmpay) {
-            onInstantMmpay(mmpayData);
-          }
-          return;
-        } catch (err) {
-          setError(err.response?.data?.detail || err.message || 'Failed to initialize MMQR payment');
-          return;
-        }
+        const mmpayPayload = {
+          bot_id: shop.id,
+          customer_name: contactForm.name.trim(),
+          phone: phoneStr,
+          email: emailStr,
+          address: contactForm.address.trim(),
+          township: contactForm.township,
+          notes: contactForm.notes.trim(),
+          firebase_uid: customerUid || profileUid || (viewMode !== 'guest' ? user?.uid : null),
+          view_mode: viewMode,
+          source: viewMode === 'guest' ? 'guest' : 'website',
+          total_amount: ptsTotal,
+          items: cartItems.map(i => ({
+            product_id: i.product_id,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity
+          }))
+        };
+        setPendingMmpayParams(mmpayPayload);
+        setIsMmpayPreConfirmOpen(true);
+        return;
       }
 
       const body = {
@@ -2149,6 +2144,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [mmpayOrderData, setMmpayOrderData] = useState(null);
   const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
+  const [isMmpayPreConfirmOpen, setIsMmpayPreConfirmOpen] = useState(false);
+  const [pendingMmpayParams, setPendingMmpayParams] = useState(null);
   const [contactForm, setContactForm] = useState(() => {
     try {
       const cached = localStorage.getItem('teleshop_contact_form');
@@ -4112,6 +4109,28 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
           />
         )}
       </AnimatePresence>
+
+      {/* Pre-Checkout MMQR Warning Confirmation Modal */}
+      <PreCheckoutMmpayConfirmModal
+        isOpen={isMmpayPreConfirmOpen}
+        onCancel={() => {
+          setIsMmpayPreConfirmOpen(false);
+          setPendingMmpayParams(null);
+        }}
+        onContinue={async () => {
+          setIsMmpayPreConfirmOpen(false);
+          if (!pendingMmpayParams) return;
+          try {
+            const mmpayData = await createInstantMmpayOrder(pendingMmpayParams);
+            setMmpayOrderData(mmpayData);
+            setIsMmpayModalOpen(true);
+          } catch (err) {
+            setError(err.response?.data?.detail || err.message || 'Failed to initialize MMQR payment');
+          } finally {
+            setPendingMmpayParams(null);
+          }
+        }}
+      />
 
       {/* Instant MMQR Payment Modal */}
       <InstantMmpayQrModal
