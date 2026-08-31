@@ -206,7 +206,7 @@ export default function Payments() {
                 </div>
                 <p className="text-xs sm:text-sm text-indigo-200 mt-1 max-w-xl">
                   {mmpayStatus?.shop_enabled
-                    ? '⚡ Active — Buyers pay instantly via QR code. Manual bank transfer receipt uploads are automatically hidden for buyers.'
+                    ? '⚡ Buyers pay instantly via QR code.'
                     : 'Turn ON to allow buyers to pay instantly without manual screenshot verification.'}
                 </p>
               </div>
