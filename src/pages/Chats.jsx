@@ -885,7 +885,11 @@ export default function Chats() {
   const webVisitorsGuest = displayedWebVisitors.filter(v => v.name !== 'E-commerce Support' && !(v.visitor_id && String(v.visitor_id).startsWith('support_')) && isGuestVisitor(v));
   const websiteUnread = webVisitorsWithUid.reduce((sum, v) => sum + (v.unread_count || 0), 0);
   const guestUnread = webVisitorsGuest.reduce((sum, v) => sum + (v.unread_count || 0), 0);
-  const supportVisitor = displayedWebVisitors.find(v => v.name === 'E-commerce Support' || (v.visitor_id && String(v.visitor_id).startsWith('support_')));
+  const supportVisitor = displayedWebVisitors.find(v => v.name === 'E-commerce Support' || (v.visitor_id && String(v.visitor_id).startsWith('support_'))) || (selectedBotId ? {
+    visitor_id: `support_${selectedBotId}`,
+    name: 'E-commerce Support',
+    unread_count: 0
+  } : null);
   const supportUnread = supportVisitor?.unread_count || 0;
 
   const matchesStatusFilter = (item) => {
