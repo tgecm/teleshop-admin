@@ -53,6 +53,9 @@ export default function Subscription() {
   const pollRef = useRef(null);
   const timerRef = useRef(null);
   const pendingPlanRef = useRef(null);
+  const initialPlanRef = useRef('');
+  const initialExpiryRef = useRef('');
+  const initialQueuedDaysRef = useRef(0);
 
   const { data: bot, isLoading } = useQuery({
     queryKey: ['bots', selectedBotId],
@@ -229,6 +232,9 @@ export default function Subscription() {
     setShowQr(true);
     setTimeRemaining(300);
     setAppliedDiscount(null);
+    initialPlanRef.current = (bot?.plan_name || 'free').toLowerCase();
+    initialExpiryRef.current = bot?.plan_expiry || '';
+    initialQueuedDaysRef.current = bot?.queued_plan_data?.days ? Number(bot.queued_plan_data.days) : 0;
     const plan = plans.find(p => p.key === planKey);
     const planType = planBilling[planKey] !== false ? 'yearly' : 'monthly';
 
@@ -294,7 +300,16 @@ export default function Subscription() {
     pollRef.current = setInterval(async () => {
       try {
         const fresh = await getBot(selectedBotId);
-        if (fresh?.plan_name?.toLowerCase() === orderData.planName?.toLowerCase()) {
+        const currentPlanName = (fresh?.plan_name || 'free').toLowerCase();
+        const targetPlanName = (orderData.planName || '').toLowerCase();
+        const currentExpiry = fresh?.plan_expiry || '';
+        const currentQueuedDays = fresh?.queued_plan_data?.days ? Number(fresh.queued_plan_data.days) : 0;
+
+        const isPlanUpgraded = currentPlanName === targetPlanName && currentPlanName !== initialPlanRef.current;
+        const isExpiryExtended = currentExpiry !== initialExpiryRef.current;
+        const isQueueIncreased = currentQueuedDays > initialQueuedDaysRef.current;
+
+        if (isPlanUpgraded || isExpiryExtended || isQueueIncreased) {
           clearInterval(pollRef.current);
           clearInterval(timerRef.current);
           setPaymentSuccess(true);
@@ -308,13 +323,13 @@ export default function Subscription() {
       } catch {
         // polling silently retries
       }
-    }, 1000);
+    }, 1200);
 
     return () => {
       clearInterval(pollRef.current);
       clearInterval(timerRef.current);
     };
-  }, [showQr, orderData, orderLoading, paymentSuccess]);
+  }, [showQr, orderData, orderLoading, paymentSuccess, selectedBotId]);
 
   // Countdown timer
   useEffect(() => {
