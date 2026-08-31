@@ -415,7 +415,12 @@ export default function Products() {
 
   const filteredProducts = products?.filter(p => {
     const term = normalizeForSearch(search).toLowerCase();
-    if (selectedCategoryFilter && p.category_id !== Number(selectedCategoryFilter)) return false;
+    if (selectedCategoryFilter === 'hidden') {
+      const isHidden = p.show_on_telegram === false && p.show_on_website === false && p.show_on_guest === false;
+      if (!isHidden) return false;
+    } else if (selectedCategoryFilter && p.category_id !== Number(selectedCategoryFilter)) {
+      return false;
+    }
     if (noCostPriceFilter && p.cost_price != null && p.cost_price !== '') return false;
     return (
       normalizeForSearch(p.name).toLowerCase().includes(term) ||
@@ -1611,7 +1616,9 @@ function CategoryDropdown({ categories, selected, onSelect }) {
         }`}
       >
         <Tag className="w-5 h-5" />
-        <span className="hidden sm:inline max-w-[80px] truncate">{selected ? categories.find(c => String(c.id) === selected)?.name || 'Category' : 'All'}</span>
+        <span className="hidden sm:inline max-w-[80px] truncate">
+          {selected === 'hidden' ? 'Hidden' : selected ? categories.find(c => String(c.id) === selected)?.name || 'Category' : 'All'}
+        </span>
       </button>
       {open && (
         <div className="absolute left-0 sm:left-1/2 sm:-translate-x-1/2 top-full mt-1 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-60 overflow-y-auto">
@@ -1620,6 +1627,12 @@ function CategoryDropdown({ categories, selected, onSelect }) {
             className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${!selected ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}
           >
             All
+          </button>
+          <button
+            onClick={() => { onSelect('hidden'); setOpen(false); }}
+            className={`w-full text-left px-4 py-2.5 text-sm font-bold transition-colors ${selected === 'hidden' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}
+          >
+            Hidden
           </button>
           {categories.map(cat => (
             <div key={cat.id} className={`flex items-center px-4 py-2.5 text-sm font-bold transition-colors ${selected === String(cat.id) ? 'text-indigo-600 bg-indigo-50' : 'text-gray-700 hover:bg-gray-50'}`}>
@@ -2103,10 +2116,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
         return;
       }
     }
-    if (!formData.show_on_telegram && !formData.show_on_website && !formData.show_on_guest) {
-      addToast('At least one channel must be selected', 'error');
-      return;
-    }
+
     const imageUrl = images.length > 0
       ? JSON.stringify(images.map(img => ({ file_id: img.file_id, type: 'photo' })))
       : null;
@@ -3190,16 +3200,7 @@ function ProductForm({ product, categories, products, onClose, onSubmit, isLoadi
                   type="checkbox"
                   checked={formData[key]}
                   onChange={(e) => {
-                    // Prevent unchecking the last channel
-                    const checked = e.target.checked;
-                    if (!checked) {
-                      const otherChecked = Object.entries(formData)
-                        .filter(([k]) => k.startsWith('show_on_'))
-                        .filter(([k]) => k !== key)
-                        .some(([, v]) => v);
-                      if (!otherChecked) return;
-                    }
-                    setFormData({ ...formData, [key]: checked });
+                    setFormData({ ...formData, [key]: e.target.checked });
                   }}
                   className="w-3.5 h-3.5 text-indigo-600 rounded accent-indigo-600"
                 />

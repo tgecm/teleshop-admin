@@ -393,11 +393,13 @@ export default function Settings() {
   const [staffFpCode, setStaffFpCode] = useState('');
   const [staffFpStep, setStaffFpStep] = useState('idle'); // idle | code
   const [staffFpLoading, setStaffFpLoading] = useState(false);
+  const [aiAgentMode, setAiAgentMode] = useState({ website: true, guest: true });
 
   React.useEffect(() => {
     // Reset per-bot state when switching bots
     setModeOrder(['ecommerce', 'guest', 'telegram']);
     setModeEnabled({ telegram: true, ecommerce: true, guest: true });
+    setAiAgentMode({ website: true, guest: true });
 
     if (bot) {
       setEmail(bot.admin_notification_email || '');
@@ -412,6 +414,14 @@ export default function Settings() {
         if (mo.content_data.enabled) {
           setModeEnabled(mo.content_data.enabled);
         }
+      }
+
+      const am = contentBlocks.find(b => b.key === 'ai_agent_mode');
+      if (am?.content_data) {
+        setAiAgentMode({
+          website: am.content_data.website !== false,
+          guest: am.content_data.guest !== false,
+        });
       }
     }
   }, [bot, contentBlocks, selectedBotId]);
@@ -969,6 +979,45 @@ export default function Settings() {
                             updateContentMutation.mutate({ key: 'mode_order', data: { order: modeOrder, enabled: next }, _mode: key, _action: on ? 'hidden' : 'shown' });
                           }}
                           className={`w-8 h-5 rounded-full transition-all relative flex-shrink-0 ${on ? 'bg-indigo-500 shadow-sm' : 'bg-gray-200'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform ${on ? 'translate-x-3' : 'translate-x-0'}`} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+
+            <section className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">AI AGENT MODE</h3>
+                  <p className="text-[10px] text-gray-500">Enable or disable AI chat bubble per mode</p>
+                </div>
+              </div>
+              <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-[10px] text-gray-500 font-medium mb-2">Toggle to show/hide AI agent chat bubble</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: 'website', label: 'Website' },
+                    { key: 'guest', label: 'Guest' },
+                  ].map(({ key, label }) => {
+                    const on = aiAgentMode[key] !== false;
+                    return (
+                      <div key={key} className="flex flex-col items-center justify-between gap-2 p-2.5 rounded-xl bg-white border border-gray-200">
+                        <span className="text-[11px] font-semibold text-gray-700 text-center leading-tight">{label}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = { ...aiAgentMode, [key]: !on };
+                            setAiAgentMode(next);
+                            updateContentMutation.mutate({ key: 'ai_agent_mode', data: next });
+                          }}
+                          className={`w-8 h-5 rounded-full transition-all relative flex-shrink-0 cursor-pointer ${on ? 'bg-indigo-500 shadow-sm' : 'bg-gray-200'}`}
                         >
                           <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform ${on ? 'translate-x-3' : 'translate-x-0'}`} />
                         </button>

@@ -1183,6 +1183,9 @@ export default function PublicShop({ slug, viaDomain }) {
           theme={theme}
           getProductUrl={getProductUrl}
           hide={Boolean(selectedProduct)}
+          viewMode={viewMode}
+          enableWebsiteChat={data?.enable_website_chat !== false}
+          enableGuestChat={data?.enable_guest_chat !== false}
         />
       )}
     </div>

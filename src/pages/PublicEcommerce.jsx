@@ -4182,8 +4182,20 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         )}
       </AnimatePresence>
 
-      {data?.ai_agent_enabled && viewMode !== 'telegram' && (!anyModalOpen || chatOpen) && (
-        <>
+      {(() => {
+        const isWebEnabled = data?.enable_website_chat !== false;
+        const isGuestEnabled = data?.enable_guest_chat !== false;
+
+        let isModeAllowed = true;
+        if (viewMode === 'telegram') isModeAllowed = false;
+        else if (viewMode === 'ecommerce' || viewMode === 'website') isModeAllowed = isWebEnabled;
+        else if (viewMode === 'guest') isModeAllowed = isGuestEnabled;
+
+        if (!data?.ai_agent_enabled || !isModeAllowed) return null;
+        if (anyModalOpen && !chatOpen) return null;
+
+        return (
+          <>
           <button
             onClick={() => {
               if (chatOpen) {
@@ -4325,7 +4337,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             </motion.div>
           )}
         </>
-      )}
+        );
+      })()}
 
       {/* Newsfeed Modal */}
       {showNewsfeed && (
