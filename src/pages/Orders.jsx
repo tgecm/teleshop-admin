@@ -127,10 +127,14 @@ export default function Orders() {
   const [offset, setOffset] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  const loadMoreRef = useRef(null);
+  const [accumulatedOrders, setAccumulatedOrders] = useState([]);
   const lastOffsetRef = useRef('');
+
   useEffect(() => {
-    setExtraOrders([]);
+    setAccumulatedOrders([]);
     setOffset(0);
+    setLoadingMore(false);
     lastOffsetRef.current = '';
   }, [selectedBotId, orderTab, statusFilter]);
 
@@ -148,12 +152,9 @@ export default function Orders() {
   });
 
   useEffect(() => {
-    if (!rawOrders || offset === 0) return;
-    const key = `${offset}-${rawOrders.length}-${rawOrders[0]?.id || ''}`;
-    if (lastOffsetRef.current === key) return;
-    lastOffsetRef.current = key;
-
-    setExtraOrders(prev => {
+    if (!rawOrders) return;
+    setAccumulatedOrders(prev => {
+      if (offset === 0) return rawOrders;
       const existingIds = new Set(prev.map(o => o.id));
       const newItems = rawOrders.filter(o => !existingIds.has(o.id));
       return [...prev, ...newItems];
@@ -161,21 +162,32 @@ export default function Orders() {
     setLoadingMore(false);
   }, [rawOrders, offset]);
 
-  const allOrders = useMemo(() => {
-    if (offset === 0) return rawOrders;
-    const existingIds = new Set(rawOrders.map(o => o.id));
-    const newExtras = extraOrders.filter(o => !existingIds.has(o.id));
-    return [...rawOrders, ...newExtras];
-  }, [rawOrders, extraOrders, offset]);
+  const allOrders = (offset === 0 && accumulatedOrders.length === 0) ? rawOrders : accumulatedOrders;
 
   const hasMore = rawOrders.length >= 50;
   const isTabLoading = (isLoading || isFetching) && offset === 0 && allOrders.length === 0;
 
-  const handleLoadMore = () => {
-    if (!hasMore || loadingMore) return;
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || loadingMore || isFetching) return;
     setLoadingMore(true);
     setOffset(prev => prev + 50);
-  };
+  }, [hasMore, loadingMore, isFetching]);
+
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasMore || loadingMore || isFetching) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !isFetching) {
+          handleLoadMore();
+        }
+      },
+      { rootMargin: '300px' }
+    );
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, isFetching, handleLoadMore]);
 
   const { data: contentBlocks } = useQuery({
     queryKey: ['content-blocks', selectedBotId],
@@ -439,6 +451,24 @@ export default function Orders() {
               </motion.div>
             </div>
           ))}
+        </div>
+      )}
+
+      {hasMore && (
+        <div ref={loadMoreRef} className="py-6 flex flex-col items-center justify-center gap-2">
+          {loadingMore || isFetching ? (
+            <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full border border-indigo-100 shadow-2xs">
+              <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+              Preloading more orders...
+            </div>
+          ) : (
+            <button
+              onClick={handleLoadMore}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-full transition-all active:scale-95 cursor-pointer"
+            >
+              Load More Orders
+            </button>
+          )}
         </div>
       )}
 
