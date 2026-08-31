@@ -139,6 +139,10 @@ export default function Payments() {
   };
 
   const openModal = (payment = null) => {
+    if (mmpayStatus?.shop_enabled) {
+      addToast('Instant MMPay is active. Manual payment methods are disabled.', 'error');
+      return;
+    }
     if (!payment && atPaymentMethodLimit) {
       addToast('Your account has reached total limits of payment methods. Please upgrade.', 'error');
       return;
@@ -164,7 +168,7 @@ export default function Payments() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingPayment(null);
-    setUploading(false);
+    setFormData({ name: '', account_name: '', payment_number: '', description: '', qr_code_url: '', notes: '', is_active: true });
   };
 
   return (
@@ -173,7 +177,12 @@ export default function Payments() {
         <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Payments</h1>
         <button
           onClick={() => openModal()}
-          className="hidden sm:flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
+          disabled={!!mmpayStatus?.shop_enabled}
+          className={`hidden sm:flex items-center gap-2 px-6 py-2.5 font-bold rounded-2xl transition-all ${
+            mmpayStatus?.shop_enabled
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+              : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95'
+          }`}
         >
           <Plus className="w-5 h-5" />
           Add Payment Method
@@ -249,12 +258,14 @@ export default function Payments() {
         <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-xs font-semibold text-amber-800 flex items-center gap-2.5">
           <Zap className="w-4 h-4 text-amber-600 flex-shrink-0 fill-amber-500" />
           <span>
-            <strong>Instant MMPay is active:</strong> Manual bank transfer payment methods below are automatically hidden for buyers at checkout. Cash on Delivery (COD) remains active.
+            <strong>Instant MMPay is active:</strong> Manual bank transfer payment methods below are faded, uneditable, and automatically hidden for buyers at checkout. Cash on Delivery (COD) remains active.
           </span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 transition-all ${
+        mmpayStatus?.shop_enabled ? 'opacity-40 grayscale pointer-events-none select-none' : ''
+      }`}>
         {isLoading ? (
           Array(3).fill(0).map((_, i) => <LoadingSkeleton key={i} className="h-48" />)
         ) : payments?.length === 0 ? (
