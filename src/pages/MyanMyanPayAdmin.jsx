@@ -141,8 +141,10 @@ export default function MyanMyanPayAdmin() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2">
-            <CreditCard className="w-6 h-6 text-indigo-600" />
+          <h1 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-white p-1 shadow-xs border border-gray-200 flex items-center justify-center">
+              <img src="/share-icons/mmqr.png" alt="MMQR" className="w-full h-full object-contain" />
+            </div>
             MyanMyanPay Merchant Management
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">

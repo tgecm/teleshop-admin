@@ -194,8 +194,8 @@ export default function Payments() {
         <div className="bg-gradient-to-r from-indigo-950 via-indigo-900 to-purple-950 p-6 sm:p-7 rounded-3xl text-white shadow-lg relative overflow-hidden border border-indigo-800/50">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-400 flex-shrink-0">
-                <Zap className="w-6 h-6 fill-amber-400" />
+              <div className="w-12 h-12 rounded-2xl bg-white p-2 flex items-center justify-center flex-shrink-0 shadow-md">
+                <img src="/share-icons/mmqr.png" alt="MMQR / MMPay" className="w-full h-full object-contain" />
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
