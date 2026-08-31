@@ -16,9 +16,7 @@ import {
   Bot,
   Key,
   ShieldCheck,
-  Building2,
-  Eye,
-  EyeOff
+  Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -242,22 +240,13 @@ export default function MyanMyanPayAdmin() {
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                   Private Key (Secret Key) *
                 </label>
-                <div className="relative">
-                  <input
-                    type={showSecret ? 'text' : 'password'}
-                    placeholder="sk_live_... or sk_test_..."
-                    value={secretKey}
-                    onChange={(e) => setSecretKey(e.target.value)}
-                    className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono text-gray-900 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSecret(!showSecret)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 rounded-lg"
-                  >
-                    {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  placeholder="sk_live_... or sk_test_..."
+                  value={secretKey}
+                  onChange={(e) => setSecretKey(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono text-gray-900 transition-all"
+                />
               </div>
 
               {/* Enabled Toggle */}
