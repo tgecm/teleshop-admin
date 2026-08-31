@@ -859,10 +859,17 @@ export default function Chats() {
 
   const isGuestVisitor = (v) => {
     if (!v) return false;
-    if (v.name === 'E-commerce Support') return false;
+    if (v.name === 'E-commerce Support' || (v.visitor_id && String(v.visitor_id).startsWith('support_'))) return false;
+
+    // If visitor has no custom name (name is 'Website Customer', 'Shop Visitor', 'Guest', 'User'), treat as guest
+    if (!v.name || v.name === 'Website Customer' || v.name === 'Shop Visitor' || v.name === 'Guest' || v.name === 'User') {
+      return true;
+    }
 
     if (v.is_registered_customer || v.website_customer_id) {
-      return false;
+      if (v.name && v.name !== 'Website Customer') {
+        return false;
+      }
     }
 
     const fb = (v.firebase_uid || '').trim();
@@ -874,11 +881,11 @@ export default function Chats() {
   };
 
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-  const webVisitorsWithUid = displayedWebVisitors.filter(v => v.name !== 'E-commerce Support' && !isGuestVisitor(v));
-  const webVisitorsGuest = displayedWebVisitors.filter(v => v.name !== 'E-commerce Support' && isGuestVisitor(v));
+  const webVisitorsWithUid = displayedWebVisitors.filter(v => v.name !== 'E-commerce Support' && !(v.visitor_id && String(v.visitor_id).startsWith('support_')) && !isGuestVisitor(v));
+  const webVisitorsGuest = displayedWebVisitors.filter(v => v.name !== 'E-commerce Support' && !(v.visitor_id && String(v.visitor_id).startsWith('support_')) && isGuestVisitor(v));
   const websiteUnread = webVisitorsWithUid.reduce((sum, v) => sum + (v.unread_count || 0), 0);
   const guestUnread = webVisitorsGuest.reduce((sum, v) => sum + (v.unread_count || 0), 0);
-  const supportVisitor = displayedWebVisitors.find(v => v.name === 'E-commerce Support');
+  const supportVisitor = displayedWebVisitors.find(v => v.name === 'E-commerce Support' || (v.visitor_id && String(v.visitor_id).startsWith('support_')));
   const supportUnread = supportVisitor?.unread_count || 0;
 
   const matchesStatusFilter = (item) => {
@@ -906,7 +913,7 @@ export default function Chats() {
   });
 
   const filteredWebVisitors = displayedWebVisitors.filter(v => {
-    if (v.name === 'E-commerce Support') return false;
+    if (v.name === 'E-commerce Support' || (v.visitor_id && String(v.visitor_id).startsWith('support_'))) return false;
     if (!v.last_message && !v.last_time) return false;
     if (!matchesStatusFilter(v)) return false;
     if (!search.trim()) return true;
