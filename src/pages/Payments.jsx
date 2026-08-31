@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getPaymentMethods, createPayment, updatePayment, deletePayment, getCodSettings, updateCodSettings } from '../api/payments';
+import { getPaymentMethods, createPayment, updatePayment, deletePayment, getCodSettings, updateCodSettings, getShopMmpayStatus, toggleShopMmpay } from '../api/payments';
 import { uploadImage, getImageUrl } from '../api/products';
 import { useSelectedBot } from '../hooks/useSelectedBot';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
@@ -18,7 +18,9 @@ import {
   Check,
   Loader2,
   ImageUp,
-  Trash
+  Trash,
+  Zap,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -99,6 +101,24 @@ export default function Payments() {
     onSuccess: () => queryClient.invalidateQueries(['cod-settings']),
   });
 
+  const { data: mmpayStatus } = useQuery({
+    queryKey: ['shop-mmpay-status', selectedBotId],
+    queryFn: () => getShopMmpayStatus(selectedBotId),
+    enabled: !!selectedBotId,
+  });
+
+  const mmpayToggleMutation = useMutation({
+    mutationFn: (shopEnabled) => toggleShopMmpay(selectedBotId, shopEnabled),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['shop-mmpay-status', selectedBotId]);
+      if (data.shop_enabled) {
+        addToast('⚡ Instant MMPay Enabled! Manual payments auto-disabled for buyers.');
+      } else {
+        addToast('Manual payments restored for buyers.');
+      }
+    },
+  });
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -159,6 +179,46 @@ export default function Payments() {
           Add Payment Method
         </button>
       </div>
+
+      {/* MyanMyanPay Instant Payment Card */}
+      {mmpayStatus?.configured && mmpayStatus?.superadmin_enabled && (
+        <div className="bg-gradient-to-r from-indigo-950 via-indigo-900 to-purple-950 p-6 sm:p-7 rounded-3xl text-white shadow-lg relative overflow-hidden border border-indigo-800/50">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-400 flex-shrink-0">
+                <Zap className="w-6 h-6 fill-amber-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base sm:text-lg font-black text-white">⚡ MyanMyanPay Instant Automated Payment</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                    Auto-Verified
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-indigo-200 mt-1 max-w-xl">
+                  {mmpayStatus?.shop_enabled
+                    ? '⚡ Active — Buyers pay instantly via QR code. Manual bank transfer receipt uploads are automatically hidden for buyers.'
+                    : 'Turn ON to allow buyers to pay instantly without manual screenshot verification.'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => mmpayToggleMutation.mutate(!mmpayStatus?.shop_enabled)}
+              disabled={mmpayToggleMutation.isPending}
+              className={`w-14 h-7 rounded-full transition-colors relative flex-shrink-0 border border-white/10 ${
+                mmpayStatus?.shop_enabled ? 'bg-emerald-500' : 'bg-white/20'
+              }`}
+            >
+              <div
+                className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md ${
+                  mmpayStatus?.shop_enabled ? 'left-8' : 'left-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* COD (Cash on Delivery) Toggle */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
