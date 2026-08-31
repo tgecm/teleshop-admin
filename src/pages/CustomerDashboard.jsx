@@ -14,6 +14,7 @@ import { getContentBlocks } from '../api/contentBlocks';
 import SearchableSelect from '../components/shared/SearchableSelect';
 import { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
 import { PaymentSelect, ContactInfoStep, CheckoutModal } from './PublicEcommerce';
+import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
 import { formatPrice } from '../utils/formatPrice';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
 
@@ -1345,6 +1346,8 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [mmpayOrderData, setMmpayOrderData] = useState(null);
+  const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' });
   const [orderPlaced, setOrderPlaced] = useState(null);
   const [oosMap, setOosMap] = useState({});
@@ -1577,6 +1580,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
             onBack={() => setShowPaymentSelect(false)}
             onNext={handlePaymentNext}
             codEnabled={codEnabled}
+            hasInstantMmpay={shopData?.has_instant_mmpay}
           />
         )}
       </AnimatePresence>
@@ -1621,9 +1625,30 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
             customerUid={cartUid}
             onClose={() => { setCheckoutOpen(false); setSelectedPayment(null); }}
             onOrderPlaced={handleOrderPlacedCallback}
+            onInstantMmpay={(mmpayData) => {
+              setCheckoutOpen(false);
+              setMmpayOrderData(mmpayData);
+              setIsMmpayModalOpen(true);
+            }}
           />
         )}
       </AnimatePresence>
+
+      {/* Instant MMQR Payment Modal */}
+      <InstantMmpayQrModal
+        isOpen={isMmpayModalOpen}
+        onClose={() => setIsMmpayModalOpen(false)}
+        qrCodeUrl={mmpayOrderData?.qr_code_url}
+        qrPayload={mmpayOrderData?.qr_payload}
+        deepLink={mmpayOrderData?.deep_link}
+        orderId={mmpayOrderData?.order_id || mmpayOrderData?.order_number}
+        totalAmount={mmpayOrderData?.total_amount || totalAmount}
+        currency={effectiveShop?.currency || 'MMK'}
+        onSuccess={(confirmedOrder) => {
+          setIsMmpayModalOpen(false);
+          handleOrderPlacedCallback(confirmedOrder);
+        }}
+      />
     </>
   );
 }
