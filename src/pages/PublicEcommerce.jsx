@@ -2411,6 +2411,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     return pm;
   });
   const codEnabled = !!(data?.cod_enabled);
+  const hasInstantMmpayAvailable = !!(shop?.has_instant_mmpay || data?.has_instant_mmpay) && totalAmount >= 1000;
+  const hasAnyPayment = paymentMethods.length > 0 || codEnabled || hasInstantMmpayAvailable;
 
   const themeName = data?.theme || DEFAULT_THEME;
   const theme = THEMES[themeName] || THEMES[DEFAULT_THEME];
@@ -2537,19 +2539,19 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
     if (viewMode === 'guest') {
       setShowCart(false);
-      paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
+      hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
     } else if (!user && !tgLoggedIn) {
       pendingBuyNowRef.current = true;
       setShowSignIn(true);
     } else {
       setShowCart(false);
       if (registered === true) {
-        paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
+        hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
       } else {
         setShowRegister(true);
       }
     }
-  }, [user, tgLoggedIn, registered, getProductColors, selectedColors, viewMode, paymentMethods.length, codEnabled, shop?.id, cartItems, addItem]);
+  }, [user, tgLoggedIn, registered, getProductColors, selectedColors, viewMode, hasAnyPayment, shop?.id, cartItems, addItem]);
 
   const handleSignInSuccess = useCallback(() => {
     setShowSignIn(false);
@@ -2567,16 +2569,16 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     pendingBuyNowRef.current = false;
     setShowCart(false);
     if (registered === true) {
-      paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
+      hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
     } else {
       setShowRegister(true);
     }
-  }, [user, tgLoggedIn, registered, paymentMethods.length, codEnabled]);
+  }, [user, tgLoggedIn, registered, hasAnyPayment]);
 
   const handleCheckout = useCallback(() => {
     setShowCart(false);
     const goToPayment = () => {
-      if (paymentMethods.length > 0 || codEnabled) {
+      if (hasAnyPayment) {
         setShowPaymentSelect(true);
       } else {
         setShowContactInfo(true);
@@ -2592,7 +2594,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     } else {
       setShowRegister(true);
     }
-  }, [user, tgLoggedIn, registered, viewMode, paymentMethods.length, codEnabled]);
+  }, [user, tgLoggedIn, registered, viewMode, hasAnyPayment]);
 
   const handlePaymentNext = useCallback((paymentId) => {
     if (!paymentId) return;
@@ -2628,8 +2630,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const handleRegisterSuccess = useCallback(() => {
     setRegistered(true);
     setShowRegister(false);
-    paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
-  }, [paymentMethods.length, codEnabled]);
+    hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
+  }, [hasAnyPayment]);
 
   function generateVisitorId() {
     return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -3391,7 +3393,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                           } else {
                             setShowCart(false);
                             if (registered === true) {
-                              paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
+                              hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
                             } else {
                               setShowRegister(true);
                             }
@@ -3409,7 +3411,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                           setViewMode('guest');
                           addToCart(productLinkProduct, linkSelectedColor, linkSelectedOptions);
                           setShowCart(false);
-                          paymentMethods.length > 0 || codEnabled ? setShowPaymentSelect(true) : setShowContactInfo(true);
+                          hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
                         }}
                         disabled={isOutOfStock || (productColors.length > 0 && !linkSelectedColor) || (linkProductOptions.length > 0 && linkProductOptions.some(o => !linkSelectedOptions[o.id]))}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-all active:scale-[0.98] text-sm"
