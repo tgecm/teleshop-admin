@@ -75,7 +75,7 @@ export default function TopBar({ onToggleSidebar }) {
         <span className="text-white text-xl lg:text-2xl font-black tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
 
         {user?.is_superadmin && (
-          <div className="flex-1 flex justify-center max-w-[140px] sm:max-w-[200px] md:max-w-none">
+          <div className="flex-1 flex justify-center max-w-[280px] sm:max-w-[360px]">
             <BotSwitcher />
           </div>
         )}
