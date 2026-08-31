@@ -1,8 +1,8 @@
 const express = require('express');
 const { Pool } = require('pg');
 const crypto = require('crypto');
-const axios = require('axios');
-const MMPaySDK = require('mmpay-node-sdk');
+const MMPaySDKModule = require('mmpay-node-sdk');
+const MMPaySDK = MMPaySDKModule.MMPaySDK || MMPaySDKModule;
 
 const app = express();
 app.use(express.json());
