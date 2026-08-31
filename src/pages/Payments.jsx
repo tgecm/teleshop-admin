@@ -187,20 +187,20 @@ export default function Payments() {
 
       {/* MyanMyanPay Instant Payment Card */}
       {mmpayStatus?.configured && mmpayStatus?.superadmin_enabled && (
-        <div className="bg-gradient-to-r from-indigo-950 via-indigo-900 to-purple-950 p-6 sm:p-7 rounded-3xl text-white shadow-lg relative overflow-hidden border border-indigo-800/50">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-white p-2 flex items-center justify-center flex-shrink-0 shadow-md">
+        <div className="bg-gradient-to-r from-indigo-950 via-indigo-900 to-purple-950 p-4 sm:p-6 rounded-3xl text-white shadow-lg relative overflow-hidden border border-indigo-800/50">
+          <div className="flex items-start justify-between gap-3 relative z-10">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white p-2 flex items-center justify-center flex-shrink-0 shadow-md">
                 <img src="/share-icons/mmqr.png" alt="MMQR / MMPay" className="w-full h-full object-contain" />
               </div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-base sm:text-lg font-black text-white">⚡ MyanMyanPay Instant Automated Payment</h3>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  <h3 className="text-sm sm:text-base font-black text-white leading-snug">⚡ MyanMyanPay Instant Automated Payment</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30">
                     Auto-Verified
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm text-indigo-200 mt-1 max-w-xl">
+                <p className="text-xs text-indigo-200 mt-1">
                   {mmpayStatus?.shop_enabled
                     ? '⚡ Buyers pay instantly via QR code.'
                     : 'Turn ON to allow buyers to pay instantly without manual screenshot verification.'}
@@ -211,13 +211,13 @@ export default function Payments() {
             <button
               onClick={() => mmpayToggleMutation.mutate(!mmpayStatus?.shop_enabled)}
               disabled={mmpayToggleMutation.isPending}
-              className={`w-14 h-7 rounded-full transition-colors relative flex-shrink-0 border border-white/10 ${
+              className={`w-12 sm:w-14 h-6 sm:h-7 rounded-full transition-colors relative flex-shrink-0 border border-white/10 self-start mt-1 ${
                 mmpayStatus?.shop_enabled ? 'bg-emerald-500' : 'bg-white/20'
               }`}
             >
               <div
-                className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md ${
-                  mmpayStatus?.shop_enabled ? 'left-8' : 'left-1'
+                className={`absolute top-0.5 sm:top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md ${
+                  mmpayStatus?.shop_enabled ? 'left-6 sm:left-8' : 'left-0.5 sm:left-1'
                 }`}
               />
             </button>

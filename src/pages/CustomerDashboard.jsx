@@ -9,12 +9,13 @@ import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { useCartState } from '../context/CartContext';
 import { myanmarFormat } from '../utils/date';
 import { RichMessage } from '../components/chat/RichMessage';
-import { getPublicTopProducts } from '../api/public';
+import { getPublicTopProducts, createInstantMmpayOrder } from '../api/public';
 import { getContentBlocks } from '../api/contentBlocks';
 import SearchableSelect from '../components/shared/SearchableSelect';
 import { REGION_NAMES, getDistricts, getTownships } from '../data/townships';
 import { PaymentSelect, ContactInfoStep, CheckoutModal } from './PublicEcommerce';
 import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
+import PreCheckoutMmpayConfirmModal from '../components/PreCheckoutMmpayConfirmModal';
 import { formatPrice } from '../utils/formatPrice';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
 
@@ -1348,6 +1349,11 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [mmpayOrderData, setMmpayOrderData] = useState(null);
   const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
+  const [isMmpayPreConfirmOpen, setIsMmpayPreConfirmOpen] = useState(false);
+  const [pendingMmpayParams, setPendingMmpayParams] = useState(null);
+  const [mmpayLoading, setMmpayLoading] = useState(false);
+  const [mmpayCooldownSeconds, setMmpayCooldownSeconds] = useState(0);
+  const [mmpayErrorMessage, setMmpayErrorMessage] = useState('');
   const [contactForm, setContactForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' });
   const [orderPlaced, setOrderPlaced] = useState(null);
   const [oosMap, setOosMap] = useState({});
@@ -1387,8 +1393,10 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
   const handleCheckoutAll = async () => {
     const data = await fetchShopDataIfNeeded();
     const methods = data?.payment_methods || shopData?.payment_methods || [];
-    const codEnabled = !!(data?.cod_enabled);
-    if (methods.length > 0 || codEnabled) {
+    const cod = !!(data?.cod_enabled ?? shopData?.cod_enabled);
+    const hasInstantMmpayAvailable = !!(data?.has_instant_mmpay ?? shopData?.has_instant_mmpay) && totalAmount >= 1000;
+    const hasAnyPayment = methods.length > 0 || cod || hasInstantMmpayAvailable;
+    if (hasAnyPayment) {
       setShowPaymentSelect(true);
     } else {
       setShowContactInfo(true);
@@ -1582,7 +1590,7 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
             onBack={() => setShowPaymentSelect(false)}
             onNext={handlePaymentNext}
             codEnabled={codEnabled}
-            hasInstantMmpay={shopData?.has_instant_mmpay}
+            hasInstantMmpay={!!(shopData?.has_instant_mmpay) && totalAmount >= 1000}
           />
         )}
       </AnimatePresence>
@@ -1627,6 +1635,11 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
             customerUid={cartUid}
             onClose={() => { setCheckoutOpen(false); setSelectedPayment(null); }}
             onOrderPlaced={handleOrderPlacedCallback}
+            onInstantMmpayPreConfirm={(payload) => {
+              setCheckoutOpen(false);
+              setPendingMmpayParams(payload);
+              setIsMmpayPreConfirmOpen(true);
+            }}
             onInstantMmpay={(mmpayData) => {
               setCheckoutOpen(false);
               setMmpayOrderData(mmpayData);
@@ -1635,6 +1648,50 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
           />
         )}
       </AnimatePresence>
+
+      {/* Pre-Checkout MMQR Warning Confirmation Modal */}
+      <PreCheckoutMmpayConfirmModal
+        isOpen={isMmpayPreConfirmOpen}
+        loading={mmpayLoading}
+        cooldownSeconds={mmpayCooldownSeconds}
+        errorMessage={mmpayErrorMessage}
+        onCancel={() => {
+          setIsMmpayPreConfirmOpen(false);
+          setPendingMmpayParams(null);
+          setCheckoutOpen(true);
+        }}
+        onContinue={async () => {
+          if (!pendingMmpayParams) return;
+          setMmpayLoading(true);
+          setMmpayErrorMessage('');
+          try {
+            const mmpayData = await createInstantMmpayOrder(pendingMmpayParams);
+            setIsMmpayPreConfirmOpen(false);
+            setMmpayOrderData(mmpayData);
+            setIsMmpayModalOpen(true);
+            setPendingMmpayParams(null);
+            setMmpayCooldownSeconds(0);
+          } catch (err) {
+            const detail = err.response?.data?.detail || err.message || 'Failed to initialize MMQR payment';
+            const secondsHeader = err.response?.headers?.['x-cooldown-seconds'];
+            let secs = secondsHeader ? parseInt(secondsHeader, 10) : 0;
+            if (!secs && detail.includes('Please wait')) {
+              const match = detail.match(/(\d+)m\s*(\d+)s/) || detail.match(/(\d+)s/);
+              if (match) {
+                if (match[2]) secs = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+                else secs = parseInt(match[1], 10);
+              }
+            }
+            if (secs > 0) {
+              setMmpayCooldownSeconds(secs);
+            } else {
+              setMmpayErrorMessage(detail);
+            }
+          } finally {
+            setMmpayLoading(false);
+          }
+        }}
+      />
 
       {/* Instant MMQR Payment Modal */}
       <InstantMmpayQrModal
@@ -1666,6 +1723,7 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
   const photoInputRef = useRef(null);
 
   const fallbackEmail = user?.email || email || googleUser?.email || '';
+  const fallbackPhoto = user?.photoURL || photoUrl || googleUser?.photoURL || telegramUser?.photo_url || '';
   const fallbackName = (defaultName && defaultName !== 'Customer') ? defaultName : (fallbackEmail.includes('@') ? fallbackEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '');
 
   const [displayName, setDisplayName] = useState(fallbackName);
@@ -1762,9 +1820,11 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
             setAddress(data.address || '');
             setNotes(data.notes || '');
             if (data.photo_url) setProfilePhotoUrl(data.photo_url);
+            else if (fallbackPhoto) setProfilePhotoUrl(fallbackPhoto);
           } else {
             setDisplayName(fallbackName || '');
             setEmails(fetchEmail ? [fetchEmail] : ['']);
+            if (fallbackPhoto) setProfilePhotoUrl(fallbackPhoto);
           }
           setLoading(false);
           setResolving(false);
@@ -1796,9 +1856,11 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
             setAddress(data.address || '');
             setNotes(data.notes || '');
             if (data.photo_url) setProfilePhotoUrl(data.photo_url);
+            else if (fallbackPhoto) setProfilePhotoUrl(fallbackPhoto);
           } else {
             setDisplayName(fallbackName || '');
             setEmails(fetchEmail ? [fetchEmail] : ['']);
+            if (fallbackPhoto) setProfilePhotoUrl(fallbackPhoto);
           }
           setLoading(false);
           setResolving(false);
@@ -1899,9 +1961,19 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
         <div className="flex items-center gap-4 min-w-0">
           <div className="relative shrink-0">
             {profilePhotoUrl ? (
-              <img src={profilePhotoUrl} alt=""
+              <img
+                src={profilePhotoUrl.startsWith('http') || profilePhotoUrl.startsWith('data:') ? profilePhotoUrl : `${API_BASE}${profilePhotoUrl.startsWith('/') ? '' : '/'}${profilePhotoUrl}`}
+                alt={displayName || 'Profile'}
+                referrerPolicy="no-referrer"
                 className="w-16 h-16 rounded-full ring-2 ring-indigo-500/20 object-cover"
-                onError={(e) => { e.target.style.display = 'none'; setProfilePhotoUrl(''); }} />
+                onError={(e) => {
+                  if (fallbackPhoto && profilePhotoUrl !== fallbackPhoto) {
+                    setProfilePhotoUrl(fallbackPhoto);
+                  } else {
+                    e.target.style.display = 'none';
+                  }
+                }}
+              />
             ) : (
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-md">
                 <User className="w-8 h-8 text-white/90" />

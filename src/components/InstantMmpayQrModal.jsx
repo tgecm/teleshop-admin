@@ -92,6 +92,14 @@ export default function InstantMmpayQrModal({
             setTimeout(() => {
               if (onSuccess) onSuccess(data);
             }, 1200);
+          } else if (data.status === 'payment_failed' || data.status === 'failed') {
+            setStatus('failed');
+            setShowCloseWarning(false);
+            if (pollingRef.current) clearInterval(pollingRef.current);
+          } else if (data.status === 'expired' || data.status === 'cancelled') {
+            setStatus('expired');
+            setShowCloseWarning(false);
+            if (pollingRef.current) clearInterval(pollingRef.current);
           }
         }
       } catch (err) {
@@ -216,6 +224,22 @@ export default function InstantMmpayQrModal({
                   <p className="text-sm text-gray-500 mt-1">Your order has been automatically confirmed.</p>
                 </div>
               </motion.div>
+            ) : status === 'failed' ? (
+              <div className="py-8 space-y-4">
+                <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+                  <AlertCircle className="w-10 h-10" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-gray-900">Payment Failed</h4>
+                  <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1">The payment was not successful. Please try placing your order again.</p>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2.5 bg-gray-900 text-white rounded-2xl text-sm font-bold hover:bg-gray-800 transition-all"
+                >
+                  Close & Retry
+                </button>
+              </div>
             ) : status === 'expired' ? (
               <div className="py-8 space-y-4">
                 <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
