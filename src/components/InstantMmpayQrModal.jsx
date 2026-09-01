@@ -14,10 +14,10 @@ export default function InstantMmpayQrModal({
   orderId,
   totalAmount,
   currency = 'MMK',
-  initialTimeLeft = 300,
+  initialTimeLeft = 900,
   onSuccess
 }) {
-  const [timeLeft, setTimeLeft] = useState(initialTimeLeft || 300); // 5 minutes default
+  const [timeLeft, setTimeLeft] = useState(initialTimeLeft || 900); // 15 minutes default
   const [status, setStatus] = useState('pending'); // 'pending' | 'success' | 'expired' | 'failed'
   const [isMinimized, setIsMinimized] = useState(false);
   const isDraggingRef = useRef(false);
@@ -41,7 +41,7 @@ export default function InstantMmpayQrModal({
   // Reset timer & mode on open
   useEffect(() => {
     if (isOpen) {
-      setTimeLeft(initialTimeLeft && initialTimeLeft > 0 ? initialTimeLeft : 300);
+      setTimeLeft(initialTimeLeft && initialTimeLeft > 0 ? initialTimeLeft : 900);
       setStatus('pending');
       setIsMinimized(false);
     }
@@ -327,7 +327,7 @@ export default function InstantMmpayQrModal({
                 </div>
                 <div>
                   <h4 className="text-base font-bold text-gray-900">Payment Session Expired</h4>
-                  <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1">The 5-minute payment window elapsed. Please try placing your order again.</p>
+                  <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1">The 15-minute payment window elapsed. Please try placing your order again.</p>
                 </div>
                 <button
                   onClick={onClose}
@@ -411,7 +411,7 @@ export default function InstantMmpayQrModal({
                 {/* Bottom Note */}
                 <div className="pt-0.5">
                   <p className="text-[11px] font-semibold text-purple-800 bg-purple-50 py-1.5 px-2.5 rounded-lg border border-purple-100">
-                    Please proceed within 5 minutes.
+                    Please proceed within 15 minutes.
                   </p>
                 </div>
 

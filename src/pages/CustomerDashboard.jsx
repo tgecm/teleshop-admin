@@ -160,7 +160,7 @@ export default function CustomerDashboard({ shopSlug }) {
 
   // Instant MMQR State (Hoisted to root level for multi-tab & refresh persistence)
   const [mmpayOrderData, setMmpayOrderData] = useState(null);
-  const [mmpayInitialTimeLeft, setMmpayInitialTimeLeft] = useState(300);
+  const [mmpayInitialTimeLeft, setMmpayInitialTimeLeft] = useState(900);
   const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
   const [isMmpayPreConfirmOpen, setIsMmpayPreConfirmOpen] = useState(false);
   const [pendingMmpayParams, setPendingMmpayParams] = useState(null);
@@ -178,9 +178,9 @@ export default function CustomerDashboard({ shopSlug }) {
       if (cached) {
         const parsed = JSON.parse(cached);
         const elapsed = Math.floor((Date.now() - parsed.created_at) / 1000);
-        if (elapsed < 300) {
+        if (elapsed < 900) {
           setMmpayOrderData(parsed);
-          setMmpayInitialTimeLeft(300 - elapsed);
+          setMmpayInitialTimeLeft(900 - elapsed);
           setIsMmpayModalOpen(true);
         } else {
           localStorage.removeItem(storageKey);
@@ -204,7 +204,7 @@ export default function CustomerDashboard({ shopSlug }) {
       localStorage.setItem(`teleshop_mmpay_active_session_${activeShopId}`, JSON.stringify(sessionObj));
     }
     setMmpayOrderData(sessionObj);
-    setMmpayInitialTimeLeft(300);
+    setMmpayInitialTimeLeft(900);
     setIsMmpayModalOpen(true);
   }, [shopData?.shop?.id]);
 
