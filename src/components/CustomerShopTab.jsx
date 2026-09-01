@@ -184,19 +184,20 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
 
                   {(() => {
                     if (status === 'preorder') {
-                      return <span className="absolute top-2 right-2 px-2 py-0.5 bg-purple-600 text-white text-[9px] font-bold rounded-md">Pre-order</span>;
+                      return <span className="absolute top-2 right-2 px-2 py-0.5 bg-purple-600 text-white text-[9px] font-bold rounded-md shadow-xs">Pre-order</span>;
                     }
                     if (status === 'limited') {
-                      return <span className="absolute top-2 right-2 px-2 py-0.5 bg-amber-400 text-gray-950 text-[9px] font-bold rounded-md">Limited</span>;
+                      return <span className="absolute top-2 right-2 px-2 py-0.5 bg-amber-400 text-gray-950 text-[9px] font-bold rounded-md shadow-xs">Limited</span>;
                     }
-                    if (isOOS || low) {
-                      return (
-                        <span className={`absolute top-2 right-2 px-2 py-0.5 text-white text-[9px] font-bold rounded-md ${isOOS ? 'bg-rose-500' : 'bg-amber-500'}`}>
-                          {isOOS ? 'Out of Stock' : `${product.stock_quantity} left`}
-                        </span>
-                      );
-                    }
-                    return null;
+                    const hasQty = product.stock_quantity !== null && product.stock_quantity !== undefined;
+                    return (
+                      <span className={`absolute top-2 right-2 px-2 py-0.5 text-[9px] font-bold rounded-md shadow-xs ${
+                        isOOS ? 'bg-rose-500 text-white' :
+                        hasQty && product.stock_quantity > 0 ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
+                      }`}>
+                        {isOOS ? 'Out of Stock' : hasQty && product.stock_quantity > 0 ? `${product.stock_quantity} left` : 'In Stock'}
+                      </span>
+                    );
                   })()}
 
                   {product.category_id && categoryMap[product.category_id] && (

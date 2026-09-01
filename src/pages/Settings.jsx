@@ -1394,25 +1394,38 @@ export default function Settings() {
                     {admins?.length === 0 ? (
                       <p className="text-xs text-gray-400 py-2 text-center bg-gray-50 rounded-xl">No admins found</p>
                     ) : (
-                      admins?.map(admin => (
-                        <div key={admin.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-gray-100">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                              {admin.first_name?.[0] || '?'}
+                      admins?.map(admin => {
+                        const isOwner = admin.is_owner || (bot?.owner_telegram_id && (String(admin.telegram_id) === String(bot.owner_telegram_id) || Number(admin.telegram_id) === Number(bot.owner_telegram_id)));
+                        return (
+                          <div key={admin.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                                {admin.first_name?.[0] || '?'}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-sm font-bold text-gray-900 truncate">{admin.first_name}</p>
+                                  {isOwner && (
+                                    <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-extrabold rounded-md uppercase tracking-wider">
+                                      Owner
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-gray-500 truncate">@{admin.username || 'no_username'}</p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-gray-900 truncate">{admin.first_name}</p>
-                              <p className="text-[10px] text-gray-500 truncate">@{admin.username || 'no_username'}</p>
-                            </div>
+                            {!isOwner && (
+                              <button
+                                onClick={() => removeAdminMutation.mutate(admin.id)}
+                                className="p-1.5 bg-white rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-all flex-shrink-0"
+                                title="Remove Admin"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
-                          <button
-                            onClick={() => removeAdminMutation.mutate(admin.id)}
-                            className="p-1.5 bg-white rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-all flex-shrink-0"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
