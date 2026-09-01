@@ -23,7 +23,7 @@ const ROUTE_PERM_MAP = {
   broadcast: 'telegram_broadcast',
   commands: 'telegram_command',
   'bot-customization': 'telegram_bot',
-  settings: 'settings_general',
+  settings: 'settings',
 };
 
 export default function PermissionGuard({ children }) {
@@ -62,6 +62,7 @@ export default function PermissionGuard({ children }) {
   }
 
   const hasPerm = staffPerms?.[requiredPerm] === true ||
+    (requiredPerm === 'settings' && (staffPerms?.settings === true || staffPerms?.settings_general === true)) ||
     (requiredPerm.startsWith('qr_') && staffPerms?.qr_menu === true) ||
     (requiredPerm.startsWith('telegram_') && staffPerms?.telegram === true);
 

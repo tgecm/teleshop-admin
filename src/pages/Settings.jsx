@@ -28,6 +28,7 @@ import { getPaymentMethods, getCodSettings } from '../api/payments';
 import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
 import ShippingLabelSettingsSection from '../components/settings/ShippingLabelSettingsSection';
+import ShopBackupSettingsSection from '../components/settings/ShopBackupSettingsSection';
 import client from '../api/client';
 import { getGuidePrompt, updateGuidePrompt } from '../api/ai';
 import { openExternalUrl } from '../utils/openExternal';
@@ -583,6 +584,7 @@ export default function Settings() {
 
         {activeTab === 'shop' && (
           <div className="space-y-6">
+            <ShopBackupSettingsSection />
             <ShippingLabelSettingsSection />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
 

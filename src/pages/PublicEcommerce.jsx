@@ -1443,7 +1443,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
                   </div>
                 </div>
                 <p className="text-xs text-purple-100/90 leading-relaxed bg-purple-900/60 p-3 rounded-xl border border-purple-700/50">
-                  ⚡ Clicking <strong>Place Order & Pay</strong> will generate a dynamic MMQR Code for the exact amount. Pay using KBZPay, WavePay, or any MMQR app for instant automated confirmation without uploading a screenshot.
+                  ⚡ ကျေးဇူးပြုပြီး ငွေပေးချေရန် အဆင်သင့်ဖြစ်မှာ <strong>Place Order</strong> ကို နှိပ်ပေးပါ။ <br /> MMQR လက်ခံသော Mobile Wallet များနှင့် ငွေပေးချေနိုင်ပါသည်။
                 </p>
               </div>
             );
@@ -2146,12 +2146,15 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [mmpayOrderData, setMmpayOrderData] = useState(null);
+  const [mmpayInitialTimeLeft, setMmpayInitialTimeLeft] = useState(300);
   const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
   const [isMmpayPreConfirmOpen, setIsMmpayPreConfirmOpen] = useState(false);
   const [pendingMmpayParams, setPendingMmpayParams] = useState(null);
   const [mmpayLoading, setMmpayLoading] = useState(false);
   const [mmpayCooldownSeconds, setMmpayCooldownSeconds] = useState(0);
   const [mmpayErrorMessage, setMmpayErrorMessage] = useState('');
+
+
   const [contactForm, setContactForm] = useState(() => {
     try {
       const cached = localStorage.getItem('teleshop_contact_form');
@@ -2349,6 +2352,29 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
 
   const shop = data?.shop;
+
+  // Restore pending MMQR payment session on page refresh (Anti-Spam Persistence)
+  useEffect(() => {
+    const activeShopId = shop?.id || data?.shop?.id;
+    if (!activeShopId) return;
+    try {
+      const storageKey = `teleshop_mmpay_active_session_${activeShopId}`;
+      const cached = localStorage.getItem(storageKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const elapsed = Math.floor((Date.now() - parsed.created_at) / 1000);
+        if (elapsed < 300) {
+          setMmpayOrderData(parsed);
+          setMmpayInitialTimeLeft(300 - elapsed);
+          setIsMmpayModalOpen(true);
+        } else {
+          localStorage.removeItem(storageKey);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to restore MMQR session on refresh:', e);
+    }
+  }, [shop?.id, data?.shop?.id]);
 
   const socialLinksList = useMemo(() => {
     if (!isFeatureAllowed(shop?.plan_name, 'social_links')) {
@@ -2997,48 +3023,50 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   }, [user, telegramUser]);
 
   // Restore visitor session or create new one (Google, Telegram, or Guest)
+  // Restore visitor session or create new one (Google, Telegram, or Guest)
   useEffect(() => {
     if (!shop?.id) return;
 
+    const loggedUser = resolveLoggedInUser();
+    if (loggedUser) {
+      visitorIdRef.current = loggedUser.uid;
+      setShowVisitorForm(false);
+      setVisitorForm({ name: loggedUser.name, phone: loggedUser.phone, email: loggedUser.email });
+
+      fetch(`${API_BASE}/website-customers/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bot_id: shop.id,
+          firebase_uid: loggedUser.uid,
+          display_name: loggedUser.name,
+          email: loggedUser.email
+        }),
+      }).catch(() => {});
+
+      fetch(API_BASE + '/public/visitor/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitor_id: loggedUser.uid, bot_id: shop.id, name: loggedUser.name, email: loggedUser.email, firebase_uid: loggedUser.uid }),
+      }).catch(() => {});
+
+      fetch(API_BASE + '/public/chat/' + shop.id + '/' + encodeURIComponent(loggedUser.uid) + '/messages')
+        .then(r => r.json())
+        .then(msgs => {
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            setChatMessages(msgs.map(m => ({
+              role: m.sender_type === 'user' ? 'user' : 'assistant',
+              content: m.message_text || '',
+              file_id: m.file_id || null,
+              file_type: m.file_type || null
+            })));
+          }
+        }).catch(() => {});
+      return;
+    }
+
     if (viewMode === 'ecommerce') {
-      const loggedUser = resolveLoggedInUser();
-      if (loggedUser) {
-        visitorIdRef.current = loggedUser.uid;
-        setShowVisitorForm(false);
-        setVisitorForm({ name: loggedUser.name, phone: loggedUser.phone, email: loggedUser.email });
-
-        fetch(`${API_BASE}/website-customers/sync`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bot_id: shop.id,
-            firebase_uid: loggedUser.uid,
-            display_name: loggedUser.name,
-            email: loggedUser.email
-          }),
-        }).catch(() => {});
-
-        fetch(API_BASE + '/public/visitor/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ visitor_id: loggedUser.uid, bot_id: shop.id, name: loggedUser.name, email: loggedUser.email, firebase_uid: loggedUser.uid }),
-        }).catch(() => {});
-
-        fetch(API_BASE + '/public/chat/' + shop.id + '/' + encodeURIComponent(loggedUser.uid) + '/messages')
-          .then(r => r.json())
-          .then(msgs => {
-            if (Array.isArray(msgs) && msgs.length > 0) {
-              setChatMessages(msgs.map(m => ({
-                role: m.sender_type === 'user' ? 'user' : 'assistant',
-                content: m.message_text || '',
-                file_id: m.file_id || null,
-                file_type: m.file_type || null
-              })));
-            }
-          }).catch(() => {});
-      } else {
-        setShowVisitorForm(false);
-      }
+      setShowVisitorForm(false);
       return;
     }
 
@@ -4131,6 +4159,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         onCancel={() => {
           setIsMmpayPreConfirmOpen(false);
           setPendingMmpayParams(null);
+          setMmpayCooldownSeconds(0);
+          setMmpayErrorMessage('');
           setCheckoutOpen(true);
         }}
         onContinue={async () => {
@@ -4140,6 +4170,16 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
           try {
             const mmpayData = await createInstantMmpayOrder(pendingMmpayParams);
             setIsMmpayPreConfirmOpen(false);
+            const activeShopId = shop?.id || data?.shop?.id;
+            if (activeShopId) {
+              const sessionObj = {
+                ...mmpayData,
+                total_amount: mmpayData.total_amount || totalAmount,
+                created_at: Date.now()
+              };
+              localStorage.setItem(`teleshop_mmpay_active_session_${activeShopId}`, JSON.stringify(sessionObj));
+            }
+            setMmpayInitialTimeLeft(300);
             setMmpayOrderData(mmpayData);
             setIsMmpayModalOpen(true);
             setPendingMmpayParams(null);
@@ -4169,14 +4209,25 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       {/* Instant MMQR Payment Modal */}
       <InstantMmpayQrModal
         isOpen={isMmpayModalOpen}
-        onClose={() => setIsMmpayModalOpen(false)}
+        onClose={() => {
+          const activeShopId = shop?.id || data?.shop?.id;
+          if (activeShopId) {
+            localStorage.removeItem(`teleshop_mmpay_active_session_${activeShopId}`);
+          }
+          setIsMmpayModalOpen(false);
+        }}
         qrCodeUrl={mmpayOrderData?.qr_code_url}
         qrPayload={mmpayOrderData?.qr_payload}
         deepLink={mmpayOrderData?.deep_link}
         orderId={mmpayOrderData?.order_id || mmpayOrderData?.order_number}
         totalAmount={mmpayOrderData?.total_amount || totalAmount}
         currency={shop?.currency || 'MMK'}
+        initialTimeLeft={mmpayInitialTimeLeft}
         onSuccess={(confirmedOrder) => {
+          const activeShopId = shop?.id || data?.shop?.id;
+          if (activeShopId) {
+            localStorage.removeItem(`teleshop_mmpay_active_session_${activeShopId}`);
+          }
           setIsMmpayModalOpen(false);
           handleOrderPlaced(confirmedOrder);
         }}

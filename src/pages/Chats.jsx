@@ -861,20 +861,15 @@ export default function Chats() {
     if (!v) return false;
     if (v.name === 'E-commerce Support' || (v.visitor_id && String(v.visitor_id).startsWith('support_'))) return false;
 
-    // If visitor has no custom name (name is 'Website Customer', 'Shop Visitor', 'Guest', 'User'), treat as guest
+    const fb = (v.firebase_uid || '').trim();
+    const hasRealFb = Boolean(fb && !fb.startsWith('wv_') && !fb.startsWith('v_') && !fb.startsWith('dc_'));
+
+    if (v.is_registered_customer || v.website_customer_id || hasRealFb) {
+      return false;
+    }
+
     if (!v.name || v.name === 'Website Customer' || v.name === 'Shop Visitor' || v.name === 'Guest' || v.name === 'User') {
       return true;
-    }
-
-    if (v.is_registered_customer || v.website_customer_id) {
-      if (v.name && v.name !== 'Website Customer') {
-        return false;
-      }
-    }
-
-    const fb = (v.firebase_uid || '').trim();
-    if (fb && !fb.startsWith('wv_') && !fb.startsWith('v_') && !fb.startsWith('dc_')) {
-      return false;
     }
 
     return true;
