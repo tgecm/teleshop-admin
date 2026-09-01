@@ -67,14 +67,14 @@ export default function ShopBackupSettingsSection() {
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-base font-bold text-gray-900">Automatic & Manual Shop Data Backup</h3>
+              <h3 className="text-base font-bold text-gray-900">Daily Backup</h3>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/80">
                 <ShieldCheck className="w-3 h-3 text-indigo-600" />
-                Telegram Owner Delivery
+                Check in Telegram
               </span>
             </div>
             <p className="text-xs text-gray-500 mt-1 max-w-xl leading-relaxed">
-              Backup your shop products, orders, customers, and chat history directly to the Telegram bot owner.
+              Backup your shop products, orders, customers.
             </p>
           </div>
         </div>
@@ -109,7 +109,7 @@ export default function ShopBackupSettingsSection() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-900">Daily Auto-Backup at 12:00 AM (Midnight)</span>
+              <span className="text-xs font-bold text-gray-900">Daily Auto-Backup</span>
               {isEnabled ? (
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
