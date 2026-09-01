@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle2, Clock, Loader2, ExternalLink, ShieldCheck, AlertCircle, Download, AlertTriangle } from 'lucide-react';
+import { X, CheckCircle2, Clock, Loader2, ExternalLink, ShieldCheck, AlertCircle, Download, Minimize2, Maximize2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { API_BASE } from '../api/config';
 import { expireInstantMmpayOrder } from '../api/public';
@@ -14,22 +14,37 @@ export default function InstantMmpayQrModal({
   orderId,
   totalAmount,
   currency = 'MMK',
+  initialTimeLeft = 300,
   onSuccess
 }) {
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
-  const [status, setStatus] = useState('pending'); // 'pending' | 'success' | 'expired'
-  const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(initialTimeLeft || 300); // 5 minutes default
+  const [status, setStatus] = useState('pending'); // 'pending' | 'success' | 'expired' | 'failed'
+  const [isMinimized, setIsMinimized] = useState(false);
+  const isDraggingRef = useRef(false);
   const pollingRef = useRef(null);
   const qrRef = useRef(null);
 
-  // Reset timer on open
+  const handlePillTap = () => {
+    if (!isDraggingRef.current) {
+      setIsMinimized(false);
+    }
+  };
+
+  // Reset timer & mode on open
   useEffect(() => {
     if (isOpen) {
-      setTimeLeft(300);
+      setTimeLeft(initialTimeLeft && initialTimeLeft > 0 ? initialTimeLeft : 300);
       setStatus('pending');
-      setShowCloseWarning(false);
+      setIsMinimized(false);
     }
-  }, [isOpen]);
+  }, [isOpen, initialTimeLeft]);
+
+  // Expand back to full mode if status is no longer pending
+  useEffect(() => {
+    if (status !== 'pending') {
+      setIsMinimized(false);
+    }
+  }, [status]);
 
   // Countdown timer
   useEffect(() => {
@@ -39,6 +54,7 @@ export default function InstantMmpayQrModal({
         if (prev <= 1) {
           clearInterval(timer);
           setStatus('expired');
+          setIsMinimized(false);
           if (orderId) {
             expireInstantMmpayOrder(orderId).catch(() => {});
           }
@@ -50,29 +66,21 @@ export default function InstantMmpayQrModal({
     return () => clearInterval(timer);
   }, [isOpen, status, orderId]);
 
-  // Intercept window refresh / tab close & browser back button
+  // Intercept window refresh / tab close
   useEffect(() => {
     if (!isOpen || status !== 'pending') return;
 
     const handleBeforeUnload = (e) => {
       e.preventDefault();
-      const warningText = 'If you close this QR code, do not transfer money using it. To proceed, please create a new order.';
+      const warningText = 'Active MMQR payment in progress. Please complete payment before closing.';
       e.returnValue = warningText;
       return warningText;
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // Push dummy history entry for back button interception
-    window.history.pushState({ modalOpen: true }, '');
-    const handlePopState = () => {
-      setShowCloseWarning(true);
-    };
-    window.addEventListener('popstate', handlePopState);
-
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
     };
   }, [isOpen, status]);
 
@@ -87,18 +95,18 @@ export default function InstantMmpayQrModal({
           const data = await res.json();
           if (data.status === 'confirmed' || data.status === 'paid' || data.paid) {
             setStatus('success');
-            setShowCloseWarning(false);
+            setIsMinimized(false);
             if (pollingRef.current) clearInterval(pollingRef.current);
             setTimeout(() => {
               if (onSuccess) onSuccess(data);
             }, 1200);
           } else if (data.status === 'payment_failed' || data.status === 'failed') {
             setStatus('failed');
-            setShowCloseWarning(false);
+            setIsMinimized(false);
             if (pollingRef.current) clearInterval(pollingRef.current);
           } else if (data.status === 'expired' || data.status === 'cancelled') {
             setStatus('expired');
-            setShowCloseWarning(false);
+            setIsMinimized(false);
             if (pollingRef.current) clearInterval(pollingRef.current);
           }
         }
@@ -114,23 +122,6 @@ export default function InstantMmpayQrModal({
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [isOpen, orderId, status, onSuccess]);
-
-  const handleRequestClose = () => {
-    if (status === 'pending') {
-      setShowCloseWarning(true);
-    } else {
-      onClose();
-    }
-  };
-
-  const handleConfirmClose = () => {
-    setShowCloseWarning(false);
-    setStatus('expired');
-    if (orderId) {
-      expireInstantMmpayOrder(orderId).catch(() => {});
-    }
-    onClose();
-  };
 
   const handleDownloadQr = () => {
     if (!qrRef.current) return;
@@ -183,75 +174,156 @@ export default function InstantMmpayQrModal({
   const seconds = timeLeft % 60;
   const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+  // ----------------------------------------------------
+  // Floating Mini Window Mode (Fully tapable anywhere to expand)
+  // ----------------------------------------------------
+  if (isMinimized && status === 'pending') {
+    return (
+      <AnimatePresence>
         <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          initial={{ scale: 0.8, opacity: 0, y: -20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="relative bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden border border-purple-100"
+          exit={{ scale: 0.8, opacity: 0, y: -20 }}
+          drag
+          dragMomentum={false}
+          onDragStart={() => {
+            isDraggingRef.current = true;
+          }}
+          onDragEnd={() => {
+            setTimeout(() => {
+              isDraggingRef.current = false;
+            }, 150);
+          }}
+          onTap={handlePillTap}
+          onPointerUp={handlePillTap}
+          onClick={handlePillTap}
+          className="fixed top-16 right-3 sm:top-20 sm:right-6 z-50 bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-900 text-white p-2 px-3.5 rounded-full shadow-2xl border border-purple-400/50 flex items-center gap-2.5 cursor-pointer group hover:border-purple-300 transition-all select-none backdrop-blur-lg active:scale-95 touch-none"
         >
-          {/* Top Header Banner */}
-          <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 p-6 text-white text-center relative overflow-hidden">
-            <button
-              onClick={handleRequestClose}
-              className="absolute right-4 top-4 p-2 text-white/60 hover:text-white rounded-full bg-white/10 hover:bg-white/20 transition-all"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Bigger MMQR Logo at Top */}
-            <div className="w-20 h-20 bg-white rounded-2xl p-2.5 mx-auto mb-3 shadow-lg flex items-center justify-center">
-              <img src="/mmqr-logo.png" alt="MMQR" className="w-full h-full object-contain" />
-            </div>
-            <h3 className="text-lg font-black tracking-tight text-white">MMQR Myan Myan Pay</h3>
-            <p className="text-xs text-purple-200 mt-0.5">Automated QR Payment Verification</p>
+          {/* Pulsing MMQR Icon */}
+          <div className="relative w-8 h-8 bg-white rounded-full p-1 flex items-center justify-center shrink-0 shadow-md pointer-events-none">
+            <img src="/mmqr-logo.png" alt="MMQR" className="w-full h-full object-contain" />
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-purple-950 animate-ping" />
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-purple-950" />
           </div>
 
-          <div className="p-6 space-y-4 text-center">
+          {/* Mini Status & Countdown Timer */}
+          <div className="flex flex-col text-left pr-1 pointer-events-none">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-black tracking-wide text-white">MMQR Active</span>
+              <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-purple-500/30 text-purple-200 border border-purple-400/30">
+                {Number(totalAmount).toLocaleString()} {currency}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] text-purple-200 font-mono font-bold mt-0.5">
+              <Clock className="w-3 h-3 text-amber-400 animate-pulse" />
+              <span>{formattedTime} left</span>
+              <span className="text-[9px] text-purple-300 font-sans ml-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                (Tap to expand)
+              </span>
+            </div>
+          </div>
+
+          {/* Expand Icon */}
+          <div className="flex items-center pointer-events-none">
+            <div className="p-1.5 text-white/80 group-hover:text-white rounded-full bg-white/10 group-hover:bg-white/20 transition-all">
+              <Maximize2 className="w-3.5 h-3.5" />
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  // ----------------------------------------------------
+  // Full Screen Modal Mode (Sleek Compact Sizing)
+  // ----------------------------------------------------
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-3 sm:p-4">
+        <motion.div
+          initial={{ scale: 0.92, opacity: 0, y: 15 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.92, opacity: 0, y: 15 }}
+          className="relative bg-white w-full max-w-[360px] rounded-3xl shadow-2xl overflow-hidden border border-purple-100 max-h-[94vh] flex flex-col"
+        >
+          {/* Compact Header Banner */}
+          <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-950 p-3.5 sm:p-4 text-white text-center relative shrink-0">
+            <div className="absolute right-3 top-3 flex items-center gap-1">
+              {status === 'pending' && (
+                <button
+                  onClick={() => setIsMinimized(true)}
+                  className="p-1.5 text-white/70 hover:text-white rounded-full bg-white/10 hover:bg-white/20 transition-all"
+                  title="Minimize to floating window"
+                >
+                  <Minimize2 className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (status === 'pending') {
+                    setIsMinimized(true);
+                  } else {
+                    onClose();
+                  }
+                }}
+                className="p-1.5 text-white/70 hover:text-white rounded-full bg-white/10 hover:bg-white/20 transition-all"
+                title="Minimize window"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+
+            {/* Compact Logo */}
+            <div className="w-12 h-12 bg-white rounded-xl p-1.5 mx-auto mb-1.5 shadow-md flex items-center justify-center">
+              <img src="/mmqr-logo.png" alt="MMQR" className="w-full h-full object-contain" />
+            </div>
+            <h3 className="text-base font-black tracking-tight text-white leading-tight">MMQR Myan Myan Pay</h3>
+            <p className="text-[10px] text-purple-200 mt-0.5">Automated QR Payment Verification</p>
+          </div>
+
+          <div className="p-3.5 sm:p-4 space-y-2.5 text-center overflow-y-auto">
             {status === 'success' ? (
               <motion.div
-                initial={{ scale: 0.5, opacity: 0 }}
+                initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="py-8 space-y-4"
+                className="py-6 space-y-3"
               >
-                <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                  <CheckCircle2 className="w-12 h-12" />
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                  <CheckCircle2 className="w-10 h-10" />
                 </div>
                 <div>
-                  <h4 className="text-xl font-black text-gray-900">Payment Received!</h4>
-                  <p className="text-sm text-gray-500 mt-1">Your order has been automatically confirmed.</p>
+                  <h4 className="text-lg font-black text-gray-900">Payment Received!</h4>
+                  <p className="text-xs text-gray-500 mt-1">Your order has been automatically confirmed.</p>
                 </div>
               </motion.div>
             ) : status === 'failed' ? (
-              <div className="py-8 space-y-4">
-                <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
-                  <AlertCircle className="w-10 h-10" />
+              <div className="py-6 space-y-3">
+                <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+                  <AlertCircle className="w-8 h-8" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-gray-900">Payment Failed</h4>
+                  <h4 className="text-base font-bold text-gray-900">Payment Failed</h4>
                   <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1">The payment was not successful. Please try placing your order again.</p>
                 </div>
                 <button
                   onClick={onClose}
-                  className="px-6 py-2.5 bg-gray-900 text-white rounded-2xl text-sm font-bold hover:bg-gray-800 transition-all"
+                  className="px-5 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all"
                 >
                   Close & Retry
                 </button>
               </div>
             ) : status === 'expired' ? (
-              <div className="py-8 space-y-4">
-                <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
-                  <AlertCircle className="w-10 h-10" />
+              <div className="py-6 space-y-3">
+                <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+                  <AlertCircle className="w-8 h-8" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-gray-900">Payment Session Expired</h4>
+                  <h4 className="text-base font-bold text-gray-900">Payment Session Expired</h4>
                   <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1">The 5-minute payment window elapsed. Please try placing your order again.</p>
                 </div>
                 <button
                   onClick={onClose}
-                  className="px-6 py-2.5 bg-gray-900 text-white rounded-2xl text-sm font-bold hover:bg-gray-800 transition-all"
+                  className="px-5 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all"
                 >
                   Close & Retry
                 </button>
@@ -259,36 +331,36 @@ export default function InstantMmpayQrModal({
             ) : (
               <>
                 {/* Total Amount Badge */}
-                <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100 text-center">
-                  <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Amount to Pay</p>
-                  <p className="text-2xl font-black text-purple-950 mt-0.5">
-                    {Number(totalAmount).toLocaleString()} <span className="text-sm font-bold text-purple-700">{currency}</span>
+                <div className="bg-purple-50 rounded-xl p-2.5 border border-purple-100 text-center">
+                  <p className="text-[10px] font-semibold text-purple-600 uppercase tracking-wider">Amount to Pay</p>
+                  <p className="text-xl font-black text-purple-950 mt-0.5">
+                    {Number(totalAmount).toLocaleString()} <span className="text-xs font-bold text-purple-700">{currency}</span>
                   </p>
                 </div>
 
-                {/* Dynamic QR Display Container */}
-                <div ref={qrRef} className="relative bg-white p-4 rounded-3xl border-2 border-purple-200 shadow-md inline-block mx-auto">
+                {/* Compact Dynamic QR Display Container */}
+                <div ref={qrRef} className="relative bg-white p-2.5 rounded-2xl border-2 border-purple-200 shadow-sm inline-block mx-auto">
                   {qrCodeUrl ? (
                     <img
                       src={qrCodeUrl}
                       alt="MMQR Payment Code"
-                      className="w-56 h-56 object-contain rounded-2xl mx-auto"
+                      className="w-44 h-44 sm:w-48 sm:h-48 object-contain rounded-xl mx-auto"
                     />
                   ) : qrPayload ? (
-                    <div className="p-2 bg-white rounded-2xl flex items-center justify-center">
-                      <QRCodeSVG value={qrPayload} size={224} level="M" includeMargin={true} />
+                    <div className="p-1 bg-white rounded-xl flex items-center justify-center">
+                      <QRCodeSVG value={qrPayload} size={176} level="M" includeMargin={true} />
                     </div>
                   ) : (
-                    <div className="w-56 h-56 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-2xl">
-                      <Loader2 className="w-8 h-8 animate-spin text-purple-600 mb-2" />
-                      <span className="text-xs font-medium">Generating MMQR Code...</span>
+                    <div className="w-44 h-44 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-xl">
+                      <Loader2 className="w-7 h-7 animate-spin text-purple-600 mb-2" />
+                      <span className="text-[11px] font-medium">Generating MMQR Code...</span>
                     </div>
                   )}
                 </div>
 
                 {/* Under QR Code: Myan Myan Pay Logo & Powered by text */}
-                <div className="flex items-center justify-center gap-1.5 text-xs italic text-gray-600 font-medium">
-                  <img src="/mmpay_logo.png" alt="Myan Myan Pay" className="w-5 h-5 rounded-full object-contain shadow-xs" />
+                <div className="flex items-center justify-center gap-1.5 text-[11px] italic text-gray-600 font-medium">
+                  <img src="/mmpay_logo.png" alt="Myan Myan Pay" className="w-4 h-4 rounded-full object-contain shadow-xs" />
                   <span>Payment Powered by Myan Myan Pay MMQR</span>
                 </div>
 
@@ -296,9 +368,9 @@ export default function InstantMmpayQrModal({
                 {(qrCodeUrl || qrPayload) && (
                   <button
                     onClick={handleDownloadQr}
-                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-2xl font-bold text-xs transition-all border border-gray-200 active:scale-98"
+                    className="flex items-center justify-center gap-2 w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold text-xs transition-all border border-gray-200 active:scale-98"
                   >
-                    <Download className="w-4 h-4 text-purple-700" />
+                    <Download className="w-3.5 h-3.5 text-purple-700" />
                     Download QR Code
                   </button>
                 )}
@@ -309,77 +381,40 @@ export default function InstantMmpayQrModal({
                     href={deepLink}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-3 bg-purple-600 text-white rounded-2xl font-bold text-sm hover:bg-purple-700 transition-all shadow-md active:scale-98"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-purple-600 text-white rounded-xl font-bold text-xs hover:bg-purple-700 transition-all shadow-md active:scale-98"
                   >
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink className="w-3.5 h-3.5" />
                     Open Mobile Banking App
                   </a>
                 )}
 
                 {/* Live Waiting Status & Timer */}
-                <div className="flex items-center justify-between text-xs font-medium text-gray-500 px-2 bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                  <span className="flex items-center gap-2 text-purple-700 font-bold">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600" />
+                <div className="flex items-center justify-between text-xs font-medium text-gray-500 px-2 bg-gray-50 p-2 rounded-xl border border-gray-100">
+                  <span className="flex items-center gap-1.5 text-purple-700 font-bold text-[11px]">
+                    <Loader2 className="w-3 h-3 animate-spin text-purple-600" />
                     Waiting for payment...
                   </span>
-                  <span className="flex items-center gap-1 font-mono font-bold text-gray-700 bg-white px-2.5 py-1 rounded-xl shadow-xs border border-gray-200">
-                    <Clock className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="flex items-center gap-1 font-mono font-bold text-gray-700 bg-white px-2 py-0.5 rounded-lg text-xs shadow-xs border border-gray-200">
+                    <Clock className="w-3 h-3 text-amber-500" />
                     {formattedTime}
                   </span>
                 </div>
 
                 {/* Bottom Note */}
-                <p className="text-xs font-semibold text-purple-800 bg-purple-50 py-2 px-3 rounded-xl border border-purple-100">
-                  Please proceed within 5 minutes.
-                </p>
+                <div className="pt-0.5">
+                  <p className="text-[11px] font-semibold text-purple-800 bg-purple-50 py-1.5 px-2.5 rounded-lg border border-purple-100">
+                    Please proceed within 5 minutes.
+                  </p>
+                </div>
 
-                <p className="text-[11px] text-gray-400 flex items-center justify-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1 pt-0.5">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
                   Scan with KBZPay, WavePay, or any MMQR app
                 </p>
               </>
             )}
           </div>
         </motion.div>
-
-        {/* Warning Close Modal Overlay */}
-        <AnimatePresence>
-          {showCloseWarning && (
-            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl border border-rose-100"
-              >
-                <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-                  <AlertTriangle className="w-8 h-8" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-lg font-black text-gray-900">Warning</h4>
-                  <p className="text-xs font-semibold text-gray-600 leading-relaxed max-w-xs mx-auto">
-                    If you close this QR code, do not transfer money using it.<br />
-                    To proceed, please create a new order.
-                  </p>
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={handleConfirmClose}
-                    className="flex-1 py-2.5 bg-gray-900 text-white font-bold rounded-2xl hover:bg-gray-800 transition-all text-xs shadow-md"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => setShowCloseWarning(false)}
-                    className="flex-1 py-2.5 bg-purple-600 text-white font-bold rounded-2xl hover:bg-purple-700 transition-all text-xs shadow-md"
-                  >
-                    Keep Waiting
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
       </div>
     </AnimatePresence>
   );

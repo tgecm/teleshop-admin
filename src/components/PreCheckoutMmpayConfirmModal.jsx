@@ -61,9 +61,8 @@ export default function PreCheckoutMmpayConfirmModal({
           </div>
 
           <div className="space-y-2 py-1">
-            <p className="text-base font-black text-gray-900 leading-snug">
-              ကျေးဇူးပြုပြီး ငွေပေးချေရန်<br />
-              အဆင်သင့်ဖြစ်မှသာ Continue ကို နှိပ်ပါ
+            <p className="text-sm font-bold text-gray-800 leading-relaxed">
+              ကျေးဇူးပြုပြီး ငွေပေးချေရန် အဆင်သင့်ဖြစ်မှာ <strong>Place Order</strong> ကို နှိပ်ပေးပါ။ MMQR လက်ခံသော Mobile Wallet များနှင့် ငွေပေးချေနိုင်သည်။
             </p>
 
             {isCooldownActive ? (
@@ -98,13 +97,13 @@ export default function PreCheckoutMmpayConfirmModal({
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Generating...
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Generating...</span>
                 </>
               ) : isCooldownActive ? (
                 `Wait (${formatTime(timeLeft)})`
               ) : (
-                'Continue'
+                'Place Order'
               )}
             </button>
           </div>
