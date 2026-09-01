@@ -417,7 +417,7 @@ export default function InstantMmpayQrModal({
 
                 <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1 pt-0.5">
                   <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                  Scan with KBZPay, WavePay, or any MMQR app
+                  Scan with KBZPay, WavePay, AYA Pay, UAB PAY, etc...
                 </p>
               </>
             )}
