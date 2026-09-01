@@ -1922,8 +1922,15 @@ export function PaymentSelect({ paymentMethods, onBack, onNext, codEnabled, hasI
 export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode, shop, shopSlug, showZoneFields = true, checkoutFields }) {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const fields = { ...(checkoutFields || {}), name: true };
+
+  const updateForm = (key, val) => {
+    setForm(p => ({ ...p, [key]: val }));
+    if (fieldErrors[key]) setFieldErrors(p => ({ ...p, [key]: null }));
+    if (error) setError('');
+  };
 
   // Clear zone fields when hidden to avoid stale data in order
   useEffect(() => {
@@ -1989,22 +1996,41 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
     setProfileLoaded(true);
   }, [viewMode, shopSlug, profileLoaded]);
 
-  const setPhone = (idx, val) => setForm(p => { const n = [...p.phones]; n[idx] = val.replace(/\D/g, '').slice(0, 15); return { ...p, phones: n }; });
+  const setPhone = (idx, val) => {
+    setForm(p => { const n = [...p.phones]; n[idx] = val.replace(/\D/g, '').slice(0, 15); return { ...p, phones: n }; });
+    if (fieldErrors.phones) setFieldErrors(p => ({ ...p, phones: null }));
+    if (error) setError('');
+  };
   const addPhone = () => setForm(p => ({ ...p, phones: [...p.phones, ''] }));
   const removePhone = (idx) => setForm(p => ({ ...p, phones: p.phones.filter((_, i) => i !== idx) }));
-  const setEmail = (idx, val) => setForm(p => { const n = [...p.emails]; n[idx] = val; return { ...p, emails: n }; });
+
+  const setEmail = (idx, val) => {
+    setForm(p => { const n = [...p.emails]; n[idx] = val; return { ...p, emails: n }; });
+    if (fieldErrors.emails) setFieldErrors(p => ({ ...p, emails: null }));
+    if (error) setError('');
+  };
   const addEmail = () => setForm(p => ({ ...p, emails: [...p.emails, ''] }));
   const removeEmail = (idx) => setForm(p => ({ ...p, emails: p.emails.filter((_, i) => i !== idx) }));
 
   const handleNext = () => {
-    if (fields.name && !form.name.trim()) { setError('Name is required'); return; }
-    if (fields.phones && !form.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
-    if (fields.emails && !form.emails[0]?.trim()) { setError('At least one email is required'); return; }
-    if (showZoneFields && fields.zone && (!form.region || !form.district || !form.township)) { setError('Please select Region, District and Township'); return; }
-    if (fields.address && !form.address.trim()) { setError('Delivery address is required'); return; }
-    if (fields.telegram && !form.telegram.trim()) { setError('Telegram username is required'); return; }
-    if (fields.viber && !form.viber.trim()) { setError('Viber number is required'); return; }
-    if (fields.notes && !form.notes.trim()) { setError('Notes is required'); return; }
+    const errs = {};
+    if (fields.name && !form.name.trim()) errs.name = 'Full Name is required';
+    if (fields.phones && !form.phones[0]?.trim()) errs.phones = 'At least one phone number is required';
+    if (fields.emails && !form.emails[0]?.trim()) errs.emails = 'At least one email is required';
+    if (fields.telegram && !form.telegram.trim()) errs.telegram = 'Telegram username is required';
+    if (fields.viber && !form.viber.trim()) errs.viber = 'Viber number is required';
+    if (showZoneFields && fields.zone && (!form.region || !form.district || !form.township)) errs.zone = 'Region, District and Township are required';
+    if (fields.address && !form.address.trim()) errs.address = 'Delivery address is required';
+    if (fields.notes && !form.notes.trim()) errs.notes = 'Notes is required';
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      setError('Please fill in all required fields marked in red.');
+      return;
+    }
+
+    setFieldErrors({});
+    setError('');
     onNext(form);
   };
 
@@ -2026,8 +2052,13 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
         <div className="space-y-3">
           {fields.name && <div>
             <label className="text-xs text-gray-500 font-medium mb-1 block">Full Name *</label>
-            <input type="text" value={form.name} onChange={e => setForm(p => ({...p, name: e.target.value}))}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+            <input type="text" value={form.name} onChange={e => updateForm('name', e.target.value)}
+              className={`w-full px-4 py-3 border rounded-xl outline-none text-sm transition-all ${
+                fieldErrors.name
+                  ? 'border-rose-500 bg-rose-50/30 ring-2 ring-rose-200'
+                  : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-indigo-500'
+              }`} />
+            {fieldErrors.name && <p className="text-xs text-rose-500 font-medium mt-1">{fieldErrors.name}</p>}
           </div>}
 
           {fields.phones && <div>
@@ -2037,7 +2068,11 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 <div key={idx} className="flex items-center gap-2">
                   <input type="tel" value={phone} onChange={e => setPhone(idx, e.target.value)}
                     placeholder={idx === 0 ? "09xxxxxxxxx" : "Additional phone"}
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                    className={`flex-1 px-4 py-3 border rounded-xl outline-none text-sm transition-all ${
+                      fieldErrors.phones && idx === 0
+                        ? 'border-rose-500 bg-rose-50/30 ring-2 ring-rose-200'
+                        : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-indigo-500'
+                    }`} />
                   {idx === 0 ? (
                     <button onClick={addPhone} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
                       <Plus className="w-4 h-4" />
@@ -2050,6 +2085,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 </div>
               ))}
             </div>
+            {fieldErrors.phones && <p className="text-xs text-rose-500 font-medium mt-1">{fieldErrors.phones}</p>}
           </div>}
 
           {fields.emails && <div>
@@ -2059,7 +2095,11 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 <div key={idx} className="flex items-center gap-2">
                   <input type="email" value={email} onChange={e => setEmail(idx, e.target.value)}
                     placeholder={idx === 0 ? "your@email.com" : "Additional email"}
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+                    className={`flex-1 px-4 py-3 border rounded-xl outline-none text-sm transition-all ${
+                      fieldErrors.emails && idx === 0
+                        ? 'border-rose-500 bg-rose-50/30 ring-2 ring-rose-200'
+                        : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-indigo-500'
+                    }`} />
                   {idx === 0 ? (
                     <button onClick={addEmail} className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-all shrink-0">
                       <Plus className="w-4 h-4" />
@@ -2072,20 +2112,31 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 </div>
               ))}
             </div>
+            {fieldErrors.emails && <p className="text-xs text-rose-500 font-medium mt-1">{fieldErrors.emails}</p>}
           </div>}
 
           {fields.telegram && <div>
             <label className="text-xs text-gray-500 font-medium mb-1 block">Telegram Username *</label>
-            <input type="text" value={form.telegram} onChange={e => setForm(p => ({...p, telegram: e.target.value}))}
+            <input type="text" value={form.telegram} onChange={e => updateForm('telegram', e.target.value)}
               placeholder="@username"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              className={`w-full px-4 py-3 border rounded-xl outline-none text-sm transition-all ${
+                fieldErrors.telegram
+                  ? 'border-rose-500 bg-rose-50/30 ring-2 ring-rose-200'
+                  : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-indigo-500'
+              }`} />
+            {fieldErrors.telegram && <p className="text-xs text-rose-500 font-medium mt-1">{fieldErrors.telegram}</p>}
           </div>}
 
           {fields.viber && <div>
             <label className="text-xs text-gray-500 font-medium mb-1 block">Viber Number *</label>
-            <input type="tel" value={form.viber} onChange={e => setForm(p => ({...p, viber: e.target.value.replace(/\D/g, '').slice(0, 15)}))}
+            <input type="tel" value={form.viber} onChange={e => updateForm('viber', e.target.value.replace(/\D/g, '').slice(0, 15))}
               placeholder="09xxxxxxxxx"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              className={`w-full px-4 py-3 border rounded-xl outline-none text-sm transition-all ${
+                fieldErrors.viber
+                  ? 'border-rose-500 bg-rose-50/30 ring-2 ring-rose-200'
+                  : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-indigo-500'
+              }`} />
+            {fieldErrors.viber && <p className="text-xs text-rose-500 font-medium mt-1">{fieldErrors.viber}</p>}
           </div>}
 
           {showZoneFields && fields.zone && (<>
@@ -2093,7 +2144,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 <label className="text-xs text-gray-500 font-medium mb-1 block">Region (တိုင်း/ပြည်နယ်) *</label>
                 <SearchableSelect
                   value={form.region}
-                  onChange={v => setForm(p => ({ ...p, region: v, district: '', township: '' }))}
+                  onChange={v => { updateForm('region', v); setForm(p => ({ ...p, district: '', township: '' })); }}
                   options={REGION_NAMES}
                   placeholder="Select Region"
                 />
@@ -2102,7 +2153,7 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 <label className="text-xs text-gray-500 font-medium mb-1 block">District (ခရိုင်)</label>
                 <SearchableSelect
                   value={form.district}
-                  onChange={v => setForm(p => ({ ...p, district: v, township: '' }))}
+                  onChange={v => { updateForm('district', v); setForm(p => ({ ...p, township: '' })); }}
                   options={getDistricts(form.region)}
                   placeholder="Select District"
                   disabled={!form.region}
@@ -2112,29 +2163,40 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
                 <label className="text-xs text-gray-500 font-medium mb-1 block">Township (မြို့နယ်)</label>
                 <SearchableSelect
                   value={form.township}
-                  onChange={v => setForm(p => ({ ...p, township: v }))}
+                  onChange={v => updateForm('township', v)}
                   options={getTownships(form.region, form.district)}
                   placeholder="Select Township"
                   disabled={!form.district}
                 />
               </div>
+              {fieldErrors.zone && <p className="text-xs text-rose-500 font-medium mt-1">{fieldErrors.zone}</p>}
             </>)}
 
           {fields.address && <div>
             <label className="text-xs text-gray-500 font-medium mb-1 block">Delivery Address *</label>
-            <textarea value={form.address} onChange={e => setForm(p => ({...p, address: e.target.value}))} rows={2}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none" />
+            <textarea value={form.address} onChange={e => updateForm('address', e.target.value)} rows={2}
+              className={`w-full px-4 py-3 border rounded-xl outline-none text-sm resize-none transition-all ${
+                fieldErrors.address
+                  ? 'border-rose-500 bg-rose-50/30 ring-2 ring-rose-200'
+                  : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-indigo-500'
+              }`} />
+            {fieldErrors.address && <p className="text-xs text-rose-500 font-medium mt-1">{fieldErrors.address}</p>}
           </div>}
 
           {fields.notes && <div>
             <label className="text-xs text-gray-500 font-medium mb-1 block">Notes *</label>
-            <input type="text" value={form.notes} onChange={e => setForm(p => ({...p, notes: e.target.value}))}
+            <input type="text" value={form.notes} onChange={e => updateForm('notes', e.target.value)}
               placeholder="Any special requests?"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" />
+              className={`w-full px-4 py-3 border rounded-xl outline-none text-sm transition-all ${
+                fieldErrors.notes
+                  ? 'border-rose-500 bg-rose-50/30 ring-2 ring-rose-200'
+                  : 'bg-gray-50 border-gray-200 focus:ring-2 focus:ring-indigo-500'
+              }`} />
+            {fieldErrors.notes && <p className="text-xs text-rose-500 font-medium mt-1">{fieldErrors.notes}</p>}
           </div>}
         </div>
 
-        {error && <p className="text-rose-500 text-sm mt-3 text-center">{error}</p>}
+        {error && <p className="text-rose-500 text-sm mt-3 text-center font-medium bg-rose-50 py-2 rounded-xl border border-rose-100">{error}</p>}
 
         <div className="flex gap-3 mt-6">
           <button onClick={onBack}
@@ -2171,7 +2233,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [mmpayOrderData, setMmpayOrderData] = useState(null);
-  const [mmpayInitialTimeLeft, setMmpayInitialTimeLeft] = useState(300);
+  const [mmpayInitialTimeLeft, setMmpayInitialTimeLeft] = useState(900);
   const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
   const [isMmpayPreConfirmOpen, setIsMmpayPreConfirmOpen] = useState(false);
   const [pendingMmpayParams, setPendingMmpayParams] = useState(null);
@@ -2388,9 +2450,9 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       if (cached) {
         const parsed = JSON.parse(cached);
         const elapsed = Math.floor((Date.now() - parsed.created_at) / 1000);
-        if (elapsed < 300) {
+        if (elapsed < 900) {
           setMmpayOrderData(parsed);
-          setMmpayInitialTimeLeft(300 - elapsed);
+          setMmpayInitialTimeLeft(900 - elapsed);
           setIsMmpayModalOpen(true);
         } else {
           localStorage.removeItem(storageKey);
