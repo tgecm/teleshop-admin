@@ -62,7 +62,7 @@ export default function PreCheckoutMmpayConfirmModal({
 
           <div className="space-y-2 py-1">
             <p className="text-sm font-bold text-gray-800 leading-relaxed">
-              ကျေးဇူးပြုပြီး ငွေပေးချေရန် အဆင်သင့်ဖြစ်မှာ <strong>Place Order</strong> ကို နှိပ်ပေးပါ။ MMQR လက်ခံသော Mobile Wallet များနှင့် ငွေပေးချေနိုင်သည်။
+              ကျေးဇူးပြုပြီး ငွေပေးချေရန် အဆင်သင့်ဖြစ်မှသာ <br/> <strong>Place Order</strong> ကို နှိပ်ပေးပါ။
             </p>
 
             {isCooldownActive ? (
