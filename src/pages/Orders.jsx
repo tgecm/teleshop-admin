@@ -505,17 +505,18 @@ export default function Orders() {
                   <div className="flex items-center gap-2">
                     <button onClick={() => {
                       const bs = selectedOrder.buyer_snapshot || {};
+                      const shipping = selectedOrder.shipping_address || {};
                       const cust = selectedOrder.customer || {};
                       const lines = [];
                       if (cust.telegram_id) lines.push('Telegram ID: ' + cust.telegram_id);
                       else if (bs.telegram_id) lines.push('Telegram ID: ' + bs.telegram_id);
-                      lines.push('Name: ' + (bs.name || bs.full_name || cust.first_name || 'Unknown'));
-                      lines.push('Phone: ' + (bs.phone || cust.phone_number || '—'));
-                      lines.push('Email: ' + (bs.email || cust.email || '—'));
+                      lines.push('Name: ' + (bs.name || shipping.name || bs.full_name || cust.first_name || 'Unknown'));
+                      lines.push('Phone: ' + (bs.phone || shipping.phone || cust.phone_number || '—'));
+                      lines.push('Email: ' + (bs.email || shipping.email || cust.email || '—'));
                       lines.push('Telegram: ' + (bs.telegram_username || cust.username || '—'));
                       lines.push('Viber: ' + (bs.viber_number || '—'));
-                      lines.push('Address: ' + (bs.address && bs.address !== 'N/A' ? bs.address : '—'));
-                      lines.push('Notes: ' + (bs.notes || '—'));
+                      lines.push('Address: ' + ((bs.address || shipping.address) && (bs.address || shipping.address) !== 'N/A' ? (bs.address || shipping.address) : '—'));
+                      lines.push('Notes: ' + (bs.notes || shipping.notes || selectedOrder.notes || '—'));
                       navigator.clipboard.writeText(lines.join('\n')).then(() => addToast('Profile copied to clipboard')).catch(() => {});
                     }} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-indigo-100 transition-all active:scale-95 cursor-pointer">
                       <Copy className="w-3.5 h-3.5" />
@@ -601,7 +602,9 @@ export default function Orders() {
                   {/* Customer Profile - unified display for all order types */}
                   {(() => {
                     const bs = selectedOrder.buyer_snapshot || {};
+                    const shipping = selectedOrder.shipping_address || {};
                     const cust = selectedOrder.customer || {};
+                    const notesVal = bs.notes || shipping.notes || selectedOrder.notes;
                     const firebaseUid = bs.firebase_uid || cust.firebase_uid;
                     const hasFirebase = firebaseUid != null && String(firebaseUid).trim() !== '' && String(firebaseUid) !== 'null' && !String(firebaseUid).startsWith('wv_') && !String(firebaseUid).startsWith('v_');
                     const tidRaw = bs.telegram_id || cust.telegram_id;
@@ -618,13 +621,13 @@ export default function Orders() {
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
                         {isTelegramSelected && (cust.telegram_id && <DetailRow icon={Hash} label="Telegram ID" value={String(cust.telegram_id)} />)}
                         {isTelegramSelected && (!cust.telegram_id && bs.telegram_id && <DetailRow icon={Hash} label="Telegram ID" value={String(bs.telegram_id)} />)}
-                        <DetailRow icon={User} label="Name" value={bs.name || bs.full_name || cust.first_name || 'Unknown'} />
-                        <DetailRow icon={Phone} label="Phone" value={bs.phone || cust.phone_number || '—'} />
-                        <DetailRow icon={Mail} label="Email" value={bs.email || cust.email || '—'} />
+                        <DetailRow icon={User} label="Name" value={bs.name || shipping.name || bs.full_name || cust.first_name || 'Unknown'} />
+                        <DetailRow icon={Phone} label="Phone" value={bs.phone || shipping.phone || cust.phone_number || '—'} />
+                        <DetailRow icon={Mail} label="Email" value={bs.email || shipping.email || cust.email || '—'} />
                         <DetailRow icon={AtSign} label="Telegram" value={bs.telegram_username || cust.username || '—'} />
                         <DetailRow icon={MessageCircle} label="Viber" value={bs.viber_number || '—'} />
-                        <DetailRow icon={MapPin} label="Address" value={bs.address && bs.address !== 'N/A' ? bs.address : '—'} />
-                        {isTelegramSelected && <DetailRow icon={FileText} label="Notes" value={bs.notes || '—'} />}
+                        <DetailRow icon={MapPin} label="Address" value={(bs.address || shipping.address) && (bs.address || shipping.address) !== 'N/A' ? (bs.address || shipping.address) : '—'} />
+                        <DetailRow icon={FileText} label="Notes" value={notesVal && notesVal !== 'N/A' ? notesVal : '—'} />
                         {isTelegramSelected ? (
                           <button
                             type="button"

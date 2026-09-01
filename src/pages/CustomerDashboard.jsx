@@ -132,6 +132,7 @@ export default function CustomerDashboard({ shopSlug }) {
   const { isAuthenticated } = useRequireAuth(shopSlug);
   const [activeTab, setActiveTab] = useState('overview');
   const [shopData, setShopData] = useState(null);
+  const { clearCart: rootClearCart } = useCartState(shopData?.shop?.id, shopSlug, user, 'ecommerce');
   const [savedName, setSavedName] = useState('');
   const [orderStats, setOrderStats] = useState(null);
   const [customerOrders, setCustomerOrders] = useState([]);
@@ -156,6 +157,61 @@ export default function CustomerDashboard({ shopSlug }) {
   const chatInputRef = useRef(null);
   const mainRef = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Instant MMQR State (Hoisted to root level for multi-tab & refresh persistence)
+  const [mmpayOrderData, setMmpayOrderData] = useState(null);
+  const [mmpayInitialTimeLeft, setMmpayInitialTimeLeft] = useState(300);
+  const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
+  const [isMmpayPreConfirmOpen, setIsMmpayPreConfirmOpen] = useState(false);
+  const [pendingMmpayParams, setPendingMmpayParams] = useState(null);
+  const [mmpayLoading, setMmpayLoading] = useState(false);
+  const [mmpayCooldownSeconds, setMmpayCooldownSeconds] = useState(0);
+  const [mmpayErrorMessage, setMmpayErrorMessage] = useState('');
+
+  // Restore pending MMQR payment session on page refresh in CustomerDashboard
+  useEffect(() => {
+    const activeShopId = shopData?.shop?.id;
+    if (!activeShopId) return;
+    try {
+      const storageKey = `teleshop_mmpay_active_session_${activeShopId}`;
+      const cached = localStorage.getItem(storageKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const elapsed = Math.floor((Date.now() - parsed.created_at) / 1000);
+        if (elapsed < 300) {
+          setMmpayOrderData(parsed);
+          setMmpayInitialTimeLeft(300 - elapsed);
+          setIsMmpayModalOpen(true);
+        } else {
+          localStorage.removeItem(storageKey);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to restore MMQR session on refresh in CustomerDashboard:', e);
+    }
+  }, [shopData?.shop?.id]);
+
+  const handleOpenInstantMmpay = useCallback((mmpayData, fallbackAmount) => {
+    const total_amount = mmpayData?.total_amount || mmpayData?.amount || mmpayData?.final_amount || fallbackAmount || 0;
+    const sessionObj = {
+      ...mmpayData,
+      total_amount,
+      amount: total_amount,
+      created_at: mmpayData?.created_at || Date.now()
+    };
+    const activeShopId = shopData?.shop?.id;
+    if (activeShopId) {
+      localStorage.setItem(`teleshop_mmpay_active_session_${activeShopId}`, JSON.stringify(sessionObj));
+    }
+    setMmpayOrderData(sessionObj);
+    setMmpayInitialTimeLeft(300);
+    setIsMmpayModalOpen(true);
+  }, [shopData?.shop?.id]);
+
+  const handlePreConfirmInstantMmpay = useCallback((payload) => {
+    setPendingMmpayParams(payload);
+    setIsMmpayPreConfirmOpen(true);
+  }, []);
 
   const telegramToken = typeof window !== 'undefined' ? localStorage.getItem('telegram_token') : null;
   const isTelegramUser = !!telegramToken && !user;
@@ -695,7 +751,19 @@ export default function CustomerDashboard({ shopSlug }) {
               </div>
             )}
             {activeTab === 'orders' && <OrdersTab shopSlug={shopSlug} uid={uid} shop={shopData?.shop} orders={customerOrders} loading={ordersLoading} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
-            {activeTab === 'cart' && <CartTab shopSlug={shopSlug} shop={shopData?.shop} user={user} telegramUser={telegramUser} isTelegramUser={isTelegramUser} receiptSettings={receiptSettings} onNavigate={setActiveTab} />}
+            {activeTab === 'cart' && (
+              <CartTab
+                shopSlug={shopSlug}
+                shop={shopData?.shop}
+                user={user}
+                telegramUser={telegramUser}
+                isTelegramUser={isTelegramUser}
+                receiptSettings={receiptSettings}
+                onNavigate={setActiveTab}
+                onInstantMmpay={handleOpenInstantMmpay}
+                onInstantMmpayPreConfirm={handlePreConfirmInstantMmpay}
+              />
+            )}
             {activeTab === 'points' && <PointsTab points={customerPoints} pointsHistory={pointsHistory} pointsSettings={shopData?.ecommerce_points_settings} shop={shopData?.shop} />}
             {activeTab === 'profile' && <ProfileTab shopSlug={shopSlug} user={user} googleUser={googleUser} uid={uid} displayName={displayName} photoUrl={photoUrl} email={userEmail} isTelegramUser={isTelegramUser} telegramUser={telegramUser} onProfileSaved={setSavedName} shop={shopData?.shop} />}
           </motion.div>
@@ -832,6 +900,86 @@ export default function CustomerDashboard({ shopSlug }) {
           <ChevronUp className="w-5 h-5" />
         </motion.button>
       )}
+
+      {/* Pre-Checkout MMQR Warning Confirmation Modal */}
+      <PreCheckoutMmpayConfirmModal
+        isOpen={isMmpayPreConfirmOpen}
+        loading={mmpayLoading}
+        cooldownSeconds={mmpayCooldownSeconds}
+        errorMessage={mmpayErrorMessage}
+        onCancel={() => {
+          setIsMmpayPreConfirmOpen(false);
+          setPendingMmpayParams(null);
+        }}
+        onContinue={async () => {
+          if (!pendingMmpayParams) return;
+          const activeShopId = shopData?.shop?.id;
+          if (activeShopId) {
+            const storageKey = `teleshop_mmpay_active_session_${activeShopId}`;
+            const cached = localStorage.getItem(storageKey);
+            if (cached) {
+              try {
+                const parsed = JSON.parse(cached);
+                const elapsed = Math.floor((Date.now() - parsed.created_at) / 1000);
+                if (elapsed < 300) {
+                  setMmpayErrorMessage('Please proceed the current payment first.');
+                  return;
+                }
+              } catch {}
+            }
+          }
+          setMmpayLoading(true);
+          setMmpayErrorMessage('');
+          try {
+            const mmpayData = await createInstantMmpayOrder(pendingMmpayParams);
+            setIsMmpayPreConfirmOpen(false);
+            handleOpenInstantMmpay(mmpayData, pendingMmpayParams?.total_amount);
+            if (typeof rootClearCart === 'function') rootClearCart();
+            setPendingMmpayParams(null);
+            setMmpayCooldownSeconds(0);
+          } catch (err) {
+            const detail = err.response?.data?.detail || err.message || 'Failed to initialize MMQR payment';
+            const secondsHeader = err.response?.headers?.['x-cooldown-seconds'];
+            let secs = secondsHeader ? parseInt(secondsHeader, 10) : 0;
+            if (!secs && detail.includes('Please wait')) {
+              const match = detail.match(/(\d+)m\s*(\d+)s/) || detail.match(/(\d+)s/);
+              if (match) {
+                if (match[2]) secs = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+                else secs = parseInt(match[1], 10);
+              }
+            }
+            if (secs > 0) {
+              setMmpayCooldownSeconds(secs);
+            } else {
+              setMmpayErrorMessage(detail);
+            }
+          } finally {
+            setMmpayLoading(false);
+          }
+        }}
+      />
+
+      {/* Instant MMQR Payment Modal */}
+      <InstantMmpayQrModal
+        isOpen={isMmpayModalOpen}
+        onClose={() => setIsMmpayModalOpen(false)}
+        qrCodeUrl={mmpayOrderData?.qr_code_url}
+        qrPayload={mmpayOrderData?.qr_payload}
+        deepLink={mmpayOrderData?.deep_link}
+        orderId={mmpayOrderData?.order_id || mmpayOrderData?.order_number}
+        totalAmount={mmpayOrderData?.total_amount || mmpayOrderData?.amount || mmpayOrderData?.final_amount || mmpayOrderData?.totalAmount}
+        currency={shopData?.shop?.currency || 'MMK'}
+        initialTimeLeft={mmpayInitialTimeLeft}
+        onSuccess={(confirmedOrder) => {
+          setIsMmpayModalOpen(false);
+          const activeShopId = shopData?.shop?.id;
+          if (activeShopId) {
+            localStorage.removeItem(`teleshop_mmpay_active_session_${activeShopId}`);
+          }
+          if (typeof rootClearCart === 'function') rootClearCart();
+          setActiveTab('orders');
+        }}
+      />
     </div>
     </ErrorBoundary>
   );
@@ -1339,7 +1487,7 @@ function OrdersTab({ shopSlug, uid, shop, orders, loading, receiptSettings, onNa
 }
 
 /* ─── CART TAB ─── */
-function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSettings, onNavigate }) {
+function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSettings, onNavigate, onInstantMmpay, onInstantMmpayPreConfirm }) {
   const [shopData, setShopData] = useState(null);
   const [showPaymentSelect, setShowPaymentSelect] = useState(false);
   const [customerPoints, setCustomerPoints] = useState(null);
@@ -1347,13 +1495,6 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [mmpayOrderData, setMmpayOrderData] = useState(null);
-  const [isMmpayModalOpen, setIsMmpayModalOpen] = useState(false);
-  const [isMmpayPreConfirmOpen, setIsMmpayPreConfirmOpen] = useState(false);
-  const [pendingMmpayParams, setPendingMmpayParams] = useState(null);
-  const [mmpayLoading, setMmpayLoading] = useState(false);
-  const [mmpayCooldownSeconds, setMmpayCooldownSeconds] = useState(0);
-  const [mmpayErrorMessage, setMmpayErrorMessage] = useState('');
   const [contactForm, setContactForm] = useState({ name: '', phones: [''], emails: [''], telegram: '', viber: '', region: '', district: '', township: '', address: '', notes: '' });
   const [orderPlaced, setOrderPlaced] = useState(null);
   const [oosMap, setOosMap] = useState({});
@@ -1637,77 +1778,15 @@ function CartTab({ shopSlug, shop, user, telegramUser, isTelegramUser, receiptSe
             onOrderPlaced={handleOrderPlacedCallback}
             onInstantMmpayPreConfirm={(payload) => {
               setCheckoutOpen(false);
-              setPendingMmpayParams(payload);
-              setIsMmpayPreConfirmOpen(true);
+              if (onInstantMmpayPreConfirm) onInstantMmpayPreConfirm(payload);
             }}
             onInstantMmpay={(mmpayData) => {
               setCheckoutOpen(false);
-              setMmpayOrderData(mmpayData);
-              setIsMmpayModalOpen(true);
+              if (onInstantMmpay) onInstantMmpay(mmpayData);
             }}
           />
         )}
       </AnimatePresence>
-
-      {/* Pre-Checkout MMQR Warning Confirmation Modal */}
-      <PreCheckoutMmpayConfirmModal
-        isOpen={isMmpayPreConfirmOpen}
-        loading={mmpayLoading}
-        cooldownSeconds={mmpayCooldownSeconds}
-        errorMessage={mmpayErrorMessage}
-        onCancel={() => {
-          setIsMmpayPreConfirmOpen(false);
-          setPendingMmpayParams(null);
-          setCheckoutOpen(true);
-        }}
-        onContinue={async () => {
-          if (!pendingMmpayParams) return;
-          setMmpayLoading(true);
-          setMmpayErrorMessage('');
-          try {
-            const mmpayData = await createInstantMmpayOrder(pendingMmpayParams);
-            setIsMmpayPreConfirmOpen(false);
-            setMmpayOrderData(mmpayData);
-            setIsMmpayModalOpen(true);
-            setPendingMmpayParams(null);
-            setMmpayCooldownSeconds(0);
-          } catch (err) {
-            const detail = err.response?.data?.detail || err.message || 'Failed to initialize MMQR payment';
-            const secondsHeader = err.response?.headers?.['x-cooldown-seconds'];
-            let secs = secondsHeader ? parseInt(secondsHeader, 10) : 0;
-            if (!secs && detail.includes('Please wait')) {
-              const match = detail.match(/(\d+)m\s*(\d+)s/) || detail.match(/(\d+)s/);
-              if (match) {
-                if (match[2]) secs = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
-                else secs = parseInt(match[1], 10);
-              }
-            }
-            if (secs > 0) {
-              setMmpayCooldownSeconds(secs);
-            } else {
-              setMmpayErrorMessage(detail);
-            }
-          } finally {
-            setMmpayLoading(false);
-          }
-        }}
-      />
-
-      {/* Instant MMQR Payment Modal */}
-      <InstantMmpayQrModal
-        isOpen={isMmpayModalOpen}
-        onClose={() => setIsMmpayModalOpen(false)}
-        qrCodeUrl={mmpayOrderData?.qr_code_url}
-        qrPayload={mmpayOrderData?.qr_payload}
-        deepLink={mmpayOrderData?.deep_link}
-        orderId={mmpayOrderData?.order_id || mmpayOrderData?.order_number}
-        totalAmount={mmpayOrderData?.total_amount || totalAmount}
-        currency={effectiveShop?.currency || 'MMK'}
-        onSuccess={(confirmedOrder) => {
-          setIsMmpayModalOpen(false);
-          handleOrderPlacedCallback(confirmedOrder);
-        }}
-      />
     </>
   );
 }

@@ -30,6 +30,14 @@ export default function InstantMmpayQrModal({
     }
   };
 
+  const displayAmount = (() => {
+    if (totalAmount === undefined || totalAmount === null || totalAmount === '') return '0';
+    if (typeof totalAmount === 'number') return isNaN(totalAmount) ? '0' : totalAmount.toLocaleString();
+    const cleaned = String(totalAmount).replace(/[^0-9.]/g, '');
+    const num = Number(cleaned);
+    return isNaN(num) ? '0' : num.toLocaleString();
+  })();
+
   // Reset timer & mode on open
   useEffect(() => {
     if (isOpen) {
@@ -211,7 +219,7 @@ export default function InstantMmpayQrModal({
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-black tracking-wide text-white">MMQR Active</span>
               <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-purple-500/30 text-purple-200 border border-purple-400/30">
-                {Number(totalAmount).toLocaleString()} {currency}
+                {displayAmount} {currency}
               </span>
             </div>
             <div className="flex items-center gap-1 text-[10px] text-purple-200 font-mono font-bold mt-0.5">
@@ -334,7 +342,7 @@ export default function InstantMmpayQrModal({
                 <div className="bg-purple-50 rounded-xl p-2.5 border border-purple-100 text-center">
                   <p className="text-[10px] font-semibold text-purple-600 uppercase tracking-wider">Amount to Pay</p>
                   <p className="text-xl font-black text-purple-950 mt-0.5">
-                    {Number(totalAmount).toLocaleString()} <span className="text-xs font-bold text-purple-700">{currency}</span>
+                    {displayAmount} <span className="text-xs font-bold text-purple-700">{currency}</span>
                   </p>
                 </div>
 

@@ -1027,6 +1027,27 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
   };
 
   const handleSubmit = async () => {
+    if (loading) return;
+
+    // Check if an active MMQR payment session is in progress
+    const activeShopId = shop?.id;
+    if (activeShopId) {
+      const storageKey = `teleshop_mmpay_active_session_${activeShopId}`;
+      const cached = localStorage.getItem(storageKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          const elapsed = Math.floor((Date.now() - parsed.created_at) / 1000);
+          if (elapsed < 300) {
+            setError('Please proceed the current payment first.');
+            return;
+          } else {
+            localStorage.removeItem(storageKey);
+          }
+        } catch {}
+      }
+    }
+
     if (cFields.name && !contactForm.name.trim()) { setError('Name is required'); return; }
     if (cFields.phones && !contactForm.phones[0]?.trim()) { setError('At least one phone number is required'); return; }
     if (cFields.emails && !contactForm.emails[0]?.trim()) { setError('At least one email is required'); return; }
@@ -1223,7 +1244,11 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
       } catch (e) {
         console.error('Failed to fetch order details:', e);
       }
-      onOrderPlaced(orderData);
+      if (typeof onOrderPlaced === 'function') {
+        onOrderPlaced(orderData);
+      } else {
+        if (onClose) onClose();
+      }
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -1443,7 +1468,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
                   </div>
                 </div>
                 <p className="text-xs text-purple-100/90 leading-relaxed bg-purple-900/60 p-3 rounded-xl border border-purple-700/50">
-                  ⚡ ကျေးဇူးပြုပြီး ငွေပေးချေရန် အဆင်သင့်ဖြစ်မှာ <strong>Place Order</strong> ကို နှိပ်ပေးပါ။ <br /> MMQR လက်ခံသော Mobile Wallet များနှင့် ငွေပေးချေနိုင်ပါသည်။
+                  ⚡ ကျေးဇူးပြုပြီး ငွေပေးချေရန် အဆင်သင့်ဖြစ်မှ <strong>Place Order</strong> ကို နှိပ်ပေးပါ။ <br /> MMQR လက်ခံသော Mobile Wallet များနှင့် ငွေပေးချေနိုင်ပါသည်။
                 </p>
               </div>
             );
@@ -4136,6 +4161,11 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             contactForm={contactForm}
             checkoutFields={data?.checkout_fields}
             onClose={() => { setCheckoutOpen(false); setSelectedPaymentMethod(null); }}
+            onOrderPlaced={(orderData) => {
+              setCheckoutOpen(false);
+              if (typeof clearCart === 'function') clearCart();
+              setPlacedOrder(orderData);
+            }}
             onInstantMmpayPreConfirm={(payload) => {
               setCheckoutOpen(false);
               setPendingMmpayParams(payload);
@@ -4165,6 +4195,21 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         }}
         onContinue={async () => {
           if (!pendingMmpayParams) return;
+          const activeShopId = shop?.id || data?.shop?.id;
+          if (activeShopId) {
+            const storageKey = `teleshop_mmpay_active_session_${activeShopId}`;
+            const cached = localStorage.getItem(storageKey);
+            if (cached) {
+              try {
+                const parsed = JSON.parse(cached);
+                const elapsed = Math.floor((Date.now() - parsed.created_at) / 1000);
+                if (elapsed < 300) {
+                  setMmpayErrorMessage('Please proceed the current payment first.');
+                  return;
+                }
+              } catch {}
+            }
+          }
           setMmpayLoading(true);
           setMmpayErrorMessage('');
           try {
@@ -4174,14 +4219,20 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             if (activeShopId) {
               const sessionObj = {
                 ...mmpayData,
-                total_amount: mmpayData.total_amount || totalAmount,
+                total_amount: mmpayData.total_amount || mmpayData.amount || pendingMmpayParams?.total_amount || totalAmount,
+                amount: mmpayData.total_amount || mmpayData.amount || pendingMmpayParams?.total_amount || totalAmount,
                 created_at: Date.now()
               };
               localStorage.setItem(`teleshop_mmpay_active_session_${activeShopId}`, JSON.stringify(sessionObj));
+              setMmpayOrderData(sessionObj);
+            } else {
+              setMmpayOrderData({
+                ...mmpayData,
+                total_amount: mmpayData.total_amount || mmpayData.amount || pendingMmpayParams?.total_amount || totalAmount,
+              });
             }
-            setMmpayInitialTimeLeft(300);
-            setMmpayOrderData(mmpayData);
             setIsMmpayModalOpen(true);
+            if (typeof clearCart === 'function') clearCart();
             setPendingMmpayParams(null);
             setMmpayCooldownSeconds(0);
           } catch (err) {
@@ -4220,7 +4271,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         qrPayload={mmpayOrderData?.qr_payload}
         deepLink={mmpayOrderData?.deep_link}
         orderId={mmpayOrderData?.order_id || mmpayOrderData?.order_number}
-        totalAmount={mmpayOrderData?.total_amount || totalAmount}
+        totalAmount={mmpayOrderData?.total_amount || mmpayOrderData?.amount || mmpayOrderData?.final_amount || mmpayOrderData?.totalAmount || totalAmount}
         currency={shop?.currency || 'MMK'}
         initialTimeLeft={mmpayInitialTimeLeft}
         onSuccess={(confirmedOrder) => {
