@@ -56,7 +56,16 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
     enabled: !!shopSlug,
   });
 
-  const products = data?.products || [];
+  const rawProducts = data?.products || [];
+  const products = useMemo(() => {
+    return rawProducts.filter(p => {
+      if (viewMode === 'telegram') return p.show_on_telegram !== false;
+      if (viewMode === 'ecommerce') return p.show_on_website !== false;
+      if (viewMode === 'guest') return p.show_on_guest !== false;
+      return true;
+    });
+  }, [rawProducts, viewMode]);
+
   const categories = data?.categories || [];
   const [detailProduct, setDetailProduct] = useState(null);
   const [selColor, setSelColor] = useState(null);
@@ -79,6 +88,11 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
     return item ? item.quantity : 0;
   };
   const totalCartQty = cartItems.reduce((s, i) => s + (i.quantity || 0), 0);
+
+  const checkIsOOS = (p) => {
+    if (!p) return false;
+    return p.stock_quantity === 0 || p.specifications?.stock_status === 'out' || p.stock_status === 'out';
+  };
 
   if (isLoading) {
     return (
@@ -148,6 +162,10 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
           {filteredProducts.map((product, i) => {
             const images = getPublicImageUrls(product.image_url, shop?.id);
             const qty = cartQty(product.id);
+            const isOOS = checkIsOOS(product);
+            const low = product.stock_quantity !== null && product.stock_quantity <= 5 && product.stock_quantity > 0;
+            const status = product?.specifications?.stock_status || product?.stock_status;
+
             return (
               <motion.div key={product.id}
                 initial={{ y: 20 }} whileInView={{ y: 0 }} viewport={{ once: true, margin: "-30px" }} transition={{ duration: 0.2 }}
@@ -163,11 +181,24 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
                       <Package className="w-8 h-8 text-gray-200" />
                     </div>
                   )}
-                  {product.stock_quantity !== null && product.stock_quantity < 5 && (
-                    <span className="absolute top-2 right-2 px-2 py-0.5 bg-rose-500 text-white text-[9px] font-bold rounded-md">
-                      {product.stock_quantity === 0 ? 'Out of Stock' : `${product.stock_quantity} left`}
-                    </span>
-                  )}
+
+                  {(() => {
+                    if (status === 'preorder') {
+                      return <span className="absolute top-2 right-2 px-2 py-0.5 bg-purple-600 text-white text-[9px] font-bold rounded-md">Pre-order</span>;
+                    }
+                    if (status === 'limited') {
+                      return <span className="absolute top-2 right-2 px-2 py-0.5 bg-amber-400 text-gray-950 text-[9px] font-bold rounded-md">Limited</span>;
+                    }
+                    if (isOOS || low) {
+                      return (
+                        <span className={`absolute top-2 right-2 px-2 py-0.5 text-white text-[9px] font-bold rounded-md ${isOOS ? 'bg-rose-500' : 'bg-amber-500'}`}>
+                          {isOOS ? 'Out of Stock' : `${product.stock_quantity} left`}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+
                   {product.category_id && categoryMap[product.category_id] && (
                     <span className="absolute top-2 left-2 px-2 py-0.5 bg-white/90 text-gray-700 text-[9px] font-bold rounded-md backdrop-blur">
                       {categoryMap[product.category_id]}
@@ -209,16 +240,23 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
                       </button>
                       <span className="text-sm font-bold text-gray-900 min-w-[20px] text-center">{qty}</span>
                       <button onClick={(e) => { e.stopPropagation(); updateQty(product.id, 1); }}
-                        disabled={product.stock_quantity !== null && qty >= product.stock_quantity}
+                        disabled={isOOS || (product.stock_quantity !== null && qty >= product.stock_quantity)}
                         className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all disabled:opacity-40">
                         +
                       </button>
                     </div>
                   ) : (
-                    <button onClick={(e) => { e.stopPropagation(); addItem({ id: product.id, name: product.name, price: Number(product.price), image_url: images[0] || '' }, null); }}
-                      disabled={product.stock_quantity === 0 || product.specifications?.colors?.length > 0 || product.specifications?.options?.length > 0}
-                      className="w-full mt-2 py-2 rounded-xl bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-50">
-                      {product.specifications?.colors?.length > 0 || product.specifications?.options?.length > 0 ? 'Select Options' : 'Add to Cart'}
+                    <button onClick={(e) => {
+                      e.stopPropagation();
+                      if (product.specifications?.colors?.length > 0 || product.specifications?.options?.length > 0) {
+                        setDetailProduct(product); setSelColor(null); setSelOptions({});
+                      } else {
+                        addItem({ id: product.id, name: product.name, price: Number(product.price), image_url: images[0] || '' }, null);
+                      }
+                    }}
+                      disabled={isOOS}
+                      className="w-full mt-2 py-2 rounded-xl bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700 transition-all active:scale-[0.97] disabled:opacity-50 disabled:bg-gray-200 disabled:text-gray-400">
+                      {isOOS ? 'Out of Stock' : (product.specifications?.colors?.length > 0 || product.specifications?.options?.length > 0 ? 'Select Options' : 'Add to Cart')}
                     </button>
                   )}
                 </div>
@@ -261,7 +299,7 @@ export default function CustomerShopTab({ shopSlug, shop, user, viewMode = 'ecom
 function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selColor, setSelColor, selOptions, setSelOptions, onClose }) {
   const currency = shop?.currency || 'MMK';
   const images = getPublicImageUrls(product.image_url, shop?.id);
-  const isOutOfStock = product.stock_quantity !== null && product.stock_quantity === 0;
+  const isOutOfStock = product.stock_quantity === 0 || product.specifications?.stock_status === 'out' || product.stock_status === 'out';
   const productColors = product.specifications?.colors || [];
   const productOptions = product.specifications?.options || [];
   const [curImgIdx, setCurImgIdx] = useState(0);
