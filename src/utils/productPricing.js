@@ -125,14 +125,14 @@ export function resolveProductPrice(product, selectedColor, selectedOptions = {}
     });
   }
 
-  // Sort rules by specificity: (color + options) -> options only -> color only
+  // Sort rules by specificity: (color + options) -> more options -> fewer options
   const sortedRules = [...specPrices].sort((a, b) => {
     const aOptsCount = Object.keys(a.options || {}).length;
     const bOptsCount = Object.keys(b.options || {}).length;
     const aHasColor = a.color ? 1 : 0;
     const bHasColor = b.color ? 1 : 0;
-    const scoreA = aHasColor * 2 + (aOptsCount > 0 ? 1 : 0);
-    const scoreB = bHasColor * 2 + (bOptsCount > 0 ? 1 : 0);
+    const scoreA = (aHasColor * 1000) + aOptsCount;
+    const scoreB = (bHasColor * 1000) + bOptsCount;
     return scoreB - scoreA;
   });
 

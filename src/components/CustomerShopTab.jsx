@@ -498,13 +498,26 @@ function ProductDetailModal({ product, shop, cartQty, addItem, updateQty, selCol
                   <p className="text-xs text-gray-500 font-medium mb-2.5">{opt.name}</p>
                   <div className="flex flex-wrap gap-2">
                     {opt.values.map(v => {
-                      const isSelected = selOptions[opt.id] === v.id;
+                      const vId = typeof v === 'object' ? (v.id || v.label) : v;
+                      const vLabel = typeof v === 'object' ? (v.label || v.name || v.id) : v;
+                      const curVal = selOptions[opt.id] !== undefined ? selOptions[opt.id] : selOptions[opt.name];
+                      const isSelected = String(curVal) === String(vId) || String(curVal) === String(vLabel);
                       return (
-                        <button key={v.id}
-                          onClick={() => setSelOptions(prev => ({ ...prev, [opt.id]: isSelected ? null : v.id }))}
+                        <button key={vId}
+                          onClick={() => setSelOptions(prev => {
+                            const next = { ...prev };
+                            if (isSelected) {
+                              delete next[opt.id];
+                              delete next[opt.name];
+                            } else {
+                              next[opt.id] = vId;
+                              next[opt.name] = vId;
+                            }
+                            return next;
+                          })}
                           className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         >
-                          {v.label}
+                          {vLabel}
                         </button>
                       );
                     })}

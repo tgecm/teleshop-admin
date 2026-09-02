@@ -442,8 +442,15 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
       productOptions.forEach(opt => {
         const selValId = selectedOptions[opt.id];
         if (selValId) {
-          const valObj = opt.values?.find(v => v.id === selValId);
-          selOptsMap[opt.name || opt.id] = valObj ? valObj.label : selValId;
+          const valObj = opt.values?.find(v => {
+            if (typeof v === 'string') return v === selValId;
+            return v?.id === selValId || v?.label === selValId || v?.name === selValId;
+          });
+          const valLabel = valObj
+            ? (typeof valObj === 'string' ? valObj : (valObj.label || valObj.name || valObj.id))
+            : selValId;
+          selOptsMap[opt.name || opt.id] = valLabel;
+          selOptsMap[opt.id] = valLabel;
         }
       });
     }
@@ -634,18 +641,20 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
                 <div key={opt.id}>
                   <p className="text-xs text-gray-500 font-medium mb-2.5">{opt.name}</p>
                   <div className="flex flex-wrap gap-2">
-                    {opt.values.map(v => {
-                      const isSelected = selectedOptions[opt.id] === v.id;
+                    {opt.values.map((v, idx) => {
+                      const vVal = typeof v === 'string' ? v : (v.id || v.label || v.name || String(v));
+                      const vLabel = typeof v === 'string' ? v : (v.label || v.name || v.id || String(v));
+                      const isSelected = selectedOptions[opt.id] === vVal;
                       return (
-                        <button key={v.id}
-                          onClick={() => setSelectedOptions(prev => ({ ...prev, [opt.id]: isSelected ? null : v.id }))}
+                        <button key={vVal || idx}
+                          onClick={() => setSelectedOptions(prev => ({ ...prev, [opt.id]: isSelected ? null : vVal }))}
                           className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
                             isSelected
                               ? 'bg-indigo-600 text-white shadow-md'
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                         >
-                          {v.label}
+                          {vLabel}
                         </button>
                       );
                     })}
@@ -694,7 +703,8 @@ function ProductDetailModal({ product, shop, onClose, onAddToCart, cartQty, view
               )}
               <button
                 onClick={() => {
-                  onBuyNow({ ...product, price: currentPrice }, selectedColor, selectedOptions);
+                  const targetQty = cartQty > 0 ? cartQty : 1;
+                  onBuyNow({ ...product, price: currentPrice }, selectedColor, selectedOptions, targetQty);
                 }}
                 disabled={isOutOfStock || ((productColors.length > 0 && !selectedColor) || (productOptions.length > 0 && productOptions.some(o => !selectedOptions[o.id])))}
                 className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg theme-btn hover:shadow-xl active:scale-[0.98] disabled:opacity-50"
@@ -1026,8 +1036,10 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
     setRedeemingPoints(false);
   };
 
+  const submitLockRef = useRef(false);
   const handleSubmit = async () => {
-    if (loading) return;
+    if (loading || submitLockRef.current) return;
+    submitLockRef.current = true;
 
     // Check if an active MMQR payment session is in progress
     const activeShopId = shop?.id;
@@ -1253,6 +1265,7 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
+      submitLockRef.current = false;
     }
   };
 
@@ -2273,6 +2286,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const [isMmpayPreConfirmOpen, setIsMmpayPreConfirmOpen] = useState(false);
   const [pendingMmpayParams, setPendingMmpayParams] = useState(null);
   const [mmpayLoading, setMmpayLoading] = useState(false);
+  const mmpaySubmitLockRef = useRef(false);
   const [mmpayCooldownSeconds, setMmpayCooldownSeconds] = useState(0);
   const [mmpayErrorMessage, setMmpayErrorMessage] = useState('');
 
@@ -2671,7 +2685,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     }
   }, [user]);
 
-  const handleBuyNow = useCallback((product, colorHex, selectedOptions) => {
+  const handleBuyNow = useCallback((product, colorHex, selectedOptions, explicitQty) => {
     const colors = getProductColors(product);
     const selColor = colorHex !== undefined ? colorHex : selectedColors[product.id];
     if (colors.length > 0 && !selColor) return;
@@ -2681,16 +2695,15 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     const colorStr = selColor ? (getColorName(selColor) || selColor) : null;
     const finalPrice = resolveProductPrice(product, colorStr, opts);
 
-    const isInCart = cartItems.some(item => (item.product_id || item.id) === product.id);
+    const existingQty = cartItems.find(i => (i.product_id || i.id) === product.id)?.quantity;
+    const targetQty = explicitQty !== undefined ? explicitQty : (existingQty || 1);
 
-    if (!isInCart) {
-      addItem({
-        id: product.id,
-        name: product.name,
-        price: finalPrice,
-        image_url: (getPublicImageUrls(product.image_url, shop?.id) || [''])[0],
-      }, selColor || null, opts);
-    }
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: finalPrice,
+      image_url: (getPublicImageUrls(product.image_url, shop?.id) || [''])[0],
+    }, selColor || null, opts, targetQty);
 
     if (viewMode === 'guest') {
       setShowCart(false);
@@ -3501,17 +3514,19 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                             <p className="text-xs text-gray-500 font-medium mb-2">{opt.name}</p>
                             <div className="flex flex-wrap gap-2">
                               {opt.values.map((v, idx) => {
-                                const isSelected = linkSelectedOptions[opt.id] === v.id;
+                                const vVal = typeof v === 'string' ? v : (v.id || v.label || v.name || String(v));
+                                const vLabel = typeof v === 'string' ? v : (v.label || v.name || v.id || String(v));
+                                const isSelected = linkSelectedOptions[opt.id] === vVal;
                                 return (
-                                  <button key={v.id}
-                                    onClick={() => setLinkSelectedOptions(prev => ({ ...prev, [opt.id]: isSelected ? null : v.id }))}
+                                  <button key={vVal || idx}
+                                    onClick={() => setLinkSelectedOptions(prev => ({ ...prev, [opt.id]: isSelected ? null : vVal }))}
                                     className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${
                                       isSelected
                                         ? 'bg-indigo-600 text-white shadow-md'
                                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                                   >
-                                    {v.label}
+                                    {vLabel}
                                   </button>
                                 );
                               })}
@@ -4300,6 +4315,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               } catch {}
             }
           }
+          if (mmpayLoading || mmpaySubmitLockRef.current) return;
+          mmpaySubmitLockRef.current = true;
           setMmpayLoading(true);
           setMmpayErrorMessage('');
           try {
@@ -4343,6 +4360,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             }
           } finally {
             setMmpayLoading(false);
+            mmpaySubmitLockRef.current = false;
           }
         }}
       />

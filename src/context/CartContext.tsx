@@ -142,20 +142,34 @@ export function useCartState(botId: number | undefined, shopSlug: string, user: 
     };
   }, [items, firebaseUid, botId]);
 
-  const addItem = useCallback((product: { id: number; name: string; price: number; image_url: string }, colorHex?: string | null, selectedOptions?: Record<string, string> | null) => {
+  const addItem = useCallback((product: { id: number; name: string; price: number; image_url: string }, colorHex?: string | null, selectedOptions?: Record<string, string> | null, explicitQty?: number) => {
     setItems(prev => {
-      const existing = prev.find(i => i.product_id === product.id);
-      const newItems: CartItem[] = existing
-        ? prev.map(i => i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i)
-        : [...prev, {
-            product_id: product.id,
-            name: product.name,
-            price: Number(product.price),
-            quantity: 1,
-            image_url: product.image_url || '',
-            selected_color: colorHex || null,
-            selected_options: selectedOptions || null,
-          }];
+      const existingIndex = prev.findIndex(i => i.product_id === product.id);
+      let newItems: CartItem[];
+      if (existingIndex >= 0) {
+        newItems = prev.map((item, idx) => {
+          if (idx === existingIndex) {
+            return {
+              ...item,
+              price: Number(product.price),
+              quantity: explicitQty !== undefined ? explicitQty : item.quantity + 1,
+              selected_color: colorHex !== undefined ? colorHex : item.selected_color,
+              selected_options: selectedOptions !== undefined ? selectedOptions : item.selected_options,
+            };
+          }
+          return item;
+        });
+      } else {
+        newItems = [...prev, {
+          product_id: product.id,
+          name: product.name,
+          price: Number(product.price),
+          quantity: explicitQty !== undefined ? explicitQty : 1,
+          image_url: product.image_url || '',
+          selected_color: colorHex || null,
+          selected_options: selectedOptions || null,
+        }];
+      }
       if (shopSlug) saveToLS(shopSlug, viewMode, newItems);
       return newItems;
     });
