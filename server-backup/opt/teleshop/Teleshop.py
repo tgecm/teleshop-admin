@@ -1,3 +1,184 @@
+
+def resolve_product_price(product: dict, user_data_or_selections) -> float:
+    """
+    Resolves the exact variant combo price based on spec_prices rules set in database/admin.
+    Matches selected color & options against product['spec_prices'].
+    """
+    if not product:
+        return 0.0
+    base_price = float(product.get('price') or 0)
+    spec_prices = product.get('spec_prices')
+    if isinstance(spec_prices, str):
+        try:
+            spec_prices = json.loads(spec_prices)
+        except Exception:
+            spec_prices = []
+    if not isinstance(spec_prices, list) or not spec_prices:
+        return base_price
+
+    if isinstance(user_data_or_selections, dict) and 'variant_selections' in user_data_or_selections:
+        pid = product.get('id')
+        selections = user_data_or_selections.get('variant_selections', {}).get(pid, {})
+    elif isinstance(user_data_or_selections, dict):
+        selections = user_data_or_selections
+    else:
+        selections = {}
+
+    if not selections:
+        return base_price
+
+    selected_color = selections.get('color')
+    if selected_color:
+        selected_color = str(selected_color).strip().lower()
+
+    selected_options = selections.get('options') or {}
+    user_opts_lower = {}
+    for k, v in selected_options.items():
+        if v is not None and v != '':
+            user_opts_lower[str(k).strip().lower()] = str(v).strip().lower()
+
+    specs = product.get('specifications') or {}
+    if isinstance(specs, str):
+        try: specs = json.loads(specs)
+        except Exception: specs = {}
+    product_options = specs.get('options') or []
+
+    opt_group_aliases = {}
+    for o in product_options:
+        if isinstance(o, dict):
+            o_id = str(o.get('id') or '').strip().lower()
+            o_name = str(o.get('name') or '').strip().lower()
+            if o_id and o_name:
+                opt_group_aliases[o_id] = o_name
+                opt_group_aliases[o_name] = o_id
+
+    def rule_score(sp):
+        has_color = 1 if sp.get('color') else 0
+        opts_count = len(sp.get('options') or {})
+        return (has_color * 2) + (1 if opts_count > 0 else 0)
+
+    sorted_rules = sorted(spec_prices, key=rule_score, reverse=True)
+
+    for sp in sorted_rules:
+        if not isinstance(sp, dict):
+            continue
+        try:
+            rule_price = float(sp.get('price') or 0)
+        except (ValueError, TypeError):
+            continue
+        if rule_price <= 0:
+            continue
+
+        sp_color = str(sp.get('color')).strip().lower() if sp.get('color') else None
+        sp_opts = sp.get('options') or {}
+
+        if sp_color:
+            if not selected_color or selected_color != sp_color:
+                continue
+
+        if sp_opts:
+            match_all = True
+            for rk, rv in sp_opts.items():
+                if rv is None or rv == '': continue
+                rk_lower = str(rk).strip().lower()
+                rv_lower = str(rv).strip().lower()
+
+                user_val = user_opts_lower.get(rk_lower)
+                if not user_val:
+                    alias_key = opt_group_aliases.get(rk_lower)
+                    if alias_key:
+                        user_val = user_opts_lower.get(alias_key)
+
+                if not user_val or user_val != rv_lower:
+                    match_all = False
+                    break
+
+            if not match_all:
+                continue
+
+        return rule_price
+
+    return base_price
+
+    if isinstance(user_data_or_selections, dict) and 'variant_selections' in user_data_or_selections:
+        pid = product.get('id')
+        selections = user_data_or_selections.get('variant_selections', {}).get(pid, {})
+    elif isinstance(user_data_or_selections, dict):
+        selections = user_data_or_selections
+    else:
+        selections = {}
+
+    if not selections:
+        return base_price
+
+    selected_color = selections.get('color')
+    if selected_color:
+        selected_color = str(selected_color).strip().lower()
+
+    selected_options = selections.get('options') or {}
+    user_opts_lower = {str(k).strip().lower(): str(v).strip().lower() for k, v in selected_options.items() if v}
+
+    specs = product.get('specifications') or {}
+    if isinstance(specs, str):
+        try: specs = json.loads(specs)
+        except Exception: specs = {}
+    product_options = specs.get('options') or []
+
+    opt_name_map = {}
+    for o in product_options:
+        o_id = str(o.get('id') or '').strip().lower()
+        o_name = str(o.get('name') or '').strip().lower()
+        if o_id: opt_name_map[o_id] = o_name
+        if o_name: opt_name_map[o_name] = o_name
+
+    def rule_score(sp):
+        has_color = 1 if sp.get('color') else 0
+        opts_count = len(sp.get('options') or {})
+        return (has_color * 2) + (1 if opts_count > 0 else 0)
+
+    sorted_rules = sorted(spec_prices, key=rule_score, reverse=True)
+
+    for sp in sorted_rules:
+        if not isinstance(sp, dict):
+            continue
+        try:
+            rule_price = float(sp.get('price') or 0)
+        except (ValueError, TypeError):
+            continue
+        if rule_price <= 0:
+            continue
+
+        sp_color = str(sp.get('color')).strip().lower() if sp.get('color') else None
+        sp_opts = sp.get('options') or {}
+
+        if sp_color:
+            if not selected_color or selected_color != sp_color:
+                continue
+
+        if sp_opts:
+            match_all = True
+            for rk, rv in sp_opts.items():
+                if rv is None or rv == '': continue
+                rk_lower = str(rk).strip().lower()
+                rv_lower = str(rv).strip().lower()
+
+                user_val = user_opts_lower.get(rk_lower)
+                if not user_val:
+                    mapped_name = opt_name_map.get(rk_lower)
+                    if mapped_name:
+                        user_val = user_opts_lower.get(mapped_name)
+
+                if not user_val or user_val != rv_lower:
+                    match_all = False
+                    break
+
+            if not match_all:
+                continue
+
+        return rule_price
+
+    return base_price
+
 import logging
 import json
 import random
@@ -4059,7 +4240,8 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         product_name = escape_markdown(product['name'])
         product_description = escape_markdown(product['description'])
-        price_str = await format_price(context, product['price'], lang)
+        effective_price = resolve_product_price(product, context.user_data)
+        price_str = await format_price(context, effective_price, lang)
 
         # Generate Deep Link
         bot_username = context.bot.username
@@ -7503,7 +7685,8 @@ async def newsfeed_see_more(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     product_name = escape_markdown(product['name'])
     product_description = escape_markdown(product['description'] or "")
-    price_str = await format_price(context, product['price'], lang)
+    effective_price = resolve_product_price(product, context.user_data)
+    price_str = await format_price(context, effective_price, lang)
 
     bot_username = context.bot.username or (await context.bot.get_me()).username
     product_link = f"https://t.me/{bot_username}?start={get_or_create_product_link_token(product['id'])}"
@@ -7591,7 +7774,8 @@ async def newsfeed_collapse(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return State.NEWSFEED
 
     product_name = escape_markdown(product['name'])
-    price_str = await format_price(context, product['price'], lang)
+    effective_price = resolve_product_price(product, context.user_data)
+    price_str = await format_price(context, effective_price, lang)
     bot_username = context.bot.username or (await context.bot.get_me()).username
     product_link = f"https://t.me/{bot_username}?start={get_or_create_product_link_token(product['id'])}"
 

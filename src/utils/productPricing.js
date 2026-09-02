@@ -89,9 +89,14 @@ export function resolveProductPrice(product, selectedColor, selectedOptions = {}
     const oId = opt.id ? String(opt.id).trim().toLowerCase() : '';
     const oName = opt.name ? String(opt.name).trim().toLowerCase() : '';
     const values = (opt.values || []).map(v => {
-      const vId = v.id ? String(v.id).trim().toLowerCase() : '';
-      const vLabel = v.label ? String(v.label).trim().toLowerCase() : (v.name ? String(v.name).trim().toLowerCase() : '');
-      return { id: vId, label: vLabel };
+      if (typeof v === 'string') {
+        const strVal = v.trim().toLowerCase();
+        return { id: strVal, label: strVal };
+      }
+      const vId = v?.id ? String(v.id).trim().toLowerCase() : '';
+      const vLabel = v?.label ? String(v.label).trim().toLowerCase() : (v?.name ? String(v.name).trim().toLowerCase() : '');
+      const fallbackStr = (vId || vLabel || String(v || '')).trim().toLowerCase();
+      return { id: vId || fallbackStr, label: vLabel || fallbackStr };
     });
     return { id: oId, name: oName, values };
   });
