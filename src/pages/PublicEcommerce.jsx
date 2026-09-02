@@ -1008,7 +1008,11 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
   const ptsNeededForFull = orderGrandTotal > 0 ? Math.ceil((orderGrandTotal / redeemVal) * redeemPtsRate) : 0;
   const effectivePts = Math.min(customerPoints || 0, ptsNeededForFull);
   const ptsDisc = isPointsPayment ? Math.min(pointsMmkVal, orderGrandTotal) : Math.min(pointsDiscount, orderGrandTotal);
-  const ptsTotal = isPointsPayment ? Math.max(0, orderGrandTotal - ptsDisc) : Math.max(0, (couponApplied ? effectiveTotal : totalAmount) - pointsDiscount + deliveryFeeAmount);
+  const rawSubTotal = (couponApplied ? effectiveTotal : totalAmount) - pointsDiscount + deliveryFeeAmount;
+  const rawPtsTotal = isPointsPayment ? Math.max(0, orderGrandTotal - ptsDisc) : Math.max(0, rawSubTotal);
+  const isMmpaySelected = selectedPayment?.id === 'mmpay';
+  const isMmpayCapped = isMmpaySelected && rawPtsTotal < 1000 && (totalAmount + deliveryFeeAmount >= 1000);
+  const ptsTotal = isMmpayCapped ? 1000 : rawPtsTotal;
 
   const handleRedeemPoints = async () => {
     const minRedeem = Number(pointsSettings?.min_redeem) || 50;
@@ -1145,11 +1149,16 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
           view_mode: viewMode,
           source: viewMode === 'guest' ? 'guest' : 'website',
           total_amount: ptsTotal,
+          coupon_code: couponApplied?.code || '',
+          discount_amount: isMmpayCapped ? Math.max(0, (totalAmount + deliveryFeeAmount) - 1000) : (couponApplied ? appliedDiscount : (pointsDiscount || 0)),
+          delivery_fee: deliveryFeeAmount || 0,
           items: cartItems.map(i => ({
             product_id: i.product_id,
             name: i.name,
             price: i.price,
-            quantity: i.quantity
+            quantity: i.quantity,
+            selected_color: i.selected_color,
+            selected_options: i.selected_options
           }))
         };
         if (onInstantMmpayPreConfirm) {
@@ -1483,6 +1492,11 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
                 <p className="text-xs text-purple-100/90 leading-relaxed bg-purple-900/60 p-3 rounded-xl border border-purple-700/50">
                   ⚡ ကျေးဇူးပြုပြီး ငွေပေးချေရန် အဆင်သင့်ဖြစ်မှ <strong>Place Order</strong> ကို နှိပ်ပေးပါ။ <br /> MMQR လက်ခံသော Mobile Wallet များနှင့် ငွေပေးချေနိုင်ပါသည်။
                 </p>
+                {isMmpayCapped && (
+                  <p className="text-xs text-amber-200 font-semibold bg-amber-500/20 p-2.5 rounded-xl border border-amber-400/40">
+                    💡 MMQR အနည်းဆုံး 1,000 MMK ကျသင့်မည်ဖြစ်၍ လျှော့ဈေးပမာဏကို ပြင်ဆင်ထားပါသည်။
+                  </p>
+                )}
               </div>
             );
           }
@@ -4269,7 +4283,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
             onOrderPlaced={(orderData) => {
               setCheckoutOpen(false);
               if (typeof clearCart === 'function') clearCart();
-              setPlacedOrder(orderData);
+              setOrderPlaced(orderData);
             }}
             onInstantMmpayPreConfirm={(payload) => {
               setCheckoutOpen(false);
