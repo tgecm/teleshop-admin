@@ -1,0 +1,67 @@
+server {
+    server_name telegramecommerce.shop www.telegramecommerce.shop;
+
+    client_max_body_size 10M;
+
+    root /var/www/teleshop-admin/dist;
+    index index.html;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com; connect-src 'self' https://api.telegramecommerce.shop https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self';" always;
+
+    location / {
+        error_page 418 = @crawler;
+        if ($http_user_agent ~* (facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Slack|Discord|Pinterest|Googlebot|Slurp|BingPreview|TelegramBot|Discordbot|SkypeUriPreview)) {
+            return 418;
+        }
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "private, no-cache, no-store, must-revalidate" always;
+        add_header CDN-Cache-Control "no-cache" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+    }
+
+    location @crawler {
+        proxy_pass http://127.0.0.1:3099;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /public/ {
+        limit_req zone=api burst=20 nodelay;
+        limit_req_status 429;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /download/app {
+        return 302 https://github.com/tgecm/teleshop-admin/releases/latest/download/mm-shop.apk;
+    }
+
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, immutable, max-age=31536000";
+    }
+
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/telegramecommerce.shop/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/telegramecommerce.shop/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+
+server {
+    listen 80;
+    server_name telegramecommerce.shop www.telegramecommerce.shop;
+    return 301 https://$host$request_uri;
+}

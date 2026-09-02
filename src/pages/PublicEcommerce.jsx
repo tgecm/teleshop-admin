@@ -1940,61 +1940,74 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
   }, [showZoneFields]);
 
   useEffect(() => {
-    const tgToken = localStorage.getItem('telegram_token');
-    const customerUid = user?.uid
-      || (tgToken ? (getUserIdFromToken() || '_') : '');
-    if (!customerUid || !shopSlug || profileLoaded || !shop?.id) return;
-    fetch(API_BASE + `/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
-      .then(r => r.ok ? r.json() : {})
-      .then(data => {
-        if (data && data.display_name) {
-          const pl = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
-          const el = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [user?.email || ''];
-          setForm({
-            name: data.display_name || user?.displayName || '',
-            phones: pl.length > 0 ? pl : [''],
-            emails: el.length > 0 ? el : [user?.email || ''],
-            telegram: data.telegram_username || '',
-            viber: data.viber_number || '',
-            region: data.region || '',
-            district: data.district || '',
-            township: data.township || '',
-            address: data.address || '',
-            notes: data.notes || '',
-          });
-        } else {
-          setForm(prev => ({ ...prev, name: user?.displayName || '', emails: [user?.email || ''] }));
-        }
-        setProfileLoaded(true);
-      })
-      .catch(() => setProfileLoaded(true));
-  }, [user?.uid, shop?.id, user?.displayName, user?.email, profileLoaded]);
+    if (profileLoaded || !shop?.id) return;
 
-  useEffect(() => {
-    if (viewMode !== 'guest' || !shopSlug || profileLoaded) return;
-    const cacheKey = 'guest_contact_' + shopSlug;
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const data = JSON.parse(cached);
-        if (data && data.name) {
-          setForm({
-            name: data.name || '',
-            phones: data.phones?.length > 0 ? data.phones : [''],
-            emails: data.email ? [data.email] : [''],
-            telegram: data.telegram || '',
-            viber: data.viber || '',
-            region: data.region || '',
-            district: data.district || '',
-            township: data.township || '',
-            address: data.address || '',
-            notes: data.notes || '',
-          });
+    const loadFromCache = () => {
+      try {
+        const key = 'shop_contact_info_' + (shopSlug || shop?.id || 'default');
+        const globalKey = 'shop_contact_info_global';
+        const raw = localStorage.getItem(key) || localStorage.getItem(globalKey) || (shopSlug ? localStorage.getItem('guest_contact_' + shopSlug) : null);
+        if (raw) {
+          const cached = JSON.parse(raw);
+          if (cached && (cached.name || cached.phones?.[0] || cached.telegram || cached.address)) {
+            setForm(prev => ({
+              ...prev,
+              name: cached.name || prev.name || user?.displayName || '',
+              phones: (cached.phones && cached.phones.length > 0) ? cached.phones : (cached.phone ? [cached.phone] : prev.phones),
+              emails: (cached.emails && cached.emails.length > 0) ? cached.emails : (cached.email ? [cached.email] : (user?.email ? [user.email] : prev.emails)),
+              telegram: cached.telegram || cached.telegram_username || prev.telegram || '',
+              viber: cached.viber || cached.viber_number || prev.viber || '',
+              region: cached.region || prev.region || '',
+              district: cached.district || prev.district || '',
+              township: cached.township || prev.township || '',
+              address: cached.address || prev.address || '',
+              notes: cached.notes || prev.notes || '',
+            }));
+            return true;
+          }
         }
-      }
-    } catch {}
-    setProfileLoaded(true);
-  }, [viewMode, shopSlug, profileLoaded]);
+      } catch (err) {}
+      return false;
+    };
+
+    const tgToken = localStorage.getItem('telegram_token');
+    const customerUid = user?.uid || (tgToken ? (getUserIdFromToken() || '_') : '');
+
+    if (customerUid && viewMode !== 'guest') {
+      fetch(API_BASE + `/api/customer-profile?bot_id=${shop.id}&uid=${encodeURIComponent(customerUid)}&email=${encodeURIComponent(user?.email || '')}`)
+        .then(r => r.ok ? r.json() : {})
+        .then(data => {
+          if (data && (data.display_name || data.phone || data.email || data.address || data.telegram_username)) {
+            const pl = data.phone ? data.phone.split(',').map(s => s.trim()).filter(Boolean) : [''];
+            const el = data.email ? data.email.split(',').map(s => s.trim()).filter(Boolean) : [user?.email || ''];
+            setForm({
+              name: data.display_name || user?.displayName || '',
+              phones: pl.length > 0 ? pl : [''],
+              emails: el.length > 0 ? el : [user?.email || ''],
+              telegram: data.telegram_username || '',
+              viber: data.viber_number || '',
+              region: data.region || '',
+              district: data.district || '',
+              township: data.township || '',
+              address: data.address || '',
+              notes: data.notes || '',
+            });
+          } else {
+            // Logic 2 Fallback: local cache
+            loadFromCache();
+          }
+          setProfileLoaded(true);
+        })
+        .catch(() => {
+          loadFromCache();
+          setProfileLoaded(true);
+        });
+    } else {
+      // Guest mode or no customer profile API -> fallback to local cache
+      loadFromCache();
+      setProfileLoaded(true);
+    }
+  }, [user?.uid, shop?.id, user?.displayName, user?.email, profileLoaded, viewMode, shopSlug]);
 
   const setPhone = (idx, val) => {
     setForm(p => { const n = [...p.phones]; n[idx] = val.replace(/\D/g, '').slice(0, 15); return { ...p, phones: n }; });
@@ -2028,6 +2041,28 @@ export function ContactInfoStep({ form, setForm, onBack, onNext, user, viewMode,
       setError('Please fill in all required fields marked in red.');
       return;
     }
+
+    // Save to local cache for instant future auto-fill
+    try {
+      const cacheData = {
+        name: form.name,
+        phones: form.phones,
+        emails: form.emails,
+        telegram: form.telegram,
+        viber: form.viber,
+        region: form.region,
+        district: form.district,
+        township: form.township,
+        address: form.address,
+        notes: form.notes,
+        savedAt: Date.now()
+      };
+      const json = JSON.stringify(cacheData);
+      if (shopSlug) localStorage.setItem('shop_contact_info_' + shopSlug, json);
+      if (shop?.id) localStorage.setItem('shop_contact_info_' + shop.id, json);
+      localStorage.setItem('shop_contact_info_global', json);
+      if (shopSlug) localStorage.setItem('guest_contact_' + shopSlug, json);
+    } catch (e) {}
 
     setFieldErrors({});
     setError('');
@@ -2533,9 +2568,9 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const cart = useCartState(shop?.id, slug || shop?.public_slug || shop?.bot_username || '', user, viewMode);
   const { items: cartItems, cartCount, totalAmount, loading: cartLoading, addItem, updateQty, removeItem, clearCart, syncPrices } = cart;
 
-  const codEnabled = !!(data?.cod_enabled);
+  const codEnabled = data?.cod_enabled !== undefined ? !!data.cod_enabled : true;
   const hasInstantMmpayAvailable = !!(shop?.has_instant_mmpay || data?.has_instant_mmpay) && totalAmount >= 1000;
-  const hasAnyPayment = paymentMethods.length > 0 || codEnabled || hasInstantMmpayAvailable;
+  const hasAnyPayment = true;
 
   const themeName = data?.theme || DEFAULT_THEME;
   const theme = THEMES[themeName] || THEMES[DEFAULT_THEME];
@@ -2659,19 +2694,19 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
     if (viewMode === 'guest') {
       setShowCart(false);
-      hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
+      setShowPaymentSelect(true);
     } else if (!user && !tgLoggedIn) {
       pendingBuyNowRef.current = true;
       setShowSignIn(true);
     } else {
       setShowCart(false);
       if (registered === true) {
-        hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
+        setShowPaymentSelect(true);
       } else {
         setShowRegister(true);
       }
     }
-  }, [user, tgLoggedIn, registered, getProductColors, selectedColors, viewMode, hasAnyPayment, shop?.id, cartItems, addItem]);
+  }, [user, tgLoggedIn, registered, getProductColors, selectedColors, viewMode, shop?.id, cartItems, addItem]);
 
   const handleSignInSuccess = useCallback(() => {
     setShowSignIn(false);
@@ -2689,32 +2724,25 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     pendingBuyNowRef.current = false;
     setShowCart(false);
     if (registered === true) {
-      hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
+      setShowPaymentSelect(true);
     } else {
       setShowRegister(true);
     }
-  }, [user, tgLoggedIn, registered, hasAnyPayment]);
+  }, [user, tgLoggedIn, registered]);
 
   const handleCheckout = useCallback(() => {
     setShowCart(false);
-    const goToPayment = () => {
-      if (hasAnyPayment) {
-        setShowPaymentSelect(true);
-      } else {
-        setShowContactInfo(true);
-      }
-    };
     if (viewMode === 'guest') {
-      goToPayment();
+      setShowPaymentSelect(true);
     } else if (!user && !tgLoggedIn) {
       pendingBuyNowRef.current = true;
       setShowSignIn(true);
     } else if (registered === true) {
-      goToPayment();
+      setShowPaymentSelect(true);
     } else {
       setShowRegister(true);
     }
-  }, [user, tgLoggedIn, registered, viewMode, hasAnyPayment]);
+  }, [user, tgLoggedIn, registered, viewMode]);
 
   const handlePaymentNext = useCallback((paymentId) => {
     if (!paymentId) return;
@@ -3515,7 +3543,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                           } else {
                             setShowCart(false);
                             if (registered === true) {
-                              hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
+                              setShowPaymentSelect(true);
                             } else {
                               setShowRegister(true);
                             }
@@ -3533,7 +3561,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
                           setViewMode('guest');
                           addToCart(productLinkProduct, linkSelectedColor, linkSelectedOptions);
                           setShowCart(false);
-                          hasAnyPayment ? setShowPaymentSelect(true) : setShowContactInfo(true);
+                          setShowPaymentSelect(true);
                         }}
                         disabled={isOutOfStock || (productColors.length > 0 && !linkSelectedColor) || (linkProductOptions.length > 0 && linkProductOptions.some(o => !linkSelectedOptions[o.id]))}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-all active:scale-[0.98] text-sm"
