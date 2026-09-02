@@ -4328,7 +4328,11 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         try:
             if is_initial_view:
-                if query: await query.message.delete()
+                if query:
+                    try:
+                        await query.message.delete()
+                    except Exception:
+                        pass
 
                 is_old_format = media_list and all(isinstance(item, str) for item in media_list)
 
