@@ -7,7 +7,7 @@ export const MarkdownRenderer = React.memo(function MarkdownRenderer({ children,
   if (!isAssistant) {
     return (
       <div className={`whitespace-pre-wrap break-words text-sm leading-relaxed ${className}`}>
-        {linkifyText(children)}
+        {linkifyText(children, isAdmin)}
       </div>
     );
   }
@@ -59,7 +59,7 @@ export const MarkdownRenderer = React.memo(function MarkdownRenderer({ children,
   );
 });
 
-export function linkifyText(text) {
+export function linkifyText(text, isDarkBg = false) {
   if (!text) return text;
   const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+\.[^\s<]{2,}|t\.me\/[^\s<]+)/gi;
 
@@ -87,7 +87,7 @@ export function linkifyText(text) {
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className="text-indigo-600 font-semibold hover:text-indigo-800 hover:underline break-all cursor-pointer underline decoration-indigo-400 decoration-1 underline-offset-2 select-text"
+        className={`${isDarkBg ? 'text-indigo-200 hover:text-white underline decoration-indigo-200' : 'text-indigo-600 hover:text-indigo-800 underline decoration-indigo-400'} font-semibold break-all cursor-pointer decoration-1 underline-offset-2 select-text`}
       >
         {matchText}
       </a>

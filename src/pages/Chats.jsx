@@ -303,7 +303,7 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
             onTouchMove={() => {
               if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
             }}>
-            <RichMessage content={message.message_text} isAssistant={isAi} botId={botId} />
+            <RichMessage content={message.message_text} isAssistant={isAi} isAdmin={isAdmin} botId={botId} />
           </div>
         ) : (
           <div ref={msgRef} className="text-sm leading-relaxed whitespace-pre-wrap break-words select-all cursor-text"
@@ -718,13 +718,31 @@ export default function Chats() {
   }, [activeMsgs, userScrolledUp, selectedVisitor]);
 
   const displayedChats = useMemo(() =>
-    stableChats.map(c => ({ ...c, unread_count: unreadOverrides[c.user_id] ?? c.unread_count })),
-    [stableChats, unreadOverrides]
+    stableChats.map(c => {
+      const isCurrentlySelected = selectedUser && String(selectedUser) === String(c.user_id);
+      let unread = c.unread_count;
+      if (isCurrentlySelected) {
+        unread = 0;
+      } else if (unreadOverrides[c.user_id] !== undefined && c.unread_count === 0) {
+        unread = unreadOverrides[c.user_id];
+      }
+      return { ...c, unread_count: unread };
+    }),
+    [stableChats, unreadOverrides, selectedUser]
   );
 
   const displayedWebVisitors = useMemo(() =>
-    stableWebVisitors.map(v => ({ ...v, unread_count: unreadOverrides[v.visitor_id] ?? v.unread_count })),
-    [stableWebVisitors, unreadOverrides]
+    stableWebVisitors.map(v => {
+      const isCurrentlySelected = selectedVisitor && (String(selectedVisitor) === String(v.visitor_id) || String(selectedVisitor) === String(v.customer_key));
+      let unread = v.unread_count;
+      if (isCurrentlySelected) {
+        unread = 0;
+      } else if (unreadOverrides[v.visitor_id] !== undefined && v.unread_count === 0) {
+        unread = unreadOverrides[v.visitor_id];
+      }
+      return { ...v, unread_count: unread };
+    }),
+    [stableWebVisitors, unreadOverrides, selectedVisitor]
   );
 
   const sendMutation = useMutation({
@@ -864,15 +882,16 @@ export default function Chats() {
     const fb = (v.firebase_uid || '').trim();
     const hasRealFb = Boolean(fb && !fb.startsWith('wv_') && !fb.startsWith('v_') && !fb.startsWith('dc_'));
 
-    if (v.is_registered_customer || v.website_customer_id || hasRealFb) {
+    if (v.is_registered_customer || v.website_customer_id || hasRealFb || v.phone || v.email) {
       return false;
     }
 
-    if (!v.name || v.name === 'Website Customer' || v.name === 'Shop Visitor' || v.name === 'Guest' || v.name === 'User') {
+    const name = (v.name || '').trim();
+    if (!name || name === 'Website Customer' || name === 'Shop Visitor' || name === 'Guest' || name === 'User') {
       return true;
     }
 
-    return true;
+    return false;
   };
 
   const telegramUnread = displayedChats.reduce((sum, c) => sum + (c.unread_count || 0), 0);

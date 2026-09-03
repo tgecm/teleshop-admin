@@ -327,7 +327,7 @@ function MarkdownBlock({ content, isAssistant = true }) {
   if (!isAssistant) {
     return (
       <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-        {linkifyText(content)}
+        {linkifyText(content, isAdmin)}
       </div>
     );
   }
@@ -365,14 +365,14 @@ function MarkdownBlock({ content, isAssistant = true }) {
   );
 }
 
-export const RichMessage = React.memo(function RichMessage({ content, onAction, onFormSubmit, onFileUpload, theme, isAssistant, botId, getProductUrl }) {
+export const RichMessage = React.memo(function RichMessage({ content, onAction, onFormSubmit, onFileUpload, theme, isAssistant, isAdmin, botId, getProductUrl }) {
   const { selectedBot } = useSelectedBot();
   const currency = selectedBot?.currency || 'MMK';
   const segments = parseRichMessage(content);
   return segments.map((seg, i) => {
     switch (seg.type) {
       case 'text':
-        return <MarkdownBlock key={i} content={seg.content} isAssistant={isAssistant} />;
+        return <MarkdownBlock key={i} content={seg.content} isAssistant={isAssistant} isAdmin={isAdmin} />;
       case 'product_card':
         return isAssistant ? <ProductCard key={i} data={seg.data} onAction={onAction} theme={theme} botId={botId} getProductUrl={getProductUrl} currency={currency} /> : null;
       case 'buttons':

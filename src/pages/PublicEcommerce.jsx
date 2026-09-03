@@ -28,6 +28,7 @@ import { isMainDomain } from '../utils/authProxy';
 import { filterAndSortProducts } from '../utils/search';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { RichMessage } from '../components/chat/RichMessage';
+import { linkifyText } from '../utils/linkify';
 import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
 import PreCheckoutMmpayConfirmModal from '../components/PreCheckoutMmpayConfirmModal';
 import NewsfeedFeed from '../components/NewsfeedFeed';
@@ -65,50 +66,6 @@ function getCartKey(slug, viaDomain, viewMode) {
   if (viewMode === 'guest') return base + '_guest';
   if (viewMode === 'ecommerce') return base + '_user';
   return base;
-}
-
-function linkifyText(text) {
-  if (!text) return text;
-  const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+\.[^\s<]{2,}|t\.me\/[^\s<]+)/gi;
-
-  const elements = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = urlRegex.exec(text)) !== null) {
-    const matchText = match[0];
-    const matchIndex = match.index;
-
-    if (matchIndex > lastIndex) {
-      elements.push(text.slice(lastIndex, matchIndex));
-    }
-
-    let href = matchText;
-    if (!href.match(/^https?:\/\//i)) {
-      href = 'https://' + href;
-    }
-
-    elements.push(
-      <a
-        key={matchIndex}
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        className="text-indigo-600 font-semibold hover:text-indigo-800 hover:underline break-all cursor-pointer underline decoration-indigo-400 decoration-1 underline-offset-2 select-text"
-      >
-        {matchText}
-      </a>
-    );
-
-    lastIndex = matchIndex + matchText.length;
-  }
-
-  if (lastIndex < text.length) {
-    elements.push(text.slice(lastIndex));
-  }
-
-  return elements.length > 0 ? elements : text;
 }
 
 function getPublicImageUrls(image_url, bot_id) {
@@ -3030,7 +2987,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               onAction={handleAction} onFormSubmit={handleFormSubmit}
               onFileUpload={handleFileUpload} theme={theme} />
           ) : msg.content ? (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{linkifyText(msg.content)}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{linkifyText(msg.content, msg.role === 'user')}</p>
           ) : null}
           <span className={`absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-40 transition-opacity select-none ${msg.role === 'user' ? 'text-white/50' : 'text-gray-400'}`}>
             copy
@@ -3132,8 +3089,9 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       } catch { return null; }
     })();
 
-    if (tg && (tg.id || tg.uid || tg.user_id)) {
-      const uid = String(tg.id || tg.uid || tg.user_id);
+    if (tg && (tg.id || tg.uid || tg.user_id || tg.dashboard_chat_id)) {
+      const rawId = String(tg.id || tg.uid || tg.user_id || '');
+      const uid = tg.dashboard_chat_id || (rawId.startsWith('web_tg_') || rawId.startsWith('dc_') || rawId.startsWith('wc_') ? rawId : `web_tg_${rawId}`);
       return {
         uid: uid,
         name: tg.name || tg.first_name || (tg.username ? `@${tg.username}` : ''),
@@ -3148,10 +3106,11 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         const parts = tok.split('.');
         if (parts.length === 3) {
           const payload = JSON.parse(atob(parts[1]));
-          const uid = payload?.sub || payload?.user_id || payload?.uid;
-          if (uid) {
+          const rawId = String(payload?.sub || payload?.user_id || payload?.uid || '');
+          if (rawId) {
+            const uid = payload.dashboard_chat_id || (payload.wc_id ? `wc_${payload.wc_id}` : (rawId.startsWith('web_tg_') || rawId.startsWith('dc_') || rawId.startsWith('wc_') ? rawId : `web_tg_${rawId}`));
             return {
-              uid: String(uid),
+              uid: uid,
               name: payload.name || payload.first_name || '',
               email: payload.email || '',
               phone: payload.phone || ''

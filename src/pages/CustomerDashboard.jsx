@@ -98,23 +98,7 @@ import NewsfeedFeed from '../components/NewsfeedFeed';
 import { useToastStore } from '../store/toastStore';
 
 import { API_BASE } from '../api/config';
-
-function linkifyText(text) {
-  const urlRegex = /(https?:\/\/[^\s<]+)|((?:www\.)[^\s<]+\.[^\s<]{2,})|([a-zA-Z0-9][a-zA-Z0-9-]*(?:\.[a-zA-Z]{2,})+(?:\/[^\s<]*)?)/gi;
-  const parts = text.split(urlRegex).filter(Boolean);
-  return parts.map((part, i) => {
-    if (part.match(/^https?:\/\//i)) {
-      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
-    }
-    if (part.match(/^www\./i)) {
-      return <a key={i} href={'https://' + part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
-    }
-    if (part.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/)) {
-      return <a key={i} href={'https://' + part} target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-medium hover:underline">{part}</a>;
-    }
-    return part;
-  });
-}
+import { linkifyText } from '../utils/linkify';
 
 const statusConfig = {
   pending: { label: 'Pending', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-400' },
@@ -630,7 +614,7 @@ export default function CustomerDashboard({ shopSlug }) {
               onAction={handleAction} onFormSubmit={handleFormSubmit}
               onFileUpload={handleFileUpload} />
           ) : msg.content ? (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{linkifyText(msg.content)}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{linkifyText(msg.content, msg.role === 'user')}</p>
           ) : null}
           <span className={`absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-40 transition-opacity select-none ${msg.role === 'user' ? 'text-white/50' : 'text-gray-400'}`}>
             copy
