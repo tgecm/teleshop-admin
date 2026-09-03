@@ -323,7 +323,14 @@ const FileUploadButton = React.memo(function FileUploadButton({ data, onUpload }
   );
 });
 
-function MarkdownBlock({ content }) {
+function MarkdownBlock({ content, isAssistant = true }) {
+  if (!isAssistant) {
+    return (
+      <div className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+        {linkifyText(content)}
+      </div>
+    );
+  }
   return (
     <div className="markdown-content">
       <ReactMarkdown remarkPlugins={[remarkGfm]}
@@ -338,7 +345,7 @@ function MarkdownBlock({ content }) {
             return <pre className="bg-gray-800 text-gray-100 rounded-lg p-3 my-2 overflow-x-auto text-xs"><code {...props}>{children}</code></pre>;
           },
           ul: ({ children }) => <ul className="list-disc list-inside space-y-1 my-1">{children}</ul>,
-          ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 my-1">{children}</ol>,
+          ol: ({ children, start }) => <ol start={start} className="list-decimal list-inside space-y-1 my-1">{children}</ol>,
           li: ({ children }) => <li className="text-sm">{children}</li>,
           h1: ({ children }) => <h1 className="text-lg font-bold my-2">{children}</h1>,
           h2: ({ children }) => <h2 className="text-base font-bold my-1.5">{children}</h2>,
@@ -365,7 +372,7 @@ export const RichMessage = React.memo(function RichMessage({ content, onAction, 
   return segments.map((seg, i) => {
     switch (seg.type) {
       case 'text':
-        return <MarkdownBlock key={i} content={seg.content} />;
+        return <MarkdownBlock key={i} content={seg.content} isAssistant={isAssistant} />;
       case 'product_card':
         return isAssistant ? <ProductCard key={i} data={seg.data} onAction={onAction} theme={theme} botId={botId} getProductUrl={getProductUrl} currency={currency} /> : null;
       case 'buttons':

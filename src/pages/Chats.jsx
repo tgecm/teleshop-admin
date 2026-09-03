@@ -303,7 +303,7 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
             onTouchMove={() => {
               if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
             }}>
-            <RichMessage content={message.message_text} isAssistant={true} botId={botId} />
+            <RichMessage content={message.message_text} isAssistant={isAi} botId={botId} />
           </div>
         ) : (
           <div ref={msgRef} className="text-sm leading-relaxed whitespace-pre-wrap break-words select-all cursor-text"
@@ -329,7 +329,7 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
               if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
             }}>
             <ErrorBoundary fallback={<span className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.message_text}</span>}>
-              <MarkdownRenderer isAdmin={isAdmin}>{message.message_text}</MarkdownRenderer>
+              <MarkdownRenderer isAdmin={isAdmin} isAssistant={isAi}>{message.message_text}</MarkdownRenderer>
             </ErrorBoundary>
           </div>
         ))}

@@ -3030,7 +3030,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
               onAction={handleAction} onFormSubmit={handleFormSubmit}
               onFileUpload={handleFileUpload} theme={theme} />
           ) : msg.content ? (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{linkifyText(msg.content)}</p>
           ) : null}
           <span className={`absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-40 transition-opacity select-none ${msg.role === 'user' ? 'text-white/50' : 'text-gray-400'}`}>
             copy

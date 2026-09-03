@@ -2,8 +2,15 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-export const MarkdownRenderer = React.memo(function MarkdownRenderer({ children, className = '', isAdmin = false }) {
+export const MarkdownRenderer = React.memo(function MarkdownRenderer({ children, className = '', isAdmin = false, isAssistant = false }) {
   if (!children) return null;
+  if (!isAssistant) {
+    return (
+      <div className={`whitespace-pre-wrap break-words text-sm leading-relaxed ${className}`}>
+        {linkifyText(children)}
+      </div>
+    );
+  }
   return (
     <div className={`markdown-content ${className}`}>
       <ReactMarkdown
@@ -27,7 +34,7 @@ export const MarkdownRenderer = React.memo(function MarkdownRenderer({ children,
             );
           },
           ul: ({ children }) => <ul className="list-disc list-inside space-y-1 my-1">{children}</ul>,
-          ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 my-1">{children}</ol>,
+          ol: ({ children, start }) => <ol start={start} className="list-decimal list-inside space-y-1 my-1">{children}</ol>,
           li: ({ children }) => <li className="text-sm">{children}</li>,
           h1: ({ children }) => <h1 className="text-lg font-bold my-2">{children}</h1>,
           h2: ({ children }) => <h2 className="text-base font-bold my-1.5">{children}</h2>,
