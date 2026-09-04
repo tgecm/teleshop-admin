@@ -1704,7 +1704,7 @@ function RegisterModal({ shop, user, onClose, onSuccess }) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(API_BASE + '/website-customers/sync', {
+      const res = await fetch(API_BASE + '/api/v2/auth/sync-firebase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -3134,7 +3134,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       setShowVisitorForm(false);
       setVisitorForm({ name: loggedUser.name, phone: loggedUser.phone, email: loggedUser.email });
 
-      fetch(`${API_BASE}/website-customers/sync`, {
+      fetch(`${API_BASE}/api/v2/auth/sync-firebase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

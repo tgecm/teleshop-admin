@@ -37,6 +37,19 @@ export default function Customers() {
   const [detailCustomer, setDetailCustomer] = useState(null);
   const [brokenImages, addBrokenImage] = useReducer((state, id) => state.add(id) && state, new Set());
 
+  const getFullPhotoUrl = (url) => {
+    if (!url) return null;
+    const cleanUrl = String(url).trim();
+    if (!cleanUrl) return null;
+    if (cleanUrl.includes('http://') || cleanUrl.includes('https://')) {
+      const idx = cleanUrl.lastIndexOf('http');
+      return cleanUrl.substring(idx);
+    }
+    const base = (API_BASE || 'https://api.telegramecommerce.shop').replace(/\/+$/, '');
+    const path = cleanUrl.replace(/^\/+/, '');
+    return `${base}/${path}`;
+  };
+
   const { data: customers, isLoading: customersLoading, refetch: refetchCustomers } = useQuery({
     queryKey: ['users', 'customers', selectedBotId],
     queryFn: () => getUsers({ bot_id: Number(selectedBotId) }),
@@ -143,7 +156,7 @@ export default function Customers() {
         username: c.username,
         email: c.email,
         phone: c.phone || c.phone_number,
-        photo_url: c.photo_url,
+        photo_url: c.photo_url || c.profile_picture,
         channel: 'telegram',
         totalSpent: 0,
         totalOrders: 0,
@@ -178,6 +191,7 @@ export default function Customers() {
         }
         if (!existing.email && c.email) existing.email = c.email;
         if (!existing.firebase_uid && c.firebase_uid) existing.firebase_uid = c.firebase_uid;
+        if (!existing.photo_url && (c.photo_url || c.profile_picture)) existing.photo_url = c.photo_url || c.profile_picture;
         if (c.id) addAlias(c.id, existingIdx);
         if (c.firebase_uid) addAlias(c.firebase_uid, existingIdx);
       } else {
@@ -190,7 +204,7 @@ export default function Customers() {
           display_name: c.display_name || 'Website User',
           email: c.email,
           phone: c.phone,
-          photo_url: c.photo_url,
+          photo_url: c.photo_url || c.profile_picture,
           channel: c.telegram_id ? 'telegram' : 'website',
           totalSpent: 0,
           totalOrders: 0,
@@ -482,9 +496,27 @@ export default function Customers() {
                   className="w-full text-left"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm ${customer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                      {customer.first_name?.[0] || '?'}
-                    </div>
+                    {(() => {
+                      const photo = getFullPhotoUrl(customer.photo_url || customer.profile_picture || customer.raw?.profile_picture);
+                      const initial = (customer.first_name || customer.username || customer.display_name || 'T').trim().charAt(0).toUpperCase();
+                      if (photo && !brokenImages.has(`tg_${customer.id}`)) {
+                        return (
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
+                            <img
+                              src={photo}
+                              alt={customer.first_name || ''}
+                              onError={() => addBrokenImage(`tg_${customer.id}`)}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm ${customer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                          {initial}
+                        </div>
+                      );
+                    })()}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-bold text-gray-900 truncate max-w-[160px] sm:max-w-none">{customer.first_name}</p>
@@ -553,11 +585,21 @@ export default function Customers() {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-bold text-base sm:text-lg flex-shrink-0 shadow-sm bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600 overflow-hidden">
-                        {customer.photo_url && !brokenImages.has(customer.id) ? (
-                          <img src={customer.photo_url} alt="" onError={() => addBrokenImage(customer.id)} className="w-full h-full object-cover" />
-                        ) : (
-                          customer.display_name?.[0]?.toUpperCase() || 'W'
-                        )}
+                        {(() => {
+                          const photo = getFullPhotoUrl(customer.photo_url || customer.profile_picture || customer.raw?.photo_url);
+                          const initial = (customer.display_name || customer.name || 'W').trim().charAt(0).toUpperCase();
+                          if (photo && !brokenImages.has(`web_${customer.id}`)) {
+                            return (
+                              <img
+                                src={photo}
+                                alt={customer.display_name || ''}
+                                onError={() => addBrokenImage(`web_${customer.id}`)}
+                                className="w-full h-full object-cover"
+                              />
+                            );
+                          }
+                          return initial;
+                        })()}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -698,11 +740,21 @@ export default function Customers() {
                       {/* Customer Avatar */}
                       <div className="flex-shrink-0">
                         <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold text-sm flex items-center justify-center shadow-xs overflow-hidden">
-                          {customer.photo_url ? (
-                            <img src={customer.photo_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <span>{(customer.name || 'C')[0].toUpperCase()}</span>
-                          )}
+                          {(() => {
+                            const photo = getFullPhotoUrl(customer.photo_url || customer.profile_picture || customer.raw?.photo_url || customer.raw?.profile_picture);
+                            const initial = (customer.name || 'C').trim().charAt(0).toUpperCase();
+                            if (photo && !brokenImages.has(`loyal_${customer.id}`)) {
+                              return (
+                                <img
+                                  src={photo}
+                                  alt={customer.name || ''}
+                                  onError={() => addBrokenImage(`loyal_${customer.id}`)}
+                                  className="w-full h-full object-cover"
+                                />
+                              );
+                            }
+                            return <span>{initial}</span>;
+                          })()}
                         </div>
                       </div>
 
@@ -796,15 +848,21 @@ export default function Customers() {
                       ? detailCustomer.is_blocked ? 'bg-rose-100 text-rose-600' : 'bg-indigo-100 text-indigo-600'
                       : 'bg-gradient-to-br from-emerald-100 to-teal-100 text-emerald-600'
                   }`}>
-                    {detailCustomer.photo_url || customerProfile?.photo_url ? (
-                      <img src={detailCustomer.photo_url || customerProfile?.photo_url} alt="" onError={() => addBrokenImage(detailCustomer.id)} className="w-full h-full object-cover" />
-                    ) : (customerProfile?.display_name && customerProfile.display_name.trim()) ? (
-                      customerProfile.display_name[0]?.toUpperCase()
-                    ) : (detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name) ? (
-                      (detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name)[0]?.toUpperCase()
-                    ) : (
-                      '?'
-                    )}
+                    {(() => {
+                      const photo = getFullPhotoUrl(detailCustomer.photo_url || detailCustomer.profile_picture || detailCustomer.raw?.photo_url || detailCustomer.raw?.profile_picture || customerProfile?.photo_url);
+                      const initial = ((customerProfile?.display_name && customerProfile.display_name.trim()) ? customerProfile.display_name : (detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name || 'U')).trim().charAt(0).toUpperCase();
+                      if (photo && !brokenImages.has(`modal_${detailCustomer.id}`)) {
+                        return (
+                          <img
+                            src={photo}
+                            alt=""
+                            onError={() => addBrokenImage(`modal_${detailCustomer.id}`)}
+                            className="w-full h-full object-cover"
+                          />
+                        );
+                      }
+                      return initial;
+                    })()}
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-lg font-bold text-gray-900 truncate">

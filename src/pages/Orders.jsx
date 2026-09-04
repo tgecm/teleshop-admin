@@ -50,11 +50,23 @@ function CustomerAvatar({ photoUrl, name, size = "w-12 h-12 lg:w-14 lg:h-14", fo
   const [imgError, setImgError] = useState(false);
   const initial = (name || 'C').trim().charAt(0).toUpperCase();
 
+  useEffect(() => {
+    setImgError(false);
+  }, [photoUrl]);
+
   const getFullPhotoUrl = (url) => {
     if (!url) return null;
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const cleanUrl = String(url).trim();
+    if (!cleanUrl) return null;
+    if (cleanUrl.startsWith('data:') || cleanUrl.startsWith('blob:')) {
+      return cleanUrl;
+    }
+    if (cleanUrl.includes('http://') || cleanUrl.includes('https://')) {
+      const idx = cleanUrl.lastIndexOf('http');
+      return cleanUrl.substring(idx);
+    }
     const base = (client.defaults.baseURL || 'https://api.telegramecommerce.shop').replace(/\/+$/, '');
-    const path = url.replace(/^\/+/, '');
+    const path = cleanUrl.replace(/^\/+/, '');
     return `${base}/${path}`;
   };
 
@@ -62,12 +74,15 @@ function CustomerAvatar({ photoUrl, name, size = "w-12 h-12 lg:w-14 lg:h-14", fo
 
   if (fullUrl && !imgError) {
     return (
-      <img
-        src={fullUrl}
-        alt={name || ''}
-        onError={() => setImgError(true)}
-        className={`${size} rounded-full object-cover shadow-xs border border-gray-100 flex-shrink-0`}
-      />
+      <div className={`${size} rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold ${fontSize} flex-shrink-0 select-none border border-indigo-200/50 shadow-xs relative overflow-hidden`}>
+        <span className="z-0">{initial}</span>
+        <img
+          src={fullUrl}
+          alt={name || ''}
+          onError={() => setImgError(true)}
+          className="absolute inset-0 w-full h-full rounded-full object-cover z-10 bg-gradient-to-br from-indigo-500 to-purple-600"
+        />
+      </div>
     );
   }
 
