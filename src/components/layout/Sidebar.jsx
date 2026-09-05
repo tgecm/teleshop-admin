@@ -24,6 +24,7 @@ import {
   ClipboardList,
   QrCode,
   TrendingUp,
+  Key,
   X
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -150,6 +151,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
     { to: '/customization', icon: Palette, label: 'Customize' },
     { to: '/ai-agent', icon: Bot, label: 'AI Agent' },
     ...(isStaff ? [] : [{ to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' }]),
+    ...(user?.is_superadmin ? [{ to: '/web-logins', icon: Key, label: 'Web Logins' }] : []),
   ];
 
   const navItems = rawNavItems.filter(item => checkPerm(item.to));

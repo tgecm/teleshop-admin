@@ -2769,9 +2769,84 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
 
+  const resolveLoggedInUser = useCallback(() => {
+    if (user?.uid) {
+      return {
+        uid: String(user.uid),
+        name: user.displayName || '',
+        email: user.email || '',
+        phone: user.phoneNumber || ''
+      };
+    }
+
+    try {
+      const g = localStorage.getItem('google_user');
+      if (g) {
+        const parsed = JSON.parse(g);
+        const uid = parsed?.id || parsed?.uid;
+        if (uid) {
+          return {
+            uid: String(uid),
+            name: parsed.name || parsed.displayName || '',
+            email: parsed.email || '',
+            phone: parsed.phone || ''
+          };
+        }
+      }
+    } catch {}
+
+    const tg = telegramUser || (() => {
+      try {
+        const t = localStorage.getItem('telegram_user');
+        return t ? JSON.parse(t) : null;
+      } catch { return null; }
+    })();
+
+    if (tg && (tg.id || tg.uid || tg.user_id || tg.dashboard_chat_id)) {
+      const rawId = String(tg.id || tg.uid || tg.user_id || '');
+      const uid = tg.dashboard_chat_id || (rawId.startsWith('web_tg_') || rawId.startsWith('dc_') || rawId.startsWith('wc_') ? rawId : `web_tg_${rawId}`);
+      return {
+        uid: uid,
+        name: tg.name || tg.first_name || (tg.username ? `@${tg.username}` : ''),
+        email: tg.email || '',
+        phone: tg.phone || ''
+      };
+    }
+
+    try {
+      const tok = localStorage.getItem('telegram_token') || localStorage.getItem('customer_token');
+      if (tok) {
+        const parts = tok.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          const rawId = String(payload?.sub || payload?.user_id || payload?.uid || '');
+          if (rawId) {
+            const uid = payload.dashboard_chat_id || (payload.wc_id ? `wc_${payload.wc_id}` : (rawId.startsWith('web_tg_') || rawId.startsWith('dc_') || rawId.startsWith('wc_') ? rawId : `web_tg_${rawId}`));
+            return {
+              uid: uid,
+              name: payload.name || payload.first_name || '',
+              email: payload.email || '',
+              phone: payload.phone || ''
+            };
+          }
+        }
+      }
+    } catch {}
+
+    return null;
+  }, [user, telegramUser]);
+
   const handleVisitorPhoto = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file || !shop?.id) return;
+    if (viewMode === 'ecommerce') {
+      const loggedUser = resolveLoggedInUser();
+      if (!loggedUser) {
+        setShowSignIn(true);
+        return;
+      }
+      visitorIdRef.current = loggedUser.uid;
+    }
     setUploadingPhoto(true);
     try {
       const formData = new FormData();
@@ -2797,10 +2872,18 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
       setUploadingPhoto(false);
       if (photoInputRef.current) photoInputRef.current.value = '';
     }
-  }, [shop?.id, chatMessages]);
+  }, [shop?.id, chatMessages, viewMode, resolveLoggedInUser]);
 
   const sendMessage = useCallback(async (msg) => {
     if (!msg || !shop?.id) return;
+    if (viewMode === 'ecommerce') {
+      const loggedUser = resolveLoggedInUser();
+      if (!loggedUser) {
+        setShowSignIn(true);
+        return;
+      }
+      visitorIdRef.current = loggedUser.uid;
+    }
     if (chatSendingRef.current) {
       chatQueueRef.current = [...chatQueueRef.current, { type: 'msg', msg }];
       setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
@@ -2834,7 +2917,7 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
         setTimeout(() => next.type === 'action' ? sendAction(next.msg) : sendMessage(next.msg), 50);
       }
     }
-  }, [shop?.id]);
+  }, [shop?.id, viewMode, resolveLoggedInUser]);
 
   const handleQuickQuestionClick = useCallback((q) => {
     if (chatLoading || !q) return;
@@ -2856,6 +2939,14 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
   const sendAction = useCallback(async (actionMsg) => {
     if (!shop?.id) return;
+    if (viewMode === 'ecommerce') {
+      const loggedUser = resolveLoggedInUser();
+      if (!loggedUser) {
+        setShowSignIn(true);
+        return;
+      }
+      visitorIdRef.current = loggedUser.uid;
+    }
     if (chatSendingRef.current) {
       chatQueueRef.current = [...chatQueueRef.current, { type: 'action', msg: actionMsg }];
       return;
@@ -3056,73 +3147,6 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
     return () => clearInterval(interval);
   }, [chatOpen, shop?.id, showVisitorForm]);
 
-  const resolveLoggedInUser = useCallback(() => {
-    if (user?.uid) {
-      return {
-        uid: String(user.uid),
-        name: user.displayName || '',
-        email: user.email || '',
-        phone: user.phoneNumber || ''
-      };
-    }
-
-    try {
-      const g = localStorage.getItem('google_user');
-      if (g) {
-        const parsed = JSON.parse(g);
-        const uid = parsed?.id || parsed?.uid;
-        if (uid) {
-          return {
-            uid: String(uid),
-            name: parsed.name || parsed.displayName || '',
-            email: parsed.email || '',
-            phone: parsed.phone || ''
-          };
-        }
-      }
-    } catch {}
-
-    const tg = telegramUser || (() => {
-      try {
-        const t = localStorage.getItem('telegram_user');
-        return t ? JSON.parse(t) : null;
-      } catch { return null; }
-    })();
-
-    if (tg && (tg.id || tg.uid || tg.user_id || tg.dashboard_chat_id)) {
-      const rawId = String(tg.id || tg.uid || tg.user_id || '');
-      const uid = tg.dashboard_chat_id || (rawId.startsWith('web_tg_') || rawId.startsWith('dc_') || rawId.startsWith('wc_') ? rawId : `web_tg_${rawId}`);
-      return {
-        uid: uid,
-        name: tg.name || tg.first_name || (tg.username ? `@${tg.username}` : ''),
-        email: tg.email || '',
-        phone: tg.phone || ''
-      };
-    }
-
-    try {
-      const tok = localStorage.getItem('telegram_token') || localStorage.getItem('customer_token');
-      if (tok) {
-        const parts = tok.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1]));
-          const rawId = String(payload?.sub || payload?.user_id || payload?.uid || '');
-          if (rawId) {
-            const uid = payload.dashboard_chat_id || (payload.wc_id ? `wc_${payload.wc_id}` : (rawId.startsWith('web_tg_') || rawId.startsWith('dc_') || rawId.startsWith('wc_') ? rawId : `web_tg_${rawId}`));
-            return {
-              uid: uid,
-              name: payload.name || payload.first_name || '',
-              email: payload.email || '',
-              phone: payload.phone || ''
-            };
-          }
-        }
-      }
-    } catch {}
-
-    return null;
-  }, [user, telegramUser]);
-
   // Restore visitor session or create new one (Google, Telegram, or Guest)
   // Restore visitor session or create new one (Google, Telegram, or Guest)
   useEffect(() => {
@@ -3168,6 +3192,9 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
 
     if (viewMode === 'ecommerce') {
       setShowVisitorForm(false);
+      if (visitorIdRef.current && (visitorIdRef.current.startsWith('v') || visitorIdRef.current.startsWith('guest_'))) {
+        setChatMessages([]);
+      }
       return;
     }
 

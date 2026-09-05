@@ -274,9 +274,11 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
         }`}
       >
         {renderMedia()}
-        {isAi && (
+        {isFollowup || message.sender_type === 'followup' ? (
+          <p className="text-[10px] font-bold text-indigo-400 mb-0.5">AI Follow-Up</p>
+        ) : isAi || message.sender_type === 'ai' || message.sender_type === 'assistant' ? (
           <p className="text-[10px] font-bold text-indigo-400 mb-0.5">AI</p>
-        )}
+        ) : null}
         {isAdmin && message.sender_name && isOwner && (
           <p className="text-[10px] font-bold text-indigo-200 mb-0.5">{message.sender_name}</p>
         )}
@@ -1593,12 +1595,12 @@ export default function Chats() {
                     {isSupportChat ? (
                       <img src="/logo.webp" alt="Support" className="w-8 h-8 rounded-full object-cover border border-indigo-100" />
                     ) : (
-                      <CustomerAvatar photoUrl={selectedWebChat?.photo_url} name={selectedWebChat?.name || selectedChat?.first_name} size="w-8 h-8" fontSize="text-xs" />
+                      <CustomerAvatar photoUrl={selectedWebChat?.photo_url || selectedChat?.profile_picture || selectedChat?.photo_url} name={selectedWebChat?.name || selectedChat?.first_name || selectedChat?.account_name || selectedChatName} size="w-8 h-8" fontSize="text-xs" />
                     )}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
-                      {isSupportChat ? <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || selectedChatName || 'Customer')}
+                      {isSupportChat ? <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || selectedChat?.account_name || selectedChatName || 'Customer')}
                     </p>
                     {selectedChat?.username && (
                       <p className="text-[11px] text-gray-500 truncate">@{selectedChat.username}</p>
@@ -1646,7 +1648,8 @@ export default function Chats() {
                         key={msg.id}
                         message={msg}
                         isAdmin={msg.sender_type === 'admin'}
-                        isAi={msg.sender_type === 'ai' || msg.sender_type === 'assistant' || msg.sender_type === 'followup'}
+                        isAi={msg.sender_type === 'ai' || msg.sender_type === 'assistant'}
+                        isFollowup={msg.sender_type === 'followup'}
                         botId={Number(selectedBotId)}
                         botUsername={botUsername}
                         showTelegramLink={chatTab === 'all' || chatTab === 'telegram'}

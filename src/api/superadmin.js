@@ -108,3 +108,10 @@ export const saveAdminMmpayMerchant = (data) =>
 export const deleteAdminMmpayMerchant = (botId) =>
   client.delete(`/admin/mmpay/merchant/${botId}`).then(res => res.data);
 
+// ── Superadmin Web Login Provisioning ───────────────────────────
+export const getWebLogins = () =>
+  client.get('/superadmin/web-logins').then(res => res.data);
+
+export const provisionWebLogin = (data) =>
+  client.post('/superadmin/provision-web-login', data).then(res => res.data);
+

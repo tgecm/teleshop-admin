@@ -56,6 +56,7 @@ const MyanMyanPayAdmin = React.lazy(() => import('./pages/MyanMyanPayAdmin'));
 const Subscribers = React.lazy(() => import('./pages/Subscribers'));
 const FAQs = React.lazy(() => import('./pages/FAQs'));
 const StaffAccounts = React.lazy(() => import('./pages/StaffAccounts'));
+const WebLogins = React.lazy(() => import('./pages/WebLogins'));
 const Homepage = React.lazy(() => import('./pages/Homepage'));
 const QRMenuAdmin = React.lazy(() => import('./pages/QRMenuAdmin'));
 const QRMenuOrders = React.lazy(() => import('./pages/QRMenuOrders'));
@@ -69,7 +70,7 @@ const LiveTokenDisplay = React.lazy(() => import('./pages/LiveTokenDisplay'));
 const ADMIN_PATHS = new Set([
   'login', 'manage-web-panel', 'dashboard', 'orders', 'products', 'customers',
   'broadcast', 'commands', 'payments', 'profit', 'subscription', 'settings',
-  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'subscribers', 'faqs', 'staff-accounts', 'qr-menu', 'qr-menu-orders',
+  'chats', 'more', 'customization', 'bot-customization', 'newsfeed', 'superadmin', 'send-message', 'subscribers', 'web-logins', 'faqs', 'staff-accounts', 'qr-menu', 'qr-menu-orders',
   'qr-menu/orders',
   'qr-menu/tables',
   'qr-menu/dashboard',
@@ -513,6 +514,7 @@ export default function App() {
                   <Route path="send-message" element={<SendMessage />} />
                   <Route path="mmpay-admin" element={<MyanMyanPayAdmin />} />
                   <Route path="subscribers" element={<Subscribers />} />
+                  <Route path="web-logins" element={<WebLogins />} />
                   <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
                   <Route path="qr-menu/dashboard" element={<PermissionGuard><PlanGate><QRMenuDashboard /></PlanGate></PermissionGuard>} />
                   <Route path="qr-menu" element={<PermissionGuard><PlanGate><QRMenuAdmin /></PlanGate></PermissionGuard>} />
