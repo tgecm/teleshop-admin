@@ -17,7 +17,7 @@ function markDismissedToday() {
 
 export default function VpnWarningModal() {
   const [show, setShow] = useState(false);
-  const failedRef = useRef(false);
+  const unreachableStartRef = useRef(null);
 
   const close = () => {
     setShow(false);
@@ -25,54 +25,65 @@ export default function VpnWarningModal() {
   };
 
   useEffect(() => {
-    // Backend health check — show warning after 5s of unreachability, once per day
-    let failTimer = null;
     let mounted = true;
+
     const check = async () => {
       if (isDismissedToday()) return;
+
       const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
       try {
         await fetch(API_BASE, { method: 'HEAD', signal: controller.signal });
-        clearTimeout(id);
-        // Backend is reachable
-        clearTimeout(failTimer);
-        failTimer = null;
-        failedRef.current = false;
-        setShow(false);
+        clearTimeout(timeoutId);
+
+        // Backend is reachable -> Reset timer
+        unreachableStartRef.current = null;
+        if (mounted) setShow(false);
       } catch {
-        clearTimeout(id);
-        // Backend unreachable — start 5s timer
-        if (!failedRef.current) {
-          failedRef.current = true;
-          failTimer = setTimeout(() => {
-            if (!isDismissedToday() && mounted) setShow(true);
-          }, 5000);
+        clearTimeout(timeoutId);
+
+        // Backend unreachable
+        if (!unreachableStartRef.current) {
+          unreachableStartRef.current = Date.now();
+        } else if (Date.now() - unreachableStartRef.current >= 10000) {
+          // Unreachable continuously for 10+ seconds
+          if (!isDismissedToday() && mounted) {
+            setShow(true);
+          }
         }
       }
     };
-    check();
-    const interval = setInterval(check, 4000);
 
-    // Browser offline detection
+    check();
+    const interval = setInterval(check, 3000);
+
     const handleOffline = () => {
       if (isDismissedToday()) return;
-      const timer = setTimeout(() => {
-        if (!isDismissedToday()) setShow(true);
-      }, 3000);
-      return () => clearTimeout(timer);
+      if (!unreachableStartRef.current) unreachableStartRef.current = Date.now();
     };
-    const handleOnline = () => setShow(false);
+
+    const handleOnline = () => {
+      unreachableStartRef.current = null;
+      if (mounted) setShow(false);
+    };
+
+    const handleCustomVpn = () => {
+      if (!isDismissedToday() && mounted) {
+        setShow(true);
+      }
+    };
 
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
+    window.addEventListener('app:vpn-warning', handleCustomVpn);
 
     return () => {
       mounted = false;
       clearInterval(interval);
-      clearTimeout(failTimer);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
+      window.removeEventListener('app:vpn-warning', handleCustomVpn);
     };
   }, []);
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../../store/authStore';
-import { LogOut, Mail, X, Loader2, Trash2, Menu, Store, Sparkles } from 'lucide-react';
+import { LogOut, Mail, X, Loader2, Trash2, Menu, Store, Sparkles, DollarSign, ShoppingBag, Plus, Headphones } from 'lucide-react';
 import BotSwitcher from '../shared/BotSwitcher';
 import RefreshButton from '../shared/RefreshButton';
 import AiChatModal from '../shared/AiChatModal';
@@ -11,6 +11,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBotStore } from '../../store/botStore';
 import { normalizeText } from '../../utils/normalizeText';
 import { getAdminUnreadMessagesCount, getAdminMessages, markAdminMessagesRead, deleteAdminMessage } from '../../api/superadmin';
+import { getStats } from '../../api/stats';
+import { formatPrice } from '../../utils/formatPrice';
 import { linkifyText } from '../../utils/linkify';
 
 export default function TopBar({ onToggleSidebar }) {
@@ -42,6 +44,42 @@ export default function TopBar({ onToggleSidebar }) {
     enabled: showMessages,
   });
 
+  const [salesPeriod, setSalesPeriod] = useState(() => localStorage.getItem('topbar_sales_period') || 'today');
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setSalesPeriod(localStorage.getItem('topbar_sales_period') || 'today');
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('topbar_sales_period_change', handleStorage);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('topbar_sales_period_change', handleStorage);
+    };
+  }, []);
+
+  const { data: statsData } = useQuery({
+    queryKey: ['topBarStats', selectedBotId],
+    queryFn: () => getStats({ bot_id: Number(selectedBotId) }),
+    enabled: !!selectedBotId && salesPeriod !== 'disabled',
+    refetchInterval: 15000,
+  });
+
+  const getSalesInfo = () => {
+    if (salesPeriod === 'disabled') return null;
+    if (salesPeriod === 'week') {
+      const val = statsData?.weekly_revenue ?? 0;
+      return { label: 'This Week', value: formatPrice(val) };
+    }
+    if (salesPeriod === 'month') {
+      const val = statsData?.monthly_revenue ?? 0;
+      return { label: 'This Month', value: formatPrice(val) };
+    }
+    const val = statsData?.today_revenue ?? statsData?.total_revenue ?? 0;
+    return { label: 'Today', value: formatPrice(val) };
+  };
+
+  const salesInfo = getSalesInfo();
 
   return (
     <header
@@ -53,7 +91,14 @@ export default function TopBar({ onToggleSidebar }) {
         <button onClick={onToggleSidebar} className="justify-self-start text-white bg-white/15 hover:bg-white/25 rounded-xl p-1.5 -ml-1.5 transition-colors">
           <Menu className="w-5 h-5" />
         </button>
-        <span className="text-center text-white text-sm font-black tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
+        <div className="flex flex-col items-center justify-center min-w-0 max-w-[220px] mx-auto text-center leading-tight">
+          <span className="text-white text-[11px] font-black tracking-wider uppercase truncate w-full drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
+          {salesInfo && (
+            <span className="text-emerald-300 text-[9px] font-bold truncate w-full tracking-wide">
+              {salesInfo.label}: {salesInfo.value}
+            </span>
+          )}
+        </div>
         <div className="flex items-center justify-end gap-1">
           <button onClick={() => setShowAiChat(true)} className="p-1.5 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-all active:scale-90" title="AI Assistant"><Sparkles className="w-[18px] h-[18px]" /></button>
           <RefreshButton />
@@ -72,15 +117,24 @@ export default function TopBar({ onToggleSidebar }) {
 
       {/* Desktop header */}
       <div className="hidden md:flex items-center justify-between h-16 px-6 lg:px-8 gap-4">
-        <span className="text-white text-xl lg:text-2xl font-black tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-white text-xl lg:text-2xl font-black tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
+          {user?.is_superadmin && (
+            <div className="max-w-[180px] xl:max-w-[260px]">
+              <BotSwitcher />
+            </div>
+          )}
+        </div>
 
-        {user?.is_superadmin && (
-          <div className="flex-1 flex justify-center max-w-[280px] sm:max-w-[360px]">
-            <BotSwitcher />
-          </div>
-        )}
+        <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
+          {/* Sales Metric Pill */}
+          {salesInfo && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/15 rounded-xl text-xs font-bold text-white shadow-sm backdrop-blur-md" title={`${salesInfo.label} Sales`}>
+              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{salesInfo.label}: {salesInfo.value}</span>
+            </div>
+          )}
 
-        <div className="flex items-center gap-1 flex-shrink-0">
           <button onClick={() => setShowAiChat(true)} className="p-2 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-all active:scale-90" title="AI Assistant"><Sparkles className="w-[18px] h-[18px]" /></button>
           <RefreshButton />
           <div className="hidden md:flex flex-col items-end">

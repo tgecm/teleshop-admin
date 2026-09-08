@@ -29,6 +29,7 @@ import LoadingSkeleton from '../components/shared/LoadingSkeleton';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
 import ShippingLabelSettingsSection from '../components/settings/ShippingLabelSettingsSection';
 import ShopBackupSettingsSection from '../components/settings/ShopBackupSettingsSection';
+import TempAccountModal from '../components/shared/TempAccountModal';
 import client from '../api/client';
 import { getGuidePrompt, updateGuidePrompt } from '../api/ai';
 import { openExternalUrl } from '../utils/openExternal';
@@ -95,7 +96,15 @@ export default function Settings() {
   const { selectedBotId, bots, setBots } = useBotStore();
   const { addToast } = useToastStore();
   const [activeTab, setActiveTab] = useState('shop');
+  const [topbarSalesPeriod, setTopbarSalesPeriod] = useState(() => localStorage.getItem('topbar_sales_period') || 'today');
   const queryClient = useQueryClient();
+
+  const handleSalesPeriodChange = (choice) => {
+    setTopbarSalesPeriod(choice);
+    localStorage.setItem('topbar_sales_period', choice);
+    window.dispatchEvent(new Event('topbar_sales_period_change'));
+    addToast('Top bar sales display updated!', 'success');
+  };
 
   const { data: bot, isLoading: botLoading } = useQuery({
     queryKey: ['bots', selectedBotId],
@@ -549,6 +558,14 @@ export default function Settings() {
     setStaffFpLoading(false);
   };
 
+  // Temp account check
+  const isTempAccount = Boolean(
+    user?.is_temp_account ||
+    (user?.email && user.email.toLowerCase().endsWith('@gmail.com') && (user.email.toLowerCase().includes('bot') || user.email.toLowerCase().includes('test')))
+  );
+
+  const [isTempSkipped, setIsTempSkipped] = useState(false);
+
   const isNativeApp = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
 
   const tabs = [
@@ -561,6 +578,15 @@ export default function Settings() {
   ];
 
   if (botLoading) return <LoadingSkeleton type="list" count={5} />;
+
+  if (isTempAccount && !isTempSkipped) {
+    return (
+      <TempAccountModal
+        title="Change temporary mail and password to unlock the Setting featuers"
+        onSkip={() => setIsTempSkipped(true)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
@@ -584,6 +610,45 @@ export default function Settings() {
 
         {activeTab === 'shop' && (
           <div className="space-y-6">
+            {/* Top Bar Sales Metric Preference */}
+            <section className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">Sales Display</h3>
+                  <p className="text-[11px] text-gray-500">Choose an option.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                {[
+                  { id: 'today', label: 'Today', sub: 'Daily Sales' },
+                  { id: 'week', label: 'This Week', sub: 'Mon – Sun' },
+                  { id: 'month', label: 'This Month', sub: 'Current Month' },
+                  { id: 'disabled', label: 'Disabled', sub: 'Hide from Bar' },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => handleSalesPeriodChange(opt.id)}
+                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      topbarSalesPeriod === opt.id
+                        ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-200'
+                        : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100/80 text-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-900">{opt.label}</span>
+                      {topbarSalesPeriod === opt.id && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />}
+                    </div>
+                    <span className="text-[10px] text-gray-400 font-medium mt-1">{opt.sub}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
             <ShopBackupSettingsSection />
             <ShippingLabelSettingsSection />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">

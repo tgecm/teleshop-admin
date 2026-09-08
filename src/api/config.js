@@ -5,7 +5,7 @@ const getApiBase = () => {
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
     if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.')) {
-      return 'http://139.180.156.116:8001';
+      return 'https://api.telegramecommerce.shop';
     }
   }
   return 'https://api.telegramecommerce.shop';

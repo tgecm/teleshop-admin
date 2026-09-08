@@ -49,6 +49,18 @@ export default function Products() {
     }
     return false;
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'new' || params.get('new') === '1') {
+      setIsModalOpen(true);
+      setEditingProduct(null);
+      const url = new URL(window.location);
+      url.searchParams.delete('action');
+      url.searchParams.delete('new');
+      window.history.replaceState({}, '', url);
+    }
+  }, []);
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [couponForm, setCouponForm] = useState({
     code: '',

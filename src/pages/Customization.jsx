@@ -13,6 +13,8 @@ import ConfirmDialog from '../components/shared/ConfirmDialog';
 import currencies, { getCurrencyByCode } from '../utils/currencies';
 import { getAdminQuickQuestions, createQuickQuestion, updateQuickQuestion, deleteQuickQuestion } from '../api/quickQuestions';
 import { getShopMmpayStatus } from '../api/payments';
+import client from '../api/client';
+import TempAccountModal from '../components/shared/TempAccountModal';
 import {
   Palette,
   Camera,
@@ -30,6 +32,8 @@ import {
   X,
   CheckCircle2,
   ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
   Link,
   ShoppingBag,
   Globe,
@@ -540,9 +544,17 @@ function BannerEditor({ contentBlocks, onSave, botId, planName }) {
 }
 
 export default function Customization() {
+  const { user } = useAuthStore();
   const { selectedBotId, bots, setBots } = useBotStore();
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
+
+  const isTempAccount = Boolean(
+    user?.is_temp_account ||
+    (user?.email && user.email.toLowerCase().endsWith('@gmail.com') && (user.email.toLowerCase().includes('bot') || user.email.toLowerCase().includes('test')))
+  );
+
+  const [isTempSkipped, setIsTempSkipped] = useState(false);
 
   const { data: bot, isLoading: botLoading } = useQuery({
     queryKey: ['bots', selectedBotId],
@@ -767,6 +779,15 @@ export default function Customization() {
   };
 
   if (botLoading) return <LoadingSkeleton type="list" count={5} />;
+
+  if (isTempAccount && !isTempSkipped) {
+    return (
+      <TempAccountModal
+        title="Change temporary mail and password to unlock the Customize."
+        onSkip={() => setIsTempSkipped(true)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">

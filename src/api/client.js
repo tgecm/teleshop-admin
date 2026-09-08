@@ -7,6 +7,7 @@ const client = axios.create({
 });
 
 let lastBackendErrorTime = 0;
+let backendUnreachableStart = 0;
 let consecutiveErrors = 0;
 
 client.interceptors.request.use((config) => {
@@ -21,15 +22,20 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => {
     consecutiveErrors = 0;
+    backendUnreachableStart = 0;
     return response;
   },
   (error) => {
     if (!error.response) {
-      consecutiveErrors++;
       const now = Date.now();
-      if (consecutiveErrors >= 3 && now - lastBackendErrorTime > 30000) {
+      if (!backendUnreachableStart) {
+        backendUnreachableStart = now;
+      }
+      consecutiveErrors++;
+      if (consecutiveErrors >= 5 && (now - backendUnreachableStart >= 10000) && (now - lastBackendErrorTime > 30000)) {
         lastBackendErrorTime = now;
         consecutiveErrors = 0;
+        backendUnreachableStart = 0;
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('app:vpn-warning'));
         }

@@ -7,7 +7,9 @@ import { getBot, getAiSettings, updateAiSettings } from '../api/bots';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { uploadImage } from '../api/products';
 import { isFeatureAllowed } from '../utils/plans';
-import LoadingSkeleton from '../components/shared/LoadingSkeleton';
+import { useAuthStore } from '../store/authStore';
+import client from '../api/client';
+import TempAccountModal from '../components/shared/TempAccountModal';
 import {
   MessageSquare,
   ImageUp,
@@ -23,13 +25,24 @@ import {
   Trash2,
   Phone,
   Mail,
+  ShieldAlert,
+  Lock,
+  AlertTriangle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function BotCustomization() {
+  const { user } = useAuthStore();
   const { selectedBotId } = useBotStore();
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
+
+  const isTempAccount = Boolean(
+    user?.is_temp_account ||
+    (user?.email && user.email.toLowerCase().endsWith('@gmail.com') && (user.email.toLowerCase().includes('bot') || user.email.toLowerCase().includes('test')))
+  );
+
+  const [isTempSkipped, setIsTempSkipped] = useState(false);
 
   const { data: bot, isLoading: botLoading } = useQuery({
     queryKey: ['bots', selectedBotId],
@@ -89,6 +102,15 @@ export default function BotCustomization() {
   }, [contentBlocks]);
 
   if (botLoading) return <LoadingSkeleton type="list" count={5} />;
+
+  if (isTempAccount && !isTempSkipped) {
+    return (
+      <TempAccountModal
+        title="Change temporary mail and password to unlock the Customize."
+        onSkip={() => setIsTempSkipped(true)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
