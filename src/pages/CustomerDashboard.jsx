@@ -150,42 +150,7 @@ export default function CustomerDashboard({ shopSlug }) {
   const mainRef = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
-  const handlePhotoUpload = useCallback(async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !shopData?.shop?.id || !uid) return;
-    setUploadingPhoto(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('bot_id', shopData.shop.id);
-      const res = await fetch(`${API_BASE}/public/upload/photo`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) throw new Error('Upload failed');
-      const data = await res.json();
-      setChatMessages(prev => [...prev, { role: 'user', content: '', file_id: data.file_id, file_type: 'photo' }]);
-      const msgRes = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: '',
-          visitor_id: uid,
-          file_id: data.file_id,
-          file_type: 'photo',
-        }),
-      });
-      const msgData = await msgRes.json();
-      if (msgData.reply) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: msgData.reply, file_id: null, file_type: null }]);
-      }
-    } catch {
-      useToastStore.getState().addToast('Failed to upload photo', 'error');
-    } finally {
-      setUploadingPhoto(false);
-      if (photoInputRef.current) photoInputRef.current.value = '';
-    }
-  }, [shopData?.shop?.id, uid]);
+
 
 
   // Instant MMQR State (Hoisted to root level for multi-tab & refresh persistence)
@@ -273,6 +238,44 @@ export default function CustomerDashboard({ shopSlug }) {
     || (userEmail ? userEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '')
     || '';
   const photoUrl = user?.photoURL || googleUser?.photo_url || telegramUser?.photo_url || null;
+
+  const handlePhotoUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !shopData?.shop?.id || !uid) return;
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bot_id', shopData.shop.id);
+      const res = await fetch(`${API_BASE}/public/upload/photo`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: 'user', content: '', file_id: data.file_id, file_type: 'photo' }]);
+      const msgRes = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: '',
+          visitor_id: uid,
+          file_id: data.file_id,
+          file_type: 'photo',
+        }),
+      });
+      const msgData = await msgRes.json();
+      if (msgData.reply) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: msgData.reply, file_id: null, file_type: null }]);
+      }
+    } catch {
+      useToastStore.getState().addToast('Failed to upload photo', 'error');
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  }, [shopData?.shop?.id, uid]);
+
 
   useAuthTokenFromUrl();
 
