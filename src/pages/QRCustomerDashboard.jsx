@@ -1,16 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { RichMessage } from '../components/chat/RichMessage';
-import FullScreenImageViewer from '../components/shared/FullScreenImageViewer';
-import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Clock, Trash2, Loader2,
   CheckCircle, X, MessageCircle, Send,
-  Ticket, QrCode, ImageUp, Maximize2
+  Ticket, QrCode
 } from 'lucide-react';
 import { useToastStore } from '../store/toastStore';
 import { API_BASE } from '../api/config';
-
 
 function makeCircularFavicon(url) {
   return new Promise((resolve) => {
@@ -72,50 +69,8 @@ export default function QRCustomerDashboard({ slug, shop }) {
   const chatRef = useRef(null);
   const copyTimerRef = useRef(null);
   const chatInputRef = useRef(null);
-  const photoInputRef = useRef(null);
-  const [fullScreenImg, setFullScreenImg] = useState(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const shopName = shop?.bot_full_name || slug;
   const botId = shop?.id;
-
-  const handlePhotoUpload = useCallback(async (e) => {
-    const file = e.target.files?.[0];
-    const visitorId = getVisitorId();
-    if (!file || !botId || !visitorId) return;
-    setUploadingPhoto(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('bot_id', botId);
-      const res = await fetch(`${API_BASE}/public/upload/photo`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) throw new Error('Upload failed');
-      const data = await res.json();
-      setChatMessages(prev => [...prev, { role: 'user', content: '', file_id: data.file_id, file_type: 'photo' }]);
-      const msgRes = await fetch(`${API_BASE}/public/chat/${botId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: '',
-          visitor_id: visitorId,
-          file_id: data.file_id,
-          file_type: 'photo',
-        }),
-      });
-      const msgData = await msgRes.json();
-      if (msgData.reply) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: msgData.reply, file_id: null, file_type: null }]);
-      }
-    } catch {
-      useToastStore.getState().addToast('Failed to upload photo', 'error');
-    } finally {
-      setUploadingPhoto(false);
-      if (photoInputRef.current) photoInputRef.current.value = '';
-    }
-  }, [botId]);
-
 
   // Set page meta
   useEffect(() => {
@@ -298,83 +253,34 @@ export default function QRCustomerDashboard({ slug, shop }) {
 
   const handleContextMenu = useCallback((e, i) => { e.preventDefault(); e.stopPropagation(); copyMsg(i); }, [copyMsg]);
 
-  const chatElements = useMemo(() => {
-    let lastDateStr = null;
-    const elements = [];
-
-    chatMessages.forEach((msg, i) => {
-      const rawDate = msg.created_at || msg.timestamp || msg.time || msg.date;
-      let currentDateStr = null;
-
-      if (rawDate) {
-        try {
-          currentDateStr = myanmarFormat(rawDate, 'd MMM yyyy');
-        } catch (e) {
-          currentDateStr = null;
-        }
-      }
-
-      if (currentDateStr && currentDateStr !== lastDateStr) {
-        lastDateStr = currentDateStr;
-        elements.push(
-          <div
-            key={`qr-date-${currentDateStr}-${i}`}
-            className="flex items-center justify-center my-4"
-          >
-            <span className="px-3.5 py-1 bg-gray-100/90 border border-gray-200/70 rounded-full text-[11px] font-bold text-gray-500 tracking-wide">
-              {currentDateStr}
-            </span>
-          </div>
-        );
-      }
-
-      const imgUrl = (msg.file_type === 'photo' && msg.file_id)
-        ? `${API_BASE}/telegram/file/${encodeURIComponent(msg.file_id)}?bot_id=${botId}`
-        : null;
-
-      elements.push(
-        <div key={`msg-${i}`} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-          <div className={`relative max-w-[80%] rounded-2xl px-4 py-2.5 group ${
-            msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-md' : 'bg-gray-100 text-gray-800 rounded-bl-md'
-          }`}
-            onClick={() => copyMsg(i)} onContextMenu={(e) => handleContextMenu(e, i)}
-            onTouchStart={() => { copyTimerRef.current = setTimeout(() => copyMsg(i), 500); }}
-            onTouchEnd={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}
-            onTouchMove={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}>
-            {copiedIndex === i && (
-              <span className="absolute -top-2 right-2 text-[9px] font-bold bg-gray-800 text-white px-1.5 py-0.5 rounded-full z-10">Copied!</span>
-            )}
-            {imgUrl ? (
-              <div
-                className="relative group/img cursor-pointer overflow-hidden rounded-lg mb-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFullScreenImg(imgUrl);
-                }}
-              >
-                <img src={imgUrl} alt="" className="max-w-full rounded-lg cursor-pointer hover:opacity-95 transition-all group-hover/img:scale-[1.02]" />
-                <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/img:opacity-100 transition-opacity rounded-lg flex items-center justify-center pointer-events-none">
-                  <span className="bg-black/75 backdrop-blur-md text-white text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
-                    <Maximize2 className="w-3 h-3" /> Full Screen
-                  </span>
-                </div>
-              </div>
-            ) : null}
-            {msg.role === 'assistant' ? (
-              <RichMessage content={msg.content} isAssistant={true} botId={botId}
-                onAction={handleAction} onFormSubmit={handleFormSubmit} onFileUpload={handleFileUpload} />
-            ) : msg.content ? (
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-            ) : null}
-            <span className={`absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-40 transition-opacity select-none ${msg.role === 'user' ? 'text-white/50' : 'text-gray-400'}`}>copy</span>
-          </div>
+  const chatBubbles = useMemo(() =>
+    chatMessages.map((msg, i) => (
+      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+        <div className={`relative max-w-[80%] rounded-2xl px-4 py-2.5 group ${
+          msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-md' : 'bg-gray-100 text-gray-800 rounded-bl-md'
+        }`}
+          onClick={() => copyMsg(i)} onContextMenu={(e) => handleContextMenu(e, i)}
+          onTouchStart={() => { copyTimerRef.current = setTimeout(() => copyMsg(i), 500); }}
+          onTouchEnd={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}
+          onTouchMove={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}>
+          {copiedIndex === i && (
+            <span className="absolute -top-2 right-2 text-[9px] font-bold bg-gray-800 text-white px-1.5 py-0.5 rounded-full z-10">Copied!</span>
+          )}
+          {msg.file_type === 'photo' && msg.file_id ? (
+            <img src={`${API_BASE}/telegram/file/${encodeURIComponent(msg.file_id)}?bot_id=${botId}`}
+              alt="" className="max-w-full rounded-lg" />
+          ) : msg.role === 'assistant' ? (
+            <RichMessage content={msg.content} isAssistant={true} botId={botId}
+              onAction={handleAction} onFormSubmit={handleFormSubmit} onFileUpload={handleFileUpload} />
+          ) : msg.content ? (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+          ) : null}
+          <span className={`absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-40 transition-opacity select-none ${msg.role === 'user' ? 'text-white/50' : 'text-gray-400'}`}>copy</span>
         </div>
-      );
-    });
-
-    return elements;
-  }, [chatMessages, handleAction, handleFormSubmit, handleFileUpload, handleContextMenu, copyMsg, copiedIndex, botId]);
-
+      </div>
+    )),
+    [chatMessages, handleAction, handleFormSubmit, handleFileUpload, handleContextMenu, copyMsg, copiedIndex, botId]
+  );
 
   const handleGetToken = async () => {
     if (!slug) return;
@@ -514,7 +420,7 @@ export default function QRCustomerDashboard({ slug, shop }) {
             </button>
           </div>
           <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            {chatElements}
+            {chatBubbles}
             {chatLoading && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
@@ -530,21 +436,6 @@ export default function QRCustomerDashboard({ slug, shop }) {
           <div className="shrink-0 border-t border-gray-200 px-4 py-3 bg-white">
             <div className="flex items-center gap-2">
               <input
-                ref={photoInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => photoInputRef.current?.click()}
-                disabled={uploadingPhoto || chatLoading}
-                className="w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-50 transition-all active:scale-90 flex-shrink-0 bg-gray-100 text-gray-500 hover:bg-gray-200"
-                title="Send photo"
-              >
-                {uploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageUp className="w-4 h-4" />}
-              </button>
-              <input
                 ref={chatInputRef}
                 type="text"
                 value={chatInput}
@@ -552,9 +443,8 @@ export default function QRCustomerDashboard({ slug, shop }) {
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
                 placeholder="Type a message..."
                 className="flex-1 px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl outline-none text-sm focus:ring-2 focus:ring-indigo-500"
-                disabled={chatLoading}
               />
-              <button onClick={handleChatSend} disabled={!chatInput.trim() || chatLoading}
+              <button onClick={handleChatSend} disabled={!chatInput.trim()}
                 className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-all disabled:opacity-50 shrink-0">
                 <Send className="w-4 h-4" />
               </button>
@@ -562,14 +452,6 @@ export default function QRCustomerDashboard({ slug, shop }) {
           </div>
         </div>
       )}
-
-      <FullScreenImageViewer
-        isOpen={!!fullScreenImg}
-        onClose={() => setFullScreenImg(null)}
-        imgUrl={fullScreenImg}
-        title="Chat Image Preview"
-      />
-
     </div>
   );
 }
