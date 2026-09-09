@@ -392,6 +392,7 @@ export default function CustomerDashboard({ shopSlug }) {
             content: m.message_text || '',
             file_id: m.file_id,
             file_type: m.file_type,
+            created_at: m.created_at || m.timestamp || m.time || m.date || new Date().toISOString(),
           }));
           setChatMessages(prev => {
             const isGreeting = prev.length === 1 && prev[0].role === 'assistant' && prev[0].content === 'Hi! How can I help you today?';
@@ -416,6 +417,7 @@ export default function CustomerDashboard({ shopSlug }) {
           content: m.message_text || '',
           file_id: m.file_id,
           file_type: m.file_type,
+          created_at: m.created_at || m.timestamp || m.time || m.date || new Date().toISOString(),
         }));
         setChatMessages(prev => {
           const existingKeys = new Set(prev.map(m => `${m.content}|${m.role}|${m.file_id || ''}`));
@@ -426,6 +428,7 @@ export default function CustomerDashboard({ shopSlug }) {
     }, 3000);
     return () => clearInterval(interval);
   }, [chatOpen, shopData?.shop?.id, uid]);
+
 
   // Chat: poll unread messages count for Support Chat badge (persisted across refreshes)
   useEffect(() => {
@@ -465,13 +468,14 @@ export default function CustomerDashboard({ shopSlug }) {
 
   const sendMessage = useCallback(async (msg) => {
     if (!msg || !shopData?.shop?.id) return;
+    const nowIso = new Date().toISOString();
     if (chatSendingRef.current) {
       chatQueueRef.current = [...chatQueueRef.current, { type: 'msg', msg }];
-      setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
+      setChatMessages(prev => [...prev, { role: 'user', content: msg, created_at: nowIso }]);
       return;
     }
     chatSendingRef.current = true;
-    setChatMessages(prev => [...prev, { role: 'user', content: msg }]);
+    setChatMessages(prev => [...prev, { role: 'user', content: msg, created_at: nowIso }]);
     setChatLoading(true);
     try {
       const history = chatMessagesRef.current.slice(-100).map(m => ({ role: m.role, content: m.content }));
@@ -482,10 +486,10 @@ export default function CustomerDashboard({ shopSlug }) {
       });
       const d = await res.json();
       if (d.reply) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
+        setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply, created_at: new Date().toISOString() }]);
       }
     } catch {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.', created_at: new Date().toISOString() }]);
     } finally {
       chatSendingRef.current = false;
       setChatLoading(false);
@@ -514,10 +518,10 @@ export default function CustomerDashboard({ shopSlug }) {
       });
       const d = await res.json();
       if (d.reply) {
-        setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply }]);
+        setChatMessages(prev => [...prev, { role: 'assistant', content: d.reply, created_at: new Date().toISOString() }]);
       }
     } catch {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }]);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.', created_at: new Date().toISOString() }]);
     } finally {
       chatSendingRef.current = false;
       setChatLoading(false);
@@ -528,6 +532,7 @@ export default function CustomerDashboard({ shopSlug }) {
       }
     }
   }, [shopData?.shop?.id, uid]);
+
 
   const handleChatSend = useCallback(() => {
     const msg = chatInput.trim();
