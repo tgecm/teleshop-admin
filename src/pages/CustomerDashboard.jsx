@@ -10,6 +10,7 @@ import { clearCustomerSession } from '../utils/customerAuth';
 import { useCartState } from '../context/CartContext';
 import { myanmarFormat } from '../utils/date';
 import { RichMessage } from '../components/chat/RichMessage';
+import FullScreenImageViewer from '../components/shared/FullScreenImageViewer';
 import { getPublicTopProducts, createInstantMmpayOrder } from '../api/public';
 import { getContentBlocks } from '../api/contentBlocks';
 import SearchableSelect from '../components/shared/SearchableSelect';
@@ -91,8 +92,10 @@ import {
   MapPin, Phone, Mail, User, Plus, Trash2, LogOut, Loader2,
   ShoppingCart, Home, Truck, Copy, Minus, Receipt as ReceiptIcon,
   CheckCircle, X, Upload, MessageCircle, Newspaper, Send, RefreshCw,
-  TrendingUp, Star, Award, AlertTriangle, ChevronUp, Store, ArrowLeft
+  TrendingUp, Star, Award, AlertTriangle, ChevronUp, Store, ArrowLeft,
+  ImageUp, Maximize2
 } from 'lucide-react';
+
 import Receipt from '../components/orders/Receipt';
 import CustomerShopTab from '../components/CustomerShopTab';
 import NewsfeedFeed from '../components/NewsfeedFeed';
@@ -141,8 +144,49 @@ export default function CustomerDashboard({ shopSlug }) {
   const chatRef = useRef(null);
   const copyTimerRef = useRef(null);
   const chatInputRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const [fullScreenImg, setFullScreenImg] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const mainRef = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  const handlePhotoUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !shopData?.shop?.id || !uid) return;
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bot_id', shopData.shop.id);
+      const res = await fetch(`${API_BASE}/public/upload/photo`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: 'user', content: '', file_id: data.file_id, file_type: 'photo' }]);
+      const msgRes = await fetch(`${API_BASE}/public/chat/${shopData.shop.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: '',
+          visitor_id: uid,
+          file_id: data.file_id,
+          file_type: 'photo',
+        }),
+      });
+      const msgData = await msgRes.json();
+      if (msgData.reply) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: msgData.reply, file_id: null, file_type: null }]);
+      }
+    } catch {
+      useToastStore.getState().addToast('Failed to upload photo', 'error');
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  }, [shopData?.shop?.id, uid]);
+
 
   // Instant MMQR State (Hoisted to root level for multi-tab & refresh persistence)
   const [mmpayOrderData, setMmpayOrderData] = useState(null);
@@ -591,40 +635,89 @@ export default function CustomerDashboard({ shopSlug }) {
     copyMsg(i);
   }, [copyMsg]);
 
-  const chatBubbles = useMemo(() =>
-    chatMessages.map((msg, i) => (
-      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-        <div className={`relative max-w-[80%] rounded-2xl px-4 py-2.5 group ${
-          msg.role === 'user'
-            ? 'bg-indigo-600 text-white rounded-br-md'
-            : 'bg-gray-100 text-gray-800 rounded-bl-md'
-        }`}
-          onClick={() => copyMsg(i)}
-          onContextMenu={(e) => handleContextMenu(e, i)}
-          onTouchStart={() => { copyTimerRef.current = setTimeout(() => copyMsg(i), 500); }}
-          onTouchEnd={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}
-          onTouchMove={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}>
-          {copiedIndex === i && (
-            <span className="absolute -top-2 right-2 text-[9px] font-bold bg-gray-800 text-white px-1.5 py-0.5 rounded-full z-10">Copied!</span>
-          )}
-          {msg.file_type === 'photo' && msg.file_id ? (
-            <img src={`${API_BASE}/telegram/file/${encodeURIComponent(msg.file_id)}?bot_id=${shopData.shop.id}`}
-              alt="" className="max-w-full rounded-lg" />
-          ) : msg.role === 'assistant' ? (
-            <RichMessage content={msg.content} isAssistant={true} botId={shopData?.shop?.id}
-              onAction={handleAction} onFormSubmit={handleFormSubmit}
-              onFileUpload={handleFileUpload} />
-          ) : msg.content ? (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{linkifyText(msg.content, msg.role === 'user')}</p>
-          ) : null}
-          <span className={`absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-40 transition-opacity select-none ${msg.role === 'user' ? 'text-white/50' : 'text-gray-400'}`}>
-            copy
-          </span>
+  const chatElements = useMemo(() => {
+    let lastDateStr = null;
+    const elements = [];
+
+    chatMessages.forEach((msg, i) => {
+      const rawDate = msg.created_at || msg.timestamp || msg.time || msg.date;
+      let currentDateStr = null;
+
+      if (rawDate) {
+        try {
+          currentDateStr = myanmarFormat(rawDate, 'd MMM yyyy');
+        } catch (e) {
+          currentDateStr = null;
+        }
+      }
+
+      if (currentDateStr && currentDateStr !== lastDateStr) {
+        lastDateStr = currentDateStr;
+        elements.push(
+          <div
+            key={`cust-date-${currentDateStr}-${i}`}
+            className="flex items-center justify-center my-4"
+          >
+            <span className="px-3.5 py-1 bg-gray-100/90 border border-gray-200/70 rounded-full text-[11px] font-bold text-gray-500 tracking-wide">
+              {currentDateStr}
+            </span>
+          </div>
+        );
+      }
+
+      const imgUrl = (msg.file_type === 'photo' && msg.file_id)
+        ? `${API_BASE}/telegram/file/${encodeURIComponent(msg.file_id)}?bot_id=${shopData?.shop?.id}`
+        : null;
+
+      elements.push(
+        <div key={`msg-${i}`} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div className={`relative max-w-[80%] rounded-2xl px-4 py-2.5 group ${
+            msg.role === 'user'
+              ? 'bg-indigo-600 text-white rounded-br-md'
+              : 'bg-gray-100 text-gray-800 rounded-bl-md'
+          }`}
+            onClick={() => copyMsg(i)}
+            onContextMenu={(e) => handleContextMenu(e, i)}
+            onTouchStart={() => { copyTimerRef.current = setTimeout(() => copyMsg(i), 500); }}
+            onTouchEnd={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}
+            onTouchMove={() => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }}>
+            {copiedIndex === i && (
+              <span className="absolute -top-2 right-2 text-[9px] font-bold bg-gray-800 text-white px-1.5 py-0.5 rounded-full z-10">Copied!</span>
+            )}
+            {imgUrl ? (
+              <div
+                className="relative group/img cursor-pointer overflow-hidden rounded-lg mb-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFullScreenImg(imgUrl);
+                }}
+              >
+                <img src={imgUrl} alt="" className="max-w-full rounded-lg cursor-pointer hover:opacity-95 transition-all group-hover/img:scale-[1.02]" />
+                <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/img:opacity-100 transition-opacity rounded-lg flex items-center justify-center pointer-events-none">
+                  <span className="bg-black/75 backdrop-blur-md text-white text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <Maximize2 className="w-3 h-3" /> Full Screen
+                  </span>
+                </div>
+              </div>
+            ) : null}
+            {msg.role === 'assistant' ? (
+              <RichMessage content={msg.content} isAssistant={true} botId={shopData?.shop?.id}
+                onAction={handleAction} onFormSubmit={handleFormSubmit}
+                onFileUpload={handleFileUpload} />
+            ) : msg.content ? (
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{linkifyText(msg.content, msg.role === 'user')}</p>
+            ) : null}
+            <span className={`absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-40 transition-opacity select-none ${msg.role === 'user' ? 'text-white/50' : 'text-gray-400'}`}>
+              copy
+            </span>
+          </div>
         </div>
-      </div>
-    )),
-    [chatMessages, handleAction, handleFormSubmit, handleFileUpload, handleContextMenu, shopData?.shop?.id, copyMsg, copiedIndex]
-  );
+      );
+    });
+
+    return elements;
+  }, [chatMessages, handleAction, handleFormSubmit, handleFileUpload, handleContextMenu, shopData?.shop?.id, copyMsg, copiedIndex]);
+
 
   if (authLoading || !isAuthenticated) {
     return (
@@ -819,7 +912,7 @@ export default function CustomerDashboard({ shopSlug }) {
 
           {/* Messages */}
           <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            {chatBubbles}
+            {chatElements}
             {chatLoading && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
@@ -854,6 +947,21 @@ export default function CustomerDashboard({ shopSlug }) {
           <div className="shrink-0 border-t border-gray-200 px-4 py-3 bg-white">
             <div className="flex items-center gap-2">
               <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                disabled={uploadingPhoto || chatLoading}
+                className="w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-50 transition-all active:scale-90 flex-shrink-0 bg-gray-100 text-gray-500 hover:bg-gray-200"
+                title="Send photo"
+              >
+                {uploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageUp className="w-4 h-4" />}
+              </button>
+              <input
                 ref={chatInputRef}
                 type="text"
                 value={chatInput}
@@ -861,8 +969,9 @@ export default function CustomerDashboard({ shopSlug }) {
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
                 placeholder="Type a message..."
                 className="flex-1 px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl outline-none text-sm focus:ring-2 focus:ring-indigo-500"
+                disabled={chatLoading}
               />
-              <button onClick={handleChatSend} disabled={!chatInput.trim()}
+              <button onClick={handleChatSend} disabled={!chatInput.trim() || chatLoading}
                 className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-all disabled:opacity-50 shrink-0">
                 <Send className="w-4 h-4" />
               </button>
@@ -871,6 +980,14 @@ export default function CustomerDashboard({ shopSlug }) {
         </div>
         </ErrorBoundary>
       )}
+
+      <FullScreenImageViewer
+        isOpen={!!fullScreenImg}
+        onClose={() => setFullScreenImg(null)}
+        imgUrl={fullScreenImg}
+        title="Chat Image Preview"
+      />
+
 
       {/* Scroll to top */}
       {showScrollTop && (
