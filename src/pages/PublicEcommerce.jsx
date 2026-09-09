@@ -35,11 +35,12 @@ import NewsfeedFeed from '../components/NewsfeedFeed';
 import ZoomableQrModal from '../components/ZoomableQrModal';
 
 import { formatPrice } from '../utils/formatPrice';
+import { clearCustomerSession } from '../utils/customerAuth';
 import { API_BASE, fileUrl } from '../api/config';
 import { resolveColorName, resolveProductPrice } from '../utils/productPricing';
 
 function authHeaders() {
-  const token = localStorage.getItem('telegram_token');
+  const token = localStorage.getItem('telegram_token') || localStorage.getItem('google_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -1109,14 +1110,29 @@ export function CheckoutModal({ shop, cartItems, totalAmount, user, telegramUser
           coupon_code: couponApplied?.code || '',
           discount_amount: isMmpayCapped ? Math.max(0, (totalAmount + deliveryFeeAmount) - 1000) : (couponApplied ? appliedDiscount : (pointsDiscount || 0)),
           delivery_fee: deliveryFeeAmount || 0,
-          items: cartItems.map(i => ({
-            product_id: i.product_id,
-            name: i.name,
-            price: i.price,
-            quantity: i.quantity,
-            selected_color: i.selected_color,
-            selected_options: i.selected_options
-          }))
+          items: cartItems.map(i => {
+            const variantParts = [];
+            if (i.selected_color) variantParts.push(getColorName(i.selected_color));
+            if (i.selected_options) {
+              const p = products.find(pp => pp.id === i.product_id);
+              const opts = p?.specifications?.options || [];
+              Object.entries(i.selected_options).forEach(([optId, valId]) => {
+                const o = opts.find(oo => String(oo.id) === String(optId));
+                if (o) { const v = o.values.find(vv => String(vv.id) === String(valId)); if (v) variantParts.push(`${o.name}: ${v.label}`); }
+              });
+            }
+            const currentProduct = products.find(p => p.id === i.product_id);
+            const currentPrice = resolveProductPrice(currentProduct || i, i.selected_color, i.selected_options) || i.price;
+            return {
+              product_id: i.product_id,
+              name: i.name,
+              price: currentPrice,
+              quantity: i.quantity,
+              selected_color: i.selected_color,
+              selected_options: i.selected_options,
+              variant_label: variantParts.join(', '),
+            };
+          })
         };
         if (onInstantMmpayPreConfirm) {
           onInstantMmpayPreConfirm(mmpayPayload);
@@ -3228,9 +3244,9 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   }, [chatOpen, shop?.id, slug, viewMode, resolveLoggedInUser]);
 
   const handleSignOut = useCallback(async () => {
-    try { await signOut(auth); } catch {}
-    if (tgLoggedIn) logoutTelegram();
-  }, [tgLoggedIn, logoutTelegram]);
+    if (logoutTelegram) logoutTelegram();
+    await clearCustomerSession();
+  }, [logoutTelegram]);
 
   // Theme injection
   useEffect(() => {

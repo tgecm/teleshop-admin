@@ -18,6 +18,7 @@ import HapticProvider from './components/shared/HapticProvider';
 import NetworkStatus from './components/shared/NetworkStatus';
 import PermissionGuard from './components/shared/PermissionGuard';
 import PlanGate from './components/shared/PlanGate';
+import SuperadminGuard from './components/shared/SuperadminGuard';
 import AppVersionCheck from './components/AppVersionCheck';
 import AppSplashScreen from './components/AppSplashScreen';
 import { useDisableDevTools } from './hooks/useDisableDevTools';
@@ -510,11 +511,11 @@ export default function App() {
                   <Route path="customization" element={<PermissionGuard><PlanGate><Customization /></PlanGate></PermissionGuard>} />
                   <Route path="ai-agent" element={<PermissionGuard><PlanGate><AiAgent /></PlanGate></PermissionGuard>} />
                   <Route path="bot-customization" element={<PermissionGuard><PlanGate><BotCustomization /></PlanGate></PermissionGuard>} />
-                  <Route path="superadmin" element={<SuperadminDashboard />} />
-                  <Route path="send-message" element={<SendMessage />} />
-                  <Route path="mmpay-admin" element={<MyanMyanPayAdmin />} />
-                  <Route path="subscribers" element={<Subscribers />} />
-                  <Route path="web-logins" element={<WebLogins />} />
+                  <Route path="superadmin" element={<SuperadminGuard><SuperadminDashboard /></SuperadminGuard>} />
+                  <Route path="send-message" element={<SuperadminGuard><SendMessage /></SuperadminGuard>} />
+                  <Route path="mmpay-admin" element={<SuperadminGuard><MyanMyanPayAdmin /></SuperadminGuard>} />
+                  <Route path="subscribers" element={<SuperadminGuard><Subscribers /></SuperadminGuard>} />
+                  <Route path="web-logins" element={<SuperadminGuard><WebLogins /></SuperadminGuard>} />
                   <Route path="faqs" element={<PermissionGuard><FAQs /></PermissionGuard>} />
                   <Route path="qr-menu/dashboard" element={<PermissionGuard><PlanGate><QRMenuDashboard /></PlanGate></PermissionGuard>} />
                   <Route path="qr-menu" element={<PermissionGuard><PlanGate><QRMenuAdmin /></PlanGate></PermissionGuard>} />

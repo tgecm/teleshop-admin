@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useRequireAuth } from '../hooks/useRequireAuth';
 import { useTelegramAuth } from '../context/TelegramAuthContext';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
+import { clearCustomerSession } from '../utils/customerAuth';
 import { useCartState } from '../context/CartContext';
 import { myanmarFormat } from '../utils/date';
 import { RichMessage } from '../components/chat/RichMessage';
@@ -20,7 +21,7 @@ import { formatPrice } from '../utils/formatPrice';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
 
 function authHeaders() {
-  const token = localStorage.getItem('telegram_token');
+  const token = localStorage.getItem('telegram_token') || localStorage.getItem('google_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -111,8 +112,9 @@ const statusConfig = {
 };
 
 export default function CustomerDashboard({ shopSlug }) {
+  const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
-  const { telegramUser: ctxTelegramUser } = useTelegramAuth();
+  const { telegramUser: ctxTelegramUser, logoutTelegram } = useTelegramAuth();
   const { isAuthenticated } = useRequireAuth(shopSlug);
   const [activeTab, setActiveTab] = useState('overview');
   const [shopData, setShopData] = useState(null);
@@ -2025,18 +2027,12 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
 
   const handleSignOut = async () => {
     try {
-      localStorage.removeItem('telegram_token');
-      localStorage.removeItem('telegram_user');
-      localStorage.removeItem('google_token');
-      localStorage.removeItem('google_user');
-      localStorage.removeItem('custom_display_name');
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('visitor_')) localStorage.removeItem(key);
-      });
-      await signOut(auth).catch(() => {});
+      if (logoutTelegram) logoutTelegram();
+      await clearCustomerSession(queryClient);
       window.location.href = `/?p=${encodeURIComponent(shopSlug)}`;
     } catch (err) {
       console.error('Sign out failed:', err);
+      window.location.href = `/?p=${encodeURIComponent(shopSlug)}`;
     }
   };
 

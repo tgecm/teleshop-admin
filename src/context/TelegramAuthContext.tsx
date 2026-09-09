@@ -43,6 +43,8 @@ export function TelegramAuthProvider({ children }: { children: ReactNode }) {
   const logoutTelegram = () => {
     localStorage.removeItem('telegram_token');
     localStorage.removeItem('telegram_user');
+    localStorage.removeItem('google_token');
+    localStorage.removeItem('google_user');
     setTelegramToken(null);
     setTelegramUser(null);
   };

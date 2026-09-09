@@ -58,13 +58,15 @@ export async function signInWithGoogle(
   const userCred = await signInWithCredential(auth, credential);
   if (shopSlug) {
     const result = await exchangeGoogleToken(accessToken, shopSlug, userCred.user.uid);
-    localStorage.removeItem('telegram_token');
-    localStorage.removeItem('telegram_user');
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('visitor_')) localStorage.removeItem(key);
-    });
+    const telegramUser = {
+      id: String(result.user.id || ''),
+      name: String(result.user.name || ''),
+      photo_url: String(result.user.photo_url || ''),
+    };
     localStorage.setItem('google_token', result.token);
     localStorage.setItem('google_user', JSON.stringify(result.user));
+    localStorage.setItem('telegram_token', result.token);
+    localStorage.setItem('telegram_user', JSON.stringify(telegramUser));
     return result;
   }
 }

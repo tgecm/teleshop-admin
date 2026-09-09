@@ -8,6 +8,7 @@ import { useTelegramAuth } from '../context/TelegramAuthContext';
 import TelegramLoginModal from '../components/TelegramLoginModal';
 import { isMainDomain } from '../utils/authProxy';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
+import { clearCustomerSession } from '../utils/customerAuth';
 
 import { API_BASE } from '../api/config';
 
@@ -109,6 +110,7 @@ export default function CustomerLogin({ shopSlug }) {
     setSigningIn(true);
     setError('');
     try {
+      await clearCustomerSession();
       await signInWithGoogle(shopSlug);
     } catch (err) {
       setError('Sign in failed. Please try again.');
