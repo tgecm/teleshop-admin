@@ -118,7 +118,7 @@ export default function ChartRenderer({
   return (
     <>
       <div
-        className="h-[240px] sm:h-[300px] lg:h-[360px] w-full min-w-0 rounded-2xl p-2 relative overflow-hidden transition-all border border-gray-100/60 shadow-inner"
+        className="h-[240px] sm:h-[300px] lg:h-[360px] w-full min-w-0 rounded-2xl px-0.5 sm:px-2 py-2 relative overflow-hidden transition-all border border-gray-100/60 shadow-inner"
         style={{
           backgroundColor: '#fafbfc',
           backgroundImage: `
@@ -161,37 +161,36 @@ export default function ChartRenderer({
               })}
             </div>
 
-            {/* Center: Donut Pie Chart */}
-            <div className="w-full md:w-[260px] lg:w-[320px] h-full relative flex items-center justify-center flex-shrink-0">
+            {/* Mobile / Shared Pie Center */}
+            <div className="flex-1 md:flex-initial h-full relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  {pieData && pieData.length > 0 ? (
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={65}
-                      outerRadius={95}
-                      paddingAngle={3}
-                      dataKey="value"
-                      animationDuration={500}
-                    >
-                      {pieData.map((_, idx) => (
-                        <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
-                  ) : null}
-                  <Tooltip
-                    content={<ChartTooltip currency={currency} isPie={true} totalPieValue={totalPieValue} />}
-                    wrapperStyle={{ background: 'transparent', border: 'none', boxShadow: 'none', pointerEvents: 'none' }}
-                  />
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="50%"
+                    outerRadius="78%"
+                    paddingAngle={3}
+                    dataKey="value"
+                    animationDuration={300}
+                  >
+                    {pieData?.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={CHART_COLORS[index % CHART_COLORS.length]}
+                        stroke="#fff"
+                        strokeWidth={2}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<ChartTooltip currency={currency} isPie totalPieValue={totalPieValue} />} />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Donut Center Label */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Top 10 Total</span>
-                <span className="text-xs sm:text-sm font-black text-gray-900 drop-shadow-sm px-2">
-                  {formatPrice(totalPieValue, currency)}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total</span>
+                <span className="text-xs sm:text-sm font-extrabold text-gray-900">
+                  {formatCompactNumber(totalPieValue)}
                 </span>
               </div>
             </div>
@@ -230,7 +229,7 @@ export default function ChartRenderer({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={mergedChartData}
-              margin={{ top: 10, right: hasRightAxis ? 10 : 15, left: 5, bottom: 0 }}
+              margin={{ top: 10, right: hasRightAxis ? 2 : 5, left: 0, bottom: 0 }}
               barCategoryGap="22%"
               barGap={4}
             >
@@ -239,7 +238,7 @@ export default function ChartRenderer({
                 dataKey="day"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }}
+                tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }}
                 dy={10}
                 tickFormatter={(v) => { try { return myanmarFormat(parseISO(v), 'd MMM'); } catch { return v; } }}
               />
@@ -249,7 +248,7 @@ export default function ChartRenderer({
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
-                width={48}
+                width={45}
                 tickFormatter={formatCompactNumber}
               />
               {hasRightAxis && (
@@ -259,7 +258,7 @@ export default function ChartRenderer({
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 10, fill: '#0d9488', fontWeight: 600 }}
-                  width={36}
+                  width={26}
                   tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1).replace(/\.0$/, '')}k` : v)}
                 />
               )}
@@ -316,7 +315,7 @@ export default function ChartRenderer({
           </ResponsiveContainer>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={mergedChartData} margin={{ top: 10, right: hasRightAxis ? 10 : 15, left: 5, bottom: 0 }}>
+            <AreaChart data={mergedChartData} margin={{ top: 10, right: hasRightAxis ? 2 : 5, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#9333ea" stopOpacity={0.42} />
@@ -344,7 +343,7 @@ export default function ChartRenderer({
                 dataKey="day"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }}
+                tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }}
                 dy={10}
                 tickFormatter={(v) => { try { return myanmarFormat(parseISO(v), 'd MMM'); } catch { return v; } }}
               />
@@ -354,7 +353,7 @@ export default function ChartRenderer({
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
-                width={48}
+                width={45}
                 tickFormatter={formatCompactNumber}
               />
               {hasRightAxis && (
@@ -364,7 +363,7 @@ export default function ChartRenderer({
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 10, fill: '#0d9488', fontWeight: 600 }}
-                  width={36}
+                  width={26}
                   tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1).replace(/\.0$/, '')}k` : v)}
                 />
               )}

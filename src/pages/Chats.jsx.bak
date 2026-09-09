@@ -16,7 +16,6 @@ import {
   X,
   ChevronDown,
   ChevronRight,
-  ChevronLeft,
   User,
   Loader2,
   Trash2,
@@ -581,22 +580,6 @@ export default function Chats() {
   const [chatTab, setChatTab] = useState('all');
   const [fullScreenImg, setFullScreenImg] = useState(null);
 
-  useEffect(() => {
-    const mainEl = document.querySelector('main');
-    if (mainEl) {
-      mainEl.scrollTop = 0;
-      window.scrollTo(0, 0);
-      const prevOverflow = mainEl.style.overflow;
-      const prevMaxWidth = mainEl.style.maxWidth;
-      mainEl.style.overflow = 'hidden';
-      mainEl.style.maxWidth = 'none';
-      return () => {
-        mainEl.style.overflow = prevOverflow;
-        mainEl.style.maxWidth = prevMaxWidth;
-      };
-    }
-  }, []);
-
   const deleteMutation = useMutation({
     mutationFn: async ({ userId, visitorId }) => {
       const promises = [];
@@ -1140,71 +1123,29 @@ export default function Chats() {
   };
 
   return (
-    <div className="-mt-3 md:-mt-5 lg:-mt-7 -mx-3 sm:-mx-4 md:-mx-8 lg:-mx-10 h-[calc(100vh-4.2rem)] md:h-[calc(100vh-4.5rem)] min-h-[500px] bg-white rounded-2xl lg:rounded-3xl border border-gray-200/90 ring-1 ring-black/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col lg:flex-row">
-      {/* LEFT SIDEBAR: Conversation List & Filters */}
-      <div className={`w-full lg:w-[340px] xl:w-[380px] 2xl:w-[420px] flex-shrink-0 flex flex-col border-r border-gray-100 bg-gray-50/40 ${ (selectedUser || selectedVisitor) ? 'hidden lg:flex' : 'flex' } h-full overflow-hidden`}>
-        {/* Header with Title, Search & Filter */}
-        <div className="p-4 border-b border-gray-200/60 bg-white/80 backdrop-blur-md space-y-3 flex-shrink-0">
-          <div className="flex items-center justify-between gap-2">
-            <h1 className="text-xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
-              <MessageCircle className="w-6 h-6 text-indigo-600" />
-              Chats
-            </h1>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setShowStartChatModal(true)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
-                title="Start chat with website customer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Start Chat</span>
-              </button>
-              {supportVisitor && (
-                <button
-                  onClick={() => {
-                    setSelectedVisitor(supportVisitor.visitor_id);
-                    setSelectedUser(null);
-                    setSearch('');
-                    setChatTab('all');
-                  }}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    selectedVisitor === supportVisitor.visitor_id
-                      ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-300'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <Headphones className="w-3.5 h-3.5" />
-                  <span>Support</span>
-                  {supportUnread > 0 && (
-                    <span className="bg-red-500 text-white text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-full">
-                      {supportUnread > 99 ? '99+' : supportUnread}
-                    </span>
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Search Bar & Status Filter */}
-          <div className="relative" ref={filterRef}>
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Chats</h1>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-72" ref={filterRef}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search user..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-9 py-2 bg-gray-100/80 border border-gray-200/80 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+              className="w-full pl-10 pr-9 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
             />
             <button
               onClick={() => setShowFilterMenu(!showFilterMenu)}
-              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg transition-all ${
+              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-xl transition-all ${
                 statusFilter !== 'all'
                   ? 'bg-indigo-100 text-indigo-600 font-bold'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200/50'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
               }`}
               title="Filter chats by status"
             >
-              <Filter className="w-3.5 h-3.5" />
+              <Filter className="w-4 h-4" />
             </button>
 
             {showFilterMenu && (
@@ -1246,342 +1187,202 @@ export default function Chats() {
               </div>
             )}
           </div>
-
-          {/* Platform Tab Switcher */}
-          <div className="flex gap-1 bg-gray-200/60 rounded-xl p-1 w-full">
+          <button
+            onClick={() => setShowStartChatModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold transition-all flex-shrink-0 shadow-sm active:scale-95 cursor-pointer"
+            title="Start chat with website customer"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Start Chat</span>
+          </button>
+          {supportVisitor && (
             <button
-              onClick={() => { setChatTab('all'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
-              className={`flex-1 px-1.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
-                chatTab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              onClick={() => {
+                setSelectedVisitor(supportVisitor.visitor_id);
+                setSelectedUser(null);
+                setSearch('');
+                setChatTab('all');
+              }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 ${
+                selectedVisitor === supportVisitor.visitor_id
+                  ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-300'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              All
-            </button>
-            <button
-              onClick={() => { setChatTab('telegram'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
-              className={`flex-1 px-1.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
-                chatTab === 'telegram' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Smartphone className="w-3 h-3 flex-shrink-0" />
-              Telegram
-              {telegramUnread > 0 && (
-                <span className="bg-red-500 text-white text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-full">
-                  {telegramUnread > 99 ? '99+' : telegramUnread}
+              <Headphones className="w-3.5 h-3.5" />
+              Support
+              {supportUnread > 0 && (
+                <span className="bg-red-500 text-white text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-full min-w-[17px] text-center">
+                  {supportUnread > 99 ? '99+' : supportUnread}
                 </span>
               )}
             </button>
-            <button
-              onClick={() => { setChatTab('web'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
-              className={`flex-1 px-1.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
-                chatTab === 'web' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Globe className="w-3 h-3 flex-shrink-0" />
-              Website
-              {websiteUnread > 0 && (
-                <span className="bg-red-500 text-white text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-full">
-                  {websiteUnread > 99 ? '99+' : websiteUnread}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => { setChatTab('guest'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
-              className={`flex-1 px-1.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
-                chatTab === 'guest' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <User className="w-3 h-3 flex-shrink-0" />
-              Guest
-              {guestUnread > 0 && (
-                <span className="bg-red-500 text-white text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-full">
-                  {guestUnread > 99 ? '99+' : guestUnread}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Conversation List Items */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 overflow-x-hidden" onContextMenu={(e) => e.preventDefault()}>
-          {chatTab === 'web' || chatTab === 'guest' ? (
-            <>
-              {(chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v)) : filteredWebVisitors.filter(v => isGuestVisitor(v))).length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-gray-200 rounded-2xl my-4">
-                  <MessageCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-gray-500">
-                    {chatTab === 'web' ? 'No website visitors yet' : 'No guest visitors yet'}
-                  </p>
-                </div>
-              ) : (
-                (chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v)) : filteredWebVisitors.filter(v => isGuestVisitor(v))).map(v => (
-                  <WebVisitorItem
-                    key={v.visitor_id}
-                    v={v}
-                    isSelected={selectedVisitor === v.visitor_id}
-                    onClick={() => {
-                      setSelectedVisitor(v.visitor_id);
-                      setSelectedUser(null);
-                      setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
-                    }}
-                    onContextMenu={handleContextMenu}
-                  />
-                ))
-              )}
-            </>
-          ) : chatTab === 'telegram' ? (
-            <>
-              {filteredChats.length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-gray-200 rounded-2xl my-4">
-                  <MessageCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-gray-500">No Telegram conversations yet</p>
-                </div>
-              ) : (
-                filteredChats.map(chat => (
-                  <ConversationItem
-                    key={chat.user_id}
-                    chat={chat}
-                    isActive={selectedUser === chat.user_id}
-                    onClick={() => {
-                      setSelectedUser(chat.user_id);
-                      setSelectedVisitor(null);
-                      setUnreadOverrides(prev => { const n = {...prev}; delete n[chat.user_id]; return n; });
-                    }}
-                    onContextMenu={handleContextMenu}
-                  />
-                ))
-              )}
-            </>
-          ) : (
-            <>
-              {combinedAllItems.length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-gray-200 rounded-2xl my-4">
-                  <MessageCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-gray-500">No conversations found</p>
-                </div>
-              ) : (
-                combinedAllItems.map(entry => (
-                  entry.type === 'telegram' ? (
-                    <ConversationItem
-                      key={`tg_${entry.id}`}
-                      chat={entry.item}
-                      isActive={selectedUser === entry.id}
-                      onClick={() => {
-                        setSelectedUser(entry.id);
-                        setSelectedVisitor(null);
-                        setUnreadOverrides(prev => { const n = {...prev}; delete n[entry.id]; return n; });
-                      }}
-                      onContextMenu={handleContextMenu}
-                    />
-                  ) : (
-                    <WebVisitorItem
-                      key={`wv_${entry.id}`}
-                      v={entry.item}
-                      isSelected={selectedVisitor === entry.id}
-                      onClick={() => {
-                        setSelectedVisitor(entry.id);
-                        setSelectedUser(null);
-                        setUnreadOverrides(prev => { const n = {...prev}; delete n[entry.id]; return n; });
-                      }}
-                      onContextMenu={handleContextMenu}
-                    />
-                  )
-                ))
-              )}
-            </>
           )}
         </div>
       </div>
 
-      {/* RIGHT PANEL: Active Integrated Chat Workspace */}
-      <div className={`flex-1 flex flex-col bg-white min-w-0 relative ${ !(selectedUser || selectedVisitor) ? 'hidden lg:flex' : 'flex' } h-full overflow-hidden`}>
-        { (selectedUser || selectedVisitor) ? (
-          <div className="flex-1 flex flex-col h-full overflow-hidden">
-            {/* Chat Workspace Header */}
-            <div className="p-3 px-4 sm:px-6 border-b border-gray-100 bg-white/90 backdrop-blur-md flex items-center justify-between gap-3 flex-shrink-0 shadow-xs">
-              <div className="flex items-center gap-3 min-w-0">
-                <button
-                  onClick={() => { setSelectedUser(null); setSelectedVisitor(null); }}
-                  className="lg:hidden p-2 rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all active:scale-95 flex-shrink-0"
-                  title="Back to conversations"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <CustomerAvatar photoUrl={selectedWebChat?.photo_url || selectedChat?.profile_picture || selectedChat?.photo_url} name={selectedWebChat?.name || selectedChat?.first_name || selectedChat?.account_name || selectedChatName} size="w-10 h-10" fontSize="text-sm" />
-                <div className="min-w-0">
-                  <h2 className="text-sm font-bold text-gray-900 truncate flex items-center gap-1.5">
-                    {isSupportChat ? <>E-commerce Support<BadgeCheck className="w-4 h-4 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || selectedChat?.account_name || selectedChatName || 'Customer')}
-                  </h2>
-                  <p className="text-[11px] text-gray-500 truncate flex items-center gap-2">
-                    {selectedChat?.username && <span>@{selectedChat.username}</span>}
-                    {selectedWebChat?.phone && <span>{selectedWebChat.phone}</span>}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {selectedWebChat && !isSupportChat && (
-                  <button
-                    onClick={() => toggleAiMutation.mutate({ visitorId: selectedVisitor, disabled: !selectedWebChat.ai_disabled })}
-                    disabled={toggleAiMutation.isPending}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-xs ${
-                      selectedWebChat.ai_disabled
-                        ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                        : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                    }`}
-                  >
-                    <Brain className="w-3.5 h-3.5" />
-                    <span>{selectedWebChat.ai_disabled ? 'AI Off' : 'AI Active'}</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => { setSelectedUser(null); setSelectedVisitor(null); }}
-                  className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-all active:scale-95"
-                  title="Close chat"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Message Stream */}
-            <div ref={chatContainerRef} onScroll={handleChatScroll} className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4 space-y-3 min-h-0 bg-slate-50/30">
-              {(() => {
-                const msgs = selectedVisitor ? stableWebMessages : stableMessages;
-                if (msgs.length === 0) {
-                  return (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-sm text-gray-400 font-medium">No messages yet</p>
-                    </div>
-                  );
-                }
-
-                let lastDateStr = null;
-                const elements = [];
-
-                msgs.forEach((msg, idx) => {
-                  const rawDate = msg.created_at || msg.timestamp || msg.time || msg.date;
-                  let currentDateStr = null;
-
-                  if (rawDate) {
-                    try {
-                      currentDateStr = myanmarFormat(rawDate, 'd MMM yyyy');
-                    } catch (e) {
-                      currentDateStr = null;
-                    }
-                  }
-
-                  if (currentDateStr && currentDateStr !== lastDateStr) {
-                    lastDateStr = currentDateStr;
-                    elements.push(
-                      <div
-                        key={`date-divider-${currentDateStr}-${idx}`}
-                        className="flex items-center justify-center my-4"
-                      >
-                        <span className="px-3.5 py-1 bg-white border border-gray-200/80 shadow-xs rounded-full text-[11px] font-bold text-gray-500 tracking-wide">
-                          {currentDateStr}
-                        </span>
-                      </div>
-                    );
-                  }
-
-                  elements.push(
-                    <ChatBubble
-                      key={msg.id || idx}
-                      message={msg}
-                      isAdmin={msg.sender_type === 'admin'}
-                      isAi={msg.sender_type === 'ai' || msg.sender_type === 'assistant'}
-                      isFollowup={msg.sender_type === 'followup'}
-                      botId={Number(selectedBotId)}
-                      botUsername={botUsername}
-                      showTelegramLink={chatTab === 'all' || chatTab === 'telegram'}
-                      onImageClick={(url) => setFullScreenImg(url)}
-                    />
-                  );
-                });
-
-                return elements;
-              })()}
-              <div ref={messagesEndRef} />
-              {userScrolledUp && (
-                <div className="sticky bottom-0 flex justify-end pb-2 pointer-events-none">
-                  <button
-                    onClick={scrollToBottom}
-                    className="pointer-events-auto w-10 h-10 bg-white border border-gray-200 shadow-lg rounded-full flex items-center justify-center hover:bg-gray-50 active:scale-90 transition-all"
-                  >
-                    <ChevronDown className="w-5 h-5 text-gray-600" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Input Bar */}
-            <div className="bg-white border-t border-gray-100 px-4 sm:px-6 py-3">
-              <div className="flex items-end gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoSelect}
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading || sendMutation.isPending}
-                  className="w-10 h-10 bg-gray-100 text-gray-500 rounded-2xl flex items-center justify-center hover:bg-gray-200 disabled:opacity-40 transition-all active:scale-90 flex-shrink-0"
-                  title="Send photo"
-                >
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageUp className="w-4 h-4" />}
-                </button>
-                <div className="flex-1 relative">
-                  <textarea
-                    ref={inputRef}
-                    value={inputText}
-                    onChange={(e) => {
-                      if (e.target.value.length > 4096) return;
-                      setInputText(e.target.value);
-                      e.target.style.height = 'auto';
-                      e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
-                    }}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Type a message..."
-                    rows={1}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none transition-all"
-                    style={{ maxHeight: 200 }}
-                  />
-                  {inputText.length > 3800 && (
-                    <span className="absolute -bottom-4 right-2 text-[10px] text-gray-400">{inputText.length}/4096</span>
-                  )}
-                </div>
-                <button
-                  onClick={handleSend}
-                  disabled={!inputText.trim() || sendMutation.isPending}
-                  className="w-11 h-11 bg-indigo-600 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-90 flex-shrink-0 shadow-md shadow-indigo-600/20"
-                >
-                  {sendMutation.isPending ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Send className="w-5 h-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Blank Placeholder when no chat is selected on desktop */
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/40">
-            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/20 mb-4 animate-bounce">
-              <MessageCircle className="w-10 h-10" />
-            </div>
-            <h3 className="text-xl font-extrabold text-gray-900 tracking-tight">Select a Conversation</h3>
-            <p className="text-sm text-gray-500 max-w-sm mt-1.5 leading-relaxed">
-              Choose a chat.....
-            </p>
-          </div>
-        )}
+      {/* Tab switcher */}
+      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 w-full">
+        <button
+          onClick={() => { setChatTab('all'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
+          className={`flex-1 px-1.5 py-2 rounded-xl text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+            chatTab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          All
+        </button>
+        <button
+          onClick={() => { setChatTab('telegram'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
+          className={`flex-1 px-1.5 py-2 rounded-xl text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+            chatTab === 'telegram' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Smartphone className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+          Telegram
+          {telegramUnread > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-1 rounded-full min-w-[18px] text-center">
+              {telegramUnread > 99 ? '99+' : telegramUnread}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => { setChatTab('web'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
+          className={`flex-1 px-1.5 py-2 rounded-xl text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+            chatTab === 'web' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Globe className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+          Website
+          {websiteUnread > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-1 rounded-full min-w-[18px] text-center">
+              {websiteUnread > 99 ? '99+' : websiteUnread}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => { setChatTab('guest'); setSelectedUser(null); setSelectedVisitor(null); setSearch(''); }}
+          className={`flex-1 px-1.5 py-2 rounded-xl text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 whitespace-nowrap ${
+            chatTab === 'guest' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+          Guest
+          {guestUnread > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold leading-none px-1.5 py-1 rounded-full min-w-[18px] text-center">
+              {guestUnread > 99 ? '99+' : guestUnread}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Context Menu Dropdown */}
+      {chatTab === 'web' || chatTab === 'guest' ? (
+        <>
+          {(chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v)) : filteredWebVisitors.filter(v => isGuestVisitor(v))).length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-8 h-8 text-gray-300" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">
+                {chatTab === 'web' ? 'No website visitors yet' : 'No guest visitors yet'}
+              </h3>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
+                {chatTab === 'guest' ? 'Guest visitors who chat from the web shop will appear here.' : 'Signed-in users who chat from the web shop will appear here.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
+              {(chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v)) : filteredWebVisitors.filter(v => isGuestVisitor(v))).map(v => (
+                <WebVisitorItem
+                  key={v.visitor_id}
+                  v={v}
+                  isSelected={selectedVisitor === v.visitor_id}
+                  onClick={() => {
+                    setSelectedVisitor(v.visitor_id);
+                    setSelectedUser(null);
+                    setUnreadOverrides(prev => { const n = {...prev}; delete n[v.visitor_id]; return n; });
+                  }}
+                  onContextMenu={handleContextMenu}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : chatTab === 'telegram' ? (
+        <>
+          {filteredChats.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-8 h-8 text-gray-300" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">No Telegram conversations yet</h3>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
+                When users message the Telegram bot, their conversations will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
+              {filteredChats.map(chat => (
+                <ConversationItem
+                  key={chat.user_id}
+                  chat={chat}
+                  isActive={selectedUser === chat.user_id}
+                  onClick={() => {
+                    setSelectedUser(chat.user_id);
+                    setSelectedVisitor(null);
+                    setUnreadOverrides(prev => { const n = {...prev}; delete n[chat.user_id]; return n; });
+                  }}
+                  onContextMenu={handleContextMenu}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {combinedAllItems.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-8 h-8 text-gray-300" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">No conversations yet</h3>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto mt-1">
+                {search ? 'Try a different search term.' : 'When users message the bot, their conversations will appear here.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-2" onContextMenu={(e) => e.preventDefault()}>
+              {combinedAllItems.map(entry => (
+                entry.type === 'telegram' ? (
+                  <ConversationItem
+                    key={`tg_${entry.id}`}
+                    chat={entry.item}
+                    isActive={selectedUser === entry.id}
+                    onClick={() => {
+                      setSelectedUser(entry.id);
+                      setSelectedVisitor(null);
+                      setUnreadOverrides(prev => { const n = {...prev}; delete n[entry.id]; return n; });
+                    }}
+                    onContextMenu={handleContextMenu}
+                  />
+                ) : (
+                  <WebVisitorItem
+                    key={`wv_${entry.id}`}
+                    v={entry.item}
+                    isSelected={selectedVisitor === entry.id}
+                    onClick={() => {
+                      setSelectedVisitor(entry.id);
+                      setSelectedUser(null);
+                      setUnreadOverrides(prev => { const n = {...prev}; delete n[entry.id]; return n; });
+                    }}
+                    onContextMenu={handleContextMenu}
+                  />
+                )
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       <AnimatePresence>
         {contextMenu && (
           <>
@@ -1609,6 +1410,7 @@ export default function Chats() {
             >
               {/* Status Actions */}
               <div className="py-1">
+                {/* Pin / Unpin */}
                 <button
                   onClick={() => metadataMutation.mutate({
                     visitorId: String(contextMenu.chat.visitor_id || contextMenu.chat.user_id),
@@ -1623,6 +1425,7 @@ export default function Chats() {
                   {contextMenu.chat.is_pinned && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">Pinned</span>}
                 </button>
 
+                {/* Read / Unread */}
                 {contextMenu.chat.unread_count > 0 ? (
                   <button
                     onClick={() => readMutation.mutate({
@@ -1649,6 +1452,7 @@ export default function Chats() {
                   </button>
                 )}
 
+                {/* Done / Reopen */}
                 <button
                   onClick={() => metadataMutation.mutate({
                     visitorId: String(contextMenu.chat.visitor_id || contextMenu.chat.user_id),
@@ -1778,6 +1582,204 @@ export default function Chats() {
         loading={deleteMutation.isPending}
       />
 
+      <AnimatePresence>
+        {(selectedUser || selectedVisitor) && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setSelectedUser(null); setSelectedVisitor(null); }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 z-[60] bg-white rounded-t-[32px] md:rounded-[32px] md:shadow-2xl max-h-[92dvh] flex flex-col md:max-w-lg md:mx-auto md:bottom-10"
+              style={{
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-y',
+              }}
+            >
+              <div className="sticky top-0 bg-white z-10 rounded-t-[32px] pt-2 pb-1 flex flex-col items-center">
+                <div className="w-10 h-1 bg-gray-200 rounded-full" />
+              </div>
+
+              <div className="flex items-center justify-between px-4 md:px-5 pb-2.5 border-b border-gray-100">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {isSupportChat ? (
+                      <img src="/logo.webp" alt="Support" className="w-8 h-8 rounded-full object-cover border border-indigo-100" />
+                    ) : (
+                      <CustomerAvatar photoUrl={selectedWebChat?.photo_url || selectedChat?.profile_picture || selectedChat?.photo_url} name={selectedWebChat?.name || selectedChat?.first_name || selectedChat?.account_name || selectedChatName} size="w-8 h-8" fontSize="text-xs" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
+                      {isSupportChat ? <>E-commerce Support<BadgeCheck className="w-3.5 h-3.5 fill-blue-600 text-white flex-shrink-0 inline" /></> : (selectedWebChat?.name || selectedChat?.first_name || selectedChat?.account_name || selectedChatName || 'Customer')}
+                    </p>
+                    {selectedChat?.username && (
+                      <p className="text-[11px] text-gray-500 truncate">@{selectedChat.username}</p>
+                    )}
+                    {selectedWebChat?.phone && (
+                      <p className="text-[11px] text-gray-500 truncate">{selectedWebChat.phone}</p>
+                    )}
+                  </div>
+                </div>
+                {selectedWebChat && !isSupportChat && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => toggleAiMutation.mutate({ visitorId: selectedVisitor, disabled: !selectedWebChat.ai_disabled })}
+                      disabled={toggleAiMutation.isPending}
+                      className={`p-1.5 rounded-full active:scale-90 transition-all flex-shrink-0 ${
+                        selectedWebChat.ai_disabled ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                      }`}
+                      title={selectedWebChat.ai_disabled ? 'Enable AI responses' : 'Disable AI responses'}
+                    >
+                      <Brain className="w-4 h-4" />
+                    </button>
+                    <span className={`text-[8px] font-bold leading-none ${selectedWebChat.ai_disabled ? 'text-red-500' : 'text-green-600'}`}>
+                      {selectedWebChat.ai_disabled ? 'AI mode is off' : 'AI mode is on'}
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={() => { setSelectedUser(null); setSelectedVisitor(null); }}
+                  className="p-1.5 bg-gray-100 rounded-full active:scale-90 transition-transform flex-shrink-0"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+
+              <div ref={chatContainerRef} onScroll={handleChatScroll} className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-5 py-4 space-y-3 min-h-0 [overflow-wrap:anywhere]">
+                {(() => {
+                  const msgs = selectedVisitor ? stableWebMessages : stableMessages;
+                  if (msgs.length === 0) {
+                    return (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-sm text-gray-400">No messages yet</p>
+                      </div>
+                    );
+                  }
+
+                  let lastDateStr = null;
+                  const elements = [];
+
+                  msgs.forEach((msg, idx) => {
+                    const rawDate = msg.created_at || msg.timestamp || msg.time || msg.date;
+                    let currentDateStr = null;
+
+                    if (rawDate) {
+                      try {
+                        currentDateStr = myanmarFormat(rawDate, 'd MMM yyyy');
+                      } catch (e) {
+                        currentDateStr = null;
+                      }
+                    }
+
+                    if (currentDateStr && currentDateStr !== lastDateStr) {
+                      lastDateStr = currentDateStr;
+                      elements.push(
+                        <div
+                          key={`date-divider-${currentDateStr}-${idx}`}
+                          className="flex items-center justify-center my-4"
+                        >
+                          <span className="px-3.5 py-1 bg-gray-100/90 border border-gray-200/70 rounded-full text-[11px] font-bold text-gray-500 tracking-wide">
+                            {currentDateStr}
+                          </span>
+                        </div>
+                      );
+                    }
+
+                    elements.push(
+                      <ChatBubble
+                        key={msg.id || idx}
+                        message={msg}
+                        isAdmin={msg.sender_type === 'admin'}
+                        isAi={msg.sender_type === 'ai' || msg.sender_type === 'assistant'}
+                        isFollowup={msg.sender_type === 'followup'}
+                        botId={Number(selectedBotId)}
+                        botUsername={botUsername}
+                        showTelegramLink={chatTab === 'all' || chatTab === 'telegram'}
+                        onImageClick={(url) => setFullScreenImg(url)}
+                      />
+                    );
+
+                  });
+
+                  return elements;
+                })()}
+                <div ref={messagesEndRef} />
+                {userScrolledUp && (
+                  <div className="sticky bottom-0 flex justify-end pb-2 pointer-events-none">
+                    <button
+                      onClick={scrollToBottom}
+                      className="pointer-events-auto w-10 h-10 bg-white border border-gray-200 shadow-lg rounded-full flex items-center justify-center hover:bg-gray-50 active:scale-90 transition-all"
+                    >
+                      <ChevronDown className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="sticky bottom-0 bg-white border-t border-gray-100 px-4 md:px-5 py-3 pb-[calc(max(env(safe-area-inset-bottom),8px)+12px)]">
+                <div className="flex items-end gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading || sendMutation.isPending}
+                    className="w-10 h-10 bg-gray-100 text-gray-500 rounded-2xl flex items-center justify-center hover:bg-gray-200 disabled:opacity-40 transition-all active:scale-90 flex-shrink-0"
+                    title="Send photo"
+                  >
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageUp className="w-4 h-4" />}
+                  </button>
+                  <div className="flex-1 relative">
+                    <textarea
+                      ref={inputRef}
+                      value={inputText}
+                      onChange={(e) => {
+                        if (e.target.value.length > 4096) return;
+                        setInputText(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                      }}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Type a message..."
+                      rows={1}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none transition-all"
+                      style={{ maxHeight: 200 }}
+                    />
+                    {inputText.length > 3800 && (
+                      <span className="absolute -bottom-4 right-2 text-[10px] text-gray-400">{inputText.length}/4096</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleSend}
+                    disabled={!inputText.trim() || sendMutation.isPending}
+                    className="w-11 h-11 bg-indigo-600 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-90 flex-shrink-0"
+                  >
+                    {sendMutation.isPending ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Start Chat with Website Customer Modal */}
       <AnimatePresence>
         {showStartChatModal && (
@@ -1885,3 +1887,4 @@ export default function Chats() {
     </div>
   );
 }
+
