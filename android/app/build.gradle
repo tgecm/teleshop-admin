@@ -22,11 +22,21 @@ android {
             def propsFile = rootProject.file('keystore.properties')
             if (propsFile.exists()) {
                 props.load(new FileInputStream(propsFile))
+                def kFile = file(props.getProperty('storeFile', '../mm-shop.keystore'))
+                if (kFile.exists()) {
+                    try {
+                        def pass = props.getProperty('storePassword', System.getenv('KEYSTORE_PASSWORD') ?: 'teleshop123').toCharArray()
+                        def ks = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
+                        ks.load(new FileInputStream(kFile), pass)
+                        storeFile kFile
+                        storePassword props.getProperty('storePassword', System.getenv('KEYSTORE_PASSWORD') ?: 'teleshop123')
+                        keyAlias props.getProperty('keyAlias', System.getenv('KEY_ALIAS') ?: 'mm-shop')
+                        keyPassword props.getProperty('keyPassword', System.getenv('KEY_PASSWORD') ?: 'teleshop123')
+                    } catch (Exception e) {
+                        logger.warn("Custom debug keystore password check failed, falling back to default Android debug key: " + e.message)
+                    }
+                }
             }
-            storeFile file(props.getProperty('storeFile', System.getenv('KEYSTORE_FILE') ?: '../mm-shop.keystore'))
-            storePassword props.getProperty('storePassword', System.getenv('KEYSTORE_PASSWORD') ?: 'teleshop123')
-            keyAlias props.getProperty('keyAlias', System.getenv('KEY_ALIAS') ?: 'mm-shop')
-            keyPassword props.getProperty('keyPassword', System.getenv('KEY_PASSWORD') ?: 'teleshop123')
         }
     }
     buildTypes {

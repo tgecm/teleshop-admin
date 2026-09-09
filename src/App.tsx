@@ -24,6 +24,8 @@ import AppSplashScreen from './components/AppSplashScreen';
 import { useDisableDevTools } from './hooks/useDisableDevTools';
 import { useAppBadge } from './hooks/useAppBadge';
 import { useBackgroundSync } from './hooks/useBackgroundSync';
+import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 const ThemedLayout = React.lazy(() => import('./components/layout/ThemedLayout'));
 
@@ -229,6 +231,23 @@ export default function App() {
   useDisableDevTools();
   useAppBadge();
   useBackgroundSync();
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !Capacitor.isNativePlatform()) return;
+
+    const listener = CapApp.addListener('backButton', ({ canGoBack }) => {
+      const pn = window.location.pathname.replace(/^\//, '');
+      if (!canGoBack || !pn || pn === 'dashboard' || pn === 'login') {
+        CapApp.minimizeApp();
+      } else {
+        window.history.back();
+      }
+    });
+
+    return () => {
+      listener.then(h => h.remove());
+    };
+  }, []);
 
   const addProductFromHash = (() => {
     if (typeof window === 'undefined') return null;

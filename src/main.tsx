@@ -5,14 +5,14 @@ import {TelegramAuthProvider} from './context/TelegramAuthContext';
 import App from './App.tsx';
 import {initPushNotifications} from './lib/pushNotifications';
 import {initTheme} from './store/themeStore.js';
+import {Capacitor} from '@capacitor/core';
 import './index.css';
 
 // Apply saved theme before first render to avoid FOUC
 initTheme();
 initPushNotifications();
 
-
-if (!import.meta.env.DEV) {
+if (!import.meta.env.DEV && !Capacitor.isNativePlatform()) {
   import('virtual:pwa-register').then(({registerSW}) => {
     const updateSW = registerSW({
       onOfflineReady: () => {},
