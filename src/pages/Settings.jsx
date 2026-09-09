@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import { useThemeStore, THEMES } from '../store/themeStore';
-import { updateBot, getBot, deleteBot, getAiSettings, updateAiSettings } from '../api/bots';
+import { updateBot, getBot, deleteBot, getAiSettings, updateAiSettings, getSalesDisplay, updateSalesDisplay } from '../api/bots';
 import { getContentBlocks, updateContentBlock } from '../api/contentBlocks';
 import { getUsers, updateUser } from '../api/customers';
 import {
@@ -97,13 +97,48 @@ export default function Settings() {
   const { addToast } = useToastStore();
   const [activeTab, setActiveTab] = useState('shop');
   const [topbarSalesPeriod, setTopbarSalesPeriod] = useState(() => localStorage.getItem('topbar_sales_period') || 'today');
+  const [lastSalesSwitchTime, setLastSalesSwitchTime] = useState(0);
   const queryClient = useQueryClient();
 
+  const { data: salesDisplayData } = useQuery({
+    queryKey: ['sales-display', selectedBotId],
+    queryFn: () => getSalesDisplay(selectedBotId),
+    enabled: !!selectedBotId,
+    refetchInterval: 3000,
+  });
+
+  const currentSalesDisplay = salesDisplayData?.sales_display || topbarSalesPeriod;
+
+  const updateSalesDisplayMutation = useMutation({
+    mutationFn: (choice) => updateSalesDisplay(selectedBotId, choice),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['sales-display', selectedBotId]);
+      if (data?.sales_display) {
+        localStorage.setItem('topbar_sales_period', data.sales_display);
+        setTopbarSalesPeriod(data.sales_display);
+        window.dispatchEvent(new Event('topbar_sales_period_change'));
+      }
+      addToast('Sales display updated across all admins!', 'success');
+    },
+    onError: (err) => {
+      const msg = err?.response?.data?.detail || 'Failed to update sales display';
+      addToast(msg, 'error');
+    }
+  });
+
   const handleSalesPeriodChange = (choice) => {
+    const now = Date.now();
+    const elapsed = (now - lastSalesSwitchTime) / 1000;
+    if (elapsed < 5) {
+      const remaining = Math.ceil(5 - elapsed);
+      addToast(`Please wait ${remaining} second${remaining > 1 ? 's' : ''} before changing sales display again.`, 'warning');
+      return;
+    }
+    setLastSalesSwitchTime(now);
     setTopbarSalesPeriod(choice);
     localStorage.setItem('topbar_sales_period', choice);
     window.dispatchEvent(new Event('topbar_sales_period_change'));
-    addToast('Top bar sales display updated!', 'success');
+    updateSalesDisplayMutation.mutate(choice);
   };
 
   const { data: bot, isLoading: botLoading } = useQuery({
@@ -632,16 +667,17 @@ export default function Settings() {
                   <button
                     key={opt.id}
                     type="button"
+                    disabled={updateSalesDisplayMutation.isPending}
                     onClick={() => handleSalesPeriodChange(opt.id)}
                     className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
-                      topbarSalesPeriod === opt.id
+                      currentSalesDisplay === opt.id
                         ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-200'
                         : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100/80 text-gray-600'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-gray-900">{opt.label}</span>
-                      {topbarSalesPeriod === opt.id && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />}
+                      {currentSalesDisplay === opt.id && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />}
                     </div>
                     <span className="text-[10px] text-gray-400 font-medium mt-1">{opt.sub}</span>
                   </button>

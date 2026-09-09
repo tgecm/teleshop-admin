@@ -20,3 +20,10 @@ export const updateAiSettings = (bot_id, data) =>
 
 export const testAiFollowup = (bot_id) =>
   client.post(`/bots/${bot_id}/test-followup`).then(res => res.data);
+
+export const getSalesDisplay = (bot_id) =>
+  client.get(`/bots/${bot_id}/sales-display`).then(res => res.data);
+
+export const updateSalesDisplay = (bot_id, choice) =>
+  client.put(`/bots/${bot_id}/sales-display`, { sales_display: choice }).then(res => res.data);
+

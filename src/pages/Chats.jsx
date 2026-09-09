@@ -1638,14 +1638,46 @@ export default function Chats() {
               <div ref={chatContainerRef} onScroll={handleChatScroll} className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-5 py-4 space-y-3 min-h-0 [overflow-wrap:anywhere]">
                 {(() => {
                   const msgs = selectedVisitor ? stableWebMessages : stableMessages;
-                  return msgs.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-sm text-gray-400">No messages yet</p>
-                    </div>
-                  ) : (
-                    msgs.map(msg => (
+                  if (msgs.length === 0) {
+                    return (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-sm text-gray-400">No messages yet</p>
+                      </div>
+                    );
+                  }
+
+                  let lastDateStr = null;
+                  const elements = [];
+
+                  msgs.forEach((msg, idx) => {
+                    const rawDate = msg.created_at || msg.timestamp || msg.time || msg.date;
+                    let currentDateStr = null;
+
+                    if (rawDate) {
+                      try {
+                        currentDateStr = myanmarFormat(rawDate, 'd MMM yyyy');
+                      } catch (e) {
+                        currentDateStr = null;
+                      }
+                    }
+
+                    if (currentDateStr && currentDateStr !== lastDateStr) {
+                      lastDateStr = currentDateStr;
+                      elements.push(
+                        <div
+                          key={`date-divider-${currentDateStr}-${idx}`}
+                          className="flex items-center justify-center my-4"
+                        >
+                          <span className="px-3.5 py-1 bg-gray-100/90 border border-gray-200/70 rounded-full text-[11px] font-bold text-gray-500 tracking-wide">
+                            {currentDateStr}
+                          </span>
+                        </div>
+                      );
+                    }
+
+                    elements.push(
                       <ChatBubble
-                        key={msg.id}
+                        key={msg.id || idx}
                         message={msg}
                         isAdmin={msg.sender_type === 'admin'}
                         isAi={msg.sender_type === 'ai' || msg.sender_type === 'assistant'}
@@ -1654,8 +1686,10 @@ export default function Chats() {
                         botUsername={botUsername}
                         showTelegramLink={chatTab === 'all' || chatTab === 'telegram'}
                       />
-                    ))
-                  );
+                    );
+                  });
+
+                  return elements;
                 })()}
                 <div ref={messagesEndRef} />
                 {userScrolledUp && (

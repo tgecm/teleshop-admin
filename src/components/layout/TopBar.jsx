@@ -12,6 +12,7 @@ import { useBotStore } from '../../store/botStore';
 import { normalizeText } from '../../utils/normalizeText';
 import { getAdminUnreadMessagesCount, getAdminMessages, markAdminMessagesRead, deleteAdminMessage } from '../../api/superadmin';
 import { getStats } from '../../api/stats';
+import { getSalesDisplay } from '../../api/bots';
 import { formatPrice } from '../../utils/formatPrice';
 import { linkifyText } from '../../utils/linkify';
 
@@ -46,6 +47,15 @@ export default function TopBar({ onToggleSidebar }) {
 
   const [salesPeriod, setSalesPeriod] = useState(() => localStorage.getItem('topbar_sales_period') || 'today');
 
+  const { data: salesDisplayData } = useQuery({
+    queryKey: ['sales-display', selectedBotId],
+    queryFn: () => getSalesDisplay(selectedBotId),
+    enabled: !!selectedBotId,
+    refetchInterval: 3000,
+  });
+
+  const activeSalesPeriod = salesDisplayData?.sales_display || salesPeriod;
+
   useEffect(() => {
     const handleStorage = () => {
       setSalesPeriod(localStorage.getItem('topbar_sales_period') || 'today');
@@ -61,17 +71,17 @@ export default function TopBar({ onToggleSidebar }) {
   const { data: statsData } = useQuery({
     queryKey: ['topBarStats', selectedBotId],
     queryFn: () => getStats({ bot_id: Number(selectedBotId) }),
-    enabled: !!selectedBotId && salesPeriod !== 'disabled',
+    enabled: !!selectedBotId && activeSalesPeriod !== 'disabled',
     refetchInterval: 15000,
   });
 
   const getSalesInfo = () => {
-    if (salesPeriod === 'disabled') return null;
-    if (salesPeriod === 'week') {
+    if (activeSalesPeriod === 'disabled') return null;
+    if (activeSalesPeriod === 'week') {
       const val = statsData?.weekly_revenue ?? 0;
       return { label: 'This Week', value: formatPrice(val) };
     }
-    if (salesPeriod === 'month') {
+    if (activeSalesPeriod === 'month') {
       const val = statsData?.monthly_revenue ?? 0;
       return { label: 'This Month', value: formatPrice(val) };
     }

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { MessageCircle, Send, ImageUp, Loader2, X } from 'lucide-react';
 import { RichMessage } from './RichMessage';
 import { API_BASE } from '../../api/config';
+import { myanmarFormat } from '../../utils/date';
 
 export default function AiChatWidget({ botId, botUsername, slug, theme, getProductUrl, hide, viewMode, onRequireSignIn, enableWebsiteChat = true, enableGuestChat = true }) {
 
@@ -463,27 +464,61 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
             </div>
           ) : (
             <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-              {chatMessages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                    msg.role === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'
-                  }`} style={msg.role === 'user' ? { background: theme?.css?.['--theme-btn'] || '#6366f1' } : {}}>
-                    {msg.file_id && msg.file_type === 'photo' && (
-                      <img
-                        src={API_BASE + '/telegram/file/' + msg.file_id + '?bot_id=' + botId}
-                        alt="Photo"
-                        className="max-w-full rounded-lg mb-1 max-h-48 object-cover"
-                        loading="lazy"
-                      />
-                    )}
-                    {msg.content && msg.role === 'assistant' ? (
-                      <RichMessage content={msg.content} isAssistant={true} botId={botId} getProductUrl={getProductUrl} />
-                    ) : (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+              {(() => {
+                let lastDateStr = null;
+                const elements = [];
+
+                chatMessages.forEach((msg, i) => {
+                  const rawDate = msg.created_at || msg.timestamp || msg.time || msg.date;
+                  let currentDateStr = null;
+
+                  if (rawDate) {
+                    try {
+                      currentDateStr = myanmarFormat(rawDate, 'd MMM yyyy');
+                    } catch (e) {
+                      currentDateStr = null;
+                    }
+                  }
+
+                  if (currentDateStr && currentDateStr !== lastDateStr) {
+                    lastDateStr = currentDateStr;
+                    elements.push(
+                      <div
+                        key={`widget-date-${currentDateStr}-${i}`}
+                        className="flex items-center justify-center my-4"
+                      >
+                        <span className="px-3.5 py-1 bg-gray-100/90 border border-gray-200/70 rounded-full text-[11px] font-bold text-gray-500 tracking-wide">
+                          {currentDateStr}
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  elements.push(
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                        msg.role === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'
+                      }`} style={msg.role === 'user' ? { background: theme?.css?.['--theme-btn'] || '#6366f1' } : {}}>
+                        {msg.file_id && msg.file_type === 'photo' && (
+                          <img
+                            src={API_BASE + '/telegram/file/' + msg.file_id + '?bot_id=' + botId}
+                            alt="Photo"
+                            className="max-w-full rounded-lg mb-1 max-h-48 object-cover"
+                            loading="lazy"
+                          />
+                        )}
+                        {msg.content && msg.role === 'assistant' ? (
+                          <RichMessage content={msg.content} isAssistant={true} botId={botId} getProductUrl={getProductUrl} />
+                        ) : (
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+
+                return elements;
+              })()}
               {chatLoading && (
                 <div className="flex justify-start">
                   <div className="bg-gray-100 rounded-2xl px-4 py-3">
