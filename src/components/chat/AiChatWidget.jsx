@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { MessageCircle, Send, ImageUp, Loader2, X } from 'lucide-react';
+import { MessageCircle, Send, ImageUp, Loader2, X, Maximize2 } from 'lucide-react';
 import { RichMessage } from './RichMessage';
 import { API_BASE } from '../../api/config';
 import { myanmarFormat } from '../../utils/date';
+import FullScreenImageViewer from '../shared/FullScreenImageViewer';
+
 
 export default function AiChatWidget({ botId, botUsername, slug, theme, getProductUrl, hide, viewMode, onRequireSignIn, enableWebsiteChat = true, enableGuestChat = true }) {
 
@@ -24,7 +26,9 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [showVisitorForm, setShowVisitorForm] = useState(false);
   const [visitorForm, setVisitorForm] = useState({ name: '', phone: '', email: '' });
+  const [fullScreenImg, setFullScreenImg] = useState(null);
   const visitorIdRef = useRef('');
+
 
   // Quick Questions State
   const [quickQuestions, setQuickQuestions] = useState([]);
@@ -500,13 +504,24 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
                         msg.role === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'
                       }`} style={msg.role === 'user' ? { background: theme?.css?.['--theme-btn'] || '#6366f1' } : {}}>
                         {msg.file_id && msg.file_type === 'photo' && (
-                          <img
-                            src={API_BASE + '/telegram/file/' + msg.file_id + '?bot_id=' + botId}
-                            alt="Photo"
-                            className="max-w-full rounded-lg mb-1 max-h-48 object-cover"
-                            loading="lazy"
-                          />
+                          <div
+                            className="relative group cursor-pointer mb-1.5 overflow-hidden rounded-lg"
+                            onClick={() => setFullScreenImg(API_BASE + '/telegram/file/' + msg.file_id + '?bot_id=' + botId)}
+                          >
+                            <img
+                              src={API_BASE + '/telegram/file/' + msg.file_id + '?bot_id=' + botId}
+                              alt="Photo"
+                              className="max-w-full rounded-lg max-h-48 object-cover cursor-pointer hover:opacity-95 transition-all group-hover:scale-[1.02]"
+                              loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center pointer-events-none">
+                              <span className="bg-black/75 backdrop-blur-md text-white text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+                                <Maximize2 className="w-3 h-3" /> Full Screen
+                              </span>
+                            </div>
+                          </div>
                         )}
+
                         {msg.content && msg.role === 'assistant' ? (
                           <RichMessage content={msg.content} isAssistant={true} botId={botId} getProductUrl={getProductUrl} />
                         ) : (
@@ -589,6 +604,14 @@ export default function AiChatWidget({ botId, botUsername, slug, theme, getProdu
           </div>
         </motion.div>
       )}
+
+      <FullScreenImageViewer
+        isOpen={!!fullScreenImg}
+        onClose={() => setFullScreenImg(null)}
+        imgUrl={fullScreenImg}
+        title="Chat Image Preview"
+      />
     </>
   );
 }
+

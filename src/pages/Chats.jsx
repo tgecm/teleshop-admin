@@ -8,6 +8,7 @@ import { useBotStore } from '../store/botStore';
 import { useToastStore } from '../store/toastStore';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import FullScreenImageViewer from '../components/shared/FullScreenImageViewer';
 import {
   Search,
   MessageCircle,
@@ -40,6 +41,7 @@ import {
   Filter,
   Bot,
   Smile,
+  Maximize2,
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { MarkdownRenderer } from '../utils/linkify';
@@ -128,7 +130,7 @@ function DocumentItem({ fileUrl, tgLink, isAdmin, showTelegramLink }) {
   );
 }
 
-function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, showTelegramLink }) {
+function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, showTelegramLink, onImageClick }) {
   const token = useAuthStore(s => s.token);
   const currentUser = useAuthStore(s => s.user);
   const isOwner = currentUser?.is_superadmin;
@@ -153,14 +155,24 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
       case 'photo':
         return (
           <div className="mb-2">
-            <img
-              src={fileUrl}
-              alt="Photo"
-              className="max-w-full rounded-lg max-h-64 object-cover select-none"
-              loading="lazy"
-              draggable={false}
-              onContextMenu={(e) => e.preventDefault()}
-            />
+            <div
+              className="relative group cursor-pointer overflow-hidden rounded-lg"
+              onClick={() => onImageClick?.(fileUrl)}
+            >
+              <img
+                src={fileUrl}
+                alt="Photo"
+                className="max-w-full rounded-lg max-h-64 object-cover select-none cursor-pointer hover:opacity-95 transition-all shadow-sm group-hover:scale-[1.01]"
+                loading="lazy"
+                draggable={false}
+                onContextMenu={(e) => e.preventDefault()}
+              />
+              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center pointer-events-none">
+                <span className="bg-black/75 backdrop-blur-md text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
+                  <Maximize2 className="w-3.5 h-3.5" /> Tap for Full Screen
+                </span>
+              </div>
+            </div>
             {showTelegramLink && (
               <a href={tgLink} target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"
@@ -217,20 +229,25 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
       case 'sticker':
         return (
           <div className="mb-2">
-            <img
-              src={fileUrl}
-              alt="Sticker"
-              className="max-w-[160px] max-h-[160px] object-contain select-none filter drop-shadow-sm"
-              loading="lazy"
-              draggable={false}
-              onContextMenu={(e) => e.preventDefault()}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                if (e.currentTarget.nextSibling) {
-                  e.currentTarget.nextSibling.style.display = 'flex';
-                }
-              }}
-            />
+            <div
+              className="relative group cursor-pointer"
+              onClick={() => onImageClick?.(fileUrl)}
+            >
+              <img
+                src={fileUrl}
+                alt="Sticker"
+                className="max-w-[160px] max-h-[160px] object-contain select-none filter drop-shadow-sm cursor-pointer hover:scale-105 transition-transform"
+                loading="lazy"
+                draggable={false}
+                onContextMenu={(e) => e.preventDefault()}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  if (e.currentTarget.nextSibling) {
+                    e.currentTarget.nextSibling.style.display = 'flex';
+                  }
+                }}
+              />
+            </div>
             <div className="hidden items-center gap-2 p-3 bg-white/10 rounded-xl">
               <Smile className="w-4 h-4 flex-shrink-0" />
               <p className="text-sm font-medium">Sticker</p>
@@ -244,6 +261,7 @@ function ChatBubble({ message, isAdmin, isAi, isFollowup, botId, botUsername, sh
             )}
           </div>
         );
+
       case 'document':
         return <DocumentItem fileUrl={fileUrl} tgLink={tgLink} isAdmin={isRightSide} showTelegramLink={showTelegramLink} />;
       default:
@@ -560,6 +578,7 @@ export default function Chats() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [chatToDelete, setChatToDelete] = useState(null);
   const [chatTab, setChatTab] = useState('all');
+  const [fullScreenImg, setFullScreenImg] = useState(null);
 
   const deleteMutation = useMutation({
     mutationFn: async ({ userId, visitorId }) => {
@@ -1685,8 +1704,10 @@ export default function Chats() {
                         botId={Number(selectedBotId)}
                         botUsername={botUsername}
                         showTelegramLink={chatTab === 'all' || chatTab === 'telegram'}
+                        onImageClick={(url) => setFullScreenImg(url)}
                       />
                     );
+
                   });
 
                   return elements;
@@ -1856,6 +1877,14 @@ export default function Chats() {
           </div>
         )}
       </AnimatePresence>
+
+      <FullScreenImageViewer
+        isOpen={!!fullScreenImg}
+        onClose={() => setFullScreenImg(null)}
+        imgUrl={fullScreenImg}
+        title="Chat Photo"
+      />
     </div>
   );
 }
+
