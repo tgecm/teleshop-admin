@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, ZoomIn, ZoomOut, RotateCcw, Download, ExternalLink, Sparkles } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, RotateCcw, Download, Loader2 } from 'lucide-react';
+import { downloadBlob } from '../../utils/download';
 
 export default function FullScreenImageViewer({ isOpen, onClose, imgUrl, title = 'Image Preview' }) {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const touchStartDistRef = useRef(0);
   const touchStartScaleRef = useRef(1);
@@ -52,6 +54,44 @@ export default function FullScreenImageViewer({ isOpen, onClose, imgUrl, title =
   const handleReset = () => {
     setScale(1);
     setPosition({ x: 0, y: 0 });
+  };
+
+  // Robust image downloader matching Orders page download logic
+  const handleDownload = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!imgUrl || isDownloading) return;
+
+    setIsDownloading(true);
+
+    // Build API/Telegram download URL with download=1 parameter if needed
+    let downloadUrl = imgUrl;
+    if (downloadUrl && !downloadUrl.includes('download=1')) {
+      downloadUrl += downloadUrl.includes('?') ? '&download=1' : '?download=1';
+    }
+
+    const filename = `chat_image_${Date.now()}.jpg`;
+
+    try {
+      // 1. Fetch image binary stream as blob
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const blob = await res.blob();
+      await downloadBlob(blob, filename);
+    } catch (err) {
+      console.warn('Fetch blob download failed, falling back to direct attachment download link:', err);
+      // 2. Direct anchor click fallback with download=1 parameter
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // Double tap / double click toggle zoom
@@ -159,27 +199,19 @@ export default function FullScreenImageViewer({ isOpen, onClose, imgUrl, title =
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <a
-            href={imgUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold"
-            title="Open original image"
-            onClick={(e) => e.stopPropagation()}
+          <button
+            onClick={handleDownload}
+            disabled={isDownloading}
+            className="p-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold shadow-lg disabled:opacity-50"
+            title="Save / Download Image"
           >
-            <ExternalLink className="w-4 h-4" />
-            <span className="hidden sm:inline">Open Original</span>
-          </a>
-          <a
-            href={imgUrl}
-            download="chat_image.jpg"
-            className="p-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all active:scale-95 flex items-center gap-1.5 text-xs font-semibold"
-            title="Save Image"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Save</span>
-          </a>
+            {isDownloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            <span className="hidden sm:inline">{isDownloading ? 'Saving...' : 'Save'}</span>
+          </button>
           <button
             onClick={onClose}
             className="p-2.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all active:scale-95 ml-1"
@@ -217,12 +249,6 @@ export default function FullScreenImageViewer({ isOpen, onClose, imgUrl, title =
             alt="Full Screen Preview"
             className="max-w-[95vw] max-h-[85vh] object-contain rounded-xl shadow-2xl pointer-events-none drop-shadow-2xl"
           />
-        </div>
-
-        {/* Pinch / Double-tap Help Hint Badge */}
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-black/75 backdrop-blur-md border border-white/15 text-white/90 px-4 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 shadow-2xl pointer-events-none whitespace-nowrap">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-          <span>Pinch with 2 fingers to zoom • Double-tap to expand</span>
         </div>
       </div>
 

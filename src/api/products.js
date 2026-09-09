@@ -19,12 +19,17 @@ export const deleteProduct = (id) =>
 export const createCategory = (data) =>
   client.post('/categories', data).then(res => res.data);
 
-export const uploadImage = (file, bot_id) => {
+export const uploadImage = (file, bot_id, silent = false) => {
   const formData = new FormData();
   formData.append('file', file);
-  return client.post(`/upload/image?bot_id=${bot_id}`, formData, {
+  const silentQuery = silent ? '&silent=true' : '';
+  return client.post(`/upload/image?bot_id=${bot_id}${silentQuery}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }).then(res => res.data);
+};
+
+export const uploadTempImage = (file, bot_id) => {
+  return uploadImage(file, bot_id, true);
 };
 
 export const updateProductSortOrder = (botId, items) =>
