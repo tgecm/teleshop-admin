@@ -22,6 +22,10 @@ export const useAuthStore = create(
         set({ token: null, user: null, isSuperadmin: false, isStaff: false });
       },
       setUser: (user) => set({ user, isSuperadmin: user.is_superadmin }),
+      setTokenAndUser: (token, user) => {
+        localStorage.setItem('token', token);
+        set({ token, user, isSuperadmin: !!user?.is_superadmin });
+      },
     }),
     {
       name: 'auth-storage',

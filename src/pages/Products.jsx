@@ -453,20 +453,21 @@ export default function Products() {
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">Products</h1>
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center w-full sm:w-auto">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap">
+      <div className="flex items-center gap-2 sm:gap-3 bg-white p-3 sm:p-3.5 rounded-3xl border border-gray-100 shadow-sm w-full">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 shrink-0">Products</h1>
+        
+        <div className="relative flex-1 min-w-[110px] max-w-[260px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-8 pr-2.5 py-1.5 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-xs"
+          />
+        </div>
+
+        <div className="flex items-center gap-1 sm:gap-1.5 ml-auto flex-wrap sm:flex-nowrap shrink-0">
           <CategoryDropdown
             categories={categories || []}
             selected={selectedCategoryFilter}
@@ -474,20 +475,20 @@ export default function Products() {
           />
           <button
             onClick={() => setShowSorting(true)}
-            className="p-2.5 bg-white text-gray-600 border border-gray-200 rounded-2xl shadow-sm hover:bg-gray-50 transition-all flex items-center gap-2 active:scale-95"
+            className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-white text-gray-700 border border-gray-200 rounded-xl shadow-2xs hover:bg-gray-50 transition-all flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95"
             title="Drag to reorder products"
           >
-            <ArrowUpDown className="w-5 h-5" />
-            <span className="hidden sm:inline font-bold">Sort</span>
+            <ArrowUpDown className="w-3.5 h-3.5 text-gray-500" />
+            <span>Sort</span>
           </button>
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() => setShowCouponMenu(!showCouponMenu)}
-              className="p-2.5 bg-white text-emerald-600 border border-emerald-200 rounded-2xl shadow-sm hover:bg-emerald-50 transition-all flex items-center gap-2 active:scale-95"
+              className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-white text-emerald-700 border border-emerald-200 rounded-xl shadow-2xs hover:bg-emerald-50 transition-all flex items-center gap-1 text-xs font-semibold active:scale-95"
               title="Coupons"
             >
-              <Ticket className="w-5 h-5" />
-              <span className="hidden sm:inline font-bold">Coupon</span>
+              <Ticket className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Coupon</span>
             </button>
             {showCouponMenu && (
               <>
@@ -495,16 +496,16 @@ export default function Products() {
                 <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 min-w-[180px] overflow-hidden">
                   <button
                     onClick={() => { setShowCouponMenu(false); setShowCouponModal(true); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5" />
                     Create Coupon
                   </button>
                   <button
                     onClick={() => { setShowCouponMenu(false); setShowCouponManager(true); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
                   >
-                    <Ticket className="w-4 h-4" />
+                    <Ticket className="w-3.5 h-3.5" />
                     See Coupons
                   </button>
                 </div>
@@ -519,33 +520,35 @@ export default function Products() {
               }
               setEditingProduct(null); setIsModalOpen(true);
             }}
-            className="hidden sm:flex p-2.5 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all items-center gap-2 active:scale-95"
+            className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 text-white rounded-xl shadow-sm hover:bg-indigo-700 transition-all flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95"
           >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline font-bold">New Product</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Product</span>
           </button>
           <button
             onClick={() => setShowDeliveryFeeModal(true)}
-            className="p-2.5 bg-emerald-600 text-white rounded-2xl shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-2 active:scale-95"
+            className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-emerald-600 text-white rounded-xl shadow-sm hover:bg-emerald-700 transition-all flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95"
+            title="Delivery Fees"
           >
-            <Truck className="w-5 h-5" />
-            <span className="hidden sm:inline font-bold">Delivery Fees</span>
+            <Truck className="w-3.5 h-3.5" />
+            <span>Delivery</span>
           </button>
           <button
             onClick={() => setShowCheckoutFieldsModal(true)}
-            className="p-2.5 bg-violet-600 text-white rounded-2xl shadow-lg hover:bg-violet-700 transition-all flex items-center gap-2 active:scale-95"
+            className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-violet-600 text-white rounded-xl shadow-sm hover:bg-violet-700 transition-all flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95"
+            title="Profile Info"
           >
-            <ClipboardList className="w-5 h-5" />
-            <span className="hidden sm:inline font-bold">Profile Info</span>
+            <ClipboardList className="w-3.5 h-3.5" />
+            <span>Profile</span>
           </button>
           <button
             onClick={() => setShowPointsModal(true)}
-            className="p-2.5 bg-amber-500 text-white rounded-2xl shadow-lg hover:bg-amber-600 transition-all flex items-center gap-2 active:scale-95"
+            className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-amber-500 text-white rounded-xl shadow-sm hover:bg-amber-600 transition-all flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95"
+            title="Points & Rewards"
           >
-            <Award className="w-5 h-5" />
-            <span className="hidden sm:inline font-bold">Points & Rewards</span>
+            <Award className="w-3.5 h-3.5" />
+            <span>Points</span>
           </button>
-          </div>
         </div>
       </div>
 
@@ -1618,16 +1621,16 @@ function CategoryDropdown({ categories, selected, onSelect }) {
   };
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative shrink-0" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className={`p-2.5 rounded-2xl border transition-all flex items-center gap-2 active:scale-95 text-sm font-bold whitespace-nowrap ${
+        className={`px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition-all flex items-center gap-1.5 active:scale-95 text-xs font-semibold whitespace-nowrap ${
           selected
-            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-            : 'bg-white text-gray-600 border-gray-200 shadow-sm hover:bg-gray-50'
+            ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+            : 'bg-white text-gray-700 border-gray-200 shadow-2xs hover:bg-gray-50'
         }`}
       >
-        <Tag className="w-5 h-5" />
+        <Tag className="w-3.5 h-3.5" />
         <span className="hidden sm:inline max-w-[80px] truncate">
           {selected === 'hidden' ? 'Hidden' : selected ? categories.find(c => String(c.id) === selected)?.name || 'Category' : 'All'}
         </span>

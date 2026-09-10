@@ -13,11 +13,12 @@ import {
   Loader2,
   AlertTriangle,
   Info,
+  CheckCircle2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function TempAccountModal({ title, onSkip }) {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
 
@@ -46,6 +47,8 @@ export default function TempAccountModal({ title, onSkip }) {
     }
     return () => clearInterval(timer);
   }, [tempCodeCountdown]);
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const validatePassword = (pw) => {
     if (!pw || pw.length < 8) {
@@ -101,7 +104,7 @@ export default function TempAccountModal({ title, onSkip }) {
       let errMsg = err.response?.data?.detail || err.response?.data?.message || 'Failed to send verification code';
       const lower = errMsg.toLowerCase();
       if (lower.includes('already registered') || lower.includes('already in use') || lower.includes('exists')) {
-        errMsg = 'This mail already registered. Try a different mail';
+        errMsg = 'This email is already registered. Try a different email.';
       }
       setTempEmailError(errMsg);
       addToast(errMsg, 'error');
@@ -144,45 +147,38 @@ export default function TempAccountModal({ title, onSkip }) {
 
     setSubmittingTemp(true);
     try {
-      const res = await client.post('/api/webpanel/update-temp-account', {
+      await client.post('/api/webpanel/update-temp-account', {
         new_email: tempForm.newEmail.trim().toLowerCase(),
         new_password: tempForm.newPassword.trim(),
         code: tempForm.code.trim(),
       });
 
-      addToast(res.data?.message || 'Mail and password updated successfully!', 'success');
-
-      // Instantly clear temp account flag in authStore
-      const updatedUser = {
-        ...user,
-        email: tempForm.newEmail.trim().toLowerCase(),
-        is_temp_account: false,
-      };
-      useAuthStore.getState().setUser(updatedUser);
-
-      // Immediately unlock UI via callback
-      if (onSkip) onSkip();
-
-      // Fetch fresh profile from backend to ensure permanent sync
-      try {
-        const me = await getMe();
-        if (me) {
-          useAuthStore.getState().setUser({ ...me, is_temp_account: false });
-        }
-      } catch {}
-
-      queryClient.invalidateQueries(['me']);
+      // Show success modal popup
+      setShowSuccessModal(true);
     } catch (err) {
       let errMsg = err.response?.data?.detail || err.response?.data?.message || 'Failed to update credentials';
       const lower = errMsg.toLowerCase();
       if (lower.includes('already registered') || lower.includes('already in use') || lower.includes('exists')) {
-        errMsg = 'This mail already registered. Try a different mail';
+        errMsg = 'This email is already registered. Try a different email.';
         setTempEmailError(errMsg);
       }
       addToast(errMsg, 'error');
     } finally {
       setSubmittingTemp(false);
     }
+  };
+
+  const handleSuccessOkay = () => {
+    try {
+      if (typeof logout === 'function') {
+        logout();
+      }
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = '/login';
   };
 
   return (
@@ -375,6 +371,33 @@ export default function TempAccountModal({ title, onSkip }) {
           </div>
         </form>
       </motion.div>
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-sm w-full bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-5"
+          >
+            <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-inner">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Well done!</h3>
+              <p className="text-sm text-gray-600 dark:text-slate-300">
+                Now log in with your new email and password.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleSuccessOkay}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
+            >
+              Okay
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
