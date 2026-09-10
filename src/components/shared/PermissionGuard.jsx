@@ -39,7 +39,22 @@ export default function PermissionGuard({ children }) {
 
   if (!isStaff) return children;
 
-  const path = window.location.pathname.replace(/^\//, '');
+  const path = window.location.pathname.replace(/^\//, '') || 'dashboard';
+
+  if (path === 'staff-accounts') {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-5">
+          <ShieldX className="w-10 h-10 text-amber-400" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Permission Not Allowed</h2>
+        <p className="text-sm text-gray-500 max-w-xs">
+          Staff accounts management is restricted to shop owners only.
+        </p>
+      </div>
+    );
+  }
+
   const requiredPerm = ROUTE_PERM_MAP[path];
 
   if (!requiredPerm) return children;
@@ -61,7 +76,8 @@ export default function PermissionGuard({ children }) {
     );
   }
 
-  const hasPerm = staffPerms?.[requiredPerm] === true ||
+  const hasPerm = staffPerms?.all === true ||
+    staffPerms?.[requiredPerm] === true ||
     (requiredPerm === 'settings' && (staffPerms?.settings === true || staffPerms?.settings_general === true)) ||
     (requiredPerm.startsWith('qr_') && staffPerms?.qr_menu === true) ||
     (requiredPerm.startsWith('telegram_') && staffPerms?.telegram === true);

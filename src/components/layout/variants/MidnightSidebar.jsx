@@ -147,6 +147,7 @@ export default function MidnightSidebar({ mobileOpen, onMobileClose, collapsed, 
   const checkPerm = (to) => {
     if (!isStaff) return true;
     if (!staffPerms) return true;
+    if (staffPerms.all === true) return true;
     const ROUTE_PERM_MAP = {
       '/dashboard': 'dashboard',
       '/profit': 'profit',
@@ -168,6 +169,7 @@ export default function MidnightSidebar({ mobileOpen, onMobileClose, collapsed, 
     };
     const req = ROUTE_PERM_MAP[to];
     if (!req) return true;
+    if (req === 'dashboard' && Object.values(staffPerms).some(v => v === true)) return true;
     return staffPerms[req] === true ||
       (req.startsWith('qr_') && staffPerms.qr_menu === true) ||
       (req.startsWith('telegram_') && staffPerms.telegram === true);
@@ -190,20 +192,20 @@ export default function MidnightSidebar({ mobileOpen, onMobileClose, collapsed, 
     ...(isStaff ? [] : [{ to: '/staff-accounts', icon: UserCog, label: 'Staff Accounts' }]),
   ];
 
-  const navItems = rawNavItems.filter(item => checkPerm(item.to));
+  const navItems = rawNavItems;
 
   const qrMenuItems = [
     { to: '/qr-menu/dashboard', icon: LayoutDashboard, label: 'QR Dashboard' },
     { to: '/qr-menu', icon: Utensils, label: 'QR Menu' },
     { to: '/qr-menu/tables', icon: QrCode, label: 'QR Tables' },
     { to: '/qr-menu/orders', icon: ClipboardList, label: 'QR Orders' },
-  ].filter(item => checkPerm(item.to));
+  ];
 
   const telegramItems = [
     { to: '/broadcast', icon: Radio, label: 'Broadcast' },
     { to: '/commands', icon: Send, label: 'Telegram Command' },
     { to: '/bot-customization', icon: Bot, label: 'Bot Customization' },
-  ].filter(item => checkPerm(item.to));
+  ];
 
   const bottomNavRoutes = ['/dashboard', '/orders', '/products', '/customers', '/chats', '/settings'];
   const mobileNavItems = navItems.filter(item => !bottomNavRoutes.includes(item.to));
