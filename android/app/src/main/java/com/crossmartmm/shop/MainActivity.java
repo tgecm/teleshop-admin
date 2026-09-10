@@ -55,7 +55,7 @@ public class MainActivity extends BridgeActivity {
                 super.onReceivedError(view, request, error);
                 if (request != null && request.isForMainFrame()) {
                     int errorCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? error.getErrorCode() : -1;
-                    if (errorCode == ERROR_HOST_LOOKUP || errorCode == ERROR_CONNECT || errorCode == ERROR_TIMEOUT || errorCode == ERROR_FAILED_SSL_HANDSHAKE || errorCode == ERROR_DISCONNECTED) {
+                    if (errorCode == ERROR_HOST_LOOKUP || errorCode == ERROR_CONNECT || errorCode == ERROR_TIMEOUT || errorCode == ERROR_FAILED_SSL_HANDSHAKE || errorCode == ERROR_IO) {
                         showOfflineCustomErrorPage(view);
                     }
                 }
@@ -64,7 +64,7 @@ public class MainActivity extends BridgeActivity {
             @Override
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                 super.onReceivedError(view, errorCode, description, failingUrl);
-                if (errorCode == ERROR_HOST_LOOKUP || errorCode == ERROR_CONNECT || errorCode == ERROR_TIMEOUT || errorCode == ERROR_FAILED_SSL_HANDSHAKE || errorCode == ERROR_DISCONNECTED) {
+                if (errorCode == ERROR_HOST_LOOKUP || errorCode == ERROR_CONNECT || errorCode == ERROR_TIMEOUT || errorCode == ERROR_FAILED_SSL_HANDSHAKE || errorCode == ERROR_IO) {
                     showOfflineCustomErrorPage(view);
                 }
             }
