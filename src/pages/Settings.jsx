@@ -594,10 +594,7 @@ export default function Settings() {
   };
 
   // Temp account check
-  const isTempAccount = Boolean(
-    user?.is_temp_account ||
-    (user?.email && user.email.toLowerCase().endsWith('@gmail.com') && (user.email.toLowerCase().includes('bot') || user.email.toLowerCase().includes('test')))
-  );
+  const isTempAccount = Boolean(user?.is_temp_account);
 
   const [isTempSkipped, setIsTempSkipped] = useState(false);
 
@@ -617,7 +614,7 @@ export default function Settings() {
   if (isTempAccount && !isTempSkipped) {
     return (
       <TempAccountModal
-        title="Change temporary mail and password to unlock the Setting featuers"
+        title="Change Mail and Password to unlock Setting."
         onSkip={() => setIsTempSkipped(true)}
       />
     );

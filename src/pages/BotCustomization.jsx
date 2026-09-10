@@ -37,10 +37,7 @@ export default function BotCustomization() {
   const { addToast } = useToastStore();
   const queryClient = useQueryClient();
 
-  const isTempAccount = Boolean(
-    user?.is_temp_account ||
-    (user?.email && user.email.toLowerCase().endsWith('@gmail.com') && (user.email.toLowerCase().includes('bot') || user.email.toLowerCase().includes('test')))
-  );
+  const isTempAccount = Boolean(user?.is_temp_account);
 
   const [isTempSkipped, setIsTempSkipped] = useState(false);
 

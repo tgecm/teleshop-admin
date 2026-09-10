@@ -11,6 +11,7 @@ import {
   EyeOff,
   Loader2,
   AlertTriangle,
+  Info,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -45,27 +46,43 @@ export default function TempAccountModal({ title, onSkip }) {
     return () => clearInterval(timer);
   }, [tempCodeCountdown]);
 
+  const validatePassword = (pw) => {
+    if (!pw || pw.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    if (!/[A-Z]/.test(pw)) {
+      return 'Password must contain at least one Capital letter (A-Z)';
+    }
+    if (!/[a-z]/.test(pw)) {
+      return 'Password must contain at least one small letter (a-z)';
+    }
+    if (!/[0-9]/.test(pw)) {
+      return 'Password must contain at least one number (0-9)';
+    }
+    return null;
+  };
+
   const handleGetTempCode = async () => {
     setTempEmailError('');
     setTempPwError('');
     setTempConfirmError('');
 
     if (!tempForm.newEmail || !tempForm.newEmail.includes('@')) {
-      const msg = 'Please enter a valid new email address';
+      const msg = 'Please enter a valid email address';
       setTempEmailError(msg);
       addToast(msg, 'error');
       return;
     }
 
-    if (!tempForm.newPassword || tempForm.newPassword.length < 6) {
-      const msg = 'Password must be at least 6 characters';
-      setTempPwError(msg);
-      addToast(msg, 'error');
+    const pwErr = validatePassword(tempForm.newPassword);
+    if (pwErr) {
+      setTempPwError(pwErr);
+      addToast(pwErr, 'error');
       return;
     }
 
     if (tempForm.newPassword !== tempForm.confirmPassword) {
-      const msg = 'New password and confirm password do not match';
+      const msg = 'Passwords do not match';
       setTempConfirmError(msg);
       addToast(msg, 'error');
       return;
@@ -80,7 +97,11 @@ export default function TempAccountModal({ title, onSkip }) {
       addToast(`Verification code sent to ${tempForm.newEmail}`, 'success');
       setTempCodeCountdown(60);
     } catch (err) {
-      const errMsg = err.response?.data?.detail || err.response?.data?.message || 'Failed to send verification code';
+      let errMsg = err.response?.data?.detail || err.response?.data?.message || 'Failed to send verification code';
+      const lower = errMsg.toLowerCase();
+      if (lower.includes('already registered') || lower.includes('already in use') || lower.includes('exists')) {
+        errMsg = 'This mail already registered. Try a different mail';
+      }
       setTempEmailError(errMsg);
       addToast(errMsg, 'error');
     } finally {
@@ -100,20 +121,23 @@ export default function TempAccountModal({ title, onSkip }) {
       addToast(msg, 'error');
       return;
     }
-    if (!tempForm.newPassword || tempForm.newPassword.length < 6) {
-      const msg = 'Password must be at least 6 characters';
-      setTempPwError(msg);
-      addToast(msg, 'error');
+
+    const pwErr = validatePassword(tempForm.newPassword);
+    if (pwErr) {
+      setTempPwError(pwErr);
+      addToast(pwErr, 'error');
       return;
     }
+
     if (tempForm.newPassword !== tempForm.confirmPassword) {
-      const msg = 'New password and confirm password do not match';
+      const msg = 'Passwords do not match';
       setTempConfirmError(msg);
       addToast(msg, 'error');
       return;
     }
+
     if (!tempForm.code || tempForm.code.trim().length === 0) {
-      addToast('Please enter the verification code', 'error');
+      addToast('Please enter the 6 digit verification code', 'error');
       return;
     }
 
@@ -125,12 +149,18 @@ export default function TempAccountModal({ title, onSkip }) {
         code: tempForm.code.trim(),
       });
 
-      addToast(res.data?.message || 'Email and password updated successfully!', 'success');
+      addToast(res.data?.message || 'Mail and password updated successfully!', 'success');
       useAuthStore.getState().setUser({ ...user, email: tempForm.newEmail.trim().toLowerCase(), is_temp_account: false });
       if (onSkip) onSkip();
       queryClient.invalidateQueries(['me']);
     } catch (err) {
-      addToast(err.response?.data?.detail || 'Failed to update credentials', 'error');
+      let errMsg = err.response?.data?.detail || err.response?.data?.message || 'Failed to update credentials';
+      const lower = errMsg.toLowerCase();
+      if (lower.includes('already registered') || lower.includes('already in use') || lower.includes('exists')) {
+        errMsg = 'This mail already registered. Try a different mail';
+        setTempEmailError(errMsg);
+      }
+      addToast(errMsg, 'error');
     } finally {
       setSubmittingTemp(false);
     }
@@ -149,7 +179,7 @@ export default function TempAccountModal({ title, onSkip }) {
             <ShieldAlert className="w-7 h-7" />
           </div>
           <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-snug">
-            {title || 'Change temporary mail and password to unlock setting features'}
+            {title || 'Change Mail and Password to unlock Setting.'}
           </h2>
           <p className="text-xs text-gray-500 dark:text-slate-400">
             Current login: <span className="text-amber-600 dark:text-amber-400 font-mono font-medium">{user?.email}</span>
@@ -158,17 +188,17 @@ export default function TempAccountModal({ title, onSkip }) {
 
         {/* Form */}
         <form onSubmit={handleConfirmTempChange} className="space-y-4">
-          {/* New Mail */}
+          {/* Mail Input */}
           <div>
             <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-              New Mail
+              Enter your own mail
             </label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-400" />
               <input
                 type="email"
                 required
-                placeholder="New Mail"
+                placeholder="Enter your own mail"
                 value={tempForm.newEmail}
                 onChange={(e) => {
                   setTempForm({ ...tempForm, newEmail: e.target.value });
@@ -192,14 +222,14 @@ export default function TempAccountModal({ title, onSkip }) {
           {/* New Password */}
           <div>
             <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-              New Password
+              Enter new password
             </label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-400" />
               <input
                 type={showNewPw ? 'text' : 'password'}
                 required
-                placeholder="New Password"
+                placeholder="Enter new password"
                 value={tempForm.newPassword}
                 onChange={(e) => {
                   setTempForm({ ...tempForm, newPassword: e.target.value });
@@ -223,10 +253,15 @@ export default function TempAccountModal({ title, onSkip }) {
                 {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {tempPwError && (
+            {tempPwError ? (
               <p className="mt-1.5 text-xs font-medium text-red-500 dark:text-red-400 flex items-center gap-1">
                 <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
                 {tempPwError}
+              </p>
+            ) : (
+              <p className="mt-1 text-[11px] text-gray-500 dark:text-slate-400 flex items-center gap-1">
+                <Info className="w-3 h-3 flex-shrink-0 text-amber-500" />
+                Must have at least 1 Capital letter, 1 small letter, 1 number & min 8 chars.
               </p>
             )}
           </div>
@@ -279,7 +314,7 @@ export default function TempAccountModal({ title, onSkip }) {
               <input
                 type="text"
                 required
-                placeholder="******"
+                placeholder="6 digit code here"
                 value={tempForm.code}
                 onChange={(e) => setTempForm({ ...tempForm, code: e.target.value })}
                 className="flex-1 px-4 py-2.5 bg-gray-50 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 tracking-widest text-center font-mono transition-all"
@@ -308,7 +343,7 @@ export default function TempAccountModal({ title, onSkip }) {
               onClick={onSkip}
               className="px-4 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all"
             >
-              Not now
+              Not Now
             </button>
             <button
               type="submit"
