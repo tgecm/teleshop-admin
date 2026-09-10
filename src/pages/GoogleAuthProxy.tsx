@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
@@ -6,19 +6,15 @@ import { auth } from '../lib/firebase';
 import { requestGoogleIdToken, exchangeGoogleToken } from '../lib/googleSignIn';
 import { restoreProxyParamsFromQ, getProxyParamsFromHash } from '../utils/authProxy';
 
-function isValidRedirectUri(uri: string, shopSlug?: string): boolean {
-  if (!uri.startsWith('https://')) return false;
+function isValidRedirectUri(uri: string): boolean {
+  if (!uri) return false;
   try {
     const url = new URL(uri);
-    const hostname = url.hostname;
-    const allowed = ['telegramecommerce.shop', 'www.telegramecommerce.shop',
-                     'crossmart.shop', 'www.crossmart.shop'];
-    if (allowed.includes(hostname)) return true;
-    const currentOrigin = window.location.origin;
-    if (uri.startsWith(currentOrigin)) return true;
-    // Custom domain: validate the path contains the shop slug
-    if (shopSlug && (url.pathname + url.search).includes(encodeURIComponent(shopSlug))) return true;
-    return false;
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    if (url.protocol === 'http:' && !['localhost', '127.0.0.1'].includes(url.hostname)) {
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }
@@ -50,12 +46,11 @@ function getProxyParams(): { shopSlug: string; redirectUri: string } | null {
 export default function GoogleAuthProxy() {
   const [error, setError] = useState('');
   const [signingIn, setSigningIn] = useState(false);
-  const [autoStarted, setAutoStarted] = useState(false);
 
   const proxyParams = getProxyParams();
   const paramError = !proxyParams
     ? 'Missing required parameters: shop_slug and redirect_uri'
-    : !isValidRedirectUri(proxyParams.redirectUri, proxyParams.shopSlug)
+    : !isValidRedirectUri(proxyParams.redirectUri)
       ? 'Invalid redirect URI'
       : '';
 
@@ -77,16 +72,13 @@ export default function GoogleAuthProxy() {
       return;
     }
 
-    // Sign into Firebase so the Firebase UID is used as the customer identifier,
-    // matching what the main-domain flow uses. This ensures customer profiles and
-    // orders are shared between custom domain and default domain for the same Google account.
     let firebaseUid: string | undefined;
     try {
       const credential = GoogleAuthProvider.credential(null, accessToken);
       const userCred = await signInWithCredential(auth, credential);
       firebaseUid = userCred.user.uid;
     } catch {
-      // If Firebase sign-in fails, proceed without — the backend will fall back to google_uid
+      // If Firebase sign-in fails, proceed without — backend will fall back to google_uid
     }
 
     let result: AuthResult;
@@ -103,14 +95,6 @@ export default function GoogleAuthProxy() {
     const userEncoded = encodeURIComponent(JSON.stringify(result.user));
     window.location.href = `${redirectUri}${qs}auth_token=${result.token}&auth_status=success&auth_user=${userEncoded}`;
   }, [proxyParams]);
-
-  // Auto trigger Google sign-in on mount
-  useEffect(() => {
-    if (proxyParams && !paramError && !autoStarted && !error) {
-      setAutoStarted(true);
-      handleSignIn();
-    }
-  }, [proxyParams, paramError, autoStarted, handleSignIn, error]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -139,7 +123,13 @@ export default function GoogleAuthProxy() {
               <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">Signing in with Google</h2>
-            <p className="text-sm text-gray-500">Please complete the Google sign-in popup...</p>
+            <p className="text-sm text-gray-500 mb-6">Please complete the Google sign-in popup...</p>
+            <button
+              onClick={handleSignIn}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 font-semibold rounded-xl text-sm hover:bg-indigo-100 transition-all"
+            >
+              If popup didn't open, click here
+            </button>
           </>
         ) : (
           <>
@@ -150,19 +140,19 @@ export default function GoogleAuthProxy() {
               {error ? 'Authentication Failed' : 'Sign in to Continue'}
             </h2>
             <p className="text-sm text-gray-500 mb-6">
-              {error || 'Sign in with your Google account to access this shop.'}
+              {error || 'Click below to sign in with your Google account.'}
             </p>
             <button
               onClick={handleSignIn}
-              className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white border-2 border-gray-200 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-[0.98] mb-3"
             >
-              <img src="/google-logo.svg" alt="" className="w-5 h-5" />
+              <img src="/google-logo.svg" alt="" className="w-5 h-5 bg-white rounded-full p-0.5" />
               Sign in with Google
             </button>
             {error && (
               <button
                 onClick={() => window.history.back()}
-                className="w-full mt-3 flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm"
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm"
               >
                 Go Back
               </button>
@@ -173,3 +163,5 @@ export default function GoogleAuthProxy() {
     </div>
   );
 }
+
+

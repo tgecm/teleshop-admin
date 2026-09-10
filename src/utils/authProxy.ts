@@ -1,10 +1,22 @@
-const MAIN_DOMAINS = ['telegramecommerce.shop'];
+const MAIN_DOMAINS = ['telegramecommerce.shop', 'crossmart.shop'];
 
 export const isMainDomain = (): boolean => {
   const hostname = window.location.hostname;
   return MAIN_DOMAINS.some(d => hostname === d || hostname === `www.${d}`)
     || hostname === 'localhost';
 };
+
+export const isCustomDomain = (): boolean => !isMainDomain();
+
+export const isGoogleAuthDomain = (): boolean => {
+  const hostname = window.location.hostname;
+  return hostname === 'telegramecommerce.shop'
+    || hostname === 'www.telegramecommerce.shop'
+    || hostname === 'localhost'
+    || hostname === '127.0.0.1';
+};
+
+export const shouldUseGoogleAuthProxy = (): boolean => !isGoogleAuthDomain();
 
 export const buildProxyUrl = (shopSlug: string): string => {
   const redirectUri = window.location.origin;

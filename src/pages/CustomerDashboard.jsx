@@ -20,6 +20,8 @@ import InstantMmpayQrModal from '../components/InstantMmpayQrModal';
 import PreCheckoutMmpayConfirmModal from '../components/PreCheckoutMmpayConfirmModal';
 import { formatPrice } from '../utils/formatPrice';
 import ErrorBoundary from '../components/shared/ErrorBoundary';
+import CustomerLogin from './CustomerLogin';
+import { isMainDomain, isCustomDomain } from '../utils/authProxy';
 
 function authHeaders() {
   const token = localStorage.getItem('telegram_token') || localStorage.getItem('google_token');
@@ -2154,10 +2156,16 @@ function ProfileTab({ shopSlug, user, googleUser, uid, displayName: defaultName,
     try {
       if (logoutTelegram) logoutTelegram();
       await clearCustomerSession(queryClient);
-      window.location.href = `/?p=${encodeURIComponent(shopSlug)}`;
     } catch (err) {
       console.error('Sign out failed:', err);
-      window.location.href = `/?p=${encodeURIComponent(shopSlug)}`;
+    } finally {
+      if (isCustomDomain()) {
+        window.location.href = '/';
+      } else if (shopSlug) {
+        window.location.href = `/?p=/${encodeURIComponent(shopSlug)}`;
+      } else {
+        window.location.href = '/';
+      }
     }
   };
 

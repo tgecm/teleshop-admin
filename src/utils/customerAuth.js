@@ -63,4 +63,21 @@ export async function clearCustomerSession(queryClient = null) {
   } catch (err) {
     console.warn('[clearCustomerSession] Firebase signOut warning:', err);
   }
+
+  // 6. Delete Firebase Auth IndexedDB database to prevent session restoration
+  try {
+    if (typeof indexedDB !== 'undefined' && indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      for (const db of dbs) {
+        if (db.name && (db.name.includes('firebase') || db.name.includes('firestore'))) {
+          indexedDB.deleteDatabase(db.name);
+        }
+      }
+    }
+  } catch (e) {
+    /* ignore */
+  }
+
+  // 7. Brief delay to ensure browser storage flushes before window reload
+  await new Promise((resolve) => setTimeout(resolve, 150));
 }

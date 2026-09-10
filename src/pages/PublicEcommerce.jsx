@@ -24,7 +24,7 @@ import Receipt from '../components/orders/Receipt';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { signInWithGoogle } from '../lib/googleSignIn';
-import { isMainDomain } from '../utils/authProxy';
+import { isMainDomain, isCustomDomain, shouldUseGoogleAuthProxy } from '../utils/authProxy';
 import { filterAndSortProducts } from '../utils/search';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { RichMessage } from '../components/chat/RichMessage';
@@ -757,7 +757,7 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   useEffect(() => {
     if (status === 'confirmed') {
       if (telegramLoginInitiated.current && shopSlug) {
-        window.location.href = `/?p=/${encodeURIComponent(shopSlug)}-user-dashboard`;
+        window.location.href = !isMainDomain() ? '/me' : `/?p=/${encodeURIComponent(shopSlug)}/me`;
       } else if (telegramLoginInitiated.current) {
         onSuccess?.();
       } else {
@@ -767,9 +767,9 @@ function SignInModal({ onClose, onSuccess, botUsername: propBotUsername, shopSlu
   }, [status, onSuccess, onClose, shopSlug]);
 
   const handleSignIn = async () => {
-    if (!isMainDomain()) {
-      // Custom domain — redirect to auth proxy on main domain
-      const dashboardUri = window.location.origin + '/?p=/' + encodeURIComponent(shopSlug || propBotUsername || '') + '-user-dashboard';
+    if (shouldUseGoogleAuthProxy()) {
+      // Redirect to central auth proxy if not on telegramecommerce.shop origin
+      const dashboardUri = window.location.origin + (!isMainDomain() ? '/me' : '/?p=' + encodeURIComponent(shopSlug || propBotUsername || '') + '/me');
       const params = new URLSearchParams({ shop_slug: shopSlug || propBotUsername || '', redirect_uri: dashboardUri });
       window.location.href = `https://www.telegramecommerce.shop/#/auth/google/proxy?${params}`;
       return;
@@ -2649,8 +2649,8 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   // Auto-open product from ?product= URL param on page load — handled inline
 
   const dashboardUrl = viaDomain
-    ? `/?p=/${(shop?.public_slug || slug || shop?.bot_username || 'shop')}-user-dashboard`
-    : `/${(slug || shop?.public_slug || shop?.bot_username || 'shop')}-user-dashboard`;
+    ? '/me'
+    : `/?p=/${(slug || shop?.public_slug || shop?.bot_username || 'shop')}/me`;
 
   const getProductColors = useCallback((product) => {
     let specs = product?.specifications;
@@ -3246,7 +3246,14 @@ export default function PublicEcommerce({ slug, viaDomain, mode }) {
   const handleSignOut = useCallback(async () => {
     if (logoutTelegram) logoutTelegram();
     await clearCustomerSession();
-  }, [logoutTelegram]);
+    if (isCustomDomain()) {
+      window.location.href = '/';
+    } else if (slug) {
+      window.location.href = `/?p=/${encodeURIComponent(slug)}`;
+    } else {
+      window.location.reload();
+    }
+  }, [logoutTelegram, slug]);
 
   // Theme injection
   useEffect(() => {

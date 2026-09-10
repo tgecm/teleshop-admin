@@ -5,7 +5,7 @@ import { useTelegramLogin } from '../../hooks/useTelegramLogin';
 import { useTelegramAuth } from '../../context/TelegramAuthContext';
 import TelegramLoginModal from '../TelegramLoginModal';
 import { qrSignInWithGoogle, storeQRLogin, qrExchangeTelegramToken } from '../../lib/qrAuth';
-import { isMainDomain } from '../../utils/domains';
+import { isMainDomain, shouldUseGoogleAuthProxy } from '../../utils/authProxy';
 
 const TELEGRAM_BLUE = '#2AABEE';
 
@@ -53,7 +53,7 @@ export default function QRSignInModal({ slug, onClose, onSuccess, botUsername: p
   }, [status, slug, onSuccess]);
 
   const handleGoogleSignIn = async () => {
-    if (!isMainDomain()) {
+    if (shouldUseGoogleAuthProxy()) {
       const dashboardUri = window.location.origin + '/?p=/' + encodeURIComponent(slug) + '-qr-dashboard';
       const params = new URLSearchParams({ shop_slug: slug, redirect_uri: dashboardUri, mode: 'qr' });
       window.location.href = `https://www.telegramecommerce.shop/#/auth/google/proxy?${params}`;

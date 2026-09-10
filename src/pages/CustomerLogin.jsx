@@ -6,7 +6,7 @@ import { ShoppingBag, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { useTelegramLogin } from '../hooks/useTelegramLogin';
 import { useTelegramAuth } from '../context/TelegramAuthContext';
 import TelegramLoginModal from '../components/TelegramLoginModal';
-import { isMainDomain } from '../utils/authProxy';
+import { isMainDomain, shouldUseGoogleAuthProxy } from '../utils/authProxy';
 import { useAuthTokenFromUrl } from '../hooks/useAuthTokenFromUrl';
 import { clearCustomerSession } from '../utils/customerAuth';
 
@@ -91,18 +91,18 @@ export default function CustomerLogin({ shopSlug }) {
 
   useEffect(() => {
     if (!authLoading && firebaseUser) {
-      window.location.href = `/?p=/${encodeURIComponent(shopSlug)}-user-dashboard`;
+      window.location.href = !isMainDomain() ? '/me' : `/?p=/${encodeURIComponent(shopSlug)}/me`;
     }
   }, [authLoading, firebaseUser, shopSlug]);
 
   useEffect(() => {
     if (telegramLoggedIn) {
-      window.location.href = `/?p=/${encodeURIComponent(shopSlug)}-user-dashboard`;
+      window.location.href = !isMainDomain() ? '/me' : `/?p=/${encodeURIComponent(shopSlug)}/me`;
     }
   }, [telegramLoggedIn, shopSlug]);
 
   const handleGoogleSignIn = async () => {
-    if (!isMainDomain()) {
+    if (shouldUseGoogleAuthProxy()) {
       const params = new URLSearchParams({ shop_slug: shopSlug || '', redirect_uri: window.location.href });
       window.location.href = `https://www.telegramecommerce.shop/#/auth/google/proxy?${params}`;
       return;

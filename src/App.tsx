@@ -129,6 +129,17 @@ function PublicRoute() {
     );
   }
 
+  const meMatch = pathname.match(/^(.+)[\/\-]me$/) || (pathname === 'me' ? ['me', ''] : null);
+  if (meMatch) {
+    return (
+      <PublicLayout>
+        <Suspense fallback={<SuspenseFallback />}>
+          <CustomerDashboard shopSlug={meMatch[1] || ''} />
+        </Suspense>
+      </PublicLayout>
+    );
+  }
+
   const customerDashboardMatch = pathname.match(/^(.+)-user-dashboard$/);
   if (customerDashboardMatch) {
     return (
@@ -410,6 +421,8 @@ export default function App() {
                 if (pm) return <PublicAddPayment username={pm[1]} code={pm[2]} secret1={pm[3]} secret2={pm[4]} />;
                 const cl = publicSlug.match(/^(.+)-user-dashboard-login$/);
                 if (cl) return <CustomerLogin shopSlug={cl[1]} />;
+                const meMatch = publicSlug.match(/^(.+)[\/\-]me$/) || (publicSlug === 'me' ? ['me', ''] : null);
+                if (meMatch) return <CustomerDashboard shopSlug={meMatch[1] || ''} />;
                 const cd = publicSlug.match(/^(.+)-user-dashboard$/);
                 if (cd) return <CustomerDashboard shopSlug={cd[1]} />;
                 const ec = publicSlug.match(/^(.+)-ecommerce$/);
@@ -464,9 +477,10 @@ export default function App() {
           if (tokenDisplay) {
             return <><PublicLayout><Suspense fallback={<SuspenseFallback />}><LiveTokenDisplay slug={tokenDisplay[1]} /></Suspense></PublicLayout><ToastContainer /><SelectionToolbar /></>;
           }
-          const cd = pathname.match(/^(.+)-user-dashboard$/);
-          if (cd) {
-            return <><PublicLayout><Suspense fallback={<SuspenseFallback />}><CustomerDashboard shopSlug={cd[1]} /></Suspense></PublicLayout><ToastContainer /><SelectionToolbar /></>;
+          const mePath = pathname.match(/^(me|account)$/) || pathname.match(/^(.+)[\/\-]me$/) || pathname.match(/^(.+)-user-dashboard$/);
+          if (mePath) {
+            const s = (mePath[1] === 'me' || mePath[1] === 'account') ? '' : mePath[1];
+            return <><PublicLayout><Suspense fallback={<SuspenseFallback />}><CustomerDashboard shopSlug={s} /></Suspense></PublicLayout><ToastContainer /><SelectionToolbar /></>;
           }
           const cl = pathname.match(/^(.+)-user-dashboard-login$/);
           if (cl) {
