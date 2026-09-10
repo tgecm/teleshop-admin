@@ -452,101 +452,141 @@ export default function Products() {
   if (isLoading) return <LoadingSkeleton type="grid" count={6} />;
 
   return (
-    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-      <div className="flex items-center gap-2 sm:gap-3 bg-white p-3 sm:p-3.5 rounded-3xl border border-gray-100 shadow-sm w-full">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 shrink-0">Products</h1>
-        
-        <div className="relative flex-1 min-w-[110px] max-w-[260px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-2.5 py-1.5 bg-gray-50/80 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-xs"
-          />
-        </div>
-
-        <div className="flex items-center gap-1 sm:gap-1.5 ml-auto flex-wrap sm:flex-nowrap shrink-0">
-          <CategoryDropdown
-            categories={categories || []}
-            selected={selectedCategoryFilter}
-            onSelect={setSelectedCategoryFilter}
-          />
-          <button
-            onClick={() => setShowSorting(true)}
-            className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-white text-gray-700 border border-gray-200 rounded-xl shadow-2xs hover:bg-gray-50 transition-all flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95"
-            title="Drag to reorder products"
-          >
-            <ArrowUpDown className="w-3.5 h-3.5 text-gray-500" />
-            <span>Sort</span>
-          </button>
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setShowCouponMenu(!showCouponMenu)}
-              className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-white text-emerald-700 border border-emerald-200 rounded-xl shadow-2xs hover:bg-emerald-50 transition-all flex items-center gap-1 text-xs font-semibold active:scale-95"
-              title="Coupons"
-            >
-              <Ticket className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Coupon</span>
-            </button>
-            {showCouponMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowCouponMenu(false)} />
-                <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 min-w-[180px] overflow-hidden">
-                  <button
-                    onClick={() => { setShowCouponMenu(false); setShowCouponModal(true); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Create Coupon
-                  </button>
-                  <button
-                    onClick={() => { setShowCouponMenu(false); setShowCouponManager(true); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
-                  >
-                    <Ticket className="w-3.5 h-3.5" />
-                    See Coupons
-                  </button>
-                </div>
-              </>
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 w-full max-w-full overflow-x-hidden">
+      <div className="bg-white p-3 sm:p-4 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm w-full space-y-2.5">
+        {/* Row 1: Title, Count Badge, Coupon & Primary New Product Button */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Products</h1>
+            {products && (
+              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold border border-indigo-100">
+                {filteredProducts.length}
+              </span>
             )}
           </div>
+
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Coupon Button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowCouponMenu(!showCouponMenu)}
+                className="px-2.5 py-1.5 sm:px-3 sm:py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-all flex items-center gap-1 text-xs font-bold active:scale-95 shadow-2xs"
+                title="Coupons"
+              >
+                <Ticket className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Coupon</span>
+              </button>
+              {showCouponMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowCouponMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 min-w-[180px] overflow-hidden">
+                    <button
+                      onClick={() => { setShowCouponMenu(false); setShowCouponModal(true); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Create Coupon
+                    </button>
+                    <button
+                      onClick={() => { setShowCouponMenu(false); setShowCouponManager(true); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                    >
+                      <Ticket className="w-3.5 h-3.5" />
+                      See Coupons
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* New Product Primary Action */}
+            <button
+              onClick={() => {
+                if (atProductLimit) {
+                  addToast('Your account has reached total limits of products', 'error');
+                  return;
+                }
+                setEditingProduct(null); setIsModalOpen(true);
+              }}
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-all flex items-center gap-1.5 text-xs font-bold shrink-0 active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Product</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Integrated Search Bar: [{All} 🔍 Search Products... {Sort}] */}
+        <div className="flex items-center bg-gray-50/90 border border-gray-200 rounded-2xl p-1 gap-1 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all shadow-2xs w-full">
+          {/* Left: Category Dropdown ({All}) */}
+          <div className="shrink-0">
+            <CategoryDropdown
+              categories={categories || []}
+              selected={selectedCategoryFilter}
+              onSelect={setSelectedCategoryFilter}
+            />
+          </div>
+
+          {/* Center: Search Icon & Input */}
+          <div className="relative flex-1 flex items-center min-w-0">
+            <Search className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-1 mr-1.5" />
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-transparent border-none outline-none text-xs text-gray-900 placeholder-gray-400 font-medium py-1"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Right: Sort Button */}
           <button
-            onClick={() => {
-              if (atProductLimit) {
-                addToast('Your account has reached total limits of products', 'error');
-                return;
-              }
-              setEditingProduct(null); setIsModalOpen(true);
-            }}
-            className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 bg-indigo-600 text-white rounded-xl shadow-sm hover:bg-indigo-700 transition-all flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95"
+            onClick={() => setShowSorting(true)}
+            className="px-2.5 py-1.5 bg-white text-gray-700 border border-gray-200 rounded-xl shadow-2xs hover:bg-gray-100 transition-all flex items-center gap-1 text-xs font-bold shrink-0 active:scale-95"
+            title="Drag to reorder products"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Product</span>
+            <ArrowUpDown className="w-3 h-3 text-gray-500" />
+            <span>Sort</span>
           </button>
+        </div>
+
+        {/* Row 3: Remaining 3 Action Buttons in a Clean 3-Column Grid */}
+        <div className="grid grid-cols-3 gap-2 w-full">
+          {/* Delivery */}
           <button
             onClick={() => setShowDeliveryFeeModal(true)}
-            className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-emerald-600 text-white rounded-xl shadow-sm hover:bg-emerald-700 transition-all flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95"
+            className="col-span-1 w-full px-2 py-2 sm:px-3 bg-emerald-600 text-white rounded-xl shadow-xs hover:bg-emerald-700 transition-all flex items-center justify-center gap-1.5 text-xs font-bold active:scale-95"
             title="Delivery Fees"
           >
-            <Truck className="w-3.5 h-3.5" />
+            <Truck className="w-3.5 h-3.5 shrink-0" />
             <span>Delivery</span>
           </button>
+
+          {/* Profile */}
           <button
             onClick={() => setShowCheckoutFieldsModal(true)}
-            className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-violet-600 text-white rounded-xl shadow-sm hover:bg-violet-700 transition-all flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95"
+            className="col-span-1 w-full px-2 py-2 sm:px-3 bg-violet-600 text-white rounded-xl shadow-xs hover:bg-violet-700 transition-all flex items-center justify-center gap-1.5 text-xs font-bold active:scale-95"
             title="Profile Info"
           >
-            <ClipboardList className="w-3.5 h-3.5" />
+            <ClipboardList className="w-3.5 h-3.5 shrink-0" />
             <span>Profile</span>
           </button>
+
+          {/* Points */}
           <button
             onClick={() => setShowPointsModal(true)}
-            className="px-2 py-1.5 sm:px-2.5 sm:py-1.5 bg-amber-500 text-white rounded-xl shadow-sm hover:bg-amber-600 transition-all flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95"
+            className="col-span-1 w-full px-2 py-2 sm:px-3 bg-amber-500 text-white rounded-xl shadow-xs hover:bg-amber-600 transition-all flex items-center justify-center gap-1.5 text-xs font-bold active:scale-95"
             title="Points & Rewards"
           >
-            <Award className="w-3.5 h-3.5" />
+            <Award className="w-3.5 h-3.5 shrink-0" />
             <span>Points</span>
           </button>
         </div>
@@ -1624,14 +1664,14 @@ function CategoryDropdown({ categories, selected, onSelect }) {
     <div className="relative shrink-0" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className={`px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition-all flex items-center gap-1.5 active:scale-95 text-xs font-semibold whitespace-nowrap ${
+        className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl border transition-all flex items-center gap-1.5 active:scale-95 text-xs font-semibold whitespace-nowrap ${
           selected
             ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
             : 'bg-white text-gray-700 border-gray-200 shadow-2xs hover:bg-gray-50'
         }`}
       >
         <Tag className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline max-w-[80px] truncate">
+        <span className="max-w-[85px] sm:max-w-[110px] truncate">
           {selected === 'hidden' ? 'Hidden' : selected ? categories.find(c => String(c.id) === selected)?.name || 'Category' : 'All'}
         </span>
       </button>
