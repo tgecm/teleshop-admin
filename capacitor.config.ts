@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'CrossMart',
   webDir: 'dist',
   server: {
-    url: 'https://crosssmart.shop/dashboard',
+    url: 'https://www.telegramecommerce.shop/dashboard',
     androidScheme: 'https',
     cleartext: true,
     allowNavigation: ['*'],

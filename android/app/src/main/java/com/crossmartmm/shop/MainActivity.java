@@ -158,7 +158,7 @@ public class MainActivity extends BridgeActivity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                String targetUrl = "https://crosssmart.shop/dashboard";
+                String targetUrl = "https://www.telegramecommerce.shop/dashboard";
                 String customHtml = "<!DOCTYPE html><html>" +
                     "<head>" +
                     "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">" +
