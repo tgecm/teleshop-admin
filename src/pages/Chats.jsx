@@ -1140,7 +1140,7 @@ export default function Chats() {
   };
 
   return (
-    <div className="-mt-3 md:-mt-5 lg:-mt-7 -mx-3 sm:-mx-4 md:-mx-8 lg:-mx-10 h-[calc(100vh-4.2rem)] md:h-[calc(100vh-4.5rem)] min-h-[500px] bg-white rounded-2xl lg:rounded-3xl border border-gray-200/90 ring-1 ring-black/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col lg:flex-row">
+    <div className="-mt-3 md:-mt-5 lg:-mt-7 -mx-3 sm:-mx-4 md:-mx-8 lg:-mx-10 h-[calc(100dvh-6.75rem)] md:h-[calc(100vh-4.5rem)] min-h-[450px] bg-white rounded-2xl lg:rounded-3xl border border-gray-200/90 ring-1 ring-black/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col lg:flex-row">
       {/* LEFT SIDEBAR: Conversation List & Filters */}
       <div className={`w-full lg:w-[340px] xl:w-[380px] 2xl:w-[420px] flex-shrink-0 flex flex-col border-r border-gray-100 bg-gray-50/40 ${ (selectedUser || selectedVisitor) ? 'hidden lg:flex' : 'flex' } h-full overflow-hidden`}>
         {/* Header with Title, Search & Filter */}
@@ -1303,11 +1303,11 @@ export default function Chats() {
         </div>
 
         {/* Conversation List Items */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 overflow-x-hidden" onContextMenu={(e) => e.preventDefault()}>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 overflow-x-hidden flex flex-col" onContextMenu={(e) => e.preventDefault()}>
           {chatTab === 'web' || chatTab === 'guest' ? (
             <>
               {(chatTab === 'web' ? filteredWebVisitors.filter(v => !isGuestVisitor(v)) : filteredWebVisitors.filter(v => isGuestVisitor(v))).length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-gray-200 rounded-2xl my-4">
+                <div className="flex-1 min-h-[220px] flex flex-col items-center justify-center p-8 text-center border border-dashed border-gray-200/90 bg-gray-50/40 rounded-2xl">
                   <MessageCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                   <p className="text-xs font-bold text-gray-500">
                     {chatTab === 'web' ? 'No website visitors yet' : 'No guest visitors yet'}
@@ -1332,7 +1332,7 @@ export default function Chats() {
           ) : chatTab === 'telegram' ? (
             <>
               {filteredChats.length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-gray-200 rounded-2xl my-4">
+                <div className="flex-1 min-h-[220px] flex flex-col items-center justify-center p-8 text-center border border-dashed border-gray-200/90 bg-gray-50/40 rounded-2xl">
                   <MessageCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                   <p className="text-xs font-bold text-gray-500">No Telegram conversations yet</p>
                 </div>
@@ -1355,7 +1355,7 @@ export default function Chats() {
           ) : (
             <>
               {combinedAllItems.length === 0 ? (
-                <div className="p-8 text-center border border-dashed border-gray-200 rounded-2xl my-4">
+                <div className="flex-1 min-h-[220px] flex flex-col items-center justify-center p-8 text-center border border-dashed border-gray-200/90 bg-gray-50/40 rounded-2xl">
                   <MessageCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                   <p className="text-xs font-bold text-gray-500">No conversations found</p>
                 </div>
@@ -1516,7 +1516,7 @@ export default function Chats() {
             </div>
 
             {/* Input Bar */}
-            <div className="bg-white border-t border-gray-100 px-4 sm:px-6 py-3">
+            <div className="bg-white border-t border-gray-100 px-3 sm:px-6 py-2.5 sm:py-3 shrink-0 pb-[calc(10px+env(safe-area-inset-bottom))] md:pb-3">
               <div className="flex items-end gap-2">
                 <input
                   ref={fileInputRef}

@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { useToastStore } from '../../store/toastStore';
 import client from '../../api/client';
+import { getMe } from '../../api/auth';
 import {
   ShieldAlert,
   Mail,
@@ -150,8 +151,26 @@ export default function TempAccountModal({ title, onSkip }) {
       });
 
       addToast(res.data?.message || 'Mail and password updated successfully!', 'success');
-      useAuthStore.getState().setUser({ ...user, email: tempForm.newEmail.trim().toLowerCase(), is_temp_account: false });
+
+      // Instantly clear temp account flag in authStore
+      const updatedUser = {
+        ...user,
+        email: tempForm.newEmail.trim().toLowerCase(),
+        is_temp_account: false,
+      };
+      useAuthStore.getState().setUser(updatedUser);
+
+      // Immediately unlock UI via callback
       if (onSkip) onSkip();
+
+      // Fetch fresh profile from backend to ensure permanent sync
+      try {
+        const me = await getMe();
+        if (me) {
+          useAuthStore.getState().setUser({ ...me, is_temp_account: false });
+        }
+      } catch {}
+
       queryClient.invalidateQueries(['me']);
     } catch (err) {
       let errMsg = err.response?.data?.detail || err.response?.data?.message || 'Failed to update credentials';
