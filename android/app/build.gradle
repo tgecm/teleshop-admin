@@ -26,7 +26,7 @@ android {
                 if (kFile.exists()) {
                     try {
                         def pass = props.getProperty('storePassword', System.getenv('KEYSTORE_PASSWORD') ?: 'teleshop123').toCharArray()
-                        def ks = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
+                        def ks = java.security.KeyStore.getInstance("JKS")
                         ks.load(new FileInputStream(kFile), pass)
                         storeFile kFile
                         storePassword props.getProperty('storePassword', System.getenv('KEYSTORE_PASSWORD') ?: 'teleshop123')

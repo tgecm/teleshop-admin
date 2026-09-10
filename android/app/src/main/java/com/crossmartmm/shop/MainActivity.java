@@ -40,17 +40,33 @@ public class MainActivity extends BridgeActivity {
 
         webView.setWebViewClient(new BridgeWebViewClient(getBridge()) {
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (request != null && request.getUrl() != null) {
+                    String urlStr = request.getUrl().toString();
+                    if (urlStr.contains("crosssmart.shop") || urlStr.contains("telegramecommerce.shop")) {
+                        return false; // Force navigation inside WebView
+                    }
+                }
+                return super.shouldOverrideUrlLoading(view, request);
+            }
+
+            @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
                 if (request != null && request.isForMainFrame()) {
-                    showOfflineCustomErrorPage(view);
+                    int errorCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? error.getErrorCode() : -1;
+                    if (errorCode == ERROR_HOST_LOOKUP || errorCode == ERROR_CONNECT || errorCode == ERROR_TIMEOUT || errorCode == ERROR_FAILED_SSL_HANDSHAKE || errorCode == ERROR_DISCONNECTED) {
+                        showOfflineCustomErrorPage(view);
+                    }
                 }
             }
 
             @Override
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                 super.onReceivedError(view, errorCode, description, failingUrl);
-                showOfflineCustomErrorPage(view);
+                if (errorCode == ERROR_HOST_LOOKUP || errorCode == ERROR_CONNECT || errorCode == ERROR_TIMEOUT || errorCode == ERROR_FAILED_SSL_HANDSHAKE || errorCode == ERROR_DISCONNECTED) {
+                    showOfflineCustomErrorPage(view);
+                }
             }
         });
 
@@ -142,6 +158,7 @@ public class MainActivity extends BridgeActivity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                String targetUrl = "https://crosssmart.shop/dashboard";
                 String customHtml = "<!DOCTYPE html><html>" +
                     "<head>" +
                     "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no\">" +
@@ -166,11 +183,11 @@ public class MainActivity extends BridgeActivity {
                     "    </div>" +
                     "    <h2>No Internet Connection</h2>" +
                     "    <p>Unable to connect to server. Please check your internet connection and try again.</p>" +
-                    "    <button class=\"btn\" onclick=\"location.reload()\">Try Again</button>" +
+                    "    <button class=\"btn\" onclick=\"window.location.href='" + targetUrl + "'\">Try Again</button>" +
                     "  </div>" +
                     "</body>" +
                     "</html>";
-                view.loadDataWithBaseURL(null, customHtml, "text/html", "UTF-8", null);
+                view.loadDataWithBaseURL(targetUrl, customHtml, "text/html", "UTF-8", targetUrl);
             }
         });
     }
