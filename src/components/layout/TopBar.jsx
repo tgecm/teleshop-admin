@@ -15,6 +15,8 @@ import { getStats } from '../../api/stats';
 import { getSalesDisplay } from '../../api/bots';
 import { formatPrice } from '../../utils/formatPrice';
 import { linkifyText } from '../../utils/linkify';
+import { TOPBAR_THEMES, DEFAULT_TOPBAR_THEME } from '../../utils/topbarThemes';
+import { getContentBlocks } from '../../api/contentBlocks';
 
 export default function TopBar({ onToggleSidebar }) {
   const { user, logout, isStaff } = useAuthStore();
@@ -32,6 +34,39 @@ export default function TopBar({ onToggleSidebar }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deletingMsg, setDeletingMsg] = useState(false);
   const navigate = useNavigate();
+
+  const [topbarColorKey, setTopbarColorKey] = useState(() => localStorage.getItem('topbar_color') || DEFAULT_TOPBAR_THEME);
+
+  const { data: contentBlocks } = useQuery({
+    queryKey: ['contentBlocks', selectedBotId],
+    queryFn: () => getContentBlocks({ bot_id: Number(selectedBotId) }),
+    enabled: !!selectedBotId,
+    staleTime: 60000,
+  });
+
+  useEffect(() => {
+    if (contentBlocks && Array.isArray(contentBlocks)) {
+      const topbarBlock = contentBlocks.find(b => b.key === 'topbar_color');
+      if (topbarBlock?.content_data?.color) {
+        setTopbarColorKey(topbarBlock.content_data.color);
+        localStorage.setItem('topbar_color', topbarBlock.content_data.color);
+      }
+    }
+  }, [contentBlocks]);
+
+  useEffect(() => {
+    const handleTopbarColor = () => {
+      setTopbarColorKey(localStorage.getItem('topbar_color') || DEFAULT_TOPBAR_THEME);
+    };
+    window.addEventListener('storage', handleTopbarColor);
+    window.addEventListener('topbar_color_change', handleTopbarColor);
+    return () => {
+      window.removeEventListener('storage', handleTopbarColor);
+      window.removeEventListener('topbar_color_change', handleTopbarColor);
+    };
+  }, []);
+
+  const themeConfig = TOPBAR_THEMES[topbarColorKey] || TOPBAR_THEMES[DEFAULT_TOPBAR_THEME];
 
   const { data: unreadAdminMsgs } = useQuery({
     queryKey: ['adminUnreadMessages'],
@@ -93,24 +128,24 @@ export default function TopBar({ onToggleSidebar }) {
 
   return (
     <header
-      className="topbar-panel sticky top-0 z-40 w-full relative"
-      style={{ background: 'var(--topbar-bg)', boxShadow: '0 2px 16px rgba(0,0,0,0.12)' }}
+      className={`topbar-panel sticky top-0 z-40 w-full relative transition-all duration-300 ${themeConfig.borderBottom || ''}`}
+      style={{ background: themeConfig.bg, boxShadow: '0 2px 16px rgba(0,0,0,0.12)' }}
     >
       {/* Mobile header */}
       <div className="md:hidden grid grid-cols-[1fr_auto_1fr] items-center h-10 px-2">
-        <button onClick={onToggleSidebar} className="justify-self-start text-white bg-white/15 hover:bg-white/25 rounded-xl p-1.5 -ml-1.5 transition-colors">
+        <button onClick={onToggleSidebar} className={`justify-self-start rounded-xl p-1.5 -ml-1.5 transition-colors ${themeConfig.iconColor}`}>
           <Menu className="w-5 h-5" />
         </button>
         <div className="flex flex-col items-center justify-center min-w-0 max-w-[220px] mx-auto text-center leading-tight">
-          <span className="text-white text-[11px] font-black tracking-wider uppercase truncate w-full drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
+          <span className={`text-[11px] font-black tracking-wider uppercase truncate w-full ${themeConfig.textColor}`}>{botName}</span>
           {salesInfo && (
-            <span className="text-emerald-300 text-[9px] font-bold truncate w-full tracking-wide">
+            <span className={`text-[9px] font-bold truncate w-full tracking-wide ${themeConfig.salesIconColor || 'text-emerald-400'}`}>
               {salesInfo.label}: {salesInfo.value}
             </span>
           )}
         </div>
         <div className="flex items-center justify-end gap-1">
-          <button onClick={() => setShowAiChat(true)} className="p-1.5 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-all active:scale-90" title="AI Assistant"><Sparkles className="w-[18px] h-[18px]" /></button>
+          <button onClick={() => setShowAiChat(true)} className={`p-1.5 rounded-full transition-all active:scale-90 ${themeConfig.iconColor}`} title="AI Assistant"><Sparkles className="w-[18px] h-[18px]" /></button>
           <RefreshButton />
           <button
             onClick={() => setMenuOpen(prev => !prev)}
@@ -128,7 +163,7 @@ export default function TopBar({ onToggleSidebar }) {
       {/* Desktop header */}
       <div className="hidden md:flex items-center justify-between h-16 px-6 lg:px-8 gap-4">
         <div className="flex items-center gap-3 flex-shrink-0">
-          <span className="text-white text-xl lg:text-2xl font-black tracking-widest uppercase truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{botName}</span>
+          <span className={`text-xl lg:text-2xl font-black tracking-widest uppercase truncate ${themeConfig.textColor}`}>{botName}</span>
           {user?.is_superadmin && (
             <div className="max-w-[180px] xl:max-w-[260px]">
               <BotSwitcher />
@@ -139,17 +174,17 @@ export default function TopBar({ onToggleSidebar }) {
         <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
           {/* Sales Metric Pill */}
           {salesInfo && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/15 rounded-xl text-xs font-bold text-white shadow-sm backdrop-blur-md" title={`${salesInfo.label} Sales`}>
-              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm backdrop-blur-md ${themeConfig.pillBg}`} title={`${salesInfo.label} Sales`}>
+              <DollarSign className={`w-3.5 h-3.5 ${themeConfig.salesIconColor || 'text-emerald-400'}`} />
               <span>{salesInfo.label}: {salesInfo.value}</span>
             </div>
           )}
 
-          <button onClick={() => setShowAiChat(true)} className="p-2 text-white/80 hover:text-white hover:bg-white/15 rounded-full transition-all active:scale-90" title="AI Assistant"><Sparkles className="w-[18px] h-[18px]" /></button>
+          <button onClick={() => setShowAiChat(true)} className={`p-2 rounded-full transition-all active:scale-90 ${themeConfig.iconColor}`} title="AI Assistant"><Sparkles className="w-[18px] h-[18px]" /></button>
           <RefreshButton />
           <div className="hidden md:flex flex-col items-end">
-            <span className="text-white text-sm font-medium leading-none">{user?.email?.split('@')[0]}</span>
-            <span className="text-indigo-200 text-[10px] mt-1 uppercase font-bold tracking-wider">{user?.is_superadmin ? 'Superadmin' : 'Owner'}</span>
+            <span className={`text-sm font-medium leading-none ${themeConfig.textColor}`}>{user?.email?.split('@')[0]}</span>
+            <span className={`text-[10px] mt-1 uppercase font-bold tracking-wider ${themeConfig.subTextColor}`}>{user?.is_superadmin ? 'Superadmin' : 'Owner'}</span>
           </div>
 
           <button

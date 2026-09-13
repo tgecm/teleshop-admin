@@ -45,8 +45,11 @@ import {
   Sparkles,
   Phone,
   Mail,
+  LayoutGrid,
+  Clock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { TOPBAR_THEMES, DEFAULT_TOPBAR_THEME } from '../utils/topbarThemes';
 import { THEMES, DEFAULT_THEME } from '../themes/themes';
 import { requireFeature, isFeatureAllowed } from '../utils/plans';
 import { useThemeStore } from '../store/themeStore';
@@ -631,7 +634,47 @@ export default function Customization() {
   const [selectedTheme, setSelectedTheme] = useState(DEFAULT_THEME);
   const [showThemeConfirm, setShowThemeConfirm] = useState(false);
   const [pendingTheme, setPendingTheme] = useState(null);
+  const [selectedTopbarColor, setSelectedTopbarColor] = useState(() => localStorage.getItem('topbar_color') || DEFAULT_TOPBAR_THEME);
+  const lastTopbarColorChangeRef = useRef(0);
+  const [topbarCooldownLeft, setTopbarCooldownLeft] = useState(0);
+
+  useEffect(() => {
+    if (topbarCooldownLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTopbarCooldownLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [topbarCooldownLeft]);
+
+  const handleSelectTopbarColor = (colorKey) => {
+    if (colorKey === selectedTopbarColor) return;
+
+    const now = Date.now();
+    const elapsedSeconds = (now - lastTopbarColorChangeRef.current) / 1000;
+    if (elapsedSeconds < 5) {
+      const remaining = Math.ceil(5 - elapsedSeconds);
+      setTopbarCooldownLeft(remaining);
+      addToast(`Please wait ${remaining} second${remaining > 1 ? 's' : ''} before changing theme again`, 'warning');
+      return;
+    }
+
+    lastTopbarColorChangeRef.current = now;
+    setTopbarCooldownLeft(5);
+    setSelectedTopbarColor(colorKey);
+    localStorage.setItem('topbar_color', colorKey);
+    window.dispatchEvent(new Event('topbar_color_change'));
+    addToast('Top bar theme updated', 'success');
+    updateContentMutation.mutate({ key: 'topbar_color', data: { color: colorKey } });
+  };
   const [orderButtonLabel, setOrderButtonLabel] = useState('Buy Now');
+  const [orderButtonUrl, setOrderButtonUrl] = useState('');
+  const [orderButtonType, setOrderButtonType] = useState('text');
   const [showBioPopup, setShowBioPopup] = useState(false);
   const [showOrderBtnPopup, setShowOrderBtnPopup] = useState(false);
 
@@ -702,10 +745,25 @@ export default function Customization() {
       } else {
         setSelectedTheme(DEFAULT_THEME);
       }
+      const topbarBlock = contentBlocks.find(b => b.key === 'topbar_color');
+      if (topbarBlock?.content_data?.color) {
+        setSelectedTopbarColor(topbarBlock.content_data.color);
+        localStorage.setItem('topbar_color', topbarBlock.content_data.color);
+        window.dispatchEvent(new Event('topbar_color_change'));
+      }
       const bioBlock = contentBlocks.find(b => b.key === 'shop_bio');
       setBioText(bioBlock?.content_data?.text || '');
       const orderBtnBlock = contentBlocks.find(b => b.key === 'order_button_name');
-      setOrderButtonLabel(orderBtnBlock?.content_data?.label || 'Buy Now');
+      const obData = orderBtnBlock?.content_data;
+      if (obData) {
+        setOrderButtonLabel(obData.label || 'Buy Now');
+        setOrderButtonUrl(obData.url || '');
+        setOrderButtonType(obData.type || (obData.label === 'Link' ? 'link' : 'text'));
+      } else {
+        setOrderButtonLabel('Buy Now');
+        setOrderButtonUrl('');
+        setOrderButtonType('text');
+      }
     }
     if (aiSettings) {
       setAiApiKey(aiSettings.api_key || '');
@@ -850,6 +908,47 @@ export default function Customization() {
             variant="primary"
             loading={updateContentMutation.isPending}
           />
+        </section>
+
+        {/* Admin Top Bar Theme */}
+        <section className="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <LayoutGrid className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Admin Top Bar Theme</h3>
+                <p className="text-[10px] text-gray-500">Choose the color scheme for your admin top navigation bar</p>
+              </div>
+            </div>
+            {topbarCooldownLeft > 0 && (
+              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/80 flex items-center gap-1 shadow-2xs">
+                <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
+                Wait {topbarCooldownLeft}s
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5">
+            {Object.entries(TOPBAR_THEMES).map(([key, theme]) => {
+              const isActive = selectedTopbarColor === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleSelectTopbarColor(key)}
+                  className="flex flex-col items-center gap-1.5 group cursor-pointer"
+                >
+                  <div
+                    className={`w-full rounded-xl transition-all shadow-xs ${isActive ? 'ring-2 ring-offset-2 ring-indigo-600 scale-105 border border-indigo-400' : 'group-hover:scale-105 border border-gray-200'}`}
+                    style={{ background: theme.preview, paddingBottom: '55%' }}
+                  />
+                  <span className={`text-[10px] font-medium text-center leading-tight ${isActive ? 'text-indigo-600 font-bold' : 'text-gray-600'}`}>
+                    {theme.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         {/* Logo & Bio */}
@@ -1160,6 +1259,11 @@ export default function Customization() {
             <ShoppingBag className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
             <span className="text-sm text-gray-700 truncate flex-1">
               Current: <span className="font-bold">{orderButtonLabel}</span>
+              {orderButtonLabel === 'Link' && orderButtonUrl && (
+                <span className="text-xs font-normal text-indigo-600 ml-1.5 truncate">
+                  ({orderButtonUrl})
+                </span>
+              )}
             </span>
             <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
           </button>
@@ -1411,7 +1515,7 @@ export default function Customization() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {ORDER_BUTTON_OPTIONS.map(option => {
                   const isActive = orderButtonLabel === option;
                   return (
@@ -1419,8 +1523,10 @@ export default function Customization() {
                       key={option}
                       onClick={() => {
                         setOrderButtonLabel(option);
-                        updateContentMutation.mutate({ key: 'order_button_name', data: { label: option } });
-                        setShowOrderBtnPopup(false);
+                        if (option !== 'Link') {
+                          updateContentMutation.mutate({ key: 'order_button_name', data: { label: option, type: 'text', url: '' } });
+                          setShowOrderBtnPopup(false);
+                        }
                       }}
                       disabled={updateContentMutation.isPending}
                       className={`px-3 py-2 rounded-xl font-bold text-xs whitespace-nowrap transition-all active:scale-[0.97] ${
@@ -1434,6 +1540,43 @@ export default function Customization() {
                   );
                 })}
               </div>
+
+              {orderButtonLabel === 'Link' && (
+                <div className="mt-3.5 p-3.5 bg-gray-50 rounded-2xl border border-gray-100 space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                    <Link className="w-4 h-4 text-indigo-600" />
+                    <span>Redirect Link (URL)</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-normal">
+                    Enter the URL to redirect customers when they click the order button (e.g. website, Telegram channel, Shopee).
+                  </p>
+                  <input
+                    type="url"
+                    value={orderButtonUrl}
+                    onChange={(e) => setOrderButtonUrl(e.target.value)}
+                    placeholder="https://example.com or https://t.me/username"
+                    className="w-full px-3 py-2 text-xs bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                  />
+                  <button
+                    onClick={() => {
+                      const finalUrl = orderButtonUrl.trim();
+                      if (!finalUrl) {
+                        addToast('Please enter a valid URL', 'error');
+                        return;
+                      }
+                      updateContentMutation.mutate({
+                        key: 'order_button_name',
+                        data: { label: 'Link', type: 'link', url: finalUrl }
+                      });
+                      setShowOrderBtnPopup(false);
+                    }}
+                    disabled={updateContentMutation.isPending}
+                    className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all shadow-sm disabled:opacity-40"
+                  >
+                    Save Redirect Link
+                  </button>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -1665,7 +1808,7 @@ export default function Customization() {
 }
 
 const ORDER_BUTTON_OPTIONS = [
-  'Order Now', 'Shop Now', 'Buy Now', 'Enroll Now', 'Book Now', 'Get Now', 'Grab Now',
+  'Order Now', 'Shop Now', 'Buy Now', 'Enroll Now', 'Book Now', 'Get Now', 'Grab Now', 'Link',
 ];
 
 const CAPTION_OPTIONS = [

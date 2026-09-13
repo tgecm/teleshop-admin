@@ -15,7 +15,7 @@ import {
   Search, User, ShoppingBag, Ban, MessageSquare, Clock,
   ShieldAlert, ShieldCheck, Loader2, Phone, Mail, MapPin, X,
   Package, Hash, DollarSign, ChevronDown, Globe, Smartphone,
-  AtSign, MessageCircle, FileText, Copy, Award, Star, Crown, Sparkles, Trophy
+  AtSign, MessageCircle, FileText, Copy, Award, Star, Crown, Sparkles, Trophy, Send
 } from 'lucide-react';
 import { myanmarFormat } from '../utils/date';
 import { motion, AnimatePresence } from 'motion/react';
@@ -873,7 +873,20 @@ export default function Customers() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {(detailCustomer.telegram_id || detailCustomer.user_id || section === 'telegram') && (
+                  {section === 'website' ? (
+                    <button
+                      onClick={() => {
+                        const targetName = (customerProfile?.display_name && customerProfile.display_name.trim()) || detailCustomer.name || detailCustomer.display_name || detailCustomer.first_name || 'Website Customer';
+                        const targetUid = detailCustomer.dashboard_chat_id || detailCustomer.firebase_uid || detailCustomer.visitor_id || (detailCustomer.telegram_id ? String(detailCustomer.telegram_id) : `wc_${detailCustomer.id}`);
+                        navigate('/chats', { state: { visitorId: targetUid, name: targetName, tab: 'web' } });
+                        setDetailCustomer(null);
+                      }}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      Send Message
+                    </button>
+                  ) : (detailCustomer.telegram_id || detailCustomer.user_id || section === 'telegram') ? (
                     <button
                       onClick={() => {
                         const tgId = detailCustomer.telegram_id || detailCustomer.user_id;
@@ -886,7 +899,7 @@ export default function Customers() {
                       <MessageCircle className="w-3.5 h-3.5" />
                       Send Message
                     </button>
-                  )}
+                  ) : null}
                   <button onClick={handleCopyProfile}
                     className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[11px] font-bold flex items-center gap-1.5 hover:bg-indigo-100 transition-all active:scale-95">
                     <Copy className="w-3.5 h-3.5" />
@@ -939,7 +952,38 @@ export default function Customers() {
                   <DetailRow icon={FileText} label="Notes" value={
                     customerProfile?.notes || detailCustomer.notes || null
                   } />
-                  {(detailCustomer.telegram_id || detailCustomer.user_id || section === 'telegram') ? (
+                  {section === 'website' ? (
+                    <div className="space-y-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetName = customerProfile?.display_name || detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name || 'Website Customer';
+                          const targetUid = detailCustomer.dashboard_chat_id || detailCustomer.firebase_uid || detailCustomer.visitor_id || (detailCustomer.telegram_id ? String(detailCustomer.telegram_id) : `wc_${detailCustomer.id}`);
+                          navigate('/chats', { state: { visitorId: targetUid, name: targetName, tab: 'web' } });
+                          setDetailCustomer(null);
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-xs active:scale-95"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Contact Customer on Website Chat
+                      </button>
+                      {detailCustomer.telegram_id && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const tgId = detailCustomer.telegram_id;
+                            const custName = customerProfile?.display_name || detailCustomer.display_name || detailCustomer.first_name || 'Customer';
+                            navigate('/chats', { state: { userId: Number(tgId), name: custName, tab: 'telegram' } });
+                            setDetailCustomer(null);
+                          }}
+                          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold text-xs transition-colors cursor-pointer active:scale-95"
+                        >
+                          <Send className="w-3.5 h-3.5 text-blue-500" />
+                          Send Direct Telegram App Message
+                        </button>
+                      )}
+                    </div>
+                  ) : (detailCustomer.telegram_id || detailCustomer.user_id || section === 'telegram') ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -953,21 +997,7 @@ export default function Customers() {
                       <MessageCircle className="w-4 h-4" />
                       Contact Customer on Telegram Chat
                     </button>
-                  ) : (detailCustomer.firebase_uid || section === 'website') && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const targetName = detailCustomer.display_name || detailCustomer.name || detailCustomer.first_name || 'Website Customer';
-                        const targetUid = detailCustomer.dashboard_chat_id || detailCustomer.firebase_uid || detailCustomer.visitor_id || `dc_${detailCustomer.id}`;
-                        navigate('/chats', { state: { visitorId: targetUid, name: targetName, tab: 'web' } });
-                        setDetailCustomer(null);
-                      }}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-xs mt-2 active:scale-95"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      Contact Customer on Website Chat
-                    </button>
-                  )}
+                  ) : null}
                 </div>
 
                 <div>
